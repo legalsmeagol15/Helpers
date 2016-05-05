@@ -18,5 +18,7 @@ namespace Arithmetic
             double yDiff = a.Y - b.Y;
             return Math.Sqrt((xDiff * xDiff) + (yDiff * yDiff));
         }
+
+
     }
 }

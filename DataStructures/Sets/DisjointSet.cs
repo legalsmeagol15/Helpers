@@ -14,7 +14,10 @@ namespace DataStructures
 
         private Dictionary<T, Node> _Nodes;
 
-
+        public DisjointSet()
+        {
+            _Nodes = new Dictionary<T, Node>();
+        }
 
         #region DisjointSet contents manipulation members
 
