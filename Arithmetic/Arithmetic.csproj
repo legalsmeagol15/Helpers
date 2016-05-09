@@ -45,8 +45,10 @@
     <Compile Include="Geometry.cs" />
     <Compile Include="Int32.cs" />
     <Compile Include="Int64.cs" />
+    <Compile Include="Polynomial.cs" />
     <Compile Include="Primes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Sorting\MergeSort.cs" />
     <Compile Include="Text\Constant.cs" />
     <Compile Include="Text\Expression.cs" />
     <Compile Include="Text\IEvaluateable.cs" />

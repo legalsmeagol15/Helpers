@@ -47,7 +47,9 @@
     <Compile Include="PointL.cs" />
     <Compile Include="Sets\CompositeKeyDictionary.cs" />
     <Compile Include="Sets\DisjointSet.cs" />
+    <Compile Include="Sets\IndexingBinarySearchTree.cs" />
     <Compile Include="Sets\ModularList.cs" />
+    <Compile Include="Sets\HashCollection.cs" />
     <Compile Include="Trees\DynamicHeap.cs" />
     <Compile Include="Trees\DynamicMinMaxHeap.cs" />
     <Compile Include="Sets\HashList.cs" />
@@ -55,6 +57,7 @@
     <Compile Include="Threading\PipelineWorker.cs" />
     <Compile Include="Threading\RedoWorker.cs" />
     <Compile Include="Trees\QuadTree.cs" />
+    <Compile Include="Trees\QuadTreeZ.cs" />
     <Compile Include="VectorL.cs" />
   </ItemGroup>
   <ItemGroup>

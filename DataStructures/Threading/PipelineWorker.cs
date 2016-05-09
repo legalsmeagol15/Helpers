@@ -186,7 +186,7 @@ namespace DataStructures.Threading
         #endregion
 
 
-        #region PipelineWorker threading members"
+        #region PipelineWorker threading members
 
         /// <summary>
         /// Clears all work items out of the pipe.

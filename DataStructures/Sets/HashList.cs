@@ -16,9 +16,41 @@ namespace DataStructures
         //TODO:  Validate all members of HashList
     {
 
-        private Dictionary<T, int> _Indices = new Dictionary<T, int>();
+        protected Dictionary<T, int> _Indices;
         
-        private List<T> _List = new List<T>();
+        protected List<T> _List;
+
+        /// <summary>
+        /// Creates a new HashList.
+        /// </summary>
+        public HashList()
+        {
+            _Indices = new Dictionary<T, int>();
+            _List = new List<T>();
+        }
+
+        /// <summary>
+        /// Creates a new HashList with the given initial capacity.
+        /// </summary>
+        /// <param name="capacity"></param>
+        public HashList(int capacity)
+        {
+            _Indices = new Dictionary<T, int>(capacity);
+            _List = new List<T>(capacity);
+        }
+
+        /// <summary>
+        /// Creates a new HashList from the given items.
+        /// </summary>
+        /// <param name="items"></param>
+        public HashList(IEnumerable<T> items) : this()
+        {
+            foreach (T item in items)
+            {
+                Add(item);
+            }
+        }
+        
 
         public T this[int index]
         {
@@ -39,7 +71,11 @@ namespace DataStructures
 
         #region HashList contents changing members
 
-
+        /// <summary>
+        /// Ensures the given item exists on this hash list.  If it already existed, returns false; otherwise, returns true.
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
         public bool Add(T item)
         {
             if (_Indices.ContainsKey(item)) return false;
@@ -52,13 +88,19 @@ namespace DataStructures
             this.Add(item);
         }
 
+        /// <summary>
+        /// Removes all items from this hash list.
+        /// </summary>
         public void Clear()
         {
             _Indices.Clear();
             _List.Clear();
         }
 
-
+        /// <summary>
+        /// Ensures the given item exists at the index specified.  If the item was already present on this hash list, swaps the given item with the item previously 
+        /// at that location.  Otherwise, inserts the item into that location.
+        /// </summary>
         void IList<T>.Insert(int index, T item)
         {
             //If the item is already here, move it.
@@ -92,7 +134,10 @@ namespace DataStructures
             _List[index] = item;            
         }
 
-
+        /// <summary>
+        /// Ensures the given item does not exist on this hash last.  If the item existed before this method was called, and was removed, returns true.  Otherwise, 
+        /// returns false.
+        /// </summary>
         public bool Remove(T item)
         {
             int idx;
@@ -104,6 +149,9 @@ namespace DataStructures
             return true;
         }
 
+        /// <summary>
+        /// Removes the item at the given index.
+        /// </summary>        
         void IList<T>.RemoveAt(int index)
         {
             T item = _List[index];
@@ -157,6 +205,7 @@ namespace DataStructures
 
 
         #endregion
+
 
 
         #region HashList contents query members
@@ -257,6 +306,6 @@ namespace DataStructures
 
         #endregion
 
-
+        
     }
 }

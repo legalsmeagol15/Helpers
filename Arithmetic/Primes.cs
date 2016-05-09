@@ -21,6 +21,7 @@ namespace Arithmetic
             //Try to find the next prime from among the known primes.
             if (after < _IntPrimes.Last())
             {
+                //TODO:  improve performance by using binary search.
                 for (int i = _IntPrimes.Count - 2; i >= 0; i--)
                     if (_IntPrimes[i] <= after) return _IntPrimes[i + 1];                
             }

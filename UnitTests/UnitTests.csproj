@@ -58,6 +58,7 @@
     <Compile Include="Test_Primes.cs" />
     <Compile Include="Test_QuadTree.cs" />
     <Compile Include="Test_Int32.cs" />
+    <Compile Include="Test_HashCollection.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Helpers\Arithmetic\Arithmetic.csproj">
