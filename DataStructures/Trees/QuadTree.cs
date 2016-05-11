@@ -8,6 +8,10 @@ using System.Windows;
 
 namespace DataStructures
 {
+    /// <summary>
+    /// A data structure that supports fast retrieval of two-dimensional items and their intersections by storing items in a quad tree.
+    /// </summary>
+    /// <remarks>Author Wesley Oates, 5/11/2016.  Validated 5/11/2016.</remarks>
     public class QuadTree<T> : ICollection<T>
     {
         /// <summary>
@@ -16,9 +20,9 @@ namespace DataStructures
         private const int NODE_CONTENTS_CAPACITY = 20;
 
         /// <summary>
-        /// The smallest allowable size of a node.  This is VERY small.
+        /// The smallest allowable size of a node, and the smallest size at which an added item will cause a child to be created.  This is VERY small.
         /// </summary>
-        private const double MIN_NODE_SIZE = double.Epsilon * 4096;
+        private const double MIN_SIZE = double.Epsilon * 4096;
 
         private Dictionary<T, Node> _Nodes = new Dictionary<T, Node>();
         private Dictionary<T, Rect> _Bounds = new Dictionary<T, Rect>();
@@ -43,81 +47,79 @@ namespace DataStructures
         /// <param name="item">The item to add to this tree.</param>
         /// <param name="copies">Optional.  The number of copies of the given item to add to the tree.  If omitted, a single copy will be added.</param>
         public int Add(T item, Rect itemBounds, int copies = 1)
-        {            
+        {
+            //Check to see if other identical items exist already.
+            Rect compareBounds;
+            if (_Bounds.TryGetValue(item, out compareBounds))
+            {
+                if (itemBounds != compareBounds)    //This should never happen - included as an implementation aid
+                    throw new InvalidOperationException("Quadtree coherence error:  the added item's bounds do not match the bounds of other identical items on this quad tree.");
+                Count += copies;
+                return _Nodes[item].Contents.Add(item, copies);
+            }
+
+            _Bounds[item] = itemBounds;
+
             //If this is the first item, the solution is easy.
             if (_Root == null)
             {                
                 _Root = new Node(itemBounds);
-                _Root.Contents.Add(item);
-                _Nodes[item] = _Root;
-                _Bounds[item] = itemBounds;
+                _Nodes[item] = AddUnsafe(_Root, item, itemBounds, copies);                                              
                 Count = copies;
                 return copies;
             }
 
-            //Check to see if other identical items exist.
-            Rect compareBounds;
-            if (_Bounds.TryGetValue(item, out compareBounds))
-            {
-                if (itemBounds != compareBounds)
-                    throw new InvalidOperationException("Quadtree coherence error:  the added item's bounds do not match the bounds of other identical items on this quad tree.");
-                return _Nodes[item].Contents.Add(item, copies);
-            }
+            
 
             //Check to see if the item will fit in the _Root anyway.  If not, a new Root must be created and everything in the old copied over.
             if (!_Root.Boundary.Contains(itemBounds))
                 AdjustExtent(Rect.Union(itemBounds, _Root.Boundary));
 
-            //Since this is a new, unique item, in a non-empty tree that can contain it, get an appropriate node for it.
-            Node addedNode = AddUnsafe(_Root, item, itemBounds, 1);
-            _Nodes[item] = addedNode;
-            _Bounds[item] = itemBounds;
+            //Since this is a new, unique item, in a non-empty tree that can contain it, get an appropriate node for it.            
+            _Nodes[item] = AddUnsafe(_Root, item, itemBounds, 1);            
             Count += copies;
-            return addedNode.Contents.CountOf(item);
+            return copies;
         }
         void ICollection<T>.Add(T item)
         {
             Add(item, _BoundaryGetter(item), 1);
         }
         /// <summary>
-        /// Adds the given number of copies of the given item to the indicated node, or to one  of the node's descendant nodes.
+        /// Adds the given number of copies of the given item to the indicated node, or to one  of the node's descendant nodes.  This method makes no changes to 
+        /// the QuadTree's Count, or its _Bounds or _Nodes dictionaries.  However, it does return the resulting containing Node.
         /// </summary>
-        private Node AddUnsafe(Node focus, T item, Rect itemBounds, int copies)
+        private static Node AddUnsafe(Node focus, T item, Rect itemBounds, int copies)
         {            
             while (true)
             {
-                //If it already exists here, just add another copy.
-                if (focus.Contents.Contains(item))
+                
+
+                //Result #1 - Add here if the node isn't full yet.
+                if (focus.Contents.Count < NODE_CONTENTS_CAPACITY )
                 {
-                    focus.Contents.Add(item, copies);
-                    Count += copies;
+                    focus.Contents.Add(item, copies);                                        
                     return focus;
                 }
 
-                //If it doesn't already exist here, but adding would not overrun capacity, or if a child node would be too small, add here.
-                if (focus.Contents.Count < NODE_CONTENTS_CAPACITY || focus.Boundary.Width < MIN_NODE_SIZE || focus.Boundary.Height < MIN_NODE_SIZE)
+                //Result #2 - If building a child node would be too small, add here.
+                if (focus.Boundary.Width < MIN_SIZE || focus.Boundary.Height < MIN_SIZE)
                 {
+                    //This part not validated - it would be really difficult to validate without a lot of background set up.
                     focus.Contents.Add(item, copies);
-                    _Bounds[item] = itemBounds;
-                    Count += copies;
                     return focus;
                 }
 
-
-                //Time to add to children?
+                //Result #3 - If it won't fit in a single child anyway, cram it in here even though the max carry has been reached.
                 int childIdx = GetQuadrantIndex(focus, itemBounds);
+                if (childIdx == -1)
+                {
+                    focus.Contents.Add(item, copies);
+                    return focus;
+                }
+
+                //Since it shouldn't be added here, check to see if the node has children.
                 if (focus.Children == null)
                 {
-                    //If it won't fit in a child, cram it in focus's contents even though the max carry has been reached.
-                    if (childIdx == -1)
-                    {
-                        focus.Contents.Add(item, copies);
-                        _Bounds.Add(item, itemBounds);
-                        _Nodes.Add(item, focus);
-                        Count += copies;
-                        return focus;
-                    }
-
                     //Create the children.
                     focus.Children = new Node[4];
                     Point center = new Point(focus.Boundary.X + (focus.Boundary.Width / 2), focus.Boundary.Y + (focus.Boundary.Height / 2));
@@ -127,24 +129,27 @@ namespace DataStructures
                     focus.Children[3] = new Node(new Rect(center, focus.Boundary.BottomRight));
                 }
 
-                //Since it fits in a child, update the focus to the child and continue.
+                //Since the item fits in a child, update the focus to the child and continue.
                 focus = focus.Children[childIdx];
             }
         }
 
-
+        /// <summary>
+        /// Builds a new Node tree with the new extent, containing all the items of the old Node tree.  This will reset the _Root and the _Nodes 
+        /// dictionary, but it will not change the _Bounds dictionary.  In fact the _Bounds dictionary should be up to date before calling the method.
+        /// </summary> 
         private void AdjustExtent(Rect newExtent)
         {            
             Node newRoot = new Node(newExtent);
-            Dictionary<T, Node> newNodes = new Dictionary<T, Node>();
+            Dictionary<T, Node> newNodes = new Dictionary<T, Node>();            
             foreach (KeyValuePair<T, Node> kvp in _Nodes)
             {
                 int existingCount = kvp.Value.Contents.CountOf(kvp.Key);
                 Rect existingBounds = _Bounds[kvp.Key];                
                 newNodes[kvp.Key] = AddUnsafe(newRoot, kvp.Key, existingBounds, existingCount);
             }
-            _Root = newRoot;
             _Nodes = newNodes;
+            _Root = newRoot;
         }
 
 
@@ -205,18 +210,16 @@ namespace DataStructures
         #endregion
 
 
+
         #region QuadTree contents queries
 
         /// <summary>
         /// Returns the bounds that indexed the given item.
         /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
+        /// <remarks>Throws a KeyNotFoundException if the item is not present on this QuadTree.</remarks>       
         public Rect BoundsOf(T item)
-        {
-            Rect b;
-            if (!_Bounds.TryGetValue(item, out b)) return Rect.Empty;
-            return b;
+        {            
+            return _Bounds[item];            
         }
 
         
@@ -238,10 +241,18 @@ namespace DataStructures
         public bool Contains(T item) { return _Nodes.ContainsKey(item); }
 
 
-
+        /// <summary>
+        /// Copies the unique items in this QuadTree to the given array.
+        /// </summary>
+        /// <param name="array"></param>
+        /// <param name="arrayIndex"></param>
         void ICollection<T>.CopyTo(T[] array, int arrayIndex)
         {
-            throw new NotImplementedException();
+            foreach (T item in _Nodes.Keys)
+            {
+                if (arrayIndex >= array.Length) return;
+                array[arrayIndex++] = item;
+            }            
         }
 
         /// <summary>
@@ -301,6 +312,7 @@ namespace DataStructures
         #endregion
 
 
+
         #region QuadTree miscellaneous
 
         /// <summary>
@@ -326,16 +338,16 @@ namespace DataStructures
         /// <summary>
         /// Returns bitwise quadrant flags indicating where the given rect will appear relative to the given node.  
         /// </summary> 
-        private static QuadrantFlags GetQuadrant(Node node, Rect boundary)
+        private static QuadrantFlags GetQuadrant(Node node, Rect testedBounds)
         {
             QuadrantFlags result = 0;
-            Point center = new Point((boundary.Left + boundary.Right) / 2, (boundary.Top + boundary.Bottom) / 2);            
+            Point center = new Point((node.Boundary.Left + node.Boundary.Right) / 2, (node.Boundary.Top + node.Boundary.Bottom) / 2);
 
-            if (node.Boundary.TopRight.X >= center.X && node.Boundary.TopRight.Y >= center.Y) result |= QuadrantFlags.TopRight;
-            if (node.Boundary.TopLeft.X <= center.X && node.Boundary.TopLeft.Y >= center.Y) result |= QuadrantFlags.TopLeft;
-            if (node.Boundary.BottomLeft.X <= center.X && node.Boundary.BottomLeft.Y <= center.Y) result |= QuadrantFlags.BottomLeft;
-            if (node.Boundary.BottomRight.X <= center.X && node.Boundary.BottomRight.Y <= center.Y) result |= QuadrantFlags.BottomRight;
-
+            if (testedBounds.Left >= center.X && testedBounds.Bottom <= center.Y) result |=QuadrantFlags.TopRight;
+            if (testedBounds.Right <= center.X && testedBounds.Bottom <= center.Y) result |= QuadrantFlags.TopLeft;
+            if (testedBounds.Right <= center.X && testedBounds.Top >= center.Y) result |= QuadrantFlags.BottomLeft;
+            if (testedBounds.Left >= center.X && testedBounds.Top >= center.Y) result |= QuadrantFlags.BottomRight;
+            
             return result;
         }
 
