@@ -48,6 +48,7 @@
     <Compile Include="Sets\CompositeKeyDictionary.cs" />
     <Compile Include="Sets\DisjointSet.cs" />
     <Compile Include="Sets\IndexingBinarySearchTree.cs" />
+    <Compile Include="Sets\Manipulations.cs" />
     <Compile Include="Sets\ModularList.cs" />
     <Compile Include="Sets\HashCollection.cs" />
     <Compile Include="Trees\DynamicHeap.cs" />
