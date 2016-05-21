@@ -65,9 +65,9 @@
     <Folder Include="Interfaces\" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Arithmetic\Arithmetic.csproj">
+    <ProjectReference Include="..\Mathematics\Mathematics.csproj">
       <Project>{dc7c8e96-6f24-48df-a32f-2dc12b1d315b}</Project>
-      <Name>Arithmetic</Name>
+      <Name>Mathematics</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

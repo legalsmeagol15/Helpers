@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Arithmetic;
+using Calculus;
 using System.Numerics;
 
 namespace UnitTests
