@@ -13,6 +13,7 @@ namespace Calculus
     /// An immutable data structure describing 
     /// </summary>
     public class Bezier : IFunction<Point>
+        //TODO:  Validate m-order bazier
     {
         private Point[] _Points;
 
