@@ -8,8 +8,10 @@ namespace Arithmetic
 {
     internal static class CommonValues
     {
+        
         public const double SqRt3 = 1.7320508075688772935;
-        public const double OneThird = 0.33333333333333333333;
+        public const double OneThird = 1d/3d;
+        public const double TwoThirds = 2d / 3d;
         public const double PiTimes2 = Math.PI * 2d;
     }
 }

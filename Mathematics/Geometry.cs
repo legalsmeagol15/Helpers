@@ -19,14 +19,7 @@ namespace Arithmetic
             return Math.Sqrt((xDiff * xDiff) + (yDiff * yDiff));
         }
 
-        /// <summary>
-        /// Returns the closest point among the given points.
-        /// </summary> 
-        public static Point GetClosestPoint(Point toPoint, IEnumerable<Point> amongPoints)
-        {
-            double d;
-            return GetClosestPoint(toPoint, amongPoints, out d);
-        }
+       
         /// <summary>
         /// Returns the closest point among the given points, specifying the distance in the given 'out' double.
         /// </summary> 
@@ -72,28 +65,151 @@ namespace Arithmetic
         /// Returns the closest point on a line defined by the given line points, specifying the distance in the given 'out' double.
         /// </summary>
         /// <param name="toPoint">The point nearest which a point in the given line is sought.</param>
-        /// <param name="lineA">The first point defining the line whose nearest point is sought.</param>
-        /// <param name="lineB">The second point defining the line whose nearest point is sought.</param>
+        /// <param name="line0">The first point defining the line whose nearest point is sought.</param>
+        /// <param name="line1">The second point defining the line whose nearest point is sought.</param>
         /// <param name="distance">The distance between the given point and the nearest point in the line will be given in this 'out' variable.</param>        
-        public static Point GetClosestPoint(Point toPoint, Point lineA, Point lineB, out double distance)
+        /// <param name="t">The traversal distance from the first point to the second point.</param>
+        /// <remarks>From code posted by 0BZen at http://www.gamedev.net/topic/444154-closest-point-on-a-line/. </remarks>
+        public static Point GetClosestPoint(Point toPoint, Point line0, Point line1, out double t, out double distance)
         {
-            //If the lines are horizontal or vertical, the solution is easy.
-            if (lineA.X == lineB.X)
-            {
-                distance = Math.Abs(lineA.X - toPoint.X);
-                return new Point(lineA.X, toPoint.Y);
-            }
-            if (lineA.Y == lineB.Y)
-            {
-                distance = Math.Abs(lineA.Y - toPoint.Y);
-                return new Point(toPoint.X, lineA.Y);
-            }
-
-            //Otherwise, the solution algebraically is:
-            throw new NotImplementedException();
-
+            Vector line0toPoint = toPoint - line0;
+            Vector segment = line1 - line0;
+            double segSquared = segment.X * segment.X + segment.Y * segment.Y;
+            double dotProd = Vector.Multiply(line0toPoint, segment);
+            //double dotProd = line0toPoint.X * segment.X + line0toPoint.Y * segment.Y;
+            t = dotProd / segSquared;            
+            Point result = line0 + (segment * t);
+            distance = GetDistance(toPoint, result);
+            return result;
         }
 
+        /// <summary>
+        /// The default precision in the traversal degree.
+        /// </summary>
+        private const double DEFAULT_PRECISION = 0.000001;
+
+        /// <summary>
+        /// Uses recursion to approximate the closest point on the given Bezier curve to the given point.
+        /// </summary>
+        /// <param name="toPoint">The point whose closest point on the curve is sought.</param>
+        /// <param name="curve">The Bezier curve to examine.</param>
+        /// <param name="t">The result traversal between the start point and end points of the given Bezier curve, from 0 to 1.</param>
+        /// <param name="distance">The distance between the given point and the closest point of the curve.</param>
+        /// <param name="precision">The precision to which the nearest point is sought.  This functions as a limit on the depth of recursion.</param>
+        /// <returns>Returns the (approximate) point that is closest.</returns>
+        public static Point GetClosestPoint(Point toPoint, Calculus.BezierCubic curve, out double t, out double distance, double precision = DEFAULT_PRECISION)
+        {
+            //This method must track t, point, and distance at four points in the curve, at all times.  Use arrays to avoid spilling registers to who-knows-where, 
+            //and instead keep the items in cache (hopefully).
+
+            double gap = 1d / 3d;
+            double[] tt = new double[4] { 0, gap, 2*gap, 1 };
+            Point[] pt = new Point[4] { curve.Evaluate(tt[0]), curve.Evaluate(tt[1]), curve.Evaluate(tt[2]), curve.Evaluate(tt[3]) };
+            double[] dist = new double[4] { GetDistance(toPoint, pt[0]), GetDistance(toPoint, pt[1]), GetDistance(toPoint, pt[2]), GetDistance(toPoint, pt[3]) };
+            char seg = '-';
+
+            while (gap * 2 > precision)
+            {
+                //Which pair are the closest?
+                double sumDistA = dist[0] + dist[1];
+                double sumDistB = dist[1] + dist[2];
+                double sumDistC = dist[2] + dist[3];
+                char newSeg = sumDistA < sumDistB ? (sumDistA < sumDistC ? 'a' : 'c') : (sumDistB < sumDistC ? 'b' : 'c');
+
+                //If the result is being smooshed to either tt[0] or tt[3], this is an indication that the wrong route has been chosen.  Adjust the segments and 
+                //try again.   
+                if (newSeg == seg)
+                {
+                    if (seg == 'a' && tt[0] > 0.0)
+                    {
+                        //Shift everything downward, finding the values for [0] anew.
+                        tt[3] = tt[2];
+                        tt[2] = tt[1];
+                        tt[1] = tt[0];
+                        tt[0] = Math.Max(0.0, tt[1] - gap);
+                        pt[3] = pt[2];
+                        pt[2] = pt[1];
+                        pt[1] = pt[0];
+                        pt[0] = curve.Evaluate(tt[0]);
+                        dist[3] = dist[2];
+                        dist[2] = dist[1];
+                        dist[1] = dist[0];
+                        dist[0] = GetDistance(toPoint, pt[0]);
+                        continue;
+                    }
+                    if (seg == 'c' && tt[3] < 1.0)
+                    {
+                        //Shift everything upward, finding the values for [3] over again.
+                        tt[0] = tt[1];
+                        tt[1] = tt[2];
+                        tt[2] = tt[3];
+                        tt[3] = Math.Min(1.0, tt[2] + gap);
+                        pt[0] = pt[1];
+                        pt[1] = pt[2];
+                        pt[2] = pt[3];
+                        pt[3] = curve.Evaluate(tt[3]);
+                        dist[0] = dist[1];
+                        dist[1] = dist[2];
+                        dist[2] = dist[3];
+                        dist[3] = GetDistance(toPoint, pt[3]);
+                        continue;
+                    }
+                }
+
+                //Since recursion will continue from here, adjust the bracketing points to the appropriate intermediate points.
+                seg = newSeg;
+                switch (newSeg)
+                {
+                    case 'a':
+                        tt[3] = tt[1];
+                        pt[3] = pt[1];
+                        dist[3] = dist[1];                        
+                        break;
+                    case 'b':
+                        tt[0] = tt[1];
+                        tt[3] = tt[2];
+                        pt[0] = pt[1];
+                        pt[3] = pt[2];
+                        dist[0] = dist[1];
+                        dist[3] = dist[2];
+                        break;
+                    case 'c':
+                        tt[0] = tt[2];
+                        pt[0] = pt[2];
+                        dist[0] = dist[2];
+                        break;
+                }
+
+                //Find the new intermediate 't's to evaluate.
+                gap = tt[3] - tt[0] / 3;
+                tt[1] = tt[0] + gap;
+                tt[2] = tt[1] + gap;
+                pt[1] = curve.Evaluate(tt[1]);
+                pt[2] = curve.Evaluate(tt[2]);
+                dist[1] = GetDistance(toPoint, pt[1]);
+                dist[2] = GetDistance(toPoint, pt[2]);
+            }
+
+            //Now, there are four potential points that have been narrowed down significantly.  Choose the nearest.
+            distance = dist[0];
+            int idx = 0;
+            for (int  i = 1; i < dist.Length; i++)
+            {
+                if (dist[i]< distance)
+                {
+                    distance = dist[i];
+                    idx = i;
+                }
+            }
+            t = tt[idx];
+            return pt[idx];
+        }
+       
+
+        public static Point GetClosestPoint(Point toPoint, Calculus.BezierQuadratic curve, out double t, out double distance, double precision = DEFAULT_PRECISION)
+        {
+            throw new NotImplementedException();
+        }
 
 
 
