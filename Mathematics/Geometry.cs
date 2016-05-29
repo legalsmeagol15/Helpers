@@ -9,6 +9,8 @@ namespace Arithmetic
 {
     public static class Geometry
     {
+
+
         /// <summary>
         /// Returns the distance between two two-dimensional points.
         /// </summary>
@@ -42,6 +44,8 @@ namespace Arithmetic
         /// Returns the closest point among the given points, specifying the distance in the given 'out' double and the index of the closest point in the given 
         /// 'out' int.
         /// </summary> 
+        /// <param name="amongPoints">The points to search for the closest point.  If omitted, this method will return a distance of double.PositiveInfinity and 
+        /// an index of -1.</param>
         public static Point GetClosestPoint(Point toPoint,  IList<Point> amongPoints, out int index, out double distance)
         {
             distance = double.PositiveInfinity;
@@ -95,13 +99,16 @@ namespace Arithmetic
         /// <param name="curve">The Bezier curve to examine.</param>
         /// <param name="t">The result traversal between the start point and end points of the given Bezier curve, from 0 to 1.</param>
         /// <param name="distance">The distance between the given point and the closest point of the curve.</param>
-        /// <param name="precision">The precision to which the nearest point is sought.  This functions as a limit on the depth of recursion.</param>
+        /// <param name="precision">Optional.  The precision to which the nearest point is sought.  This functions as a limit on the depth of recursion.</param>
         /// <returns>Returns the (approximate) point that is closest.</returns>
+        /// <remarks>Validated visually on 5/29/16.
+        /// <para/>This method recursively divides the bezier into three segments, and then determines which of those segments is nearest, and subdivides that 
+        /// segment from there.  The resulting 't' value will always be within the distance of the given precision value of the true closest result.  The 
+        /// method is O(tbd) with respect to the level of precision required.</remarks>
         public static Point GetClosestPoint(Point toPoint, Calculus.BezierCubic curve, out double t, out double distance, double precision = DEFAULT_PRECISION)
         {
             //This method must track t, point, and distance at four points in the curve, at all times.  Use arrays to avoid spilling registers to who-knows-where, 
             //and instead keep the items in cache (hopefully).
-
             double gap = 1d / 3d;
             double[] tt = new double[4] { 0, gap, 2*gap, 1 };
             Point[] pt = new Point[4] { curve.Evaluate(tt[0]), curve.Evaluate(tt[1]), curve.Evaluate(tt[2]), curve.Evaluate(tt[3]) };
@@ -181,7 +188,7 @@ namespace Arithmetic
                 }
 
                 //Find the new intermediate 't's to evaluate.
-                gap = tt[3] - tt[0] / 3;
+                gap = (tt[3] - tt[0]) / 3;
                 tt[1] = tt[0] + gap;
                 tt[2] = tt[1] + gap;
                 pt[1] = curve.Evaluate(tt[1]);
@@ -211,8 +218,35 @@ namespace Arithmetic
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Returns the shared border, if any, of the two Rect objects.
+        /// </summary>
+        public static Quadrant SharedBorder(this Rect a, Rect b)
+        {
+            Quadrant result = 0;
+            if (a.Right == b.Right) result = Quadrant.Right;
+            if (a.Top == b.Top) result |= Quadrant.Top;
+            if (a.Left == b.Left) result |= Quadrant.Left;
+            if (a.Bottom == b.Bottom) result |= Quadrant.Bottom;
+            return result;
+        }
 
-
+        /// <summary>
+        /// Describes a cardinal direction orientation.
+        /// </summary>
+        [Flags]
+        public enum Quadrant
+        {
+            None = 0,
+            Right = 1,
+            Top = 2,
+            Left = 4,
+            Bottom = 8,
+            TopRight = 3,
+            TopLeft = 6,
+            BottomLeft = 12,
+            BottomRight = 9
+        }
 
     }
 }

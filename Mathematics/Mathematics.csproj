@@ -86,6 +86,7 @@
     <Compile Include="Text\NamedFunctions\TAN.cs" />
     <Compile Include="Text\NamedFunctions\TANH.cs" />
     <Compile Include="Text\Operation.cs" />
+    <Compile Include="Text\Parsing.cs" />
     <Compile Include="Text\Variable.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -28,7 +28,7 @@ namespace Calculus
         public override string ToString()
         {
             //Simple cases - either somehow the coefficients is empty, or there is but a single item there.
-            if (_Coeffs.Length == 0) return "Error - Empty Polynomial.";
+            //if (_Coeffs.Length == 0) return "Error - Empty Polynomial.";
             if (_Coeffs.Length == 1) return _Coeffs[0].ToString();
 
             //Since the coefficients size must be at least two, start adding the higher-order powers.
@@ -536,28 +536,31 @@ namespace Calculus
         public Tuple<double,  double> GetMinMax(double starting, double ending, out double xMin, out double xMax)
         {
             //First, determine if we're dealing with a mere constant or a line.
-            if (_Coeffs.Length == 0)
-                throw new InvalidOperationException("No minimum or maximum for an empty Polynomial."); //Does this ever happen?
-            if (_Coeffs.Length == 1) //A constant.
+            switch (_Coeffs.Length)
             {
-                xMin = starting;
-                xMax = ending;
-                double y = _Coeffs[0];
-                return new Tuple<double, double>(y, y);
-            }            
-            if (_Coeffs.Length == 2)
-            {
-                double slope = _Coeffs[1];
-                if (slope >=0)
-                {
+                case 1:
                     xMin = starting;
                     xMax = ending;
+                    double y = _Coeffs[0];
+                    return new Tuple<double, double>(y, y);
+                case 2:
+                    double slope = _Coeffs[1];
+                    if (slope >= 0)
+                    {
+                        xMin = starting;
+                        xMax = ending;                        
+                    }
+                    else
+                    {
+                        xMin = ending;
+                        xMax = starting;
+                    }                    
                     return new Tuple<double, double>(Evaluate(xMin), Evaluate(xMax));
-                }
-                xMin = ending;
-                xMax = starting;
-                return new Tuple<double, double>(Evaluate(xMin), Evaluate(xMax));
+                case 0:
+                    throw new InvalidOperationException("No minimum or maximum for an empty Polynomial."); //Does this ever happen?
+
             }
+            
 
             Polynomial deriv = GetDerivative();            
             Complex[] roots = deriv.GetRoots();
@@ -568,31 +571,34 @@ namespace Calculus
             xMin = double.NaN;
             xMax = double.NaN;
 
+            //Find the min and max from among the roots.
             foreach (Complex root in roots)
             {
                 if (root.Imaginary == 0.0 && root.Real >= starting && root.Real <= ending)
                 {
                     double value = Evaluate(root.Real);
-                    if (value < xMin)
+                    if (value < minimum)
                     {
                         minimum = value;
                         xMin = root.Real;
                     }
-                    if (value > xMax)
+                    if (value > maximum)
                     {
                         maximum = value;
                         xMax = root.Real;
                     }
                 }
             }
+            
 
+            //Are the start values and end values lower?  They wouldn't be among the roots.
             double startValue = Evaluate(starting);
             if (startValue <= minimum)
             {
                 minimum = startValue;
                 xMin = starting;
             }
-            else if (startValue >= maximum)
+            if (startValue >= maximum)
             {
                 maximum = startValue;
                 xMax= starting;
@@ -604,13 +610,14 @@ namespace Calculus
                 minimum = endValue;
                 xMin = ending;
             }
-            else if (endValue > maximum)
+            if (endValue > maximum)
             {
                 maximum = endValue;
                 xMax = ending;
             }
 
-            return new Tuple<double, double>(xMin, xMax);
+            //Finally, return the min & max values
+            return new Tuple<double, double>(minimum, maximum);
         }
         
 
