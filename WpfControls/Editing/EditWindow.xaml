@@ -1,0 +1,30 @@
+﻿<Window x:Class="WpfControls.Editing.EditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfControls.Editing"
+        mc:Ignorable="d"
+        Title="EditWindow" Height="600" Width="400">
+    <DockPanel>
+        <DockPanel.Resources>
+            <Style TargetType="Button">
+                <Setter Property="Margin" Value="2" />
+                <Setter Property="Width" Value="50" />
+            </Style>
+        </DockPanel.Resources>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Bottom">
+            <Button Content="Reset" Click="Reset_Button_Click" />
+            <Button Content="Cancel" IsCancel="True" Click="Cancel_Button_Click" />
+            <Button Content="OK" IsDefault="True" Click="OK_Button_Click" />
+            
+            
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <local:Editor x:Name="editor"
+                DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType={x:Type local:EditWindow}}, Mode=TwoWay}" 
+                EditContext="{Binding EditContext, RelativeSource={RelativeSource AncestorType={x:Type local:EditWindow}}, Mode=TwoWay}" />
+        </ScrollViewer>
+    </DockPanel>
+    
+</Window>
