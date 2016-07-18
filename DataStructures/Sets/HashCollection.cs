@@ -39,7 +39,7 @@ namespace DataStructures
         public HashCollection()
         {
             _Table = new Dictionary<T, int>[DEFAULT_TABLE_SIZE];
-            _ChainSize = Arithmetic.Primes.GetNextPrime(DEFAULT_TABLE_SIZE);
+            _ChainSize = Mathematics.Primes.GetNextPrime(DEFAULT_TABLE_SIZE);
             Count = 0;
         }
 
@@ -66,7 +66,7 @@ namespace DataStructures
             //If this is the first item in the chain, time to create the chain.
             if (chain == null)
             {
-                _ChainSize = Arithmetic.Primes.GetNextPrime(_Table.Length);  //Forces the modularity of the chain to be different from table's modularity.
+                _ChainSize = Mathematics.Primes.GetNextPrime(_Table.Length);  //Forces the modularity of the chain to be different from table's modularity.
                 chain = new Dictionary<T, int>(_ChainSize);
                 _Table[idx] = chain;
             }
@@ -116,7 +116,7 @@ namespace DataStructures
             
             Dictionary<T, int>[] oldTable = _Table;
             _Table = new Dictionary<T, int>[_Table.Length * 2];
-            int chainSize = Arithmetic.Primes.GetNextPrime(_Table.Length);  //Forces the modularity of the chain to be different from new table's modularity.
+            int chainSize = Mathematics.Primes.GetNextPrime(_Table.Length);  //Forces the modularity of the chain to be different from new table's modularity.
             for (int oldIdx = 0; oldIdx < oldTable.Length; oldIdx++)
             {
                 Dictionary<T, int> oldChain = oldTable[oldIdx];

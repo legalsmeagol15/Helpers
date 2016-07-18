@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Arithmetic.Text
+namespace Mathematics.Text
 {
     /// <summary>
     /// Override this class to create new named functions.

@@ -25,7 +25,7 @@ namespace DataStructures
 
         public CompositeKeyDictionary(int capacity = DEFAULT_CAPACITY)
         {
-            capacity = Arithmetic.Primes.GetNextPrime(capacity * 2);
+            capacity = Mathematics.Primes.GetNextPrime(capacity * 2);
             _Keys = new ISet<TKeyPart>[capacity];
             _Values = new TValue[capacity];
             _Deleted = new bool[capacity];           
@@ -112,7 +112,7 @@ namespace DataStructures
         /// </summary>
         private void IncreaseCapacity()
         {
-            int newCapacity = Arithmetic.Primes.GetNextPrime(_Keys.Length * 2);
+            int newCapacity = Mathematics.Primes.GetNextPrime(_Keys.Length * 2);
             ISet<TKeyPart>[] oldKeys = _Keys;
             TValue[] oldValues = _Values;
 

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Arithmetic.Text
+namespace Mathematics.Text
 {
     /// <summary>
     /// A type-safe immutable token for storing simple double values.

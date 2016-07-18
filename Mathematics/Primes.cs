@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
 
-namespace Arithmetic
+namespace Mathematics
 {
     public static class Primes
     {

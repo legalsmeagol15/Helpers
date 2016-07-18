@@ -58,7 +58,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Test_Primes.cs" />
     <Compile Include="Test_QuadTree.cs" />
-    <Compile Include="Test_Int32.cs" />
     <Compile Include="Test_HashCollection.cs" />
     <Compile Include="Test_Polynomial.cs" />
   </ItemGroup>

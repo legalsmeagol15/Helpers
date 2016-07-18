@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Arithmetic.Text.NamedFunctions
+namespace Mathematics.Text.NamedFunctions
 {
     sealed class ATAN : NamedFunction
     {

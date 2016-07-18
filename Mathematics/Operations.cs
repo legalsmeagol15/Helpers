@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
 
-namespace Arithmetic
+namespace Mathematics
 {
     public static class Operations
     {
@@ -19,6 +19,23 @@ namespace Arithmetic
         public static double CubeRt(double d)
         {
             return Math.Pow(Math.Abs(d), (1.0 / 3.0)) * Math.Sign(d);            
+        }
+
+        /// <summary>
+        /// Returns the square root of the given decimal, by using the Babylonian method.
+        /// </summary>
+        /// <param name="d"></param>
+        /// <remarks>Based on code by Bobson, posted, 11/8/12, at http://stackoverflow.com/questions/4124189/performing-math-operations-on-decimal-datatype-in-c .  Retrieved 6/1/16.</remarks>
+        public static decimal Sqrt(decimal d)
+        {
+            decimal guess = d / 2m, result, avg;
+            while (true)
+            {                
+                result = d / guess;
+                avg = (guess + result) / 2m;
+                if (avg == guess) return avg;
+                guess = avg;
+            }            
         }
 
         /// <summary>
@@ -76,5 +93,7 @@ namespace Arithmetic
             }
             return n;
         }
+
+        
     }
 }

@@ -1,4 +1,4 @@
-﻿using Arithmetic;
+﻿using Mathematics;
 using Calculus;
 using System;
 using System.Collections.Generic;

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
 using Calculus;
-using Arithmetic;
+using Mathematics;
 
 namespace Calculus
 {
@@ -762,7 +762,7 @@ namespace Calculus
 
                 t = (-g / 2) - Math.Pow(discrim, 0.5);
                 //Get the singular real cube root of t, and store it in u.
-                roots = Arithmetic.Operations.NthRoots(t, 3);
+                roots = Mathematics.Operations.NthRoots(t, 3);
                 smallestImaginary = double.PositiveInfinity;
                 foreach (Complex root in roots)
                 {

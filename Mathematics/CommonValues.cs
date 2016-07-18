@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Arithmetic
+namespace Mathematics
 {
     internal static class CommonValues
     {

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Arithmetic.Int32;
+using static Mathematics.Int32;
 
 namespace DataStructures
 {
@@ -297,9 +297,9 @@ namespace DataStructures
             int originalIndex = index;
 
             //Are we starting on a min level, or on a max level?
-            int level = Arithmetic.Int32.Log_2(index + 1);
+            int level = Mathematics.Int32.Log_2(index + 1);
 
-            if (Arithmetic.Int32.IsEven(level)) //STARTING ON A MIN LEVEL.
+            if (Mathematics.Int32.IsEven(level)) //STARTING ON A MIN LEVEL.
             {
                 //Check if it can percolate up to the min top.
                 index = PercolateUpMin(index);

@@ -5,9 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace Arithmetic
+namespace Mathematics.Cartesian
 {
-    public static class Geometry
+
+    public static class Operations
     {
 
 
@@ -20,14 +21,25 @@ namespace Arithmetic
             double yDiff = a.Y - b.Y;
             return Math.Sqrt((xDiff * xDiff) + (yDiff * yDiff));
         }
-
+        /// <summary>
+        /// Returns the distance between two two-dimensional points.
+        /// </summary>
+        public static decimal GetDistance(PointM a, PointM b)
+        {
+            decimal xDiff = a.X - b.X;
+            decimal yDiff = a.Y - b.Y;
+            return Mathematics.Operations.Sqrt((xDiff * xDiff) + (yDiff * yDiff));
+        }
+        
        
         /// <summary>
         /// Returns the closest point among the given points, specifying the distance in the given 'out' double.
         /// </summary> 
-        public static Point GetClosestPoint(Point toPoint, IEnumerable<Point> amongPoints, out double distance)
+        /// <returns>Returns the closest from among the given points collection.  If there is no point closer than the given maxDistance, the Point returned will 
+        /// be (double.NaN, double.NaN).</returns>
+        public static Point GetClosestPoint(Point toPoint, IEnumerable<Point> amongPoints, out double distance, double maxDistance = double.PositiveInfinity)
         {
-            distance = double.PositiveInfinity;
+            distance = maxDistance;
             Point result = new Point(double.NaN, double.NaN);
             foreach (Point pt in amongPoints)
             {
@@ -37,7 +49,8 @@ namespace Arithmetic
                     result = pt;
                     distance = newDist;
                 }
-            }            
+            }
+            if (double.IsNaN(result.X)) distance = double.PositiveInfinity;
             return result;
         }
         /// <summary>
@@ -46,9 +59,9 @@ namespace Arithmetic
         /// </summary> 
         /// <param name="amongPoints">The points to search for the closest point.  If omitted, this method will return a distance of double.PositiveInfinity and 
         /// an index of -1.</param>
-        public static Point GetClosestPoint(Point toPoint,  IList<Point> amongPoints, out int index, out double distance)
+        public static Point GetClosestPoint(Point toPoint,  IList<Point> amongPoints, out int index, out double distance, double maxDistance  = double.PositiveInfinity)
         {
-            distance = double.PositiveInfinity;
+            distance = maxDistance;
             Point result = new Point(double.NaN, double.NaN);
             index = -1;
             for (int i = 0; i < amongPoints.Count; i++)
@@ -62,6 +75,7 @@ namespace Arithmetic
                     distance = newDist;
                 }
             }
+            if (double.IsNaN(result.X)) distance = double.PositiveInfinity;
             return result;
         }
 
@@ -247,6 +261,9 @@ namespace Arithmetic
             BottomLeft = 12,
             BottomRight = 9
         }
+
+
+
 
     }
 }

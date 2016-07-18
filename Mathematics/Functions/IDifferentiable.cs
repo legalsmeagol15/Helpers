@@ -11,7 +11,7 @@ namespace Calculus
     /// Represents a differentiable function, including common calculus operations such as returning derivatives, returning integrals, finding local maxima and minima, 
     /// and so forth.
     /// </summary>
-    public interface IDifferentiable : Arithmetic.IFunction<double>
+    public interface IDifferentiable : Mathematics.IFunction<double>
     {
         /// <summary>
         /// Returns the derivative of this differentiable function.

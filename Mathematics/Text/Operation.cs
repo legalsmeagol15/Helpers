@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Arithmetic.Text
+namespace Mathematics.Text
 {
     /// <summary>
     /// A typed token for storing operations.

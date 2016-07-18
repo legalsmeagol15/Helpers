@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace Arithmetic.Text
+namespace Mathematics.Text
 {
     /// <summary>
     /// Represents formulas written in standard infix notation using standard precedence rules.  The allowed symbols are non-negative numbers written using double-precision floating-point syntax; variables 
@@ -20,10 +20,10 @@ namespace Arithmetic.Text
     /// </summary>
     /// <author>Wesley Oates</author>
     /// <date> Sep 24, 2015.</date>
-    /// <remarks>Note that this class, and associate classes, were developed during CS3500 Fall '15.  Some code or commenting may come from the assignment skeletons.</remarks>
+    /// <remarks>Note that this class, and associated classes, were developed during CS3500 Fall '15.  Some code or commenting may come from the assignment skeletons.</remarks>
     public class Expression : IEvaluateable
     {
-
+        //TODO:  validate the UnitManager stuff.
 
         /// <summary>
         /// The list of typed token objects maintained in this Formula.
@@ -44,7 +44,7 @@ namespace Arithmetic.Text
         /// </summary>
         private readonly NamedFunction Function;
 
-     
+
 
         /// <summary>
         /// Creates a Formula from a string that consists of an infix expression written as
@@ -54,12 +54,12 @@ namespace Arithmetic.Text
         /// The associated normalizer is the identity function, and the associated validator
         /// maps every string to true.  
         /// </summary>
-        public Expression(String expression, IDictionary<string, NamedFunction> allowedFunctions = null)
-            : this(null, GetTokens(expression), 1.0, (s => s), (s => true), allowedFunctions)
+        public Expression(String expression, IDictionary<string, NamedFunction> allowedFunctions = null, UnitManager unitManager = null)
+            : this(null, GetTokens(expression), 1.0, (s => s), (s => true), allowedFunctions, unitManager)
         {
         }
 
-        
+
         /// <summary>
         /// Creates a Formula from a string that consists of an infix expression written as
         /// described in the class comment.  If the expression is syntactically incorrect,
@@ -83,8 +83,8 @@ namespace Arithmetic.Text
         /// new Formula("2x+y3", N, V) should throw an exception, since "2x+y3" is syntactically incorrect.
         /// </summary>
         public Expression(String expression, Func<string, string> normalizer, Func<string, bool> isValid,
-                        IDictionary<string, NamedFunction> allowedFunctions = null) :
-            this(null, GetTokens(expression), 1.0, normalizer, isValid, allowedFunctions)
+                        IDictionary<string, NamedFunction> allowedFunctions = null, UnitManager unitManager=null) :
+            this(null, GetTokens(expression), 1.0, normalizer, isValid, allowedFunctions, unitManager)
         {
         }
 
@@ -100,11 +100,12 @@ namespace Arithmetic.Text
         /// <param name="isValid">The variable name validation function.</param>
         protected Expression(NamedFunction expression, IEnumerable<string> tokens, double scalar,
                             Func<string, string> normalizer, Func<string, bool> isValid,
-                            IDictionary<string, NamedFunction> allowedFunctions)
+                            IDictionary<string, NamedFunction> allowedFunctions, UnitManager unitManager=null)
         {
             this.Scalar = scalar;
             this.Function = expression;
-            Arguments = ConvertToArguments(tokens, normalizer, isValid, allowedFunctions);
+            
+            Arguments = ConvertToArguments(tokens, normalizer, isValid, allowedFunctions, unitManager);
             if (this.Function == null && Arguments.Count > 1)
                 throw new FormulaFormatException("Multiple arguments are allowed only for named functions.");
             else if (this.Function != null)
@@ -138,7 +139,7 @@ namespace Arithmetic.Text
         /// <param name="isValid">The method that determines whether a given variable's name (already normalized) is valid.</param>
         /// <param name="allowedFunctions">The named functions that the formula is allowed to build.</param>
         protected internal static IList<IList<IToken>> ConvertToArguments(IEnumerable<string> stringTokens, Func<string, string> normalizer, Func<string, bool> isValid, 
-                                                                          IDictionary<string, NamedFunction> allowedFunctions)
+                                                                          IDictionary<string, NamedFunction> allowedFunctions, UnitManager unitManager)
         {
             if (stringTokens == null)
                 throw new FormulaFormatException("stringTokens cannot be null.");
@@ -146,7 +147,7 @@ namespace Arithmetic.Text
             //Setup
             IList<IList<IToken>> allArgs = new List<IList<IToken>>();
             List<IToken> buildingArg = new List<IToken>();
-            double sign = 1.0;  //For tracking negation
+            double sign = 1.0;  //For tracking negation and unit scaling.
             int paren = 0;      //For tracking parenthetical level.
             List<string> nestingTokens = new List<string>(); //For tracking parentheses-nested tokens.
 
@@ -184,7 +185,7 @@ namespace Arithmetic.Text
                                             //new expression.
                         {
                             //Formula nestedExp = new Formula(nestingTokens, sign, normalizer, isValid);
-                            Expression nestedExp = new Expression(buildingFunction, nestingTokens, sign, normalizer, isValid, allowedFunctions);
+                            Expression nestedExp = new Expression(buildingFunction, nestingTokens, sign, normalizer, isValid, allowedFunctions, unitManager);
                             buildingFunction = null;
                             buildingArg.Add(nestedExp);
                             nestingTokens.Clear();
@@ -249,8 +250,19 @@ namespace Arithmetic.Text
                     continue;
                 }
 
+                //Step #4 - handle unit indication.
+                if (unitManager!= null)
+                {
+                    double scalar = unitManager.GetScalar(stringToken);
+                    if (scalar != double.NaN)
+                    {
+                        sign *= scalar;
+                    }
+                }
+                
 
-                //Step #3 - handle variable storage.
+
+                //Step #5 - handle variable storage.
                 string normed = normalizer(stringToken);
                 if (IsValidStandard(normed))
                 {
@@ -266,7 +278,7 @@ namespace Arithmetic.Text
 
 
 
-                //Step #4 - handle negation.
+                //Step #6 - handle negation.
                 //This works by setting a negation sign to 1 or -1, as appropriate.  Negation is a unary 
                 //operator, so it will only activate if there are no prior tokens, or the prior token is an 
                 //operation.
@@ -279,7 +291,7 @@ namespace Arithmetic.Text
                     else
                     {
                         //If sign has not been negated, negate it.
-                        if (sign == 1.0) sign = -1.0;
+                        if (sign > 0.0) sign *= -1.0;
 
                         //Otherwise, too many negations - throw exception
                         else throw new FormulaFormatException("Negation error.");
@@ -289,20 +301,18 @@ namespace Arithmetic.Text
 
 
 
-                //Step #5 - handle regular arithmetic operators besides negation.
+                //Step #7 - handle regular arithmetic operators besides negation.
                 if (stringToken == "+" || stringToken == "*" || stringToken == "/" || stringToken == "^" || stringToken == "%" || stringToken=="-")
                 {
                     //Check rule 7 - parenthesis following.
                     if (buildingArg.Count == 0 || buildingArg.Last() is Operation)
-                        throw new FormulaFormatException("Operator '" + stringToken
-                            + "' must follow a value-type expression.");
-
+                        throw new FormulaFormatException("Operator '" + stringToken + "' must follow a value-type expression.");
                     buildingArg.Add(new Operation(stringToken[0]));
                     continue;
                 }
 
 
-                //Step #6 - handle constant values.  These should simply be stored as Constant objects.
+                //Step #8 - handle constant values.  These should simply be stored as Constant objects.
                 double num = 0;
                 if (double.TryParse(stringToken, out num))
                 {
@@ -772,14 +782,15 @@ namespace Arithmetic.Text
         // Patterns for individual tokens
         private const String lpPattern = @"\(";
         private const String rpPattern = @"\)";
-        private const String opPattern = @"[\+\-*/^,]";
-        private const String varPattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
+        //private const String operatorPattern = @"[\+\-*/^,]";
+        private const String operatorPattern = @"[\+\-*/^,%]";
+        private const String variablePattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
         private const String doublePattern = @"(?: \d+\.\d* | \d*\.\d+ | \d+ ) (?: [eE][\+-]?\d+)?";
         private const String spacePattern = @"\s+";
 
         /// <summary>
         /// Given an expression, enumerates the tokens that compose it.  Tokens are left paren;
-        /// right paren; one of the four operator symbols; a string consisting of a letter or underscore
+        /// right paren; one of the operator symbols; a string consisting of a letter or underscore
         /// followed by zero or more letters, digits, or underscores; a double literal; and anything that doesn't
         /// match one of those patterns.  There are no empty tokens, and no token contains white space.
         /// </summary>
@@ -789,7 +800,7 @@ namespace Arithmetic.Text
 
             // Overall pattern
             String pattern = String.Format("({0}) | ({1}) | ({2}) | ({3}) | ({4}) | ({5})",
-                                            lpPattern, rpPattern, opPattern, varPattern, doublePattern, spacePattern);
+                                            lpPattern, rpPattern, operatorPattern, variablePattern, doublePattern, spacePattern);
 
             // Enumerate matching tokens that don't consist solely of white space.
             foreach (String s in Regex.Split(formula, pattern, RegexOptions.IgnorePatternWhitespace))

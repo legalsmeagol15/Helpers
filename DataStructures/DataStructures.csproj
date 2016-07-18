@@ -44,7 +44,6 @@
     <Compile Include="Graphs\Edge.cs" />
     <Compile Include="Graphs\Traversals.cs" />
     <Compile Include="Graphs\Vertex.cs" />
-    <Compile Include="PointL.cs" />
     <Compile Include="Sets\CompositeKeyDictionary.cs" />
     <Compile Include="Sets\DisjointSet.cs" />
     <Compile Include="Sets\IndexingBinarySearchTree.cs" />
@@ -59,10 +58,10 @@
     <Compile Include="Threading\RedoWorker.cs" />
     <Compile Include="Trees\QuadTree.cs" />
     <Compile Include="Trees\QuadTreeZ.cs" />
-    <Compile Include="VectorL.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Interfaces\" />
+    <Folder Include="Serialization\" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Mathematics\Mathematics.csproj">

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Arithmetic.Text
+namespace Mathematics.Text
 {
     /// <summary>
  /// An interface enforcing that an object may be evaluated to a double.
