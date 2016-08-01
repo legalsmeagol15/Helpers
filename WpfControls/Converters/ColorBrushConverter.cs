@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace WpfControls
+namespace WpfControls.Converters
 {
     /// <summary>
     /// Converts a color to a new SolidColorBrush, or returns the SolidColorBrush's Color, depending on what is input.

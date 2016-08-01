@@ -54,5 +54,13 @@ namespace Mathematics
         {
             return ((number % modulus) + modulus) % modulus;
         }
+
+        public static int Pow(int number, int power)
+        {
+            if (power < 0) throw new ArgumentException("Power must be 0 or greater.");
+            int result = 1;
+            for (int i = 0; i < power; i++) result *= number;
+            return result;
+        }
     }
 }

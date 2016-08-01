@@ -91,8 +91,6 @@
     <Compile Include="Text\NamedFunctions\TANH.cs" />
     <Compile Include="Text\Operation.cs" />
     <Compile Include="Text\Parsing.cs" />
-    <Compile Include="Text\UnitManagers\InchUnitManager.cs" />
-    <Compile Include="Text\UnitManagers\UnitManager.cs" />
     <Compile Include="Text\Variable.cs" />
     <Compile Include="Cartesian\VectorL.cs" />
     <Compile Include="Cartesian\VectorM.cs" />

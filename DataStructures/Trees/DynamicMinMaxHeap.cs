@@ -12,7 +12,7 @@ namespace DataStructures
     /// A heap that maintains references to both the maximum and the minimum item.  The heap is dynamic because calling Update() forces the given item to update its position in 
     /// the heap without being deleted.
     /// </summary>    
-    public class DynamicMinMaxHeap<T> : ISet<T> where T : IComparable<T>
+    public sealed class DynamicMinMaxHeap<T> : ISet<T> where T : IComparable<T>
         //TODO:  Validate all members of DynamicMinMaxHeap
     {
 

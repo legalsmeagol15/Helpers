@@ -12,7 +12,7 @@ namespace DataStructures
     /// </summary>
     /// <remarks>This structure works by maintaining both a list and a hash map internally.  Most defined operations work in constant time.  However, the defined operation Remove(), as well as the 
     /// interface-defined methods Insert() and RemoveAt() are still O(n) operations in the worst case.  </remarks>    
-    public class HashList<T> : IList<T>, ISet<T>
+    public sealed class HashList<T> : IList<T>, ISet<T>
         //TODO:  Validate all members of HashList
     {
 

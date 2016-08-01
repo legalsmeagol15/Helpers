@@ -54,17 +54,20 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ColorBrushConverter.cs" />
+    <Compile Include="Converters\BoolInverter.cs" />
+    <Compile Include="Converters\BoolToVisibilityConverter.cs" />
+    <Compile Include="Converters\ColorBrushConverter.cs" />
     <Compile Include="ColorPicker.cs" />
-    <Compile Include="Editing\AbstractPropertyControl.cs" />
-    <Compile Include="Editing\DoubleEditor.xaml.cs">
-      <DependentUpon>DoubleEditor.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="Editing\AbstractPropertyEditor.cs" />
+    <Compile Include="Editing\BoolEditor.cs" />
+    <Compile Include="Editing\DateTimeEditor.cs" />
+    <Compile Include="Editing\DoubleEditor.cs" />
     <Compile Include="Editing\Editable.cs" />
-    <Compile Include="Editing\Editor.cs" />
+    <Compile Include="Editing\AutoEditor.cs" />
     <Compile Include="Editing\EditWindow.xaml.cs">
       <DependentUpon>EditWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Editing\PointEditor.cs" />
     <Compile Include="Editing\StringEditor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -91,11 +94,11 @@
     <AppDesigner Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <Page Include="Editing\DoubleEditor.xaml">
+    <Page Include="Editing\EditWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Editing\EditWindow.xaml">
+    <Page Include="Themes\Editing.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -103,6 +106,16 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DataStructures\DataStructures.csproj">
+      <Project>{b1da6068-30a2-478f-8115-f3ede4ef1388}</Project>
+      <Name>DataStructures</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Mathematics\Mathematics.csproj">
+      <Project>{dc7c8e96-6f24-48df-a32f-2dc12b1d315b}</Project>
+      <Name>Mathematics</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

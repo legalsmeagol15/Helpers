@@ -21,9 +21,12 @@ namespace WpfControls.Editing
 
         string Label { get; set; }
 
-        object Value { get; set; }
+        object Input { get; set; }
 
-        object EditContext { get; set; }
+
+        object GetValue();
+
+        object Parameter { get; set; }
 
         bool IsReadOnly { get; set; }
 
@@ -31,5 +34,6 @@ namespace WpfControls.Editing
         event EventHandler ValueChanged;
 
     }
+    
     
 }

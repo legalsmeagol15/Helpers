@@ -15,53 +15,30 @@ using System.Windows.Shapes;
 
 namespace WpfControls.Editing
 {
+    
     /// <summary>
-    /// Follow steps 1a or 1b and then 2 to use this custom control in a XAML file.
-    ///
-    /// Step 1a) Using this custom control in a XAML file that exists in the current project.
-    /// Add this XmlNamespace attribute to the root element of the markup file where it is 
-    /// to be used:
-    ///
-    ///     xmlns:MyNamespace="clr-namespace:WpfControls.Editing"
-    ///
-    ///
-    /// Step 1b) Using this custom control in a XAML file that exists in a different project.
-    /// Add this XmlNamespace attribute to the root element of the markup file where it is 
-    /// to be used:
-    ///
-    ///     xmlns:MyNamespace="clr-namespace:WpfControls.Editing;assembly=WpfControls.Editing"
-    ///
-    /// You will also need to add a project reference from the project where the XAML file lives
-    /// to this project and Rebuild to avoid compilation errors:
-    ///
-    ///     Right click on the target project in the Solution Explorer and
-    ///     "Add Reference"->"Projects"->[Browse to and select this project]
-    ///
-    ///
-    /// Step 2)
-    /// Go ahead and use your control in the XAML file.
-    ///
-    ///     <MyNamespace:StringEditor/>
-    ///
+    /// A control for use by automatically-generated editors to edit a 'string'-Type property.
     /// </summary>
-    public class StringEditor : AbstractPropertyControl
+    public class StringEditor : AbstractPropertyEditor
     {
         static StringEditor()
         {
             DefaultStyleKeyProperty.OverrideMetadata(typeof(StringEditor), new FrameworkPropertyMetadata(typeof(StringEditor)));
         }
 
-        public StringEditor()
-        {
-            this.DataContext = this;
-        }
-
         public override bool IsValid
         {
             get
             {
-                return true;
+                if (Input == null) return true;
+                return Input is string;
             }
+        }
+
+        public override object GetValue()
+        {
+            if (Input == null) return "";
+            return Input.ToString();
         }
     }
 }

@@ -10,7 +10,7 @@ namespace DataStructures
     /// <summary>
     /// An array-backed min heap composed of unique items.  The heap is dynamic because an item can be forced to update its position in a O(log n) operation.
     /// </summary>    
-    public class DynamicHeap<T> : ISet<T> where T : IComparable<T>
+    public sealed class DynamicHeap<T> : ISet<T> where T : IComparable<T>
         //TODO:  validate all members of DynamicHeap
     {
 

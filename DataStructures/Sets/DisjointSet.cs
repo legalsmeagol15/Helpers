@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DataStructures
 {
-    public class DisjointSet<T> : ISet<T>
+    public sealed class DisjointSet<T> : ISet<T>
     {
 
         //TODO:  finish implementing DisjointSet

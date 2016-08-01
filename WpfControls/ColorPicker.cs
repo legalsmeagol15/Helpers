@@ -54,25 +54,32 @@ namespace WpfControls
             DefaultStyleKeyProperty.OverrideMetadata(typeof(ColorPicker), new FrameworkPropertyMetadata(typeof(ColorPicker)));
         }
 
+        public static IEnumerable<Color> GetStandardColors()
+        {
+            Color[] result = new Color[11] { Colors.Black,
+                                             Colors.White,
+                                             Colors.Red,
+                                             Colors.OrangeRed,
+                                             Colors.Orange,
+                                             Colors.Yellow,
+                                             Colors.YellowGreen,
+                                             Colors.Green,
+                                             Colors.Black,
+                                             Colors.Indigo,
+                                             Colors.Purple };
+            return result;
+            
+        }
+
         public ColorPicker()
         {
-            PaletteStandard.Add(Colors.Black);
-            PaletteStandard.Add(Colors.White);
-            PaletteStandard.Add(Colors.Red);
-            PaletteStandard.Add(Colors.OrangeRed);
-            PaletteStandard.Add(Colors.Orange);            
-            PaletteStandard.Add(Colors.Yellow);
-            PaletteStandard.Add(Colors.YellowGreen);
-            PaletteStandard.Add(Colors.Green);            
-            PaletteStandard.Add(Colors.Blue);
-            PaletteStandard.Add(Colors.Indigo);
-            PaletteStandard.Add(Colors.Purple);
+            //foreach (Color c in GetStandardColors()) PaletteStandard.Add(c);
 
-            SelectedColor = PaletteStandard[0];
+            //SelectedColor = PaletteStandard[0];
 
-            PaletteRecent.Add(SelectedColor);
+            //PaletteRecent.Add(SelectedColor);
 
-            PaletteAdvanced.Add(Colors.Red);
+            //PaletteAdvanced.Add(Colors.Red);
 
             PaletteRecent.CollectionChanged += Colors_CollectionChanged;
             PaletteStandard.CollectionChanged += Colors_CollectionChanged;

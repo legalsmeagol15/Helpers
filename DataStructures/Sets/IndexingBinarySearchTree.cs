@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DataStructures.Sets
 {
-    public class IndexingBinaryTree<T> : IList<T> where T : IComparable<T>
+    public sealed class IndexingBinaryTree<T> : IList<T> where T : IComparable<T>
         //TODO:  fully implement  IndexingBinaryTree.
     {
         private Node _Root = null;

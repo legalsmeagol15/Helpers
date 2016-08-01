@@ -13,7 +13,7 @@ namespace DataStructures.Sets
     /// <remarks>
     /// This list works by allowing the starting item's index to vary to any point modded by the capacity of the list.
     /// </remarks>
-    public class ModularList<T> : IList<T>
+    public sealed class ModularList<T> : IList<T>
         //TODO:  finish implementing modular list.
     {
         private T[] _Table = new T[17];

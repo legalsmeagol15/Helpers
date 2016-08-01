@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -19,26 +20,83 @@ namespace WpfControls.Editing
     /// </summary>
     public partial class EditWindow : Window
     {
-        public EditWindow(object editedObject, object editingContext)
+
+        public static EditWindow ForEditableObject(object editedObject, object editingParamater, Window owner = null)
+        {
+            return new EditWindow(editedObject, editingParamater, owner);
+        }
+        protected EditWindow(object editedObject, object editingParamater, Window owner = null)
         {
             InitializeComponent();
+            this.Owner = owner;
 
-            this.EditContext = editingContext;
+            this.Parameter = editingParamater;
             this.DataContext = editedObject;
+        }
+
+        public static EditWindow ForProperty(IPropertyEditor editor, object input, object editingParameter, Window owner= null)
+        {
+            return new EditWindow(editor, input, editingParameter, owner);
+        }
+        protected EditWindow(IPropertyEditor editor, object input, object editingParameter, Window owner = null)
+        {
             
+            InitializeComponent();
+            this.Owner = owner;
+
+            this.Parameter = editingParameter;
+            EditingInput ei = new EditingInput();
+            ei.Input = input;
+            ei.Editor = editor;
+            this.DataContext = ei;
+        }
+
+        internal struct EditingInput
+        {
+            public object Input;
+            public IPropertyEditor Editor;
+            public string Label;
             
         }
 
-        public static DependencyProperty EditContextProperty = Editor.EditContextProperty.AddOwner(typeof(EditWindow));
-        public object EditContext
+
+        public static DependencyProperty ParameterProperty = AutoEditor.ParameterProperty.AddOwner(typeof(EditWindow));
+        public object Parameter
         {
             get
             {
-                return GetValue(EditContextProperty);
+                return GetValue(ParameterProperty);
             }
             set
             {
-                SetValue(EditContextProperty, value);
+                SetValue(ParameterProperty, value);
+            }
+        }
+
+
+        public static DependencyProperty AllowResetProperty = DependencyProperty.Register("AllowReset", typeof(bool), typeof(EditWindow), new PropertyMetadata(true));
+        public bool AllowReset
+        {
+            get
+            {
+                return (bool)GetValue(AllowResetProperty);
+            }
+            set
+            {
+                SetValue(AllowResetProperty, value);
+            }
+        }
+
+        public static DependencyProperty AllowCancelProperty = DependencyProperty.Register("AllowCancel", typeof(bool), typeof(EditWindow), new PropertyMetadata(true));
+        public bool AllowCancel
+        {
+            get
+            {
+                return (bool)GetValue(AllowCancelProperty);
+            }
+            set
+            {
+                SetValue(AllowCancelProperty, value);
             }
         }
 
@@ -49,7 +107,7 @@ namespace WpfControls.Editing
 
         private void Cancel_Button_Click(object sender, RoutedEventArgs e)
         {
-            this.editor.Reset();
+            this.editor.Cancel();
             this.Result = this.editor.Result;
             this.Close();
         }
@@ -61,6 +119,9 @@ namespace WpfControls.Editing
             this.Close();
         }
 
-        public MessageBoxResult Result { get; private set; } = MessageBoxResult.Cancel;
+        public object Result { get; private set; } = null;
+
+
+        
     }
 }

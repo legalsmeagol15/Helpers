@@ -54,11 +54,36 @@ namespace Mathematics.Text
         /// The associated normalizer is the identity function, and the associated validator
         /// maps every string to true.  
         /// </summary>
-        public Expression(String expression, IDictionary<string, NamedFunction> allowedFunctions = null, UnitManager unitManager = null)
-            : this(null, GetTokens(expression), 1.0, (s => s), (s => true), allowedFunctions, unitManager)
+        public Expression(String expression, IDictionary<string, NamedFunction> allowedFunctions = null, Func<string, double> unitFactor = null)
+            : this(null, GetTokens(expression), 1.0, (s => s), (s => true), allowedFunctions, unitFactor)
         {
         }
 
+        /// <summary>
+        /// Attempts to parse the given text expression to an Expression class.
+        /// </summary>        
+        /// <param name="result">The variable where the result will be returned.</param>
+        /// <param name="normalizer">Optional.  The variable name normalizer used for parsing.  If omitted, the standard rules will be used.</param>
+        /// <param name="isValid">Optional.  The variable validator used for parsing.  If omitted, the standard rules will be used.</param>
+        /// <param name="allowedFunctions">Optional.  The dictionary of functions (sin, cos, sqrt, etc.) allowed for use in interpreting the expression.</param>
+        /// <param name="unitFactor">The method that finds a factor associated with a unit.</param>
+        /// <returns>Returns true if the parsing is successful; otherwise returns false.</returns>
+        public static bool TryParseExpression(string expression, out Expression result, Func<string, string> normalizer = null, Func<string, bool> isValid = null,
+                                              IDictionary<string, NamedFunction> allowedFunctions = null, Func<string, double> unitFactor = null)
+        {
+            if (normalizer == null) normalizer = (s => s);
+            if (isValid == null) isValid = (s => true);
+            try
+            {
+                result = new Expression(expression, normalizer, isValid, allowedFunctions, unitFactor);
+                return true;
+            }
+            catch (FormulaFormatException)
+            {
+                result = null;
+                return false;
+            }
+        }
 
         /// <summary>
         /// Creates a Formula from a string that consists of an infix expression written as
@@ -83,8 +108,8 @@ namespace Mathematics.Text
         /// new Formula("2x+y3", N, V) should throw an exception, since "2x+y3" is syntactically incorrect.
         /// </summary>
         public Expression(String expression, Func<string, string> normalizer, Func<string, bool> isValid,
-                        IDictionary<string, NamedFunction> allowedFunctions = null, UnitManager unitManager=null) :
-            this(null, GetTokens(expression), 1.0, normalizer, isValid, allowedFunctions, unitManager)
+                        IDictionary<string, NamedFunction> allowedFunctions = null, Func<string, double> unitFactor = null) :
+            this(null, GetTokens(expression), 1.0, normalizer, isValid, allowedFunctions, unitFactor)
         {
         }
 
@@ -100,12 +125,12 @@ namespace Mathematics.Text
         /// <param name="isValid">The variable name validation function.</param>
         protected Expression(NamedFunction expression, IEnumerable<string> tokens, double scalar,
                             Func<string, string> normalizer, Func<string, bool> isValid,
-                            IDictionary<string, NamedFunction> allowedFunctions, UnitManager unitManager=null)
+                            IDictionary<string, NamedFunction> allowedFunctions, Func<string, double> unitFactor = null)
         {
             this.Scalar = scalar;
             this.Function = expression;
             
-            Arguments = ConvertToArguments(tokens, normalizer, isValid, allowedFunctions, unitManager);
+            Arguments = ConvertToArguments(tokens, normalizer, isValid, allowedFunctions, unitFactor);
             if (this.Function == null && Arguments.Count > 1)
                 throw new FormulaFormatException("Multiple arguments are allowed only for named functions.");
             else if (this.Function != null)
@@ -118,7 +143,7 @@ namespace Mathematics.Text
         }
 
         /// <summary>
-        /// Creates a Expression for an argument-less named function.
+        /// Creates an Expression for an argument-less named function.
         /// </summary>
         /// <param name="function"></param>
         protected Expression(NamedFunction function, double scalar)
@@ -127,6 +152,8 @@ namespace Mathematics.Text
             this.Scalar = scalar;
             Arguments = new List<IList<IToken>>();
         }
+
+        
 
 
         /// <summary>
@@ -139,7 +166,7 @@ namespace Mathematics.Text
         /// <param name="isValid">The method that determines whether a given variable's name (already normalized) is valid.</param>
         /// <param name="allowedFunctions">The named functions that the formula is allowed to build.</param>
         protected internal static IList<IList<IToken>> ConvertToArguments(IEnumerable<string> stringTokens, Func<string, string> normalizer, Func<string, bool> isValid, 
-                                                                          IDictionary<string, NamedFunction> allowedFunctions, UnitManager unitManager)
+                                                                          IDictionary<string, NamedFunction> allowedFunctions, Func<string, double> unitFactor = null)
         {
             if (stringTokens == null)
                 throw new FormulaFormatException("stringTokens cannot be null.");
@@ -185,7 +212,7 @@ namespace Mathematics.Text
                                             //new expression.
                         {
                             //Formula nestedExp = new Formula(nestingTokens, sign, normalizer, isValid);
-                            Expression nestedExp = new Expression(buildingFunction, nestingTokens, sign, normalizer, isValid, allowedFunctions, unitManager);
+                            Expression nestedExp = new Expression(buildingFunction, nestingTokens, sign, normalizer, isValid, allowedFunctions, unitFactor);
                             buildingFunction = null;
                             buildingArg.Add(nestedExp);
                             nestingTokens.Clear();
@@ -250,17 +277,16 @@ namespace Mathematics.Text
                     continue;
                 }
 
+
                 //Step #4 - handle unit indication.
-                if (unitManager!= null)
+                if (unitFactor != null)
                 {
-                    double scalar = unitManager.GetScalar(stringToken);
-                    if (scalar != double.NaN)
-                    {
-                        sign *= scalar;
-                    }
+                    double uf = unitFactor(stringToken);
+                    if (!double.IsNaN(uf) && !double.IsInfinity(uf))                    
+                        sign *= uf;
+                    continue;
                 }
                 
-
 
                 //Step #5 - handle variable storage.
                 string normed = normalizer(stringToken);
@@ -287,16 +313,13 @@ namespace Mathematics.Text
                     //If the last token was a value token, the '-' must be asking for a subtraction.
                     if (buildingArg.Count > 0 && buildingArg.Last() is IEvaluateable)
                         buildingArg.Add(new Operation('-'));
-
+                    //Otherwise, if the sign has not been negated, negate it now.
+                    else if (sign > 0.0)
+                        sign *= -1.0;
+                    //Otherwise, since the formula has already been negated once, another negation is an error.
                     else
-                    {
-                        //If sign has not been negated, negate it.
-                        if (sign > 0.0) sign *= -1.0;
-
-                        //Otherwise, too many negations - throw exception
-                        else throw new FormulaFormatException("Negation error.");
-                    }
-                    continue;
+                        throw new FormulaFormatException("Negation error.");
+                    continue;                  
                 }
 
 
@@ -794,7 +817,7 @@ namespace Mathematics.Text
         /// followed by zero or more letters, digits, or underscores; a double literal; and anything that doesn't
         /// match one of those patterns.  There are no empty tokens, and no token contains white space.
         /// </summary>
-        protected static IEnumerable<string> GetTokens(String formula)
+        public static IEnumerable<string> GetTokens(String formula)
         {
 
 
@@ -821,8 +844,13 @@ namespace Mathematics.Text
     /// <summary>
     /// Used to report syntactic errors in the argument to the Formula constructor.
     /// </summary>
-    public class FormulaFormatException : Exception
+    /// <remarks>The class attributes follow the pattern of other Exception declarations in MSDN.  Not why either would need to be applied.  Will revisit later.</remarks>
+    [Serializable()]
+    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
+    public class FormulaFormatException : SystemException
     {
+        //TODO:  FormulaFormatException - for some reason, throwing this type of exception shows up in the Console output, unintentionally.
+
         /// <summary>
         /// Constructs a FormulaFormatException containing the explanatory message.
         /// </summary>
@@ -830,6 +858,7 @@ namespace Mathematics.Text
             : base(message)
         {
         }
+
     }
 
     /// <summary>

@@ -19,5 +19,17 @@ namespace DataStructures.Graphs
             this.Next = next;
             this.Weight = weight;
         }
+
+        public bool EqualsWeighted(Edge<T> other)
+        {
+            if (!Equals(other)) return false;
+            return Weight == other.Weight;
+        }
+        public override bool Equals(object obj)
+        {
+            Edge<T> other = obj as Edge<T>;
+            if (other == null) return false;
+            return Prior.Equals(other.Prior) && Next.Equals(other.Next);
+        }
     }
 }

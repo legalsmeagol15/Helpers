@@ -12,7 +12,7 @@ namespace DataStructures
     /// A data structure that supports fast retrieval of two-dimensional items and their intersections by storing items in a quad tree.
     /// </summary>
     /// <remarks>Author Wesley Oates, 5/11/2016.  Validated 5/11/2016.</remarks>
-    public class QuadTree<T> : ICollection<T>
+    public sealed class QuadTree<T> : ICollection<T>
     {
         /// <summary>
         /// The number of items that may be stored on a particular node before fitting children will be sought.

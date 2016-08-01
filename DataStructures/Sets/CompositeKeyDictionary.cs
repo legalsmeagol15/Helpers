@@ -335,7 +335,7 @@ namespace DataStructures
             }
         }
 
-        public class KeyCollection : ICollection<ISet<TKeyPart>>, IReadOnlyCollection<ISet<TKeyPart>>
+        public sealed class KeyCollection : ICollection<ISet<TKeyPart>>, IReadOnlyCollection<ISet<TKeyPart>>
         {
             private CompositeKeyDictionary<TKeyPart, TValue> _Source;
             internal KeyCollection(CompositeKeyDictionary<TKeyPart, TValue> source)
@@ -394,7 +394,7 @@ namespace DataStructures
 
         }
 
-        public class ValueCollection : ICollection<TValue>, IReadOnlyCollection<TValue>
+        public sealed class ValueCollection : ICollection<TValue>, IReadOnlyCollection<TValue>
         {
             private CompositeKeyDictionary<TKeyPart, TValue> _Source;
             internal ValueCollection(CompositeKeyDictionary<TKeyPart, TValue> source)
