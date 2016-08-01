@@ -20,23 +20,20 @@ namespace WpfControls.Editing
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
     public class Editable : Attribute
     {
-        /// <summary>
-        /// Creates a new property.
-        /// </summary>
-        /// <param name="groupName">The name of the group to which this tagged property is related, ie, "Appearance", "Shape", "Use", etc.</param>
-        public Editable(string groupName)
-        {
-            //if (string.IsNullOrWhiteSpace(groupName))
-            //    throw new ArgumentException("Group name must be non-whitespace.");
-
-            this.GroupName = groupName;
-        }
+        ///// <summary>
+        ///// Creates a new property.
+        ///// </summary>
+        ///// <param name="groupName">The name of the group to which this tagged property is related, ie, "Appearance", "Shape", "Use", etc.</param>
+        //public Editable()
+        //{
+            
+        //}
 
         /// <summary>
         /// The name of the group to which this tagged property is related within this object type.  For example, all properties whose group name is 
         /// "Appearance" will be sorted into an "Appearance" group when being edited.
         /// </summary>
-        public string GroupName { get; }
+        public string GroupName { get; set; }
 
 
         /// <summary>

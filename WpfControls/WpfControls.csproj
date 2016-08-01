@@ -61,6 +61,7 @@
     <Compile Include="Editing\AbstractPropertyEditor.cs" />
     <Compile Include="Editing\BoolEditor.cs" />
     <Compile Include="Editing\DateTimeEditor.cs" />
+    <Compile Include="Editing\DictionaryEditor.cs" />
     <Compile Include="Editing\DoubleEditor.cs" />
     <Compile Include="Editing\Editable.cs" />
     <Compile Include="Editing\AutoEditor.cs" />

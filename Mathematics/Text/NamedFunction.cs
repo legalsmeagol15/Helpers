@@ -118,7 +118,7 @@ namespace Mathematics.Text
             Dictionary<string, NamedFunction> returnDict
                 = new Dictionary<string, NamedFunction>();
             foreach (Type t in GetTypesInNamespace(Assembly.GetExecutingAssembly(),
-                                                    "Arithmetic.Text.NamedFunctions"))
+                                                    "Mathematics.Text.NamedFunctions"))
             {
                 if (typeof(NamedFunction).IsAssignableFrom(t))
                 {
