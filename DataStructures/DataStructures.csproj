@@ -44,8 +44,10 @@
     <Compile Include="Graphs\Edge.cs" />
     <Compile Include="Graphs\Traversals.cs" />
     <Compile Include="Graphs\Vertex.cs" />
+    <Compile Include="Range.cs" />
     <Compile Include="Sets\CompositeKeyDictionary.cs" />
     <Compile Include="Sets\DisjointSet.cs" />
+    <Compile Include="Sets\Extensions.cs" />
     <Compile Include="Sets\IndexingBinarySearchTree.cs" />
     <Compile Include="Sets\Manipulations.cs" />
     <Compile Include="Sets\ModularList.cs" />

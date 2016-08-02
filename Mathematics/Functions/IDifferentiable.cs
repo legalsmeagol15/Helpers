@@ -4,14 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Calculus
+namespace Mathematics.Calculus
 {
 
     /// <summary>
     /// Represents a differentiable function, including common calculus operations such as returning derivatives, returning integrals, finding local maxima and minima, 
     /// and so forth.
     /// </summary>
-    public interface IDifferentiable : Mathematics.IFunction<double>
+    public interface IDifferentiable : Mathematics.Functions.IFunction<double>
     {
         /// <summary>
         /// Returns the derivative of this differentiable function.

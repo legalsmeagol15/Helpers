@@ -1,13 +1,12 @@
-﻿using Mathematics;
-using Calculus;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using Mathematics.Functions;
 
-namespace Calculus
+namespace Mathematics.Calculus
 {
     /// <summary>
     /// Represents a quadratic Bezier curve, which is a curve defined by its start and its end, with a single control point determining which direction the curve 
@@ -39,12 +38,18 @@ namespace Calculus
             this.End = end;
         }
 
+        public static BezierQuadratic FromLine(Point start, Point end)
+        {
+            return new BezierQuadratic(start, new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2), end);
+        }
+
+
         /// <summary>
         /// Returns the quadratic Polynomial that describes the x-traversal of this Bezier curve.
         /// </summary>        
         public Polynomial GetXPolynomial()
         {
-            return Polynomial.FromQuadratic(Start.X - (2 * Control.X) + End.X, 2 * (Control.X - Start.X), Start.X);            
+            return Polynomial.FromQuadratic(Start.X - (2 * Control.X) + End.X, 2 * (Control.X - Start.X), Start.X);
         }
 
         /// <summary>

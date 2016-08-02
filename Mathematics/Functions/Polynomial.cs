@@ -4,10 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
-using Calculus;
-using Mathematics;
 
-namespace Calculus
+namespace Mathematics.Calculus
 {
     /// <summary>
     /// A lightweight, publicly immutable data structure that represents polynomial expressions.

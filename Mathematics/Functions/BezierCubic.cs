@@ -1,19 +1,19 @@
-﻿using Mathematics;
-using Calculus;
+﻿
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using Mathematics.Functions;
 
-namespace Calculus
+namespace Mathematics.Calculus
 {
     /// <summary>
     /// Represents a cubic Bezier curve, which is a curve defined by a start and end point, and two control points.  The first control point determines the direction the 
     /// curve leaves the start point, and the second control point determines the direction from which the curve enters the end point.
     /// </summary>
-    public class BezierCubic : IFunction<Point>
+    public class BezierCubic : IFunction<Point>, IDifferentiable
         //TODO:  validative BezierCubic
     {
         /// <summary>
@@ -42,6 +42,11 @@ namespace Calculus
             this.ControlA = controlA;
             this.ControlB = controlB;
             this.End = end;
+        }
+
+        public static BezierCubic FromLine(Point start, Point end)
+        {
+            return new BezierCubic(start, start, end, end);
         }
 
         /// <summary>
@@ -114,6 +119,52 @@ namespace Calculus
                      + p0;
             
             return new Point(x, y);
+        }
+
+        IDifferentiable IDifferentiable.GetDerivative()
+        {
+            return GetYDerivative();
+        }
+
+        IDifferentiable IDifferentiable.GetIntegral(double constant)
+        {
+            return GetYPolynomial().GetIntegral(constant);
+        }
+
+        /// <summary>
+        /// Returns the minimum y-value.
+        /// </summary>
+        /// <param name="starting">The t-parameter, from the start point to the end point, to bracket the evaluation.</param>
+        /// <param name="ending">The t-parameter, from the start point to the end point, to brack the evaluation.</param>
+        /// <param name="x">Returns the value of x at the t-parameter from start point to end point.</param>        
+        public double GetMinimum(double starting, double ending, out double x)
+        {            
+            return GetYPolynomial().GetMinimum(0d, 1d, out x);
+        }
+        /// <summary>
+        /// Returns the maximum y-value.
+        /// </summary>
+        /// <param name="starting">The t-parameter, from the start point to the end point, to bracket the evaluation.</param>
+        /// <param name="ending">The t-parameter, from the start point to the end point, to brack the evaluation.</param>
+        /// <param name="x">Returns the value of x at the t-parameter from start point to end point.</param>        
+        public double GetMaximum(double starting, double ending, out double x)
+        {
+            return GetYPolynomial().GetMaximum(0d, 1d, out x);            
+        }
+
+        double IDifferentiable.GetLength(double starting, double ending)
+        {
+            throw new NotImplementedException();
+        }
+
+        double[] IDifferentiable.GetRoots()
+        {
+            throw new NotImplementedException();
+        }
+
+        double IFunction<double>.Evaluate(double atX)
+        {
+            throw new NotImplementedException();
         }
     }
 }

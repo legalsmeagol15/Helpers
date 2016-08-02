@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Mathematics
+namespace Mathematics.Functions
 {
     /// <summary>
     /// Represents a mathematical function that can be evaluated at a given point.  The return type may be a double, a Point, or any other result for a function.
