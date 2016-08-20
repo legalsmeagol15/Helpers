@@ -13,7 +13,7 @@ namespace Mathematics.Calculus
     /// Represents a cubic Bezier curve, which is a curve defined by a start and end point, and two control points.  The first control point determines the direction the 
     /// curve leaves the start point, and the second control point determines the direction from which the curve enters the end point.
     /// </summary>
-    public class BezierCubic : IFunction<Point>, IDifferentiable
+    public class BezierCubic : IParametric<Point>, IDifferentiable
         //TODO:  validative BezierCubic
     {
         /// <summary>
@@ -157,12 +157,32 @@ namespace Mathematics.Calculus
             throw new NotImplementedException();
         }
 
-        double[] IDifferentiable.GetRoots()
+        IEnumerable<double> IDifferentiable.GetRoots()
         {
             throw new NotImplementedException();
         }
 
-        double IFunction<double>.Evaluate(double atX)
+        double IParametric<double>.Evaluate(double atX)
+        {
+            throw new NotImplementedException();
+        }
+
+        double IDifferentiable.GetMinimum(double starting, double ending, out double x)
+        {
+            throw new NotImplementedException();
+        }
+
+        double IDifferentiable.GetMaximum(double starting, double ending, out double x)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable IDifferentiable.GetDifference(double d)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable IDifferentiable.GetSum(double d)
         {
             throw new NotImplementedException();
         }

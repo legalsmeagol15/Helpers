@@ -12,7 +12,7 @@ namespace Mathematics.Calculus
     /// Represents a quadratic Bezier curve, which is a curve defined by its start and its end, with a single control point determining which direction the curve 
     /// leaves the start and enters the end.
     /// </summary>
-    public class BezierQuadratic : IFunction<Point>
+    public class BezierQuadratic : IParametric<Point>
         //TODO:  Validate BezierQuadratic
     {
         /// <summary>

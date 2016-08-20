@@ -31,5 +31,9 @@ namespace DataStructures.Graphs
             if (other == null) return false;
             return Prior.Equals(other.Prior) && Next.Equals(other.Next);
         }
+        public override int GetHashCode()
+        {
+            return Math.Abs(Prior.Data.GetHashCode() + Next.Data.GetHashCode());
+        }
     }
 }

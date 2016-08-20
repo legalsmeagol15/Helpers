@@ -11,7 +11,7 @@ namespace Mathematics.Calculus
     /// Represents a differentiable function, including common calculus operations such as returning derivatives, returning integrals, finding local maxima and minima, 
     /// and so forth.
     /// </summary>
-    public interface IDifferentiable : Mathematics.Functions.IFunction<double>
+    public interface IDifferentiable : Mathematics.Functions.IParametric<double>
     {
         /// <summary>
         /// Returns the derivative of this differentiable function.
@@ -50,9 +50,10 @@ namespace Mathematics.Calculus
         /// <summary>
         /// Returns the real roots of the given differentiable function, or those 'x' values where the value of the function is equal to 0.
         /// </summary>        
-        double[] GetRoots();
+        IEnumerable<double> GetRoots();
 
 
-        
+        IDifferentiable GetDifference(double d);
+        IDifferentiable GetSum(double d);
     }
 }

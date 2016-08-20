@@ -210,6 +210,7 @@ namespace DataStructures
 
         #endregion
 
+
         /// <summary>
         /// A lightweight data structure that associates a T item with its rank and parent.
         /// </summary>

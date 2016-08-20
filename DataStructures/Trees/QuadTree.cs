@@ -227,7 +227,7 @@ namespace DataStructures
         /// <summary>
         /// The count of items contained in this quadtree.
         /// </summary>
-        public int Count { get; protected set; } = 0;
+        public int Count { get; private set; } = 0;
         int ICollection<T>.Count { get { return Count; } }
 
         public int CountOf(T item)
@@ -361,7 +361,7 @@ namespace DataStructures
         /// <summary>
         /// The lightweight data class storing items in this tree.
         /// </summary>
-        protected class Node
+        private class Node
         {
             public readonly Rect Boundary;
             public Node[] Children;

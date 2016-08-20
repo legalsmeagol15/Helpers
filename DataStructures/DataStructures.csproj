@@ -41,17 +41,21 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Range.cs" />
+    <Compile Include="Range5.cs" />
     <Compile Include="Graphs\Edge.cs" />
     <Compile Include="Graphs\Traversals.cs" />
     <Compile Include="Graphs\Vertex.cs" />
-    <Compile Include="Range.cs" />
+    <Compile Include="Int32Range.cs" />
+    <Compile Include="Range4.cs" />
+    <Compile Include="Range3.cs" />
     <Compile Include="Sets\CompositeKeyDictionary.cs" />
     <Compile Include="Sets\DisjointSet.cs" />
+    <Compile Include="Sets\DurationList.cs" />
     <Compile Include="Sets\Extensions.cs" />
-    <Compile Include="Sets\IndexingBinarySearchTree.cs" />
-    <Compile Include="Sets\Manipulations.cs" />
     <Compile Include="Sets\ModularList.cs" />
     <Compile Include="Sets\HashCollection.cs" />
+    <Compile Include="Sets\SkipList.cs" />
     <Compile Include="Trees\DynamicHeap.cs" />
     <Compile Include="Trees\DynamicMinMaxHeap.cs" />
     <Compile Include="Sets\HashList.cs" />

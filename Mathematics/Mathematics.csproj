@@ -7,8 +7,8 @@
     <ProjectGuid>{DC7C8E96-6F24-48DF-A32F-2DC12B1D315B}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Arithmetic</RootNamespace>
-    <AssemblyName>Arithmetic</AssemblyName>
+    <RootNamespace>Mathematics</RootNamespace>
+    <AssemblyName>Mathematics</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -46,7 +46,10 @@
     <Compile Include="Functions\BezierCubic.cs" />
     <Compile Include="Functions\BezierQuadratic.cs" />
     <Compile Include="Functions\Circle.cs" />
+    <Compile Include="Functions\NURBS.cs" />
     <Compile Include="Functions\ParamLine.cs" />
+    <Compile Include="Functions\ParamPolar.cs" />
+    <Compile Include="Functions\PolyBezierCubic.cs" />
     <Compile Include="Operations.cs" />
     <Compile Include="CommonValues.cs" />
     <Compile Include="Cartesian\Operations.cs" />

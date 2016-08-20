@@ -4,13 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
+using Mathematics.Functions;
 
 namespace Mathematics.Calculus
 {
     /// <summary>
     /// A lightweight, publicly immutable data structure that represents polynomial expressions.
     /// </summary>
-    public class Polynomial : Calculus.IDifferentiable
+    public class Polynomial : IDifferentiable
     {
 
         double[] _Coeffs;
@@ -87,6 +88,7 @@ namespace Mathematics.Calculus
         /// </summary>
         public double E { get { return _Coeffs[_Coeffs.Length - 5]; } }
        
+
 
         #region Polynomial constructors
 
@@ -250,7 +252,7 @@ namespace Mathematics.Calculus
         }
 
         public static Polynomial operator -(Polynomial polynomial, double d)
-        {
+        {            
             Polynomial result = polynomial.Copy();
             result._Coeffs[0] -= d;
             result.Simplify();
@@ -392,8 +394,17 @@ namespace Mathematics.Calculus
             throw new NotImplementedException();
         }
 
-
-
+        /// <summary>
+        /// Returns the local maximum x-value between the given starting and ending x-values.
+        /// </summary> 
+        /// <param name="starting">The smaller bracketing x-value to examine.</param>
+        /// <param name="ending">The larger bracketing x-value to examine.</param>
+        /// <returns>Returns the local maximum between the bracketing x-values.</returns>
+        public double GetMaximum(double starting, double ending)
+        {
+            double x;
+            return GetMaximum(starting, ending, out x);
+        }
         /// <summary>
         /// Returns the local maximum x-value between the given starting and ending x-values.
         /// </summary> 
@@ -452,8 +463,17 @@ namespace Mathematics.Calculus
             return maximum;
         }
 
-
-
+        /// <summary>
+        /// Returns the local minimum x-value between the given starting and ending x-values.
+        /// </summary> 
+        /// <param name="starting">The smaller bracketing x-value to examine.</param>
+        /// <param name="ending">The larger bracketing x-value to examine.</param>
+        /// <returns>Returns the local minimum between the bracketing x-values.</returns>
+        public double GetMinimum(double starting, double ending)
+        {
+            double x;
+            return GetMinimum(starting, ending, out x);
+        }
         /// <summary>
         /// Returns the local minimum x-value between the given starting and ending x-values.
         /// </summary> 
@@ -652,13 +672,18 @@ namespace Mathematics.Calculus
         /// <remarks>The roots returned will all be real, and there will not be multiple instances of the same root in any case.  If there are no real roots for a 
         /// Polynomial, returns an empty array.
         /// <para/>This method is included because not everyone wants to include a reference to the System.Numerics.Complex data structure.</remarks>
-        public double[] GetRealRoots()
+        public IEnumerable<double> GetRealRoots()
         {            
             Complex[] complexRoots = GetRoots(true);
-            double[] result = new double[complexRoots.Length];
-            for (int i = 0; i < complexRoots.Length; i++) result[i] = complexRoots[i].Real;
+            List<double> result = new List<double>(complexRoots.Length);
+            for (int i = 0; i < complexRoots.Length; i++)
+                if (Math.Abs(complexRoots[i].Imaginary) < REAL_THRESHOLD) result.Add(complexRoots[i].Real);            
             return result;
         }
+        /// <summary>
+        /// The absolute magnitude of a Complex number's imaginary value below which it is considered real.
+        /// </summary>
+        public const double REAL_THRESHOLD = 0.000001;
 
 
       
@@ -830,10 +855,78 @@ namespace Mathematics.Calculus
         }
 
 
-        double[] IDifferentiable.GetRoots()
+        IEnumerable<double> IDifferentiable.GetRoots()
         {
             return GetRealRoots();            
         }
+
+        double IDifferentiable.GetMinimum(double starting, double ending, out double x)
+        {
+            //Is the end, or the start, the min?
+            double value = Evaluate(starting);
+            x = starting;
+            double newVal = Evaluate(ending);
+            if (newVal< value)
+            {
+                value = newVal;
+                x = starting;
+            }
+            
+            //Is one of the local min or max a deeper min?
+            IEnumerable<double> roots = GetDerivative().GetRealRoots();
+            foreach (double root in roots)
+            {
+                newVal = Evaluate(root);
+                if (newVal >= value) continue;
+                value = newVal;
+                x = root;
+            }
+
+            //Return the max.
+            return value;
+        }
+
+        double IDifferentiable.GetMaximum(double starting, double ending, out double x)
+        {
+            //Is the start, or the end, a higher max?
+            double value = Evaluate(starting);
+            x = starting;
+            double newVal = Evaluate(ending);
+            if (newVal > value)
+            {
+                value = newVal;
+                x = starting;
+            }
+
+            //Is there a local max that is higher?
+            IEnumerable<double> roots = GetDerivative().GetRealRoots();
+            foreach (double root in roots)
+            {
+                newVal = Evaluate(root);
+                if (newVal <= value) continue;
+                value = newVal;
+                x = root;
+            }
+
+            //Returns the max
+            return value;
+        }
+
+        double IDifferentiable.GetLength(double starting, double ending)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable IDifferentiable.GetDifference(double d)
+        {
+            return this - d;
+        }
+        IDifferentiable IDifferentiable.GetSum(double d)
+        {
+            return this + d;
+        }
+
+
 
 
 

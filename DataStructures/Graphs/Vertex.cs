@@ -12,7 +12,21 @@ namespace DataStructures.Graphs
         public readonly HashSet<Edge<T>> Edges = new HashSet<Edge<T>>();
         public Vertex(T data)
         {
-            this.Data = data;
+            if (data == null) throw new ArgumentException("Vertex.Data cannot be null.");
+            Data = data;
+        }
+        public override bool Equals(object obj)
+        {
+            if (obj is Vertex<T>) return ((Vertex<T>)obj).Data.Equals(Data);
+            return false;
+        }
+        public override int GetHashCode()
+        {
+            return Data.GetHashCode();
+        }
+        public override string ToString()
+        {
+            return "Vertex(" + Data.ToString() + ")";
         }
     }
 }

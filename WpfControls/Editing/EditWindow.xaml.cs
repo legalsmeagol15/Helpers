@@ -55,7 +55,7 @@ namespace WpfControls.Editing
         {
             public object Input;
             public IPropertyEditor Editor;
-            public string Label;
+            //public string Label;
             
         }
 

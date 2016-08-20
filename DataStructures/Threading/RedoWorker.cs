@@ -58,10 +58,10 @@ namespace DataStructures.Threading
                 RunWorkerAsync(Current);
             }
             else
-            {
-                CancelAsync();
+            {                
                 IsRedoPending = true;
                 Redo = workItem;
+                CancelAsync();
                 //Work on the redo will be started at the work-complete method.
             }
 

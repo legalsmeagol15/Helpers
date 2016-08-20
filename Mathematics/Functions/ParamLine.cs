@@ -8,7 +8,7 @@ using System.Windows;
 
 namespace Mathematics.Functions
 {
-    public class ParamLine : IFunction<Point>
+    public class ParamLine : IParametric<Point>
     {
 
         public Point PointA { get; }

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DataStructures.Sets
+namespace DataStructures
 {
     /// <summary>
     /// An array-backed list that supports O(1) operations to insert at the beginning or add at the end, but also O(1) operations to read at any index.

@@ -16,9 +16,9 @@ namespace DataStructures
         //TODO:  Validate all members of HashList
     {
 
-        protected Dictionary<T, int> _Indices;
+        private Dictionary<T, int> _Indices;
         
-        protected List<T> _List;
+        private List<T> _List;
 
         /// <summary>
         /// Creates a new HashList.

@@ -9,7 +9,7 @@ using System.Windows;
 
 namespace Mathematics.Calculus
 {
-    public sealed class Circle : IFunction<Point>
+    public sealed class Circle : IParametric<Point>
     {
         public Point Center { get; }
 
@@ -36,7 +36,7 @@ namespace Mathematics.Calculus
             double t = atX - Center.X;
             return (Radius * Math.Sin(t)) + Center.Y;
         }
-        Point IFunction<Point>.Evaluate(double atX)
+        Point IParametric<Point>.Evaluate(double atX)
         {
             return new Point(atX, GetY(atX));     
         }

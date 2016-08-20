@@ -7,13 +7,14 @@ using System.Threading.Tasks;
 namespace Mathematics.Functions
 {
     /// <summary>
-    /// Represents a mathematical function that can be evaluated at a given point.  The return type may be a double, a Point, or any other result for a function.
+    /// Represents a mathematical function that can be evaluated at a given parametric value.  The return type may be a double, a Point, or any 
+    /// other result for a function.
     /// </summary>
-    public interface IFunction<T>
+    public interface IParametric<T>
     {
         /// <summary>
-        /// Finds and returns the value of the function at the given 'x'.
+        /// Finds and returns the value of the function at the given 't'.
         /// </summary>
-        T Evaluate(double atX);
+        T Evaluate(double t);
     }
 }

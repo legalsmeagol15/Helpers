@@ -60,6 +60,8 @@
     <Compile Include="Test_QuadTree.cs" />
     <Compile Include="Test_HashCollection.cs" />
     <Compile Include="Test_Polynomial.cs" />
+    <Compile Include="Test_Range.cs" />
+    <Compile Include="Test_SkipList.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Helpers\DataStructures\DataStructures.csproj">

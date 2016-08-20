@@ -40,6 +40,10 @@ namespace Mathematics
             }
             return highest1;
         }
+        public static int Log(int number, double newBase)
+        {
+            return (int)Math.Log(number, newBase);
+        }
 
         public static int Exp_2(int number)
         {            
