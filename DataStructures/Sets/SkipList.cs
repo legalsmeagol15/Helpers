@@ -33,8 +33,8 @@ namespace DataStructures
     /// </remarks>
     public sealed class SkipList<T> : ICollection<T>
     {
-        
-        public IComparer<T> Comparer { get; private set; }
+
+        private IComparer<T> Comparer;
         private Node Head = null;
         private Node Tail = null;
         internal const int DEFAULT_MAXHEIGHT = 4;
@@ -51,14 +51,14 @@ namespace DataStructures
             set
             {
                 if (value <= 0.0 || value > 1.0)
-                    throw new ArgumentException("SkipList.AdjacencyFraction must be a positive real number (0.0, 1.0].");                
+                    throw new ArgumentException("SkipList.AdjacencyFraction must be a positive real number (0.0, 1.0].");
                 Denom = Math.Round(1 / value, 0);
                 if (Denom != (double)((int)Denom))  //Are there any doubles where 1/d does not go to an int for d?
                     throw new InvalidOperationException("Invalid adjacency value:  1 / " + Denom + ".");
                 _AdjacencyFraction = value;
             }
         }
-        
+
         private double Denom = 1 / DEFAULT_ADJACENCY_FRACTION;
 
 
@@ -95,8 +95,8 @@ namespace DataStructures
         /// <param name="items"></param>
         public SkipList(IEnumerable<T> items) : this()
         {
-            foreach (T item in items)            
-                Add(item);            
+            foreach (T item in items)
+                Add(item);
         }
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace DataStructures
 
 
         #region SkipList contents modification
-        
+
         /// <summary>
         /// Ensures that the given item exists on this SkipList.
         /// </summary>        
@@ -191,7 +191,7 @@ namespace DataStructures
             //Ensure that the Head and Tail are tall enough for the whole thing.
             ResizeHead(maxHeight);
             ResizeTail(maxHeight);
-            
+
 
             //Step #5 - finally, since the list was changed, return true.
             Count++;
@@ -230,20 +230,20 @@ namespace DataStructures
 
             //From here, the item definitely exists to be removed.
             //Is it the sole item?
-            if (Count==1)
+            if (Count == 1)
             {
                 Clear();
                 return true;
             }
             //Is the item to be removed the Tail?
-            if (toRemove== Tail)
+            if (toRemove == Tail)
             {
-                Node oldTail = Tail;                
-                Tail = oldTail.Backward[0];                
+                Node oldTail = Tail;
+                Tail = oldTail.Backward[0];
                 if (Tail.Height < oldTail.Height) ResizeTail(oldTail.Height);
             }
             //Is the item to be removed the Head?
-            else if (toRemove== Head)
+            else if (toRemove == Head)
             {
                 Node oldHead = Head;
                 Head = oldHead.Forward[0];
@@ -272,7 +272,7 @@ namespace DataStructures
         /// or a few links to another node.  The worst case is when the new Min is as tall as the original Min. This method is an O(log N) 
         /// operation in the worst case, and a O(1) operation in the best case.</remarks>
         public T RemoveMin()
-        {            
+        {
             if (Head == null) return default(T);
             T result = Head.Data;
             Node newHead = Head.Next;
@@ -284,9 +284,9 @@ namespace DataStructures
                     Head.Forward[i] = newHead.Forward[i];
                     Head.Forward[i].Backward[i] = newHead;
                 }
-                for (int i = newHead.Forward.Length; i < Head.Forward.Length; i++)                
+                for (int i = newHead.Forward.Length; i < Head.Forward.Length; i++)
                     Head.Forward[i].Backward[i] = newHead;
-                
+
                 newHead.Forward = Head.Forward;
                 newHead.Backward = Head.Backward;
             }
@@ -314,9 +314,9 @@ namespace DataStructures
                     Tail.Backward[i] = newTail.Backward[i];
                     Tail.Backward[i].Forward[i] = newTail;
                 }
-                for (int i = newTail.Backward.Length; i < Tail.Backward.Length; i++)                
+                for (int i = newTail.Backward.Length; i < Tail.Backward.Length; i++)
                     Tail.Backward[i].Forward[i] = newTail;
-                
+
                 newTail.Backward = Tail.Backward;
                 newTail.Forward = Tail.Forward;
             }
@@ -334,7 +334,7 @@ namespace DataStructures
             if (height == Head.Forward.Length) return false;
             Head.Backward = new Node[height];
             Node[] oldHeadForward = Head.Forward;
-            Head.Forward = new Node[height];            
+            Head.Forward = new Node[height];
             Head.UpdateForwardLinks(oldHeadForward[0]);
             if (Head != Tail)
             {
@@ -404,8 +404,8 @@ namespace DataStructures
             //public bool IsHead { get { return Backward[0] == null; } }
             //public bool IsTail { get { return Forward[0] == null; } }
 
-            //private static Random _Rng = new Random((int)DateTime.Now.Ticks);
-            private static Random _Rng = new Random(0);
+            private static Random _Rng = new Random((int)DateTime.Now.Ticks);
+            //private static Random _Rng = new Random(0);
 
             /// <summary>
             /// Creates a new node with the given height and data.
@@ -424,7 +424,7 @@ namespace DataStructures
             {
                 return new Node(height, data);
             }
-          
+
             /// <summary>
             /// A factory-type construction which returns a new node with a random height, equal to or lesser than the given height.
             /// </summary>
@@ -433,7 +433,7 @@ namespace DataStructures
             /// <param name="data">The data represented in this node.</param>
             public static Node FromRandomHeight(int maxHeight, T data, double adjacencyFraction)
             {
-                
+
                 return new Node(GetRandomHeight(maxHeight, adjacencyFraction), data);
             }
             public static int GetRandomHeight(int maxHeight, double adjacencyFraction)
@@ -469,7 +469,7 @@ namespace DataStructures
                     if (prior != null) prior.Forward[i] = this;
                 }
             }
-            
+
 
             [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
             public override string ToString()
@@ -493,7 +493,7 @@ namespace DataStructures
         /// <remarks>This method is an O(log n) operation, where n is the number of items contained in the list.</remarks>
         public bool Contains(T item)
         {
-            return GetNode(item) != null;            
+            return GetNode(item) != null;
         }
 
 
@@ -519,7 +519,7 @@ namespace DataStructures
                 yield return current.Data;
                 current = current.Forward[0];
             }
-            
+
         }
 
         [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
@@ -532,7 +532,7 @@ namespace DataStructures
         /// Returns the node containing the given item as its data, if it exists.  If no such node exists, returns null.
         /// <para/>This method is an O(log n) operation.
         /// </summary>
-        private  Node GetNode(T item)
+        private Node GetNode(T item)
         {
             Node focus = GetPriorOrEqual(item);
             if (focus == null) return null;
@@ -570,7 +570,7 @@ namespace DataStructures
         /// </summary>
         public bool TryGetBefore(T item, out T before)
         {
-            
+
             Node prior = GetPriorOrEqual(item);
             if (prior == null)
             {
@@ -599,7 +599,7 @@ namespace DataStructures
         /// or an O(n) operation, but the most common case will approach an O(log n) operation.</remarks>
         private Node GetNextOrEqual(T item)
         {
-            
+
             if (Tail == null) return null;
             if (Comparer.Compare(item, Tail.Data) > 0) return null;
 
@@ -670,7 +670,7 @@ namespace DataStructures
         //    return str;
 
         //}
-        
+
         #endregion
 
         [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]

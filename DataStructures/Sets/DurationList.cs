@@ -15,12 +15,16 @@ namespace DataStructures
     /// </summary>
     /// <typeparam name="TKey"></typeparam>
     
-    public sealed class DurationList <TKey, TValue> : IDictionary<TKey, TValue>
+    public sealed class DurationList <TKey, TValue> //: IDictionary<TKey, TValue> 
     {
-        //TODO:  Validate DurationList
+
+        private IComparer<TKey> Comparer;
+        private Node Head = null;
+        private Node Tail = null;
         internal const int DEFAULT_MAXHEIGHT = 4;
         internal const double DEFAULT_ADJACENCY_FRACTION = 0.5;
-        public IComparer<TKey> Comparer { get; private set; }
+
+
         private double _AdjacencyFraction = DEFAULT_ADJACENCY_FRACTION;
         public double AdjacencyFraction
         {
@@ -28,36 +32,525 @@ namespace DataStructures
             {
                 return _AdjacencyFraction;
             }
-            private set
+            set
             {
-                if (value < 0.0 || value > 1.0)
-                    throw new ArgumentException("SkipList.AdjacencyFraction must be a positive real number (0.0, 1.0].");
+                if (value <= 0.0 || value > 1.0)
+                    throw new ArgumentException("DurationList.AdjacencyFraction must be a positive real number (0.0, 1.0].");
+                Denom = Math.Round(1 / value, 0);
+                if (Denom != (double)((int)Denom))  //Are there any doubles where 1/d does not go to an int for d?
+                    throw new InvalidOperationException("Invalid adjacency value:  1 / " + Denom + ".");
                 _AdjacencyFraction = value;
-                _Denom = Math.Round(1 / value, 0);
-                if (_Denom != (double)((int)_Denom))
-                    throw new InvalidOperationException("Invalid adjacency value:  1 / " + _Denom + ".");
             }
         }
-        private double _Denom = 1 / DEFAULT_ADJACENCY_FRACTION;
-        private Node _Head = null;
-        private Node _Tail = null;
 
-      
+        private double Denom = 1 / DEFAULT_ADJACENCY_FRACTION;
+
+
+
+        #region DurationList constructors
         /// <summary>
-        /// A lightweight data structure that holds the included data as well as a set of links to the previous and next nodes.
+        /// Creates a new DurationList.
+        /// </summary>
+        public DurationList()
+        {
+            if (typeof(IComparable<TKey>).IsAssignableFrom(typeof(TKey))) Comparer = Comparer<TKey>.Default;
+            else if (typeof(IComparable).IsAssignableFrom(typeof(TKey))) Comparer = Comparer<TKey>.Default;
+            else
+                throw new InvalidOperationException("An IComparer<" + typeof(TKey).Name + "> cannot be created automatically.");
+        }
+      
+        ///// <summary>
+        ///// Creates a new DurationList and populates it with the given items.  If the type implements IComparable, a default comparator for that 
+        ///// type 
+        ///// will be generated.  Otherwise, throws an exception.
+        ///// </summary>
+        ///// <param name="items"></param>
+        //public DurationList(IEnumerable<TKey> items) : this()
+        //{
+        //    foreach (TKey item in items)
+        //        Add(item);
+        //}
+
+        /// <summary>
+        /// Creates a new DurationList that uses the given comparator for internal sorting.
+        /// </summary>
+        /// <param name="comparer">The comparator to use for sorting.</param>
+        /// <param name="adjacencyFraction">Optional.  The value given will represent the expected fraction of items that reside in this 
+        /// DurationList with a "height" of 1.  Of those with a higher "height", the same fraction will have a "height" of 2, and of those 
+        /// higher than 2 the same fraction will have a height of "3", and so on.  A lower adjacency fraction will allow more skipping, 
+        /// so this value can fine-tine the performance of the DurationList.</param>
+        public DurationList(IComparer<TKey> comparer, double adjacencyFraction = DEFAULT_ADJACENCY_FRACTION)
+        {
+            AdjacencyFraction = adjacencyFraction;
+            Comparer = comparer;
+        }
+
+        /// <summary>
+        /// Returns the maximum allowed height, which is the Log base d of the given count, where d is the denominator of the adjacency 
+        /// fraction.
+        /// </summary>
+        private int GetMaxHeight(int count)
+        {
+            return Math.Max(Mathematics.Int32.Log(count, Denom) + 1, DEFAULT_MAXHEIGHT);
+        }
+        #endregion
+
+
+
+
+        #region DurationList contents modification
+
+        /// <summary>
+        /// Adds the given item with the given range to this DurationList, but only if doing so would not override items already present.
+        /// </summary>
+        /// <param name="start">The starting key for this item.</param>
+        /// <param name="end">The ending key for this item.</param>
+        /// <param name="item">The item to add to this DurationList.</param>
+        /// <returns>Returns whether this operation changes the list.  If an item exists that conflicts with the given range, will return 
+        /// false; otherwise, returns true.</returns>
+        public bool Add(TKey start, TKey end, TValue item)
+        {
+            //If we're just adding a point, follow the special logic there.
+            if (Comparer.Compare(start, end) == 0) return Add(start, item);
+
+            //If the list is empty, just add.
+            if (Head== null)
+            {
+                Head = Node.FromKnownHeight(DEFAULT_MAXHEIGHT, start, end, item);
+                Tail = Head;
+                Count = 1;
+                return true;
+            }
+                        
+            Node prior, after, conflict = GetNode(start, out prior, out after);
+
+            if (Insert(prior, start, item, end, after) == null)
+            {
+                if (IsSingleton(after) && Insert(after, start, item, end, after.Forward[0]) != null) return true;
+                return false;
+            }
+
+            ////Is there a conflict with what already exists?
+            //if (conflict != null)
+            //{
+            //    if (Comparer.Compare(conflict.End, start) == 0) //orange bracket
+            //    {
+            //        if (after != null && Comparer.Compare(after.Start, start) == 0) //blue bracket
+            //        {
+            //            if (Comparer.Compare(after.Start, after.End) == 0)
+            //            {
+            //                if (Comparer.Compare(start, end) == 0) return false;
+            //                Node forward = after.Forward[0];
+            //                if (forward != null && Comparer.Compare(forward.Start, start) == 0) return false;
+            //                prior = conflict;
+            //                conflict = null;
+            //            }
+            //            else if (Comparer.Compare(start, end) < 0) return false;
+            //            else if (Comparer.Compare(conflict.Start, conflict.End) == 0) return false;
+            //            else
+            //            {
+            //                prior = conflict;
+            //                conflict = null;
+            //            }
+            //        }
+            //        else if (Comparer.Compare(conflict.Start, conflict.End) < 0)
+            //        {
+            //            prior = conflict;
+            //            conflict = null;
+            //        }
+            //        else if (Comparer.Compare(start, end) == 0) return false;
+            //        else
+            //        {
+            //            prior = conflict;
+            //            conflict = null;
+            //        }
+            //    }
+            //    else if (Comparer.Compare(conflict.Start, conflict.End) < 0) //purple bracket
+            //    {
+            //        if (Comparer.Compare(start, end) < 0) return false;
+            //        after = conflict;
+            //        conflict = null;
+            //    }
+            //    else if (Comparer.Compare(conflict.Start, conflict.End) == 0)
+            //    {
+            //        after = conflict;
+            //        conflict = null;
+            //    }
+            //    else
+            //        return false;
+            //}
+
+
+
+            return true;
+        }
+        /// <summary>
+        /// Ensures that the given item exists on this DurationList, at the given key point.
+        /// </summary>        
+        /// <returns>Returns true if the list was changed in this operation; otherwise, returns false.</returns>
+        public bool Add(TKey key, TValue item)
+        {
+            //If the list is empty, just add.
+            if (Head == null)
+            {
+                Head = Node.FromKnownHeight(DEFAULT_MAXHEIGHT, key, key, item);
+                Tail = Head;
+                Count = 1;
+                return true;
+            }
+
+            Node prior, next, conflict = GetNode(key, out prior, out next);
+            return Insert(prior, key, item, key, next) != null;
+
+            ////Is there a conflict?
+            //if (conflict != null)
+            //{
+            //    if (Comparer.Compare(conflict.Start, conflict.End) == 0)
+            //        return false;
+            //    if (Comparer.Compare(conflict.Start, key) == 0)
+            //    {
+            //        next = conflict;
+            //        conflict = null;
+            //    }
+            //    else if (Comparer.Compare(conflict.End, key) == 0)
+            //    {
+            //        prior = conflict;
+            //        conflict = null;
+            //    }
+            //    else
+            //        return false;
+            //}
+
+
+        }
+
+
+        /// <summary>
+        /// Deletes the given node from the list.
+        /// </summary>        
+        private void DeleteNode(Node node)
+        {
+            if (node == Head)
+            {
+                if (node== Tail)
+                {
+                    Head = null;
+                    Tail = null;                
+                }
+                else
+                {
+                    Node newHead = Head.Forward[0];
+                    newHead.Backward = Head.Backward;
+                    for (int i = newHead.Forward.Length; i < Head.Forward.Length; i++) Head.Forward[i].Backward[i] = newHead;
+                    for (int i = 0; i < newHead.Forward.Length; i++) Head.Forward[i] = newHead.Forward[i];
+                    newHead.Forward = Head.Forward;
+                }
+            }
+            else if (node == Tail)
+            {
+                Node newTail = Tail.Backward[0];
+                newTail.Forward = Tail.Forward;
+                for (int i = newTail.Backward.Length; i < Tail.Backward.Length; i++) Tail.Backward[i].Forward[i] = newTail;
+                for (int i = 0; i < newTail.Backward.Length; i++) Tail.Backward[i] = newTail.Backward[i];
+                newTail.Backward = Tail.Backward;
+            }
+            else
+            {
+                for (int i = 0; i < node.Backward.Length; i++)
+                {
+                    Node back = node.Backward[i], front = node.Forward[i];
+                    if (back != null) back.Forward[i] = node.Forward[i];
+                    if (front != null) front.Backward[i] = node.Backward[i];
+                }
+                
+            }
+            Count--;
+        }
+        
+
+        /// <summary>
+        /// Inserts a new node with the given characteristics in between the given bracketing nodes.
+        /// </summary>
+        /// <param name="prior">The node to precede the new node.</param>
+        /// <param name="start">The starting key of the new node.</param>
+        /// <param name="item">The data item to be contained at the new node.</param>
+        /// <param name="end">The ending key of the new node.</param>
+        /// <param name="after">The node to follow the new node.</param>
+        /// <returns>Returns the new Node created.  However, if inserting the node would cause a sequencing violation, returns null.</returns>
+        /// <remarks>Throws an InvalidOperationException in the following cases: 1) BOTH bracketing nodes are null; and 2) the bracketing 
+        /// nodes are non-adjacent; </remarks>
+        private Node Insert(Node prior, TKey start, TValue item, TKey end,  Node after)
+        {
+            if (prior!= null)
+            {
+                int c = Comparer.Compare(prior.End, start);
+                if (c > 0) return null;
+                if (c == 0 && IsSingleton(prior) && Comparer.Compare(start, end) == 0) return null;
+                if (prior.Forward[0] != after) throw new InvalidOperationException("Cannot insert between non-adjacent nodes.");
+            }
+            else if (after!= null)
+            {
+                int c = Comparer.Compare(end, after.Start);
+                if (c > 0) return null;
+                if (c == 0 && IsSingleton(after) && Comparer.Compare(start, end) == 0) return null;
+                if (after.Backward[0] != prior) throw new InvalidOperationException("Cannot insert between non-adjacent nodes.");
+            }
+            else
+            {
+                throw new InvalidOperationException("Cannot insert between two null nodes.");
+            }
+            
+
+            int maxHeight = GetMaxHeight(++Count);
+            Node result;
+
+            //Adding at the head?
+            if (prior == null)
+            {                
+                result = new Node(start, end, item);
+                result.Backward = Head.Backward;
+                result.Forward = Head.Forward;
+                int headHeight = Node.GetRandomHeight(Count, AdjacencyFraction);
+                Head.Backward = new Node[headHeight];
+                Head.Forward = new Node[headHeight];
+                for (int i = 0; i < headHeight; i++)
+                {
+                    Head.Forward[i] = result.Forward[i];
+                    Head.Backward[i] = result;
+                    result.Forward[i] = Head;
+                }
+                for (int i = headHeight; i < result.Forward.Length; i++)
+                    result.Forward[i].Backward[i] = result;
+                Head = result;
+            }
+            
+            //Adding at the tail?
+            else if (after == null)
+            {                
+                result = new Node(start, end, item);
+                result.Backward = Tail.Backward;
+                result.Forward = Tail.Forward;
+                int tailHeight = Node.GetRandomHeight(Count, AdjacencyFraction);
+                Tail.Backward = new Node[tailHeight];
+                Tail.Forward = new Node[tailHeight];
+                for (int i = 0; i < tailHeight; i++)
+                {
+                    Tail.Backward[i] = result.Backward[i];
+                    Tail.Forward[i] = result;
+                    result.Backward[i] = Tail;
+                }
+                for (int i = tailHeight; i < result.Backward.Length; i++)
+                    result.Backward[i].Forward[i] = result;
+                Tail = result;
+            }
+
+            //Otherwise, adding somewhere in the middle.
+            else
+            {
+                result = Node.FromRandomHeight(maxHeight, start, end, item, AdjacencyFraction);
+                result.UpdateBackwardLinks(prior);
+                result.UpdateForwardLinks(after);
+            }
+
+            //Finally, check that the head and tail are big enough.
+            if (Head.Height < maxHeight) ResizeHead(maxHeight);
+            if (Tail.Height < maxHeight) ResizeTail(maxHeight);
+
+            return result;
+        }
+        
+
+        /// <summary>
+        /// Clears all items from this skip list.
+        /// </summary>
+        public void Clear()
+        {
+            Head = null;
+            Tail = null;
+            Count = 0;
+        }
+
+        /// <summary>
+        /// Removes a singleton, if one occurs, from this list at the given key point.
+        /// </summary>
+        /// <returns>Returns true if a singleton was removed; otherwise, there was no change, and the method returns false.</returns>
+        public bool Remove(TKey key)
+        {
+            Node prior, next, focus = GetNode(key, out prior, out next);
+            if (IsSingleton(focus))
+            {
+                DeleteNode(focus);
+                return true;
+            }
+            if (Comparer.Compare(next.End, key) == 0)
+            {
+                DeleteNode(next);
+                return true;
+            }
+            return false;
+        }
+        /// <summary>
+        /// Removals all item ranges between or bordering on the given keys.  If a singleton occurs at the start or end, the singleton will 
+        /// be removed as well.
+        /// </summary>
+        public bool Remove(TKey start, TKey end)
+        {            
+            Node prior, after, focus = GetNode(start, out prior, out after);
+            if (focus == null)
+            {
+                if (after != null && Comparer.Compare(end, after.Start) >= 0) focus = after;
+                else return false;
+            }
+
+            List<Node> toRemove = new List<Node>();
+            bool changed = false;
+
+            while (focus != null)
+            {
+                int cStart = Comparer.Compare(focus.Start, start), cEnd = Comparer.Compare(focus.End, end);
+
+                if (cStart >= 0)
+                {
+                    if (cEnd <= 0) //Removal entirely encloses the focus.
+                    {
+                        focus = focus.Forward[0];
+                        toRemove.Add(focus);
+                    }
+                    else   //Removal clips the focus on the start side - reached the end of the removal.
+                    {
+                        focus.Start = end;
+                        changed = true;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (cEnd <= 0)  //Removal clips the focus on the end side.
+                    {
+                        focus.End = start;
+                        focus = focus.Forward[0];
+                    }
+                    else  //Bisect the focus - reached the end of the removal.
+                    {
+                        TKey newEnd = focus.End;
+                        focus.End = start;
+                        Insert(focus, end, focus.Value, newEnd, focus.Forward[0]);
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (toRemove.Count == 0) return changed;
+
+            foreach (Node dead in toRemove)
+                DeleteNode(dead);
+
+            return true;
+        }
+        /// <summary>
+        /// Ensures that all instances of the item are removed from the list.
+        /// </summary>
+        /// <returns>Returns true if the list was changed, false if it does not.</returns>
+        public bool Remove(TValue item)
+        {
+            Node n = Head;
+            bool changed = false;
+            while (n!= null)
+            {
+                if (n.Value.Equals(item))
+                {
+                    DeleteNode(n);
+                    changed = true;
+                }
+                n = n.Forward[0];
+            }
+            return changed;
+        }
+        /// <summary>
+        /// Removes the minimum from this skip list.
+        /// </summary> 
+        /// <remarks>The best case for this operation is the situation where the new Min is very "short", meaning, maintains only one 
+        /// or a few links to another node.  The worst case is when the new Min is as tall as the original Min. This method is an O(log N) 
+        /// operation in the worst case, and a O(1) operation in the best case.</remarks>
+        public void RemoveMin()
+        {
+            DeleteNode(Head);
+        }
+        /// <summary>
+        /// Removes the maximum from this skip list.
+        /// </summary>        
+        /// <remarks>The best case for this operation is the situation where the new Max is very "short", meaning, maintains only one 
+        /// or a few links to another node.  The worst case is when the new Max is as tall as the original Max. This method is an O(log N) 
+        /// operation in the worst case, and a O(1) operation in the best case.</remarks>
+        public void RemoveMax()
+        {
+            DeleteNode(Tail);
+        }
+
+        /// <summary>
+        /// Changes the size of the Head to the given height.  Note that the size of a Head should never be decreased, or logarithmic search 
+        /// complexity will be impaired.
+        /// </summary>
+        private bool ResizeHead(int height)
+        {
+            if (height == Head.Forward.Length) return false;
+            Head.Backward = new Node[height];
+            Node[] oldHeadForward = Head.Forward;
+            Head.Forward = new Node[height];
+            Head.UpdateForwardLinks(oldHeadForward[0]);
+            if (Head != Tail)
+            {
+                for (int i = oldHeadForward.Length; i < Head.Forward.Length; i++)
+                {
+                    Head.Forward[i] = Tail;
+                    if (i < Tail.Backward.Length) Tail.Backward[i] = Head;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Changes the size of the Tail to the given height.  Note that the size of a Tail should never be decreased, or logarithmic search 
+        /// complexity will be impaired.
+        /// </summary>
+        private bool ResizeTail(int height)
+        {
+            if (height == Tail.Backward.Length) return false;
+            Tail.Forward = new Node[height];
+            Node[] oldTailBackward = Tail.Backward;
+            Tail.Backward = new Node[height];
+            //oldTailBackward.CopyTo(Tail.Backward, 0);
+            Tail.UpdateBackwardLinks(oldTailBackward[0]);
+            if (Head != Tail)
+            {
+                for (int i = oldTailBackward.Length; i < Tail.Backward.Length; i++)
+                {
+                    Tail.Backward[i] = Head;
+                    if (i < Head.Forward.Length) Head.Forward[i] = Tail;
+                }
+            }
+            return true;
+        }
+
+       
+        /// <summary>
+        /// A lightweight data structure that holds the included data, its start and end keys, and a set of links to the previous and next nodes.
         /// </summary>
         private class Node
         {
             /// <summary>
-            /// The start of the inclusive range for this value.
+            /// The starting key of the item represented at this node.
             /// </summary>
             public TKey Start;
             /// <summary>
-            /// The end of the inclusive range for this value.
+            /// The ending key of the item represented at this node.
             /// </summary>
             public TKey End;
+            /// <summary>
+            /// The value represented by this node.
+            /// </summary>
             public readonly TValue Value;
-
             /// <summary>
             /// The height of this node, meaning the number of backward and forward links maintainable at this node.
             /// </summary>
@@ -79,591 +572,208 @@ namespace DataStructures
             /// </summary>
             public Node Prior { get { return Backward[0]; } }
 
-            private static Random _Rng = new Random((int)DateTime.Now.Ticks);
-            //private static Random _Rng = new Random(0);
+           
+
+            //public bool IsHead { get { return Backward[0] == null; } }
+            //public bool IsTail { get { return Forward[0] == null; } }
+
+            //private static Random _Rng = new Random((int)DateTime.Now.Ticks);
+            private static Random _Rng = new Random(0);
 
             /// <summary>
             /// Creates a new node with the given height and data.
             /// </summary>
-            protected Node(int height, TKey start, TKey end, TValue item)
+            private Node(int height, TKey start, TKey end, TValue value) : this(start,end, value)
+            {
+                Forward = new Node[height];
+                Backward = new Node[height];                
+            }
+            /// <summary>
+            /// Creates a node with uninitialized Forward[] and Backward[] links.
+            /// </summary>
+            public Node (TKey start, TKey end, TValue value)
             {
                 Start = start;
                 End = end;
-                Forward = new Node[height];
-                Backward = new Node[height];
-                Value = item;
+                Value = value;
             }
 
+            
             /// <summary>
             /// A factory-type constructor which returns a new node with the given height and data.
             /// </summary>
-            public static Node FromKnownHeight(int height, TKey start, TKey end, TValue item)
+            public static Node FromKnownHeight(int height, TKey start, TKey end, TValue value)
             {
-                return new Node(height, start, end, item);
+                return new Node(height, start, end, value);
             }
+
             /// <summary>
             /// A factory-type construction which returns a new node with a random height, equal to or lesser than the given height.
             /// </summary>
             /// <param name="maxHeight">The maxHeight should be log_2(n) where n is the number of items in the Skip List and the 
             /// adjacency fraction is 1/2.</param>
-            /// <param name="item">The data represented in this node.</param>
-            public static Node FromRandomHeight(int maxHeight, TKey start, TKey end, TValue item, double adjacencyFraction)
+            /// <param name="data">The data represented in this node.</param>
+            public static Node FromRandomHeight(int maxHeight, TKey start, TKey end, TValue value, double adjacencyFraction)
+            {
+
+                return new Node(GetRandomHeight(maxHeight, adjacencyFraction), start, end, value);
+            }
+            public static int GetRandomHeight(int maxHeight, double adjacencyFraction)
             {
                 //Find a random height.  The probability of Height=1 is 1/2, for Height=2 is 1/4, for Height=3 is 1/8, etc.
                 int height = 1;
                 while (_Rng.NextDouble() < adjacencyFraction && ++height < maxHeight) ;
-                return new Node(height, start, end, item);
+                return height;
             }
             /// <summary>
             /// Updates all forward links of this node, starting with the link at Forward[0], which will be set to the given node.
-            /// </summary>       
-            /// <param name="next">The next node to start with to update the links.</param>
-            /// <param name="startLevel">If 0 is not the first level to update, will find the node that should be updated at that level.  Links at 
-            /// lower level will not be updated.</param>
-            public void UpdateForwardLinks(Node next, int startLevel = 0)
-            {                
-                for (int i = startLevel; i < Forward.Length; i++)
+            /// </summary>            
+            /// <param name="next">The node to begin linking forward from this node.</param>
+            public void UpdateForwardLinks(Node next)
+            {
+                for (int i = 0; i < Forward.Length; i++)
                 {
-                    while (next != null && i >= next.Forward.Length) next = next.Forward[i - 1];
+                    while (next != null && i >= next.Backward.Length) next = next.Forward[i - 1];
                     this.Forward[i] = next;
-                    if (next!=null) next.Backward[i] = this;
+                    if (next != null) next.Backward[i] = this;
                 }
             }
             /// <summary>
             /// Updates all backward links of this node, starting with the link at Backward[0], which will be set to the given node.
             /// </summary>
-            /// <param name="prior">The prior node to start with to update the links.</param>
-            /// <param name="startLevel">If 0 is not the first level to update, will find the node that should be updated at that level.  Links 
-            /// at lower level will not be updated.</param>
-            public void UpdateBackwardLinks(Node prior, int startLevel = 0)
+            /// <param name="prior">The node to begin linking backward from this node.</param>
+            public void UpdateBackwardLinks(Node prior)
             {
-                for (int i = startLevel; i < Backward.Length; i++)
+                for (int i = 0; i < Backward.Length; i++)
                 {
-                    while (prior != null && i >= prior.Backward.Length) prior = prior.Backward[i - 1];
+                    while (prior != null && i >= prior.Forward.Length) prior = prior.Backward[i - 1];
                     this.Backward[i] = prior;
-                    if (prior!=null) prior.Forward[i] = this;
+                    if (prior != null) prior.Forward[i] = this;
                 }
             }
-            public void IncreaseHeight(int newHeight)
-            {
-                Node[] oldForward = Forward, oldBackward = Backward;
-                Forward = new Node[newHeight];
-                Backward = new Node[newHeight];
-                oldForward.CopyTo(Forward, 0);
-                oldBackward.CopyTo(Backward, 0);
-                UpdateForwardLinks(oldForward[0], oldForward.Length);
-                UpdateBackwardLinks(oldBackward[0], oldBackward.Length);
-            }
 
 
-            /// <summary>
-            /// Returns the next node in the chain.
-            /// </summary>
-            public static Node operator ++(Node n)
-            {
-                return n.Forward[0];
-            }
-            /// <summary>
-            /// Returns the prior node in the chain.
-            /// </summary>
-            public static Node operator --(Node n)
-            {
-                return n.Backward[0];
-            }
-
+            [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
             public override string ToString()
             {
-                return Start.ToString();
+                return "[" + Start.ToString() + ".." + Value.ToString() + ".." + End.ToString() + "]";
             }
 
         }
 
-
-
-        #region DurationList constructors
-
-        public DurationList()
-        {
-            if (typeof(IComparable<TKey>).IsAssignableFrom(typeof(TKey))) Comparer = Comparer<TKey>.Default;
-            else if (typeof(IComparable).IsAssignableFrom(typeof(TKey))) Comparer = Comparer<TKey>.Default;
-            else
-                throw new InvalidOperationException("An IComparer<" + typeof(TKey).Name + "> cannot be created automatically.");
-        }
-        public DurationList(IComparer<TKey> comparer, double adjacencyFraction = DEFAULT_ADJACENCY_FRACTION)
-        {
-            AdjacencyFraction = adjacencyFraction;
-            Comparer = comparer;
-        }
-     
-        private int GetMaxHeight(int count)
-        {
-            return Math.Max(Mathematics.Int32.Log(Count + 1, _Denom) + 1, DEFAULT_MAXHEIGHT);
-        }
 
         #endregion
 
 
-        #region DurationList contents modification
-
-        /// <summary>
-        /// Adds an items at the given point.
-        /// </summary>
-        public bool Add(TKey key, TValue item)
-        {
-            return Add(key, key, item);
-        }
-        /// <summary>
-        /// Adds an item at the 
-        /// </summary>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        public bool Add(TKey start, TKey end, TValue item)
-        {
-            //Step #1 - is the head null?  If so, add at the head.
-            if (_Head== null)
-            {
-                _Head = Node.FromKnownHeight(DEFAULT_MAXHEIGHT, start,  end, item);
-                _Tail = _Head;
-                Count = 1;
-                return true;
-            }
-
-            //Step #2 - handle the special cases of adding before the Head, or after the Tail, or an identical item to what exists.
-            Node inserted, next, prior = GetPriorOrEqual(start);
-            int maxHeight = GetMaxHeight(Count + 1);
-            //Will this insertion be the new head?        
-            if (prior == null)
-            {
-                //Must not only add a new head, but must also replace the old head with a random-height head, or else will lose the 
-                //O(log n) characteristics for this list.                
-                inserted = Node.FromKnownHeight(maxHeight, start, end, item);                
-                Node replacement = Node.FromRandomHeight(maxHeight, _Head.Start, _Head.End, _Head.Value, AdjacencyFraction);
-                replacement.UpdateBackwardLinks(inserted);
-                replacement.UpdateForwardLinks(_Head.Forward[0]);                
-                if (_Head.Forward[0] != null) _Head.Forward[0].UpdateBackwardLinks(replacement);
-                if (_Tail == _Head) _Tail = replacement;
-                next = replacement;
-            }
-            //Will this insertion lap an item that is already there and equivalent?
-            else if (item.Equals(prior.Value))
-            {
-                if (Comparer.Compare(end, prior.End) <= 0) return false;  //The insertion is enclosed by equal item
-                prior.End = end;
-                inserted = prior;
-                next = prior.Forward[0];
-            }
-            //Will this insertion be the new end?
-            else if (_Tail == prior)
-            {                
-                //maxHeight = Math.Max(Mathematics.Int32.Log(++Count, _Denom) + 1, DEFAULT_MAXHEIGHT);
-                inserted = Node.FromKnownHeight(maxHeight, start, end, item);
-                Node replacement = Node.FromRandomHeight(maxHeight, _Tail.Start, _Tail.End, _Tail.Value, AdjacencyFraction);
-                replacement.UpdateForwardLinks(inserted);
-                replacement.UpdateBackwardLinks(_Tail.Backward[0]);
-                inserted.UpdateBackwardLinks(replacement);
-                if (_Tail.Backward[0] != null) _Tail.Backward[0].UpdateForwardLinks(replacement);
-                if (Comparer.Compare(replacement.End, start) > 0) replacement.End = start;
-                _Tail = inserted;
-                if (_Head == _Tail) _Head = inserted;
-                Count++;
-                return true;        //No need to check if the insertion overlaps the next item, cuz there is no next item.
-            }
-            //Otherwise, this is but an insertion in the middle of the list.
-            else
-            {                
-                //Otherwise do an insertion.
-                inserted = Node.FromRandomHeight(maxHeight, start, end, item, AdjacencyFraction);
-                next = prior.Forward[0];               
-
-                //Does the prior bracket the to-be-inserted node on the right?
-                if (Comparer.Compare(prior.End, end) > 0)
-                {
-                    next = Node.FromRandomHeight(maxHeight, end, prior.End, prior.Value, AdjacencyFraction);
-                    next.UpdateForwardLinks(prior.Forward[0]);
-                    if (prior.Forward[0] != null) prior.Forward[0].UpdateBackwardLinks(next);
-                }
-                
-                //Does the prior bracket the to-be-inserted node on the left?
-                if (Comparer.Compare(prior.Start, start) < 0)
-                {
-                    Node newPrior = Node.FromRandomHeight(maxHeight, prior.Start, start, prior.Value, AdjacencyFraction);
-                    newPrior.UpdateBackwardLinks(prior.Backward[0]);
-                    if (prior.Backward[0] != null) prior.Backward[0].UpdateForwardLinks(newPrior);
-                    prior = newPrior;
-                }
-            }
-
-            //Step #3 - does the new insertion overlap the following items?   Items that are completely enclosed must be removed.        
-            while (next!=null && Comparer.Compare(inserted.End, next.Start) > 0)
-            {
-                //If the insertion only partially overlaps the next, then just update next's start to insert's end.
-                if (Comparer.Compare(inserted.End, next.End) < 0)
-                {
-                    next.Start = inserted.End;
-                    break;
-                }
-                //Otherwise, the insertion completely overrides the next.  Set next to the next item, and Count--.
-                next = next.Forward[0];
-                Count--;                
-            }
-
-
-            //Step #4 - finally, update all the links for the inserted item.
-            Count++;            
-            inserted.UpdateBackwardLinks(prior);
-            inserted.UpdateForwardLinks(next);
-            if (prior != null) prior.UpdateForwardLinks(inserted);
-            else _Head = inserted;
-            if (next != null) next.UpdateBackwardLinks(inserted);
-            else _Tail = inserted;
-            
-            //Step #5 - ensure that the current Tail and Head are tall enough, which might not be true if either was removed for 
-            //being enclosed in the new insertion (or at least, true for the Tail but impossible for the Head?).
-            if (_Head.Forward.Length < maxHeight) _Head.IncreaseHeight(maxHeight);
-            if (_Tail.Backward.Length < maxHeight) _Head.IncreaseHeight(maxHeight);
-
-            //Step #5 - last step - return true.
-            return true;
-        }
-
-        public void Clear()
-        {
-            _Head = null;
-            _Tail = null;
-            Count = 0;
-            //The whole list will now be garbage collectioned.
-        }
-
-        /// <summary>
-        /// If there exists a point item at the given key, removes that item.  Otherwise, this method can make no changes.
-        /// </summary>
-        public bool Remove(TKey point)
-        {
-            Node focus = GetNode(point);            
-            if (focus == null) return false;
-            if (Comparer.Compare(focus.Start, point) != 0) return false;
-            if (Comparer.Compare(focus.End, point) != 0) return false;
-            
-
-            if (Count==1)
-            {
-                Clear();
-                return true;
-            }
-
-            int maxHeight = GetMaxHeight(Count--);            
-            Node prior = focus.Backward[0], next = focus.Forward[0];
-            if (prior== null)
-            {
-                _Head = next;
-                if (_Head.Forward.Length < maxHeight) _Head.IncreaseHeight(maxHeight);
-                else _Head.UpdateForwardLinks(_Head.Forward[0], 0);         
-            }
-            else if (next== null)
-            {
-                _Tail = prior;
-                if (_Tail.Backward.Length < maxHeight) _Tail.IncreaseHeight(maxHeight);
-                else _Tail.UpdateBackwardLinks(_Tail.Backward[0], 0);                
-            }
-            else
-            {
-                prior.UpdateForwardLinks(next);
-                next.UpdateBackwardLinks(prior);
-            }
-            
-            return true;
-        }
-        public bool Remove(TKey start, TKey end)
-        {
-            if (Count == 0) return false;
-
-            int maxHeight = GetMaxHeight(Count - 1);
-            Node prior = GetPriorOrEqual(start), next;
-
-            //Step #1 - did the removal occur entirely before the list?
-            if (Comparer.Compare(_Head.Start, end) >= 0) return false;
-
-            //Step #2 - if prior is null, then the removal starts before the list.
-            bool changed = false;
-            if (prior == null)
-            {
-                while (_Head != null && Comparer.Compare(_Head.End, end) <= 0)
-                {
-                    _Head = _Head.Forward[0];
-                    Count--;
-                    changed = true;
-                }
-
-                if (_Head == null)
-                {
-                    _Tail = null;
-                    Count = 0;
-                    changed = true;
-                }
-                else if (Comparer.Compare(_Head.Start, end) < 0)
-                {
-                    _Head.Start = end;
-                    changed = true;
-                }
-
-                if (_Head.Forward.Length < maxHeight) _Head.IncreaseHeight(maxHeight);
-                else _Head.UpdateForwardLinks(_Head.Forward[0], 0);
-
-                return changed;
-            }
-
-            //Step #3 - otherwise, the removal starts after the beginning of the list.
-            if (Comparer.Compare(_Tail.End, start) <= 0) return false;
-
-            next = prior.Forward[0];
-            while (next != null && Comparer.Compare(next.End, end) <= 0)
-            {
-                next = next.Forward[0];
-                Count--;
-                changed = true;
-            }
-            if (next == null)
-            {
-                if (_Tail!= prior)
-                {
-                    _Tail = prior;
-                    if (_Tail.Backward.Length < maxHeight) _Tail.IncreaseHeight(maxHeight);
-                    else _Tail.UpdateBackwardLinks(prior, 0);
-                    return true;
-                }
-                return false;
-            }
-            else if (Comparer.Compare(next.Start, end) < 0)
-            {
-                next.Start = end;
-                changed = true;
-            }
-
-            //Step #4 - now that the prior and the next are sorted out, and neither is null, update their links.
-            prior.UpdateForwardLinks(next, 0);
-            next.UpdateBackwardLinks(prior, 0);
-
-            //Step #5 - finally, return whether the list has changed.
-            return changed;            
-        }
-
-
-        #endregion
 
 
         #region DurationList contents queries
 
         /// <summary>
-        /// Returns the value item whose range encloses the given key, if it exists.  If it does not, throws a KeyNotFoundException.
+        /// Returns whether this list contains the given item (or an item equal to the current item, according to the set's Comparer).
         /// </summary>
-        public TValue this[TKey key]
+        /// <remarks>This method is an O(log n) operation, where n is the number of items contained in the list.</remarks>
+        public bool Contains(TKey item)
         {
-            get
-            {
-                Node node = GetNode(key);
-                if (node == null) throw new KeyNotFoundException();
-                return node.Value;
-            }
-            set { Add(key, value); }
+            Node prior, next;
+            return GetNode(item, out prior, out next) != null;
         }
 
+
         /// <summary>
-        /// Returns the number of distinct item-ranges in this list.
+        /// Returns the number of distinct item values held in this skip set.  The items themselves may be identical, but if they occur with 
+        /// other items (or blank spaces) interposed in between, they are counted separately.
         /// </summary>
         public int Count { get; private set; } = 0;
-
-     
-
-        int ICollection<KeyValuePair<TKey, TValue>>.Count { get { return Count; } }
-
+        
+              
         /// <summary>
-        /// Returns the range boundaries, in order.  This method makes no distinction between starting boundaries and ending boundaries.
-        /// </summary>        
-        public ICollection<TKey> GetBounds()
-        {
-            List<TKey> result = new List<TKey>(Count);
-            if (Count == 0) return result;
-            result.Add(_Head.Start);
-            TKey prior = _Head.Start;
-            if (Comparer.Compare(prior, _Head.End) != 0)
-            {
-                prior = _Head.End;
-                result.Add(prior);
-            }
-            Node focus = _Head.Forward[0];
-            while (focus != null)
-            {
-                TKey next = focus.Start;
-                if (Comparer.Compare(next, prior) != 0)
-                {
-                    prior = next;
-                    result.Add(prior);
-                    next = focus.End;
-                }
-                if (Comparer.Compare(next, prior) != 0)
-                {
-                    prior = next;
-                    result.Add(prior);
-                }
-                focus = focus.Forward[0];
-            }
-            return result.AsReadOnly();
-        }
-
-        /// <summary>
-        /// Returns all the value items from this list,  in order.  Duplicate items may be returned.
-        /// </summary>        
-        public ICollection<TValue> GetItems()
-        {
-            List<TValue> result = new List<TValue>(Count);
-            Node focus = _Head;
-            while (focus != null)
-            {
-                result.Add(focus.Value);
-                focus = focus.Forward[0];
-            }
-            return result.AsReadOnly();
-        }
-
-        /// <summary>
-        /// Returns the Node whose data is equal to or immediately after the given item's node end, according to the list's comparer.
-        /// </summary>        
-        /// <returns>Returns null if there exists no node whose data is greater than or equal to the given item.</returns>
-        /// /// <remarks>Depending on how many items must be skipped as the next-or-equal is sought, this method ranged between an O(1) operation 
-        /// or an O(N) operation, but the most common case will be an O(log N) operation.</remarks>
-        private Node GetNextOrEqual(TKey key)
-        {
-            if (_Tail == null) return null;
-            if (Comparer.Compare(key, _Tail.End) < 0) return null;
-
-            Node focus = _Tail;
-            for (int i = _Tail.Height - 1; i >= 0; i--)
-            {
-                Node next = focus.Backward[i];
-                while (next != null && Comparer.Compare(key, next.End) >= 0)
-                {
-                    focus = next;
-                    next = focus.Backward[i];
-                }
-            }
-            return focus;
-        }
-
-        /// <summary>
-        /// Returns the node whose range contains the given key.  If a key happens to fall on a border shared by two ranges, returns the 
-        /// earlier of the two value items.
+        /// Returns the node containing the given key as withi it, if it exists.  If no such node exists, returns null.  If the key falls on 
+        /// the boundary start or end of a node, the node will be returned in this order of preference:  1) nodes ending at the key; 2) 
+        /// nodes whose range is only the key; and 3) nodes that begin at the key.
+        /// <para/>This method is an O(log n) operation.
         /// </summary>
-        /// <returns>Returns the containing Node, or if there is no node that contains it, returns null.</returns>
-        private Node GetNode(TKey key)
+        private Node GetNode(TKey key, out Node prior, out Node next)
         {
-            if (_Tail == null) return null;
-            if (Comparer.Compare(key, _Tail.End) > 0) return null;
+            prior = null;
+            next = null;
+            if (Count == 0) return null;
+            if ( Comparer.Compare(key, Head.Start) < 0)
+            {
+                //Prior to the head.
+                next = Head;
+                return null;
+            }
+            if (Comparer.Compare(key, Tail.End) > 0)
+            {
+                //After the tail.
+                prior = Tail;
+                return null;
+            }
 
-            Node focus = GetPriorOrEqual(key);
-            if (focus == null) return null;
-            if (Comparer.Compare(focus.End, key) < 0) return null;
-
-            //Check if there is a point range hiding here too.
-            if (Comparer.Compare(focus.Start, key) == 0 && focus.Next != null && Comparer.Compare(focus.Next.End, key) == 0) return focus.Next;            
+            //First, find which node's start immediately precedes the item.
+            Node focus = Head;
+            for (int i = Head.Height - 1; i >= 0; i--)
+            {
+                //prior = focus.Backward[0];
+                next = focus.Forward[i];
+                while (next != null && Comparer.Compare(key, next.Start) <= 0)
+                {                    
+                    focus = next;
+                    next = focus.Forward[i];
+                }                
+            }
             
+
+            //Now, if the focus doesn't contain the item, advance the prior and set focus to null.  Otherwise, just set the prior to the 
+            //focus's previous.
+            if (Comparer.Compare(key, focus.End) > 0)
+            {
+                prior = focus;
+                focus = null;
+            }
+            else
+                prior = focus.Backward[0];
+
+
+            //finally, return the focus.
             return focus;
         }
-
-        /// <summary>
-        /// Returns the Node whose data is equal or immediately prior to the given item's node start, according to the list's Comparer.
-        /// </summary>        
-        /// <returns>Returns null if there exists no node whose data is lesser than or equal to the given item.</returns>
-        /// <remarks>Depending on how many items must be skipped as the prior-or-equal is sought, this method ranged between an O(1) operation 
-        /// or an O(N) operation, but the most common case will be an O(log N) operation.</remarks>
-        private Node GetPriorOrEqual(TKey key)
-        {
-            if (_Head == null) return null;
-            if (Comparer.Compare(key, _Head.Start) < 0) return null;
-
-            Node prior = _Head;
-            for (int i = _Head.Height - 1; i >= 0; i--)
-            {
-                Node next = prior.Forward[i];
-                while (next != null && Comparer.Compare(key, next.Start) >= 0)
-                {
-                    prior = next;
-                    next = prior.Forward[i];
-                }
-            }
-            return prior;
-        }
-
-
-        bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly { get { return false; } }
-
-
-        ICollection<TKey> IDictionary<TKey, TValue>.Keys { get { return GetBounds(); } }
-
-
-        ICollection<TValue> IDictionary<TKey, TValue>.Values { get { return GetItems(); } }
-
 
         
+        private bool IsSingleton(Node node) { return Comparer.Compare(node.Start, node.End) == 0; }
+
         /// <summary>
-        /// Returns whether the given key is contained on this list within a value item's duration range.
+        /// Returns the minimum value in this list.
         /// </summary>
-        public bool ContainsKey(TKey key)
+        /// <remarks>This is an O(1) operation, which makes it distinct from the standard binary search tree.</remarks>
+        public TKey Min { get { return Head.Start; } }
+        /// <summary>
+        /// Returns the maximum value in this list.
+        /// </summary>
+        /// <remarks>This is an O(1) operation, which makes it distinct from the standard binary search tree.</remarks>
+        public TKey Max { get { return Tail.Start; } }
+        
+
+        [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+        public override string ToString()
         {
-            Node focus = GetPriorOrEqual(key);
-            if (focus == null) return false;
-            return Comparer.Compare(focus.End, key) >= 0;
+            return "Count = " + Count;
         }
 
-      
+        //public string HeightProfile()
+        //{
+        //    int[] counts = new int[Head.Height+5];
+        //    Node current = Head;
+        //    while (current != null) counts[current++.Height-1]++;
+        //    string str = "";
+        //    for (int i = 0; i < counts.Length; i++) str += i + " : " + counts[i] + "\r\n";
+        //    return str;
 
-        bool IDictionary<TKey, TValue>.TryGetValue(TKey key, out TValue value)
-        {
-            throw new NotImplementedException();
-        }
-
-        void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> kvp) { Add(kvp.Key, kvp.Value); }
-        void IDictionary<TKey, TValue>.Add(TKey key, TValue value) { Add(key, value); }
-
-        bool IDictionary<TKey, TValue>.Remove(TKey key) { return Remove(key); }
-
-
-        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item)
-        {
-            throw new NotImplementedException();
-        }
-
-        void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
-        {
-            throw new NotImplementedException();
-        }
-
-        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> kvp)
-        {
-            Node focus = GetNode(kvp.Key);
-            if (focus == null) return false;
-            if (!kvp.Value.Equals(_Head.Value)) return false;
-            return Remove(kvp.Key);
-            
-        }
-
-        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
-        {
-            Node focus = _Head;
-            while (focus!= null)
-            {
-                yield return new KeyValuePair<TKey, TValue>(focus.Start, focus.Value);
-                focus = focus.Forward[0];
-            }
-            
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            throw new NotImplementedException();
-        }
+        //}
 
         #endregion
+            
+
     }
 }
