@@ -1,8 +1,8 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"                
-                    xmlns:editing="clr-namespace:WpfControls.Editing"
-                    xmlns:converters="clr-namespace:WpfControls.Converters">
+                    xmlns:editing="clr-namespace:WpfHelpers.Editing"
+                    xmlns:converters="clr-namespace:WpfHelpers.Converters">
 
 
     <Style TargetType="{x:Type editing:AutoEditor}">

@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace WpfControls.Editing
+namespace WpfHelpers.Editing
 {
     
     public class DateTimeEditor : AbstractPropertyEditor

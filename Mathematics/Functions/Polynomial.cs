@@ -11,7 +11,7 @@ namespace Mathematics.Calculus
     /// <summary>
     /// A lightweight, publicly immutable data structure that represents polynomial expressions.
     /// </summary>
-    public class Polynomial : IDifferentiable
+    public class Polynomial : IDifferentiable<double>
     {
 
         double[] _Coeffs;
@@ -429,13 +429,13 @@ namespace Mathematics.Calculus
             }
 
             Polynomial deriv = GetDerivative();
-            Complex[] roots = deriv.GetRoots();
+            Complex[] roots = deriv.GetRoots(true);
 
             double maximum = double.NegativeInfinity;
             x = double.NaN;
             foreach (Complex root in roots)
             {
-                if (root.Imaginary == 0.0 && root.Real >= starting && root.Real <= ending)
+                if (root.Real >= starting && root.Real <= ending)
                 {
                     double value = Evaluate(root.Real);
                     if (value > maximum)
@@ -736,8 +736,6 @@ namespace Mathematics.Calculus
             }            
         }
 
-
-
         /// <summary>
         /// Finds the roots of the given cubic expression, in the form (ax^3) + (bx^2) + (cx) + d.
         /// </summary>
@@ -825,10 +823,7 @@ namespace Mathematics.Calculus
                 return new Complex[3] { x1, x2, x3 };
             }
             
-        }
-
-
-
+        }        
 
         /// <summary>
         /// Finds the roots of the given cubic expression, in the form (ax^3) + (bx^2) + (cx) + d.
@@ -844,91 +839,24 @@ namespace Mathematics.Calculus
             throw new NotImplementedException("Have not implemented root-finding for quartic polynomial expressions.  Good luck, mate.");
         }
 
-        IDifferentiable IDifferentiable.GetDerivative()
+
+        IDifferentiable<double> IDifferentiable<double>.GetDerivative()
         {
             return GetDerivative();
         }
 
-        IDifferentiable IDifferentiable.GetIntegral(double constant)
+        IDifferentiable<double> IDifferentiable<double>.GetIntegral(double constant)
         {
             return GetIntegral(constant);
         }
 
-
-        IEnumerable<double> IDifferentiable.GetRoots()
-        {
-            return GetRealRoots();            
-        }
-
-        double IDifferentiable.GetMinimum(double starting, double ending, out double x)
-        {
-            //Is the end, or the start, the min?
-            double value = Evaluate(starting);
-            x = starting;
-            double newVal = Evaluate(ending);
-            if (newVal< value)
-            {
-                value = newVal;
-                x = starting;
-            }
-            
-            //Is one of the local min or max a deeper min?
-            IEnumerable<double> roots = GetDerivative().GetRealRoots();
-            foreach (double root in roots)
-            {
-                newVal = Evaluate(root);
-                if (newVal >= value) continue;
-                value = newVal;
-                x = root;
-            }
-
-            //Return the max.
-            return value;
-        }
-
-        double IDifferentiable.GetMaximum(double starting, double ending, out double x)
-        {
-            //Is the start, or the end, a higher max?
-            double value = Evaluate(starting);
-            x = starting;
-            double newVal = Evaluate(ending);
-            if (newVal > value)
-            {
-                value = newVal;
-                x = starting;
-            }
-
-            //Is there a local max that is higher?
-            IEnumerable<double> roots = GetDerivative().GetRealRoots();
-            foreach (double root in roots)
-            {
-                newVal = Evaluate(root);
-                if (newVal <= value) continue;
-                value = newVal;
-                x = root;
-            }
-
-            //Returns the max
-            return value;
-        }
-
-        double IDifferentiable.GetLength(double starting, double ending)
+        
+        double IDifferentiable<double>.GetLength(double starting, double ending)
         {
             throw new NotImplementedException();
         }
 
-        IDifferentiable IDifferentiable.GetDifference(double d)
-        {
-            return this - d;
-        }
-        IDifferentiable IDifferentiable.GetSum(double d)
-        {
-            return this + d;
-        }
-
-
-
-
+    
 
         #endregion
 

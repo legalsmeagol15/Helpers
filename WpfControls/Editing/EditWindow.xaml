@@ -1,11 +1,11 @@
-﻿<Window x:Class="WpfControls.Editing.EditWindow"
+﻿<Window x:Class="WpfHelpers.Editing.EditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:WpfControls"
-        xmlns:editing="clr-namespace:WpfControls.Editing"
-        xmlns:converters="clr-namespace:WpfControls.Converters"
+        xmlns:local="clr-namespace:WpfHelpers"
+        xmlns:editing="clr-namespace:WpfHelpers.Editing"
+        xmlns:converters="clr-namespace:WpfHelpers.Converters"
         mc:Ignorable="d"
         Title="EditWindow" MaxHeight="600" Width="400" SizeToContent="Height" Name="window" ResizeMode="NoResize">
     <Window.Resources>

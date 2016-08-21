@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace WpfControls.Editing
+namespace WpfHelpers.Editing
 {
     public abstract class AbstractPropertyEditor : Control, IPropertyEditor
     {

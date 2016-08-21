@@ -47,7 +47,7 @@
     <Compile Include="Functions\BezierQuadratic.cs" />
     <Compile Include="Functions\Circle.cs" />
     <Compile Include="Functions\NURBS.cs" />
-    <Compile Include="Functions\ParamLine.cs" />
+    <Compile Include="Functions\Line.cs" />
     <Compile Include="Functions\ParamPolar.cs" />
     <Compile Include="Functions\PolyBezierCubic.cs" />
     <Compile Include="Operations.cs" />

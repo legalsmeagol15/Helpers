@@ -1,12 +1,12 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:WpfControls"
+    xmlns:local="clr-namespace:WpfHelpers"
     >
 
 
     <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/WpfControls;component/Themes/Editing.xaml" />
+        <ResourceDictionary Source="/WpfHelpers;component/Themes/Editing.xaml" />
     </ResourceDictionary.MergedDictionaries>
     
     

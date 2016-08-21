@@ -13,7 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-namespace WpfControls.Editing
+namespace WpfHelpers.Editing
 {
     /// <summary>
     /// Interaction logic for EditWindow.xaml

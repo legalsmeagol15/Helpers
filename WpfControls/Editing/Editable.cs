@@ -10,7 +10,7 @@ using System.Windows;
 using System.Windows.Markup;
 using System.Xml.Serialization;
 
-namespace WpfControls.Editing
+namespace WpfHelpers.Editing
 {
 
     /// <summary>

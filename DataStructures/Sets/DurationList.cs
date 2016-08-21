@@ -17,7 +17,7 @@ namespace DataStructures
     
     public sealed class DurationList <TKey, TValue> //: IDictionary<TKey, TValue> 
     {
-
+        //TODO:  validate Duration List.
         private IComparer<TKey> Comparer;
         private Node Head = null;
         private Node Tail = null;
