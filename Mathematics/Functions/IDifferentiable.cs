@@ -48,7 +48,7 @@ namespace Mathematics.Calculus
         /// <summary>
         /// Returns the arc length of the function, starting and ending at the given 'x' values.
         /// </summary>
-        double GetLength(double starting, double ending);
+        IDifferentiable<T> GetLength();
 
         ///// <summary>
         ///// Returns the real roots of the given differentiable function, or those 'x' values where the value of the function is equal to 0.
@@ -56,7 +56,11 @@ namespace Mathematics.Calculus
         //IEnumerable<double> GetRoots();
 
 
-        //IDifferentiable GetDifference(double d);
-        //IDifferentiable GetSum(double d);
+        IDifferentiable<T> GetSum(IDifferentiable<T> other);
+        IDifferentiable<T> GetDifference(IDifferentiable<T> other);
+        IDifferentiable<T> GetMultiple(IDifferentiable<T> factor);
+        IDifferentiable<T> GetQuotient(IDifferentiable<T> divisor);
+        IDifferentiable<T> GetNegation();
+        
     }
 }

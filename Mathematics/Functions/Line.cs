@@ -8,7 +8,7 @@ using System.Windows;
 
 namespace Mathematics.Functions
 {
-    public class Line : IParametric<Point>, IDifferentiable<Point>
+    public class Line : IDifferentiable<Point>
     {
 
         public Point PointA { get; }
@@ -77,12 +77,42 @@ namespace Mathematics.Functions
         {
             throw new NotImplementedException();
         }
+        
 
-        double IDifferentiable<Point>.GetLength(double starting, double ending)
+        Point IDifferentiable<Point>.Evaluate(double value)
         {
             throw new NotImplementedException();
         }
 
-      
+        IDifferentiable<Point> IDifferentiable<Point>.GetLength()
+        {
+            
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetSum(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetDifference(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetMultiple(IDifferentiable<Point> factor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetQuotient(IDifferentiable<Point> divisor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetNegation()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

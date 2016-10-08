@@ -14,7 +14,7 @@ namespace Mathematics.Calculus
     /// determines the direction the curve leaves the start point, and the second control point determines the direction from which the curve 
     /// enters the end point.
     /// </summary>
-    public class BezierCubic : IParametric<Point>, IDifferentiable<Point>
+    public class BezierCubic : IDifferentiable<Point>
         //TODO:  validative BezierCubic
     {
         /// <summary>
@@ -165,13 +165,45 @@ namespace Mathematics.Calculus
             throw new NotImplementedException("The integral of a cubic Bezier would be a quartic Bezier.  Have not implemented quartic Beziers.");
         }
         
+        public IDifferentiable<Point> GetLength()
+        {
+            Polynomial yPoly = GetYPolynomial(), xPoly = GetXPolynomial();
+            throw new NotImplementedException();
+        }
 
-        double IDifferentiable<Point>.GetLength(double starting, double ending)
+        Point IDifferentiable<Point>.Evaluate(double value)
         {
             throw new NotImplementedException();
         }
-        
-      
-        
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetLength()
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetSum(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetDifference(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetMultiple(IDifferentiable<Point> factor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetQuotient(IDifferentiable<Point> divisor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetNegation()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

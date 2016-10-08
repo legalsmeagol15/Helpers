@@ -1,17 +1,19 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+//using System.Linq;
+//using System.Text;
+//using System.Threading.Tasks;
 using System.Windows;
+
 
 namespace DataStructures
 {
     /// <summary>
     /// A data structure that supports fast retrieval of two-dimensional items and their intersections by storing items in a quad tree.
     /// </summary>
-    /// <remarks>Author Wesley Oates, 5/11/2016.  Validated 5/11/2016.</remarks>
+    /// <remarks> Threading model:  all operations are synchronized with the calling thread.
+    /// <para/>Author Wesley Oates, 5/11/2016.  Validated 5/11/2016.</remarks>
     public sealed class QuadTree<T> : ICollection<T>
     {
         /// <summary>
@@ -33,7 +35,7 @@ namespace DataStructures
         {
             this._BoundaryGetter = boundaryGetter;
         }
-        
+      
 
         #region RectTree contents changing
 
@@ -164,48 +166,56 @@ namespace DataStructures
             Count = 0;
         }
         
-
+        /// <summary>
+        /// Removes the given item from the QuadTree
+        /// </summary>                
         public bool Remove(T item)
         {
             Node node;
+
+            //If there is no value for the node for the item, the item never existed to begin with.
             if (!_Nodes.TryGetValue(item, out node)) return false;
-            Rect itemBoundary = _Bounds[item];  //Use to detect if the item abutted the extent.
 
             //From here, removal must be successful.  If the node's contents no longer contain the item, that means the item is gone entirely.
-            node.Contents.Remove(item);
+            int itemCount = node.Contents.Remove(item);
+
+            //If the itemCount is less than 0, it means the item never existed in the first place.
+            if (itemCount < 0) return false;
             Count--;
 
             //What if the removal pulled out the last instance?  Could change the structure of the tree.
-            if (!node.Contents.Contains(item))
+            if (itemCount == 0)
             {
-                _Bounds.Remove(item);
-                _Nodes.Remove(item);
-
                 //Was the removal the last item in this entire tree?
                 if (Count == 0)
-                {
                     Clear();
-                    return true;
+
+                //Otherwise, did the removal cause the extent to shrink?
+                else
+                {
+                    Rect itemBoundary = _Bounds[item];  //Use to detect if the item abutted the extent.
+
+                    //Remove from the Bounds and Nodes dictionaries.
+                    _Bounds.Remove(item);
+                    _Nodes.Remove(item);
+
+                    double error = Math.Min(node.Boundary.Height, node.Boundary.Width) / 16;
+                    Rect extent = _Root.Boundary;
+                    if (Math.Abs(extent.Left - itemBoundary.Left) < error || Math.Abs(extent.Right - itemBoundary.Right) < error
+                        || Math.Abs(extent.Top - itemBoundary.Top) < error || Math.Abs(extent.Bottom - itemBoundary.Bottom) < error)
+                    {
+                        Rect newExtent = GetExtent();
+                        if (_Root.Boundary != newExtent) AdjustExtent(newExtent);
+                    }
                 }
 
-                //Did the removal cause the extent to shrink?
-                double error = Math.Min(node.Boundary.Height, node.Boundary.Width) / 16;
-                Rect extent = _Root.Boundary;
-                if (Math.Abs(extent.Left - itemBoundary.Left) < error || Math.Abs(extent.Right - itemBoundary.Right) < error
-                    || Math.Abs(extent.Top - itemBoundary.Top) < error || Math.Abs(extent.Bottom - itemBoundary.Bottom) < error)
-                {
-                    Rect newExtent = GetExtent();
-                    if (_Root.Boundary != newExtent)
-                    {
-                        AdjustExtent(newExtent);
-                        return true;
-                    }                        
-                }
+                return true;
             }
 
             //Since this removal was not the last one in a node (or it was but the tree structure remains unchanged), just return true.
-            return true;           
+            return true;      
         }
+
 
         #endregion
 
@@ -236,7 +246,7 @@ namespace DataStructures
         }
 
         /// <summary>
-        /// Returns whether this quadtree contains the given item.
+        /// Returns whether this quadtree contains the given item.  This method is an O(1) operation.
         /// </summary>
         public bool Contains(T item) { return _Nodes.ContainsKey(item); }
 
@@ -350,6 +360,10 @@ namespace DataStructures
             
             return result;
         }
+
+    
+
+   
 
         /// <summary>
         /// Contains bitwise flags that indicate positions relative to a central point, or quadrants in a Rect.

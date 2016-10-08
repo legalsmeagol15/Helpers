@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Mathematics.Calculus;
+using Mathematics.Functions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,6 +32,47 @@ namespace Mathematics.Cartesian
             decimal yDiff = a.Y - b.Y;
             return Mathematics.Operations.Sqrt((xDiff * xDiff) + (yDiff * yDiff));
         }
+
+        public const double DEFAULT_ARCLENGTH_PRECISION = 0.00001;
+        /// <summary>
+        /// Returns the arc length of the given parametrically-defined arc between the given values.
+        /// </summary>
+        /// <param name="arc"></param>
+        /// <param name="start"></param>
+        /// <param name="end"></param>
+        /// <returns></returns>
+        public static double GetArcLength(IDifferentiable<Point> arc, double start = 0.0d, double end = 1.0d)
+        {
+            return GetArcLength(arc, start, end, GetDistance(arc.Evaluate(0.0d), arc.Evaluate(1.0d)), DEFAULT_ARCLENGTH_PRECISION);
+        }
+        /// <summary>
+        /// Recursively examines the estimated distance between the start and end, against the start-to-midpoint added to the midpoint-to-end.  If the 
+        /// difference between the sum of the half-segments and the estimate is less than the precision specified, returns the sum; otherwise, seeks 
+        /// a more accurate number by recursively calling the method again on the segment.
+        /// </summary>
+        /// <param name="arc"></param>
+        /// <param name=""></param>
+        /// <param name=""></param>
+        /// <param name="length"></param>
+        /// <returns>Returns ...</returns>
+        private static double GetArcLength(IDifferentiable<Point> arc, double start, double end, double estimate, 
+                                           double precision = DEFAULT_ARCLENGTH_PRECISION)
+        {
+            if (start > end) throw new ArgumentException("Start cannot be greater than end.");
+            if (start == end) return 0.0;
+
+            double mid = (start + end) / 2;
+            Point midPt = arc.Evaluate(mid);
+            double segA = GetDistance(arc.Evaluate(start), midPt);
+            double segB = GetDistance(midPt, arc.Evaluate(end));
+            double sum = segA + segB;
+
+            if (Math.Abs(sum - estimate) < precision) return sum;
+            segA = GetArcLength(arc, start, mid, segA, precision);
+            segB = GetArcLength(arc, mid, end, segB, precision);
+            return segA + segB;
+        }
+
         
        
         /// <summary>
@@ -231,6 +274,7 @@ namespace Mathematics.Cartesian
         {
             throw new NotImplementedException();
         }
+
 
         /// <summary>
         /// Returns the shared border, if any, of the two Rect objects.

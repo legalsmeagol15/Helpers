@@ -55,7 +55,7 @@ namespace DataStructures
         #region HashCollection contents manipulation
 
         /// <summary>
-        /// Adds the given item to this hash collection.  Returns the count of identical items once the add is complete.
+        /// Adds the given item to this hash collection.  Returns the count of Equals() items once the add is complete.
         /// </summary>
         public int Add(T item, int copies = 1)
         {
@@ -66,7 +66,8 @@ namespace DataStructures
             //If this is the first item in the chain, time to create the chain.
             if (chain == null)
             {
-                _ChainSize = Mathematics.Primes.GetNextPrime(_Table.Length);  //Forces the modularity of the chain to be different from table's modularity.
+                _ChainSize = Mathematics.Primes.GetNextPrime(_Table.Length);  /// Forces the modularity of the chain to be different from 
+                                                                              /// table's modularity.
                 chain = new Dictionary<T, int>(_ChainSize);
                 _Table[idx] = chain;
             }
@@ -81,7 +82,8 @@ namespace DataStructures
                 chain = _Table[idx];
                 if (chain == null)
                 {
-                    //Is this really possible?  If the capacity is increased so the mod is doubled, won't the hash & _Table.Length stay the same?
+                    ///Is this really possible?  If the capacity is increased so the mod is doubled, won't the hash & _Table.Length stay 
+                    ///the same?
                     chain = new Dictionary<T, int>(_ChainSize);
                     _Table[idx] = chain;
                 }
@@ -145,15 +147,24 @@ namespace DataStructures
         /// Ensures the hash collection does not contain the given item.  If the item did not exist in the collection to begin with, returns false; otherwise, returns 
         /// true upon removal.
         /// </summary>
-        public bool Remove(T item)
+        /// <returns>Returns the number of Equals() items remaining.  If the result is negative, the item never existed to begin with.</returns>
+        public int Remove(T item, int copies = 1)
         {
+            if (copies < 1) throw new ArgumentException("Must remove at least one copy.");
             int idx = Hash(item);
             Dictionary<T, int> chain = _Table[idx];
-            if (chain == null) return false;
-            if (!chain.ContainsKey(item)) return false;
-            if (--chain[item] < 1) chain.Remove(item);
+            if (chain == null) return -1;
+            if (!chain.ContainsKey(item)) return -1;
+            int itemCount = (chain[item] -= copies);
+            itemCount = Math.Max(0, itemCount);
+            if (itemCount < 1) chain.Remove(item);
             Count--;
-            return true;
+            return itemCount;
+        }
+
+        bool ICollection<T>.Remove(T item)
+        {
+            return Remove(item) >= 0;
         }
 
         #endregion
@@ -227,6 +238,8 @@ namespace DataStructures
             //Not validated
             return GetEnumerator();
         }
+
+ 
 
         #endregion
 

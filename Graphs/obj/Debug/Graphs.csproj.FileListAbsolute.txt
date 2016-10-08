@@ -1,0 +1,5 @@
+C:\Users\Wesley\Documents\Programming\Helpers\Graphs\bin\Debug\Graphs.dll
+C:\Users\Wesley\Documents\Programming\Helpers\Graphs\bin\Debug\Graphs.pdb
+C:\Users\Wesley\Documents\Programming\Helpers\Graphs\obj\Debug\Graphs.csprojResolveAssemblyReference.cache
+C:\Users\Wesley\Documents\Programming\Helpers\Graphs\obj\Debug\Graphs.dll
+C:\Users\Wesley\Documents\Programming\Helpers\Graphs\obj\Debug\Graphs.pdb

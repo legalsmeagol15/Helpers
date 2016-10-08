@@ -21,7 +21,7 @@ namespace Mathematics.Calculus
         /// Returns the order of the Polynomial, which is the one higher than the highest exponent to which the 'x' variable will be raised on evaluation.  For example, 
         /// the Polynomial y=1 will be order 0, and the Polynomial y=(x^4)+(x^2)+1 will be order 5.
         /// </summary>
-        public int Order { get { return _Coeffs.Length; } }
+        public int Order { get { return _Coeffs.Length - 1; } }
 
 
         public override string ToString()
@@ -94,6 +94,11 @@ namespace Mathematics.Calculus
 
 
         private Polynomial() { }
+
+        private Polynomial(int order)
+        {
+            _Coeffs = new double[order];
+        }
 
         public static Polynomial FromConstant(double constant)
         {
@@ -181,17 +186,16 @@ namespace Mathematics.Calculus
 
         #endregion
 
-
-        
+                
 
         #region Polynomial arithmetic
 
-        public static Polynomial operator -(Polynomial a)
+        public static Polynomial operator -(Polynomial poly)
         {
             Polynomial result = new Polynomial();
-            result._Coeffs = new double[a._Coeffs.Length];
+            result._Coeffs = new double[poly._Coeffs.Length];
             for (int i = 0; i<result._Coeffs.Length; i++)            
-                result._Coeffs[i] = -a._Coeffs[i];
+                result._Coeffs[i] = -poly._Coeffs[i];
             return result;
         }
 
@@ -200,9 +204,12 @@ namespace Mathematics.Calculus
         /// </summary>
         public double Evaluate(double xValue)
         {
-            double result = 0.0;
+            double result = 0.0, powerX = 1.0;
             for (int exp = 0; exp < _Coeffs.Length; exp++)
-                result += (_Coeffs[exp] * Math.Pow(xValue, exp));
+            {
+                result += (_Coeffs[exp] * powerX);
+                powerX *= xValue;
+            }                
             return result;
         }
 
@@ -235,7 +242,7 @@ namespace Mathematics.Calculus
         {
             return polynomial + d;
         }
-
+        
         public static Polynomial operator -(Polynomial a, Polynomial b)
         {
             Polynomial result = new Polynomial();
@@ -261,15 +268,22 @@ namespace Mathematics.Calculus
 
         public static Polynomial operator -(double d, Polynomial polynomial)
         {
-            return polynomial - d;
+            return -polynomial + d;
         }
 
 
         public static Polynomial operator *(Polynomial a, Polynomial b)
         {
             Polynomial result = new Polynomial();
-            result._Coeffs = new double[a._Coeffs.Length * b._Coeffs.Length];
-            throw new NotImplementedException();
+            result._Coeffs = new double[a._Coeffs.Length + b._Coeffs.Length];
+            for (int aIdx = 0; aIdx < a._Coeffs.Length; aIdx++)
+            {
+                for (int bIdx = 0; bIdx < b._Coeffs.Length; bIdx++)
+                {
+                    result._Coeffs[aIdx + bIdx] += (a._Coeffs[aIdx] * b._Coeffs[bIdx]);
+                }
+            }
+            return result;
         }
 
         public static Polynomial operator *(Polynomial polynomial, double d)
@@ -280,20 +294,52 @@ namespace Mathematics.Calculus
             result.Simplify();
             return result;
         }
+        
 
         public static Polynomial operator *(double d, Polynomial polynomial)
         {
             return polynomial * d;
         }
 
-        public static void Divide (Polynomial a, Polynomial b, out Polynomial quotient, out Polynomial remainder)
+        protected static void Divide (Polynomial a, Polynomial b, out Polynomial quotient, out IDifferentiable<double> remainder)
         {
-            throw new NotImplementedException();
+            ///returns:
+            ///     ___
+            ///  b / a
+            ///  
+
+            int orderDiff = a.Order - b.Order;
+            if (orderDiff < 0) throw new ArgumentException("Irrational division.");
+            a = a.Copy();
+            quotient = new Polynomial();
+            quotient._Coeffs = new double[orderDiff];
+
+            //What is b's highest-order divisor coefficient?
+            double divisorCoeff = b._Coeffs[b.Order];
+            if (divisorCoeff == 0.0) throw new DivideByZeroException("Zero-value divisor Polynomial.");
+
+            //Do the guts of the division.
+            int  aIdx = a.Order;
+            for (int qIdx = quotient.Order; qIdx >= 0; qIdx--)
+            {
+                //What is the new coefficient for the divisor?
+                double newCoeff = a._Coeffs[aIdx] / divisorCoeff;
+
+                //Subtract from 'a' the value of the b * the new coefficient (can skip highest 'b' coefficeint, cuz different would be 0).
+                a._Coeffs[aIdx--] = 0.0;
+                for (int bIdx = b.Order - 1; bIdx >= 0; bIdx--)
+                    a._Coeffs[bIdx + qIdx] -= (b._Coeffs[bIdx] * newCoeff);
+
+                quotient._Coeffs[qIdx] = newCoeff;
+            }
+
+            remainder = a;
         }
 
         public static Polynomial operator /(Polynomial a, Polynomial b)
         {
-            Polynomial quotient, remainder;
+            Polynomial quotient;
+            IDifferentiable<double> remainder;
             Divide(a, b, out quotient, out remainder);
             quotient.Simplify();
             return quotient;
@@ -305,14 +351,17 @@ namespace Mathematics.Calculus
                 result._Coeffs[i] /= d;
             return result;            
         }
-        public static Polynomial operator %(Polynomial a, Polynomial b)
+     
+        public static IDifferentiable<double> operator %(Polynomial a, Polynomial b)
         {
-            Polynomial quotient, remainder;
+            Polynomial quotient;
+            IDifferentiable<double> remainder;
             Divide(a, b, out quotient, out remainder);
-            remainder.Simplify();
-            return remainder;
+            //remainder.Simplify();
+            throw new NotImplementedException("Have not implemented inverse polynomials yet.");
+            //return remainder;
         }
-    
+
         public static Polynomial operator /(double d, Polynomial polynomial)
         {
             if (polynomial._Coeffs.Length == 1) return d / polynomial._Coeffs[0];
@@ -338,6 +387,52 @@ namespace Mathematics.Calculus
             return p;
         }
 
+
+
+
+        IDifferentiable<double> IDifferentiable<double>.GetLength()
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<double> IDifferentiable<double>.GetSum(IDifferentiable<double> other)
+        {
+            if (other is Polynomial) return this + (Polynomial)other;
+            if (other is Value) return this + other.Evaluate(0.0d);
+            if (other is Fraction) return this + other.Evaluate(0.0d);
+            return other.GetSum(this);
+        }
+
+        IDifferentiable<double> IDifferentiable<double>.GetDifference(IDifferentiable<double> other)
+        {
+            if (other is Polynomial) return this - (Polynomial)other;
+            if (other is Value) return this - other.Evaluate(0.0d);
+            if (other is Fraction) return this - other.Evaluate(0.0d);
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<double> IDifferentiable<double>.GetMultiple(IDifferentiable<double> factor)
+        {
+            if (factor is Polynomial) return this * (Polynomial)factor;
+            if (factor is Value) return this * factor.Evaluate(0.0d);
+            if (factor is Fraction) return this * factor.Evaluate(0.0d);
+            return factor.GetMultiple(this);
+        }
+
+        IDifferentiable<double> IDifferentiable<double>.GetQuotient(IDifferentiable<double> divisor)
+        {
+            if (divisor is Polynomial) return this / (Polynomial)divisor;
+            if (divisor is Value) return this / divisor.Evaluate(0.0d);
+            if (divisor is Fraction) return this / divisor.Evaluate(0.0d);
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<double> IDifferentiable<double>.GetNegation()
+        {
+            return -this;
+        }
+
+
         #endregion
 
 
@@ -345,7 +440,7 @@ namespace Mathematics.Calculus
 
         #region Polynomial calculus members
 
-        
+
         /// <summary>
         /// Returns a Polynomial describing the derivative of this Polynomial.
         /// </summary>
@@ -383,16 +478,7 @@ namespace Mathematics.Calculus
         }
 
 
-        /// <summary>
-        /// Returns the arc length of the polynomial from the given starting x-value to the given ending x-value.
-        /// </summary>
-        public double GetLength(double starting, double ending)
-        {
-            Polynomial deriv = GetDerivative();
-            Polynomial derivSquare = deriv * deriv;
-            derivSquare += 1;
-            throw new NotImplementedException();
-        }
+      
 
         /// <summary>
         /// Returns the local maximum x-value between the given starting and ending x-values.
@@ -850,13 +936,8 @@ namespace Mathematics.Calculus
             return GetIntegral(constant);
         }
 
-        
-        double IDifferentiable<double>.GetLength(double starting, double ending)
-        {
-            throw new NotImplementedException();
-        }
 
-    
+
 
         #endregion
 

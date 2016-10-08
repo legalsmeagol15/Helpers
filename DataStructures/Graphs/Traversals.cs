@@ -114,5 +114,14 @@ namespace DataStructures.Graphs
                 foreach (T neighbor in neighborGetter(vertex)) stack.Push(neighbor);
             }           
         }
+
+        public static IEnumerable<Tuple<T,T>> ShortestPath<T>(T vertex, Func<T, IEnumerable<T>> neighborGetter, Func<T,T,double> weightGetter)
+        {
+            HashSet<T> visited = new HashSet<T>();
+            visited.Add(vertex);
+            Stack<Edge<T>> stack = new Stack<Edge<T>>();
+            throw new NotImplementedException();
+            
+        }
     }
 }

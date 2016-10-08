@@ -12,7 +12,7 @@ namespace Mathematics.Calculus
     /// Represents a quadratic Bezier curve, which is a curve defined by its start and its end, with a single control point determining which 
     /// direction the curve leaves the start and enters the end.
     /// </summary>
-    public class BezierQuadratic : IParametric<Point>, IDifferentiable<Point>
+    public class BezierQuadratic : IDifferentiable<Point>
         //TODO:  Validate BezierQuadratic
     {
         /// <summary>
@@ -128,9 +128,42 @@ namespace Mathematics.Calculus
                                               + " implemented this method.");
         }
 
-    
+        public IDifferentiable<Point> GetLength()
+        {
+            throw new NotImplementedException();
+        }
 
-        double IDifferentiable<Point>.GetLength(double starting, double ending)
+        Point IDifferentiable<Point>.Evaluate(double value)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetLength()
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetSum(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetDifference(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetMultiple(IDifferentiable<Point> factor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetQuotient(IDifferentiable<Point> divisor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetNegation()
         {
             throw new NotImplementedException();
         }

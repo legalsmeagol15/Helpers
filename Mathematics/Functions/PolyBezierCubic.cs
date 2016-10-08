@@ -13,7 +13,7 @@ namespace Mathematics.Functions
     /// <summary>
     /// A mutable data structure that exists as a collection of BezierCubic objects.
     /// </summary>
-    public sealed class PolyBezierCubic : IParametric<Point>
+    public sealed class PolyBezierCubic : IDifferentiable<Point>
     {
         //TODO:  Validate PolyBezierCubic
         public PolyBezierCubic()
@@ -164,6 +164,66 @@ namespace Mathematics.Functions
 
             //Finally, return the new Bezier.
             return new BezierCubic(ptStart, controlA, controlB, ptEnd);
+        }
+
+        public IDifferentiable<Point> GetDerivative()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IDifferentiable<Point> GetIntegral(double constant = 0)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IDifferentiable<Point> GetLength()
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetDerivative()
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetIntegral(double constant)
+        {
+            throw new NotImplementedException();
+        }
+
+        Point IDifferentiable<Point>.Evaluate(double value)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetLength()
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetSum(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetDifference(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetMultiple(IDifferentiable<Point> factor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetQuotient(IDifferentiable<Point> divisor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetNegation()
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -1,0 +1,7 @@
+C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\bin\Release\DataStructures.dll
+C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\bin\Release\DataStructures.pdb
+C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\bin\Release\Arithmetic.dll
+C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\bin\Release\Arithmetic.pdb
+C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\obj\Release\DataStructures.csprojResolveAssemblyReference.cache
+C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\obj\Release\DataStructures.dll
+C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\obj\Release\DataStructures.pdb

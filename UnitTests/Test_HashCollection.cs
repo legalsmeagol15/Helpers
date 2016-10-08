@@ -36,11 +36,11 @@ namespace UnitTests
 
             HashCollection<int> hc1 = new HashCollection<int>();
             for (int i = 0; i < 100; i++) hc1.Add(i);
-            Assert.IsFalse(hc1.Remove(-1));
+            Assert.IsFalse(hc1.Remove(-1)==0);
 
             HashCollection<int> hc2 = new HashCollection<int>();
             hc2.Add(0);
-            Assert.IsFalse(hc2.Remove(1));
+            Assert.IsFalse(hc2.Remove(1)==0);
 
         }
 

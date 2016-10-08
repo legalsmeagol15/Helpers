@@ -8,19 +8,22 @@ using System.Threading.Tasks;
 namespace Mathematics.Text
 {
     /// <summary>
-    /// Represents formulas written in standard infix notation using standard precedence rules.  The allowed symbols are non-negative numbers written using double-precision floating-point syntax; variables 
-    /// that consist of a letter or underscore followed by zero or more letters, underscores, or digits; parentheses; and the six operator symbols +, -, *, /, %, and ^.  
+    /// Represents formulas written in standard infix notation using standard precedence rules.  The allowed symbols are non-negative 
+    /// numbers written using double-precision floating-point syntax; variables that consist of a letter or underscore followed by zero or 
+    /// more letters, underscores, or digits; parentheses; and the six operator symbols +, -, *, /, %, and ^.  
     /// 
-    /// Spaces are significant only insofar that they delimit tokens.  For example, "xy" is a single variable, "x y" consists of two variables "x" and y; "x23" is a single variable; and "x 23" consists of a 
-    /// variable "x" and a number "23".
+    /// Spaces are significant only insofar that they delimit tokens.  For example, "xy" is a single variable, "x y" consists of two 
+    /// variables "x" and y; "x23" is a single variable; and "x 23" consists of a variable "x" and a number "23".
     /// 
-    /// Associated with every formula are two delegates:  a normalizer and a validator.  The normalizer is used to convert variables into a canonical form (like into all caps), and the validator is used
-    /// to add extra restrictions on the validity of a variable (beyond the standard requirement that it consist of a letter or underscore followed by zero or more letters, underscores, or digits.)  Their 
-    /// use is described in detail in the constructor and method comments.
+    /// Associated with every formula are two delegates:  a normalizer and a validator.  The normalizer is used to convert variables into 
+    /// a canonical form (like into all caps), and the validator is used to add extra restrictions on the validity of a variable (beyond 
+    /// the standard requirement that it consist of a letter or underscore followed by zero or more letters, underscores, or digits.)  
+    /// Their use is described in detail in the constructor and method comments.
     /// </summary>
     /// <author>Wesley Oates</author>
     /// <date> Sep 24, 2015.</date>
-    /// <remarks>Note that this class, and associated classes, were developed during CS3500 Fall '15.  Some code or commenting may come from the assignment skeletons.</remarks>
+    /// <remarks>Note that this class, and associated classes, were developed during CS3500 Fall '15.  Some code or commenting may come 
+    /// from the assignment skeletons.</remarks>
     public class Expression : IEvaluateable
     {
         //TODO:  validate the UnitManager stuff.
@@ -31,10 +34,9 @@ namespace Mathematics.Text
         private IList<IList<IToken>> Arguments;
 
         /// <summary>
-        /// The scale multiplier of this Formula.  For sub-formulas (ie, those nested in another formula 
-        /// through parentheses), this value is used to set negation.  Note that is not PRESENTLY useful 
-        /// for setting implicit multiplicative scale (ie, 2(5+7) as opposed to the currently required 
-        /// 2*(5+7) ), but it could be so changed in the future. 
+        /// The scale multiplier of this Formula.  For sub-formulas (ie, those nested in another formula through parentheses), this value 
+        /// is used to set negation.  Note that is not PRESENTLY useful for setting implicit multiplicative scale (ie, 2(5+7) as opposed 
+        /// to the currently required 2*(5+7) ), but it could be so changed in the future. 
         /// </summary>
         private double Scalar;
 
@@ -44,17 +46,16 @@ namespace Mathematics.Text
         /// </summary>
         private NamedFunction Function;
 
-
-
-
-
+        
         /// <summary>
         /// Attempts to parse the given text expression to an Expression class.
         /// </summary>        
         /// <param name="result">The variable where the result will be returned.</param>
-        /// <param name="normalizer">Optional.  The variable name normalizer used for parsing.  If omitted, the standard rules will be used.</param>
+        /// <param name="normalizer">Optional.  The variable name normalizer used for parsing.  If omitted, the standard rules will be 
+        /// used.</param>
         /// <param name="isValid">Optional.  The variable validator used for parsing.  If omitted, the standard rules will be used.</param>
-        /// <param name="allowedFunctions">Optional.  The dictionary of functions (sin, cos, sqrt, etc.) allowed for use in interpreting the expression.</param>
+        /// <param name="allowedFunctions">Optional.  The dictionary of functions (sin, cos, sqrt, etc.) allowed for use in interpreting 
+        /// the expression.</param>
         /// <param name="unitFactor">The method that finds a factor associated with a unit.</param>
         /// <returns>Returns true if the parsing is successful; otherwise returns false.</returns>
         public static Expression Parse(string text, Func<string, string> normalizer = null, Func<string, bool> isValid = null,
@@ -77,24 +78,29 @@ namespace Mathematics.Text
             else if (result.Function != null)
             {
                 if (result.Arguments.Count < result.Function.MinimumArgs)
-                    throw new FormulaFormatException("Function " + result.Function.Name + " requires at least " + result.Function.MinimumArgs + " argument(s).");
+                    throw new FormulaFormatException("Function " + result.Function.Name + " requires at least " 
+                                                     + result.Function.MinimumArgs + " argument(s).");
                 if (result.Arguments.Count > result.Function.MinimumArgs)
-                    throw new FormulaFormatException("Function " + result.Function.Name + " allows no more than " + result.Function.MaximumArgs + " argument(s).");
+                    throw new FormulaFormatException("Function " + result.Function.Name + " allows no more than " 
+                                                     + result.Function.MaximumArgs + " argument(s).");
             }
 
             return result;
         }
 
-        public static bool TryParse(string text, out Expression result, Func<string, string> normalizer = null, Func<string, bool> isValid = null,
-                                          IDictionary<string, NamedFunction> allowedFunctions = null, Func<string, double> unitFactor = null)
+        public static bool TryParse(string text, out Expression result, Func<string, string> normalizer = null, 
+                                    Func<string, bool> isValid = null,
+                                    IDictionary<string, NamedFunction> allowedFunctions = null, 
+                                    Func<string, double> unitFactor = null)
         {
             IEnumerable<string> tokens = GetTokens(text);
             string msg = TryParse(tokens, null, 1.0, out result, normalizer, isValid, allowedFunctions, unitFactor);
             return msg == "";
         }
 
-        protected static string TryParse(IEnumerable<string> tokens, NamedFunction function, double sign, out Expression result, Func<string, string> normalizer,
-                                         Func<string, bool> isValid, IDictionary<string, NamedFunction> allowedFunctions, Func<string, double> unitFactor)
+        protected static string TryParse(IEnumerable<string> tokens, NamedFunction function, double sign, out Expression result, 
+                                         Func<string, string> normalizer, Func<string, bool> isValid, 
+                                         IDictionary<string, NamedFunction> allowedFunctions, Func<string, double> unitFactor)
         {
             if (normalizer == null) normalizer = (s => s.ToUpper());
             if (isValid == null) isValid = (s => true);
@@ -135,76 +141,7 @@ namespace Mathematics.Text
         protected Expression() { }
 
 
-        ///// <summary>
-        ///// Creates a Formula from a string that consists of an infix expression written as
-        ///// described in the class comment.  If the expression is syntactically invalid,
-        ///// throws a FormulaFormatException with an explanatory Message.
-        ///// 
-        ///// The associated normalizer is the identity function, and the associated validator
-        ///// maps every string to true.  
-        ///// </summary>
-        //public Expression(String expression, IDictionary<string, NamedFunction> allowedFunctions = null, Func<string, double> unitFactor = null)
-        //    : this(null, GetTokens(expression), 1.0, (s => s), (s => true), allowedFunctions, unitFactor)
-        //{
-        //}
-
-
-        ///// <summary>
-        ///// Creates a Formula from a string that consists of an infix expression written as
-        ///// described in the class comment.  If the expression is syntactically incorrect,
-        ///// throws a FormulaFormatException with an explanatory Message.
-        ///// 
-        ///// The associated normalizer and validator are the second and third parameters,
-        ///// respectively.  
-        ///// 
-        ///// If the formula contains a variable v such that normalize(v) is not a legal variable, 
-        ///// throws a FormulaFormatException with an explanatory message. 
-        ///// 
-        ///// If the formula contains a variable v such that isValid(normalize(v)) is false,
-        ///// throws a FormulaFormatException with an explanatory message.
-        ///// 
-        ///// Suppose that N is a method that converts all the letters in a string to upper case, and
-        ///// that V is a method that returns true only if a string consists of one letter followed
-        ///// by one digit.  Then:
-        ///// 
-        ///// new Formula("x2+y3", N, V) should succeed
-        ///// new Formula("x+y3", N, V) should throw an exception, since V(N("x")) is false
-        ///// new Formula("2x+y3", N, V) should throw an exception, since "2x+y3" is syntactically incorrect.
-        ///// </summary>
-        //public Expression(String expression, Func<string, string> normalizer, Func<string, bool> isValid,
-        //                IDictionary<string, NamedFunction> allowedFunctions = null, Func<string, double> unitFactor = null) :
-        //    this(null, GetTokens(expression), 1.0, normalizer, isValid, allowedFunctions, unitFactor)
-        //{
-        //}
-
-
-        ///// <summary>
-        ///// Creates a new Formula with a scalar as appropriate.  Note that currently, the scalar is only 
-        ///// used to establish negation, and should not be used as an implicit multiplier.
-        ///// </summary>
-        ///// <param name="tokens">The tokens to convert into appropriate types.</param>
-        ///// <param name="scalar">The scalar is only used to establish negation, and should not be used as an 
-        ///// implicit multiplier.</param>
-        ///// <param name="normalizer">The variable name normalization function.</param>
-        ///// <param name="isValid">The variable name validation function.</param>
-        //protected Expression(NamedFunction expression, IEnumerable<string> tokens, double scalar,
-        //                    Func<string, string> normalizer, Func<string, bool> isValid,
-        //                    IDictionary<string, NamedFunction> allowedFunctions, Func<string, double> unitFactor = null)
-        //{
-        //    this.Scalar = scalar;
-        //    this.Function = expression;
-
-        //    Arguments = TryConvertToArguments(tokens, normalizer, isValid, allowedFunctions, unitFactor);
-        //    if (this.Function == null && Arguments.Count > 1)
-        //        throw new FormulaFormatException("Multiple arguments are allowed only for named functions.");
-        //    else if (this.Function != null)
-        //    {
-        //        if (Arguments.Count < this.Function.MinimumArgs)
-        //            throw new FormulaFormatException("Function " + this.Function.Name + " requires at least " + this.Function.MinimumArgs + " argument(s).");
-        //        if (Arguments.Count > this.Function.MinimumArgs)
-        //            throw new FormulaFormatException("Function " + this.Function.Name + " allows no more than " + this.Function.MaximumArgs + " argument(s).");
-        //    }
-        //}
+        
 
         /// <summary>
         /// Creates an Expression for an argument-less named function.
@@ -232,8 +169,9 @@ namespace Mathematics.Text
         /// <param name="result">The stored result of the attempted conversion to an argument list, if successful.</param>
         /// <param name="unitFactor">The method used to convert units to values based on a standard unit.</param>
         /// <returns>Returns a message indicating a problem, if a problem occured.  Otherwise, returns "".</returns>
-        protected internal static string TryConvertToArguments(IEnumerable<string> stringTokens, out IList<IList<IToken>> result, Func<string, string> normalizer, 
-                                                               Func<string, bool> isValid, IDictionary<string, NamedFunction> allowedFunctions, 
+        protected internal static string TryConvertToArguments(IEnumerable<string> stringTokens, out IList<IList<IToken>> result,
+                                                               Func<string, string> normalizer, Func<string, bool> isValid, 
+                                                               IDictionary<string, NamedFunction> allowedFunctions,
                                                                Func<string, double> unitFactor = null)
         {
             //Setup
@@ -248,20 +186,18 @@ namespace Mathematics.Text
             NamedFunction buildingFunction = null;  //The function currently being built.
 
 
-            //The token-by-token driver is a foreach loop to take advantage of the just-in-time token 
-            //production in the GetTokens() static method.  This driver will handle nesting 
-            //formulae first (ie, parentheticals, named functions) before moving on.
+            //The token-by-token driver is a foreach loop to take advantage of the just-in-time token production in the GetTokens() static 
+            //method.  This driver will handle nesting formulae first (ie, parentheticals, named functions) before moving on.
             foreach (string stringToken in stringTokens)
             {
                 //Step #0-throw away whitespace
                 if (string.IsNullOrWhiteSpace(stringToken)) continue;
 
                 ///Step #1
-                ///Handle nesting parentheses.  This works by using a parentheses depth counter 'paren'.
-                ///If paren>0, then we are in the middle of a nested parentheses expression.  All tokens 
-                ///in between the first and last parentheses (including sub-parentheses) are included in 
-                ///a nested tokens list, and when the concluding parenthesis is encountered, a new 
-                ///sub-formula is made of those tokens and added to this Expression's token list.
+                ///Handle nesting parentheses.  This works by using a parentheses depth counter 'paren'.  If paren>0, then we are in the 
+                ///middle of a nested parentheses expression.  All tokens in between the first and last parentheses (including sub-
+                ///parentheses) are included in a nested tokens list, and when the concluding parenthesis is encountered, a new sub-
+                ///formula is made of those tokens and added to this Expression's token list.
                 
                 //Step #1a - if there is already a parenthetical being built.
                 if (paren > 0)
@@ -279,10 +215,9 @@ namespace Mathematics.Text
                         if (--paren == 0)   //If ==0, it's the concluding parenthesis token.  Create the 
                                             //new expression.
                         {
-                            //Formula nestedExp = new Formula(nestingTokens, sign, normalizer, isValid);
-                            //Expression nestedExp = new Expression(buildingFunction, nestingTokens, sign, normalizer, isValid, allowedFunctions, unitFactor);
                             Expression nestedExp;
-                            string msg = TryParse(nestingTokens, buildingFunction, sign, out nestedExp, normalizer, isValid, allowedFunctions, unitFactor);
+                            string msg = TryParse(nestingTokens, buildingFunction, sign, out nestedExp, normalizer, isValid, 
+                                                  allowedFunctions, unitFactor);
                             if (msg != "") return msg;
                             buildingFunction = null;
                             buildingArg.Add(nestedExp);
@@ -299,7 +234,8 @@ namespace Mathematics.Text
                 else if (stringToken == "(" || stringToken == "[")
                 {
                     if (buildingArg.Count > 0 && buildingArg.Last() is IEvaluateable)
-                        return "Nesting parenthesis may not occur next to another constant, variable, or formula (except named functions that require 1 or more arguments).";
+                        return "Nesting parenthesis may not occur next to another constant, variable, or formula (except named functions" 
+                                + " that require 1 or more arguments).";
                     paren++;
                     continue;
                 }
@@ -311,12 +247,12 @@ namespace Mathematics.Text
                 }
 
 
-                //Step #1d - At this point, there should be no parentheses bracketing where the foreach loop
-                //is operating.  Nested expressions will have been added as sub-formulae.                
+                //Step #1d - At this point, there should be no parentheses bracketing where the foreach loop is operating.  Nested 
+                //expressions will have been added as sub-formulae.                
                 if (paren > 0) return "Parentheses error - incomplete parenthetical expression.";
 
-                //Step #1e - At this point, there should be no buildingFunction stored, because it will have 
-                //been taken care of in a sub-formula with nesting parentheses above.                
+                //Step #1e - At this point, there should be no buildingFunction stored, because it will have been taken care of in a sub-
+                //formula with nesting parentheses above.                
                 if (buildingFunction != null) return "Functions must be defined in nested parentheses.";
 
 
@@ -346,9 +282,8 @@ namespace Mathematics.Text
                 //Step #3 - handle argument distinguishing ','
                 if (stringToken == ",")
                 {
-                    //This is like ending a complete formula.  Incomplete parentheticals or 
-                    //incomplete building functions have been handled, so only need to look out for 
-                    //sign problems.
+                    //This is like ending a complete formula.  Incomplete parentheticals or incomplete building functions have been 
+                    //handled, so only need to look out for sign problems.
                     if (sign != 1.0) return "Negation error - value-type argument must follow '-'.";
                     allArgs.Add(buildingArg);
                     buildingArg = new List<IToken>();
@@ -382,9 +317,8 @@ namespace Mathematics.Text
 
 
                 //Step #6 - handle negation.
-                //This works by setting a negation sign to 1 or -1, as appropriate.  Negation is a unary 
-                //operator, so it will only activate if there are no prior tokens, or the prior token is an 
-                //operation.
+                //This works by setting a negation sign to 1 or -1, as appropriate.  Negation is a unary operator, so it will only 
+                //activate if there are no prior tokens, or the prior token is an operation.
                 if (stringToken == "-")
                 {
                     //If the last token was a value token, the '-' must be asking for a subtraction.
@@ -402,7 +336,8 @@ namespace Mathematics.Text
 
 
                 //Step #7 - handle regular arithmetic operators besides negation.
-                if (stringToken == "+" || stringToken == "*" || stringToken == "/" || stringToken == "^" || stringToken == "%" || stringToken=="-")
+                if (stringToken == "+" || stringToken == "*" || stringToken == "/" || stringToken == "^" || stringToken == "%" || 
+                    stringToken=="-")
                 {
                     //Check rule 7 - parenthesis following.
                     if (buildingArg.Count == 0 || buildingArg.Last() is Operation)
@@ -429,8 +364,7 @@ namespace Mathematics.Text
 
             }
 
-            //At this point, a set of semi-validated tokens should have been created, but paren
-            //might be out of balance.
+            //At this point, a set of semi-validated tokens should have been created, but paren might be out of balance.
             if (paren > 0) return "Extra opening parenthesis '('.";
 
             //If it's still trying to build a named function, that's a problem.
@@ -455,23 +389,20 @@ namespace Mathematics.Text
 
 
         /// <summary>
-        /// Evaluates this Formula, using the lookup delegate to determine the values of
-        /// variables.  When a variable symbol v needs to be determined, it should be looked up
-        /// via lookup(normalize(v)). (Here, normalize is the normalizer that was passed to 
-        /// the constructor.)
+        /// Evaluates this Formula, using the lookup delegate to determine the values of variables.  When a variable symbol v needs to be 
+        /// determined, it should be looked up via lookup(normalize(v)). (Here, normalize is the normalizer that was passed to the 
+        /// constructor.)
         /// 
-        /// For example, if L("x") is 2, L("X") is 4, and N is a method that converts all the letters 
-        /// in a string to upper case:
+        /// For example, if L("x") is 2, L("X") is 4, and N is a method that converts all the letters in a string to upper case:
         /// 
         /// new Formula("x+7", N, s => true).Evaluate(L) is 11
         /// new Formula("x+7").Evaluate(L) is 9
         /// 
-        /// Given a variable symbol as its parameter, lookup returns the variable's value 
-        /// (if it has one) or throws an ArgumentException (otherwise).
+        /// Given a variable symbol as its parameter, lookup returns the variable's value (if it has one) or throws an 
+        /// ArgumentException (otherwise).
         /// 
-        /// If no undefined variables or divisions by zero are encountered when evaluating 
-        /// this Formula, the value is returned.  Otherwise, a FormulaError is returned.  
-        /// The Reason property of the FormulaError should have a meaningful explanation.
+        /// If no undefined variables or divisions by zero are encountered when evaluating this Formula, the value is returned.  
+        /// Otherwise, a FormulaError is returned.  The Reason property of the FormulaError should have a meaningful explanation.
         ///
         /// This method should never throw an exception.
         /// </summary>
@@ -513,19 +444,16 @@ namespace Mathematics.Text
         }
 
         /// <summary>
-        /// Evaluates the given tokens and returns a value, or if the tokens cannot be evaluated, returns 
-        /// a FormulaError object.
+        /// Evaluates the given tokens and returns a value, or if the tokens cannot be evaluated, returns a FormulaError object.
         /// </summary>        
         /// <param name="tokens">The set of tokens to evaluate.</param>
-        /// <param name="lookup">The lookup function for finding the value of a variable given a variable name.
-        /// </param>
-        /// <param name="scalar">The scale to multiply the result.  The purpose of this argument is to allow 
-        /// formula negation, though in the future it may be set up to allow implicit multiplication.</param>
-        /// <remarks>This method is set up as a separate static method to allow easy white box testing.  It 
-        /// follows the rules of the non-static Evaluate(Func) method described in the assignment.
+        /// <param name="lookup">The lookup function for finding the value of a variable given a variable name.</param>
+        /// <param name="scalar">The scale to multiply the result.  The purpose of this argument is to allow formula negation, though in 
+        /// the future it may be set up to allow implicit multiplication.</param>
+        /// <remarks>This method is set up as a separate static method to allow easy white box testing.  It follows the rules of the non-
+        /// static Evaluate(Func) method described in the assignment.
         /// </remarks>
-        protected static object Evaluate(IEnumerable<IToken> tokens, Func<string, double> lookup,
-                                            double scalar = 1.0)
+        protected static object Evaluate(IEnumerable<IToken> tokens, Func<string, double> lookup, double scalar = 1.0)
         {
             //Set up a list of tokens to manipulate without changing the original.
             List<object> tempTokens = new List<object>(tokens);
@@ -682,9 +610,8 @@ namespace Mathematics.Text
 
 
         /// <summary>
-        /// Enumerates the normalized versions of all of the variables that occur in this 
-        /// formula.  No normalization may appear more than once in the enumeration, even 
-        /// if it appears more than once in this Formula.
+        /// Enumerates the normalized versions of all of the variables that occur in this formula.  No normalization may appear more than 
+        /// once in the enumeration, even if it appears more than once in this Formula.
         /// 
         /// For example, if N is a method that converts all the letters in a string to upper case:
         /// 
@@ -701,8 +628,8 @@ namespace Mathematics.Text
         /// <summary>
         /// Recursively gets the Variables of this Formula and any sub-Formulas.
         /// </summary>
-        /// <param name="list">The list being compiled.  Note that if the same Variable appears in multiple 
-        /// locations, the list will contain several references to that Variable.</param>
+        /// <param name="list">The list being compiled.  Note that if the same Variable appears in multiple locations, the list will 
+        /// contain several references to that Variable.</param>
         private void GetVariables(List<Variable> list)
         {
             foreach (IList<IToken> argument in Arguments)
@@ -717,8 +644,8 @@ namespace Mathematics.Text
 
 
         /// <summary>
-        /// Determines whether the given variable name begins with a letter or underscore, and there
-        /// after contains any mix of letters, digits, and/or underscores.
+        /// Determines whether the given variable name begins with a letter or underscore, and there after contains any mix of letters, 
+        /// digits, and/or underscores.
         /// </summary>
         protected static bool IsValidStandard(string name)
         {
@@ -733,9 +660,8 @@ namespace Mathematics.Text
 
 
         /// <summary>
-        /// Returns a string containing no spaces which, if passed to the Formula
-        /// constructor, will produce a Formula f such that this.Equals(f).  All of the
-        /// variables in the string should be normalized.
+        /// Returns a string containing no spaces which, if passed to the Formula constructor, will produce a Formula f such that 
+        /// this.Equals(f).  All of the variables in the string should be normalized.
         /// 
         /// For example, if N is a method that converts all the letters in a string to upper case:
         /// 
@@ -789,13 +715,11 @@ namespace Mathematics.Text
         }
 
         /// <summary>
-        /// If obj is null or obj is not a Formula, returns false.  Otherwise, reports
-        /// whether or not this Formula and obj are equal.
+        /// If obj is null or obj is not a Formula, returns false.  Otherwise, reports whether or not this Formula and obj are equal.
         /// 
-        /// Two Formulae are considered equal if they consist of the same tokens in the
-        /// same order.  To determine token equality, all tokens are compared as strings 
-        /// except for numeric tokens, which are compared as doubles, and variable tokens,
-        /// whose normalized forms are compared as strings.
+        /// Two Formulae are considered equal if they consist of the same tokens in the same order.  To determine token equality, all 
+        /// tokens are compared as strings except for numeric tokens, which are compared as doubles, and variable tokens,/ whose 
+        /// normalized forms are compared as strings.
         /// 
         /// For example, if N is a method that converts all the letters in a string to upper case:
         ///  
@@ -837,9 +761,8 @@ namespace Mathematics.Text
         }
 
         /// <summary>
-        /// Reports whether f1 == f2, using the notion of equality from the Equals method.
-        /// Note that if both f1 and f2 are null, this method should return true.  If one is
-        /// null and one is not, this method should return false.
+        /// Reports whether f1 == f2, using the notion of equality from the Equals method.  Note that if both f1 and f2 are null, this 
+        /// method should return true.  If one is null and one is not, this method should return false.
         /// </summary>
         public static bool operator ==(Expression f1, Expression f2)
         {
@@ -852,9 +775,8 @@ namespace Mathematics.Text
 
 
         /// <summary>
-        /// Reports whether f1 != f2, using the notion of equality from the Equals method.
-        /// Note that if both f1 and f2 are null, this method should return false.  If one is
-        /// null and one is not, this method should return true.
+        /// Reports whether f1 != f2, using the notion of equality from the Equals method.  Note that if both f1 and f2 are null, this 
+        /// method should return false.  If one is null and one is not, this method should return true.
         /// </summary>
         public static bool operator !=(Expression f1, Expression f2)
         {
@@ -863,9 +785,8 @@ namespace Mathematics.Text
 
 
         /// <summary>
-        /// Returns a hash code for this Formula.  If f1.Equals(f2), then it must be the
-        /// case that f1.GetHashCode() == f2.GetHashCode().  Ideally, the probability that two 
-        /// randomly-generated unequal Formulae have the same hash code should be extremely small.
+        /// Returns a hash code for this Formula.  If f1.Equals(f2), then it must be the case that f1.GetHashCode() == f2.GetHashCode().  
+        /// Ideally, the probability that two randomly-generated unequal Formulae have the same hash code should be extremely small.
         /// </summary>
         public override int GetHashCode()
         {
@@ -925,7 +846,8 @@ namespace Mathematics.Text
     /// <summary>
     /// Used to report syntactic errors in the argument to the Formula constructor.
     /// </summary>
-    /// <remarks>The class attributes follow the pattern of other Exception declarations in MSDN.  Not why either would need to be applied.  Will revisit later.</remarks>
+    /// <remarks>The class attributes follow the pattern of other Exception declarations in MSDN.  Not why either would need to be 
+    /// applied.  Will revisit later.</remarks>
     [Serializable()]
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public class FormulaFormatException : SystemException

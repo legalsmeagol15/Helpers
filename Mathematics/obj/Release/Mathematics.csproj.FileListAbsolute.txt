@@ -1,0 +1,5 @@
+C:\Users\Wesley\Documents\Programming\Helpers\Mathematics\bin\Release\Arithmetic.dll
+C:\Users\Wesley\Documents\Programming\Helpers\Mathematics\bin\Release\Arithmetic.pdb
+C:\Users\Wesley\Documents\Programming\Helpers\Mathematics\obj\Release\Arithmetic.dll
+C:\Users\Wesley\Documents\Programming\Helpers\Mathematics\obj\Release\Arithmetic.pdb
+C:\Users\Wesley\Documents\Programming\Helpers\Mathematics\obj\Release\Mathematics.csprojResolveAssemblyReference.cache

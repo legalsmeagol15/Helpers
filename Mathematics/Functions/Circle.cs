@@ -9,7 +9,7 @@ using System.Windows;
 
 namespace Mathematics.Calculus
 {
-    public sealed class Circle : IParametric<Point>
+    public sealed class Circle : IDifferentiable<Point>
     {
         public Point Center { get; }
 
@@ -36,9 +36,50 @@ namespace Mathematics.Calculus
             double t = atX - Center.X;
             return (Radius * Math.Sin(t)) + Center.Y;
         }
-        Point IParametric<Point>.Evaluate(double atX)
+        Point IDifferentiable<Point>.Evaluate(double atX)
         {
-            return new Point(atX, GetY(atX));     
+            throw new NotImplementedException(); 
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetDerivative()
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetIntegral(double constant)
+        {
+            throw new NotImplementedException();
+        }
+
+      
+        IDifferentiable<Point> IDifferentiable<Point>.GetLength()
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetSum(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetDifference(IDifferentiable<Point> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetMultiple(IDifferentiable<Point> factor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetQuotient(IDifferentiable<Point> divisor)
+        {
+            throw new NotImplementedException();
+        }
+
+        IDifferentiable<Point> IDifferentiable<Point>.GetNegation()
+        {
+            throw new NotImplementedException();
         }
     }
 }

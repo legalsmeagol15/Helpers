@@ -21,7 +21,7 @@ namespace DataStructures
         private ISet<TKeyPart>[] _Keys;
         private TValue[] _Values;
         private bool[] _Deleted;
-        //private int[] _Hashes;
+        
 
         public CompositeKeyDictionary(int capacity = DEFAULT_CAPACITY)
         {
