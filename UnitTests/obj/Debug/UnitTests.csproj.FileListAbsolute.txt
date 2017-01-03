@@ -20,3 +20,12 @@ C:\Users\Wesley\Documents\Programming\Helpers\UnitTests\bin\Debug\Mathematics.pd
 C:\Users\Wesley\Documents\Programming\Helpers\UnitTests\obj\Debug\UnitTests.csprojResolveAssemblyReference.cache
 C:\Users\Wesley\Documents\Programming\Helpers\UnitTests\obj\Debug\UnitTests.dll
 C:\Users\Wesley\Documents\Programming\Helpers\UnitTests\obj\Debug\UnitTests.pdb
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\bin\Debug\UnitTests.dll
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\bin\Debug\UnitTests.pdb
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\bin\Debug\DataStructures.dll
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\bin\Debug\Mathematics.dll
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\bin\Debug\DataStructures.pdb
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\bin\Debug\Mathematics.pdb
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\obj\Debug\UnitTests.csprojResolveAssemblyReference.cache
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\obj\Debug\UnitTests.dll
+C:\Users\Wesley Oates\Documents\Programming\Helpers\UnitTests\obj\Debug\UnitTests.pdb

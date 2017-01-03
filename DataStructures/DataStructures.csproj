@@ -41,6 +41,9 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Interfaces\IEdge.cs" />
+    <Compile Include="Interfaces\IPriorityQueue.cs" />
+    <Compile Include="Interfaces\IVertex.cs" />
     <Compile Include="Range.cs" />
     <Compile Include="Range5.cs" />
     <Compile Include="Graphs\Edge.cs" />
@@ -54,6 +57,7 @@
     <Compile Include="Sets\DurationList.cs" />
     <Compile Include="Sets\Extensions.cs" />
     <Compile Include="Sets\HashStack.cs" />
+    <Compile Include="Sets\Heap.cs" />
     <Compile Include="Sets\ModularList.cs" />
     <Compile Include="Sets\HashCollection.cs" />
     <Compile Include="Sets\SkipList.cs" />
@@ -67,7 +71,6 @@
     <Compile Include="Trees\QuadTreeZ.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Interfaces\" />
     <Folder Include="Serialization\" />
   </ItemGroup>
   <ItemGroup>

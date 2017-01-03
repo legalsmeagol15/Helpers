@@ -5,3 +5,10 @@ C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\bin\Debug\Mathemati
 C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\obj\Debug\DataStructures.csprojResolveAssemblyReference.cache
 C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\obj\Debug\DataStructures.dll
 C:\Users\Wesley\Documents\Programming\Helpers\DataStructures\obj\Debug\DataStructures.pdb
+C:\Users\Wesley Oates\Documents\Programming\Helpers\DataStructures\bin\Debug\DataStructures.dll
+C:\Users\Wesley Oates\Documents\Programming\Helpers\DataStructures\bin\Debug\DataStructures.pdb
+C:\Users\Wesley Oates\Documents\Programming\Helpers\DataStructures\bin\Debug\Mathematics.dll
+C:\Users\Wesley Oates\Documents\Programming\Helpers\DataStructures\bin\Debug\Mathematics.pdb
+C:\Users\Wesley Oates\Documents\Programming\Helpers\DataStructures\obj\Debug\DataStructures.csprojResolveAssemblyReference.cache
+C:\Users\Wesley Oates\Documents\Programming\Helpers\DataStructures\obj\Debug\DataStructures.dll
+C:\Users\Wesley Oates\Documents\Programming\Helpers\DataStructures\obj\Debug\DataStructures.pdb
