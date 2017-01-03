@@ -12,20 +12,20 @@ namespace DataStructures.Graphs
         /// <summary>
         /// Produces a set of edges that describe a depth-first traversal, starting at the given vertex.
         /// </summary>
-        public static IEnumerable<Edge<T>> DepthFirstTraversal<T>(Vertex<T> vertex)
+        public static IEnumerable<IEdge<T>> DepthFirstTraversal<T>(IVertex<T> vertex)
         {
             //Mark the given vertex as visited.
-            HashSet<Vertex<T>> visited = new HashSet<Vertex<T>>();
+            HashSet<IVertex<T>> visited = new HashSet<IVertex<T>>();
             visited.Add(vertex);
 
             //Add the given vertex's edges to the stack.
-            Stack<Edge<T>> edgeStack = new Stack<Edge<T>>();
-            foreach (Edge<T> e in vertex.Edges) edgeStack.Push(e);
+            Stack<IEdge<T>> edgeStack = new Stack<IEdge<T>>();
+            foreach (IEdge<T> e in vertex.Edges) edgeStack.Push(e);
 
             //Work thru the stack.
             while (edgeStack.Count > 0)
             {
-                Edge<T> edge = edgeStack.Pop();
+                IEdge<T> edge = edgeStack.Pop();
                 if (visited.Contains(edge.Next)) continue; //If an edge leads to a visited vertex, go on to the next edge.
                 yield return edge;
                 
@@ -35,17 +35,17 @@ namespace DataStructures.Graphs
             }
         }
 
-        public static IEnumerable<Edge<T>> BreadthFirstTraversal<T>(Vertex<T> vertex)
+        public static IEnumerable<IEdge<T>> BreadthFirstTraversal<T>(IVertex<T> vertex)
         {
-            HashSet<Vertex<T>> visited = new HashSet<Vertex<T>>();
+            HashSet<IVertex<T>> visited = new HashSet<IVertex<T>>();
             visited.Add(vertex);
 
-            Queue<Edge<T>> edgeQueue = new Queue<Edge<T>>();
+            Queue<IEdge<T>> edgeQueue = new Queue<IEdge<T>>();
             foreach (Edge<T> e in vertex.Edges) edgeQueue.Enqueue(e);
 
             while (edgeQueue.Count > 0)
             {
-                Edge<T> edge = edgeQueue.Dequeue();
+                IEdge<T> edge = edgeQueue.Dequeue();
                 if (visited.Contains(edge.Next)) continue;
                 yield return edge;                
 
@@ -59,17 +59,17 @@ namespace DataStructures.Graphs
         /// Uses breadth-first traversal to find the shortest unweighted path from  the given start to the given goal.
         /// </summary>
         /// <returns>Returns null if no path exists from the given vertex to the goal; otherwise, returns the path.</returns>
-        public static IEnumerable<Edge<T>> GetShortestUnweightedPath<T>(Vertex<T> vertex, Vertex<T> goal)
+        public static IEnumerable<IEdge<T>> GetShortestUnweightedPath<T>(IVertex<T> vertex, IVertex<T> goal)
         {
-            Dictionary<Vertex<T>, Edge<T>> Priors = new Dictionary<Vertex<T>, Edge<T>>();
+            Dictionary<IVertex<T>, IEdge<T>> Priors = new Dictionary<IVertex<T>, IEdge<T>>();
             Priors.Add(vertex, null);
-            Queue<Edge<T>> edgeQueue = new Queue<Edge<T>>();
+            Queue<IEdge<T>> edgeQueue = new Queue<IEdge<T>>();
             foreach (Edge<T> e in vertex.Edges) edgeQueue.Enqueue(e);
 
             //Traverse and build a set of prior links.
             while (edgeQueue.Count > 0)
             {
-                Edge<T> edge = edgeQueue.Dequeue();                
+                IEdge<T> edge = edgeQueue.Dequeue();                
                 if (Priors.ContainsKey(edge.Next)) continue;
 
                 Priors.Add(edge.Next, edge);
@@ -80,10 +80,10 @@ namespace DataStructures.Graphs
 
             //Now, traverse the trail in reverse.
             if (!Priors.ContainsKey(goal)) return null;
-            LinkedList<Edge<T>> trail = new LinkedList<Edge<T>>();            
+            LinkedList<IEdge<T>> trail = new LinkedList<IEdge<T>>();            
             while (true)
             {
-                Edge<T> edgeTo = Priors[goal];
+                IEdge<T> edgeTo = Priors[goal];
                 if (edgeTo == null) break;
                 trail.AddFirst(edgeTo);
                 goal = edgeTo.Prior;

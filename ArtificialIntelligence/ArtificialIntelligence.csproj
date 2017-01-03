@@ -40,11 +40,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Logical\CNF.cs" />
-    <Compile Include="Logical\Resolution.cs" />
+    <Compile Include="ArcConsistency.cs" />
+    <Compile Include="Heuristics\Search.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Satisfiability\Constraint.cs" />
     <Compile Include="Satisfiability\Constraints.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Satisfiability\Hypothesis.cs" />
     <Compile Include="Satisfiability\Variable.cs" />
   </ItemGroup>
@@ -58,6 +58,7 @@
       <Name>Graphs</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
