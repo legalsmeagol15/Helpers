@@ -87,6 +87,8 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
     <Compile Include="Editing\IPropertyEditor.cs" />
+    <Compile Include="Shapes3D\Globe3D.cs" />
+    <Compile Include="Shapes3D\Helpers.cs" />
     <Compile Include="VirtualizationManager.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

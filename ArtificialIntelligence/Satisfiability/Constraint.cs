@@ -123,7 +123,10 @@ namespace AI.Satisfiability
     }
 
 
-
+    /// <summary>
+    /// A 
+    /// </summary>
+    /// <typeparam name="TDomain"></typeparam>
     public class GlobalConstraint<TDomain> : Constraint<TDomain>
     {
         private readonly Func<IList<TDomain>[], bool[]> _Updater;

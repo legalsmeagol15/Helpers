@@ -40,6 +40,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Logical\CNF.cs" />
+    <Compile Include="Logical\Resolution.cs" />
     <Compile Include="Satisfiability\Constraint.cs" />
     <Compile Include="Satisfiability\Constraints.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
