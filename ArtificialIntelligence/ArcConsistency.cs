@@ -6,8 +6,22 @@ using System.Threading.Tasks;
 
 namespace ArtificialIntelligence.ArcConsistency
 {
+
+    /// <summary>
+    /// An object that tracks the possible values of various variables and attempts to resolve their actual values by applying different constraints.  
+    /// <para/>The classic use of a Constraint Resolver is the N-queens problem, which posits a chessboard of size N x N, requires a single queen on each column and on each row, but 
+    /// allows now queens to sit diagonal to each other (i.e., no queen would be in jeopardy of capture by any other queen).  In this case, each row is a separate variable with a 
+    /// possible value of the queen sitting in each column.  Given one or more queens whose position are already known, the resolver will attempt to determine one of several 
+    /// possibilities:  1) the resolver identifies the positions of the queens of all the remaining rows; 2) the resolver applies the constraints until the constraints themselves 
+    /// cannot help deduce the positions of the queens with first-order logic; or 3) the resolver finds that the given arrangement of queens will not allow a valid solution to the 
+    /// board.
+    /// <para/>The N-queens problem will be implemented by adding... etc.  TODO:  show an example of ConstraintResolver in use.    
+    /// </summary>
+    /// <typeparam name="TVariable"></typeparam>
+    /// <typeparam name="TDomain"></typeparam>
     public class ConstraintResolver<TVariable, TDomain> : ICloneable
     {
+        //TODO:  validate ConstraintResolver.
         private Dictionary<TVariable, Variable> _Variables = new Dictionary<TVariable, Variable>();
         private HashSet<Relation> _Relations = new HashSet<Relation>();
 
@@ -44,12 +58,17 @@ namespace ArtificialIntelligence.ArcConsistency
             return Copy();
         }
 
-
+        /// <summary>
+        /// Resolves the constraint resolution problem by applying the constraints to cull the possible domains of the Variables.
+        /// </summary>
+        /// <returns>If any variables were changed, the returned Variable array will contain references to those variables.  If no progress towards solution could be made, 
+        /// the returned array will be empty.  If the constraint resolution problem is insoluable, a null reference is returns.</returns>
         public Variable[] Resolve()
         {
             if (_Relations.Count == 0) return new Variable[0];
 
-            HashSet<Relation> changed = new HashSet<Relation>();
+            //HashSet<Relation> changed = new HashSet<Relation>();
+            HashSet<Variable> result = new HashSet<Variable>();
             Queue<Relation> unresolved = new Queue<Relation>(_Relations);
             HashSet<Relation> onQueue = new HashSet<Relation>(_Relations);
             Relation lastChanged = unresolved.Last(); //The end-of-change marker.
@@ -63,16 +82,24 @@ namespace ArtificialIntelligence.ArcConsistency
 
                 //QUESTION #1:  What, if anything, should be added to the queue as a result of the enforcement?
                 //If any variable has been invalidated, the problem cannot be solved.
-                if (updated.Any((v) => v.Domain.Count == 0)) return null;
+                if (updated.Count() > 0)
+                {                    
 
-                ///Any relation involving a changed variable should be added to the queue.
-                foreach (Variable changedVar in updated)
-                {
-                    foreach (Relation affectedRel in changedVar.Relations)
-                        if (!ReferenceEquals(affectedRel, r) && affectedRel.IsActive && onQueue.Add(affectedRel))
-                            unresolved.Enqueue(affectedRel);
+                    //If the variable is now invalid, return null.
+                    if (updated.Any((v) => v.Domain.Count == 0)) return null;
+
+                    ///Any relation involving a changed variable should be added to the queue.
+                    foreach (Variable changedVar in updated)
+                    {
+                        result.Add(changedVar);
+
+                        foreach (Relation affectedRel in changedVar.Relations)
+                            if (!ReferenceEquals(affectedRel, r) && affectedRel.IsActive && onQueue.Add(affectedRel))
+                                unresolved.Enqueue(affectedRel);
+                    }
                 }
                 
+
                 //Finally, if this relation is still active, throw it on the queue last again.
                 if (r.IsActive && onQueue.Add(r)) unresolved.Enqueue(r);
 
@@ -82,6 +109,8 @@ namespace ArtificialIntelligence.ArcConsistency
                 if (updated.Count() > 0) lastChanged = unresolved.Last();
                 else if (ReferenceEquals(r, lastChanged)) break;
             }
+
+            return result.ToArray();
         }
 
 
@@ -337,7 +366,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            public override bool IsUnresolved()
+            protected override bool IsUnresolved()
             {
                 return Variable.Domain.Count > 1;
             }
@@ -387,7 +416,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            public override bool IsUnresolved()
+            protected override bool IsUnresolved()
             {
                 return VariableA.Domain.Count > 1 && VariableB.Domain.Count > 1;
             }
@@ -451,7 +480,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 VariableC = variableC;
                 Rule = rule;
             }
-            public override bool IsUnresolved()
+            protected override bool IsUnresolved()
             {
                 return VariableA.Domain.Count > 1 && VariableB.Domain.Count > 1 && VariableC.Domain.Count > 1;
             }
