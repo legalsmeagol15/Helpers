@@ -62,11 +62,16 @@
     <Compile Include="Test_Polynomial.cs" />
     <Compile Include="Test_Range.cs" />
     <Compile Include="Test_SkipList.cs" />
+    <Compile Include="Test_ArcConsistency.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Helpers\DataStructures\DataStructures.csproj">
       <Project>{b1da6068-30a2-478f-8115-f3ede4ef1388}</Project>
       <Name>DataStructures</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ArtificialIntelligence\ArtificialIntelligence.csproj">
+      <Project>{0bd847db-678d-4bc5-9bd6-f70b0a0ff5b2}</Project>
+      <Name>ArtificialIntelligence</Name>
     </ProjectReference>
     <ProjectReference Include="..\Mathematics\Mathematics.csproj">
       <Project>{dc7c8e96-6f24-48df-a32f-2dc12b1d315b}</Project>

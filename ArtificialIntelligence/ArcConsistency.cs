@@ -22,44 +22,143 @@ namespace ArtificialIntelligence.ArcConsistency
             _StandardDomain = standardDomain;
         }
 
-        public ConstraintResolver<TVariable, TDomain> Clone()
+        public ConstraintResolver<TVariable, TDomain> Copy()
         {
-            
+            ConstraintResolver<TVariable, TDomain> copy = new ConstraintResolver<TVariable, TDomain>(_StandardDomain);
+            foreach (Relation rOrig in _Relations)
+            {
+                foreach (Variable varOrig in rOrig.GetAllVariables())
+                {
+                    if (!copy._Variables.ContainsKey(varOrig.Tag))
+                    {
+                        Variable varCopy = new Variable(varOrig.Tag, varOrig.Domain);
+                        copy._Variables.Add(varOrig.Tag, varCopy);
+                    }
+                }                
+                copy._Relations.Add(rOrig.Copy(copy._Variables));
+            }
+            return copy;
         }
         object ICloneable.Clone()
         {
-            return Clone();
+            return Copy();
+        }
+
+
+        public Variable[] Resolve()
+        {
+            if (_Relations.Count == 0) return new Variable[0];
+
+            HashSet<Relation> changed = new HashSet<Relation>();
+            Queue<Relation> unresolved = new Queue<Relation>(_Relations);
+            HashSet<Relation> onQueue = new HashSet<Relation>(_Relations);
+            Relation lastChanged = unresolved.Last(); //The end-of-change marker.
+            
+            while (unresolved.Count > 0)
+            {
+                //Pull the next constraint from the queue, and run its enforcement mechanism.
+                Relation r = unresolved.Dequeue();
+                onQueue.Remove(r);
+                IEnumerable<Variable> updated = r.EnforceRelation();
+
+                //QUESTION #1:  What, if anything, should be added to the queue as a result of the enforcement?
+                //If any variable has been invalidated, the problem cannot be solved.
+                if (updated.Any((v) => v.Domain.Count == 0)) return null;
+
+                ///Any relation involving a changed variable should be added to the queue.
+                foreach (Variable changedVar in updated)
+                {
+                    foreach (Relation affectedRel in changedVar.Relations)
+                        if (!ReferenceEquals(affectedRel, r) && affectedRel.IsActive && onQueue.Add(affectedRel))
+                            unresolved.Enqueue(affectedRel);
+                }
+                
+                //Finally, if this relation is still active, throw it on the queue last again.
+                if (r.IsActive && onQueue.Add(r)) unresolved.Enqueue(r);
+
+                //QUESTION #2:  Have we gone thru a full set of constraints without any changes?  If so, time to quit.
+                ///If there was a change, set the end-of-change marker to the current last.  Otherwise, if we're at the end-of-change 
+                ///marker, then it's time to quit.
+                if (updated.Count() > 0) lastChanged = unresolved.Last();
+                else if (ReferenceEquals(r, lastChanged)) break;
+            }
         }
 
 
         #region Variable and Relation content members
 
-        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="rule"></param>
+        /// <returns></returns>
+        public bool Add(TVariable label, Func<TDomain, bool> rule)
+        {
+            Variable v;
+            if (!_Variables.TryGetValue(label, out v))
+            {
+                v = new Variable(label, _StandardDomain);
+                _Variables.Add(label, v);
+            }
+            UnaryRelation ur = new UnaryRelation(v, rule);
+            return _Relations.Add(ur);
+        }
+
         public bool Add(TVariable labelA, TVariable labelB, Func<TDomain, TDomain, bool> rule)
-        {
-            
-        }
-
-        internal bool Add(IList<TVariable> labels, Func<IEnumerable<TDomain>, bool> rule)
-        {
-
-        }
-        
-        
-        
-
-       
-
-        public enum Resolution
-        {
-            UNSOLVED = 0,
-            INVALID = -1,
-            SOLVED = 1
+        {            
+            Variable varA, varB;
+            if (!_Variables.TryGetValue(labelA, out varA))
+            {
+                varA = new Variable(labelA, _StandardDomain);
+                _Variables.Add(labelA, varA);
+            }
+            if (!_Variables.TryGetValue(labelB, out varB))
+            {
+                varB = new Variable(labelB, _StandardDomain);
+                _Variables.Add(labelB, varB);
+            }
+            BinaryRelation br = new BinaryRelation(varA, varB, rule);
+            return _Relations.Add(br);
         }
         
+        public bool Add(TVariable labelA, TVariable labelB, TVariable labelC, Func<TDomain, TDomain, TDomain, bool> rule)
+        {
+            Variable varA, varB, varC;
+            if (!_Variables.TryGetValue(labelA, out varA))
+            {
+                varA = new Variable(labelA, _StandardDomain);
+                _Variables.Add(labelA, varA);
+            }
+            if (!_Variables.TryGetValue(labelB, out varB))
+            {
+                varB = new Variable(labelB, _StandardDomain);
+                _Variables.Add(labelB, varB);
+            }
+            if (!_Variables.TryGetValue(labelC, out varC))
+            {
+                varC = new Variable(labelC, _StandardDomain);
+                _Variables.Add(labelC, varC);
+            }
+            TernaryRelation tr = new TernaryRelation(varA, varB, varC, rule);
+            return _Relations.Add(tr);
+        }
+        
         
 
-        public class Variable
+        //public enum Resolution
+        //{
+        //    INVALID = -1,
+        //    UNSOLVED = 0,
+        //    PARTIALLY_SOLVED = 1,
+        //    SOLVED = 2
+        //}
+        
+        
+        /// <summary>
+        /// Represents a variable tagged by a unique identifier, whose actual value may be any value within the variable's domain.
+        /// </summary>
+        public class Variable 
         {
             /// <summary>
             /// The unique identifier associated with this variable.
@@ -107,26 +206,27 @@ namespace ArtificialIntelligence.ArcConsistency
                 return Tag.GetHashCode();
             }
 
+            
 
-            /// <summary>
-            /// Adds the given domain value to this variable's domain and hypothesis sets.
-            /// </summary>
-            /// <returns>Returns this variable.</returns>
-            public static Variable operator +(Variable var, TDomain domain)
-            {
-                var.Domain.Add(domain);
-                return var;
-            }
-            /// <summary>
-            /// Removes the given domain value from this variable's domain and hypothesis sets.  If the given domain value does not 
-            /// exist in the variable's domain set, throws an exception.
-            /// </summary>
-            /// <returns>Returns this variable.</returns>            
-            public static Variable operator -(Variable var, TDomain domain)
-            {
-                var.Domain.Remove(domain);                    
-                return var;
-            }
+            ///// <summary>
+            ///// Adds the given domain value to this variable's domain and hypothesis sets.
+            ///// </summary>
+            ///// <returns>Returns this variable.</returns>
+            //public static Variable operator +(Variable var, TDomain domain)
+            //{
+            //    var.Domain.Add(domain);
+            //    return var;
+            //}
+            ///// <summary>
+            ///// Removes the given domain value from this variable's domain and hypothesis sets.  If the given domain value does not 
+            ///// exist in the variable's domain set, throws an exception.
+            ///// </summary>
+            ///// <returns>Returns this variable.</returns>            
+            //public static Variable operator -(Variable var, TDomain domain)
+            //{
+            //    var.Domain.Remove(domain);                    
+            //    return var;
+            //}
         }
 
         #endregion
@@ -138,10 +238,10 @@ namespace ArtificialIntelligence.ArcConsistency
         /// <summary>
         /// An abstract class embodying the essence of a relation object:  that it relates one or more variables; that relations 
         /// dealing with the same variables in the same order will be equal (if the relations are of the same type); and that 
-        /// relations dealing with the same variables hash identically.  
-        /// <para/>Any relation sub-class must implement the Enforce() 
-        /// method, which returns true or false based on whether enforcing the relation modifies the domain of one or more 
-        /// variables.
+        /// relations dealing with the same variables hash identically.  Classes which inherit from Relation should be immutable 
+        /// once they are created.
+        /// <para/>Any relation sub-class must implement the Enforce() method, which returns true or false based on whether 
+        /// enforcing the relation modifies the domain of one or more variables.
         /// <para/>Additionally, any relation sub-class must implement the Copy() method, which uses the input dictionary 
         /// object to find the reference for the different variable labels.  This will allow the user of an arc consistency method 
         /// to copy the variables before the method makes any changes to the variable domains.
@@ -150,7 +250,15 @@ namespace ArtificialIntelligence.ArcConsistency
         /// </summary>
         public abstract class Relation
         {
+            /// <summary>
+            /// A cached value storing the hash code.
+            /// </summary>
             private int _HashCode = 0;
+
+            /// <summary>
+            /// A cached value indicating whether this relation is still active.
+            /// </summary>
+            internal bool IsActive = true;
 
             /// <summary>
             /// Creates a new relation object referencing the given variables.  The object's hash code will be set by summing the 
@@ -169,12 +277,27 @@ namespace ArtificialIntelligence.ArcConsistency
                 _HashCode = Math.Abs(_HashCode);
             }
 
+            protected virtual bool IsUnresolved()
+            {
+                return GetAllVariables().All((v) => v.Domain.Count > 1);
+            }
+            
+
+            internal IEnumerable<Variable> EnforceRelation()
+            {
+                IEnumerable<Variable> result = Enforce();
+                IsActive = IsUnresolved();
+                return result;
+            }
+
             /// <summary>
             /// Enforces the relation by culling hypothetical domain labels from the variables' domains.  If changes to a domain 
             /// are made, this method must return true.  Otherwise, it must return false.
             /// </summary>
             /// <returns></returns>
-            public abstract Variable[] Enforce();
+            public abstract IEnumerable<Variable> Enforce();
+
+            protected internal abstract IEnumerable<Variable> GetAllVariables();
 
 
             /// <summary>
@@ -192,6 +315,9 @@ namespace ArtificialIntelligence.ArcConsistency
             /// rule, not simply reference-equal).  
             /// </summary>
             public override abstract bool Equals(object obj);
+
+
+            public abstract Relation Copy(IDictionary<TVariable, Variable> dictionary);
 
         }
 
@@ -211,7 +337,16 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            public override Variable[] Enforce()
+            public override bool IsUnresolved()
+            {
+                return Variable.Domain.Count > 1;
+            }
+            protected internal override IEnumerable<Variable> GetAllVariables()
+            {
+                return new Variable[] { Variable };
+            }
+
+            public override IEnumerable<Variable> Enforce()
             {
                 bool changed = false;
                 List<TDomain> toRemove = new List<TDomain>();
@@ -230,6 +365,13 @@ namespace ArtificialIntelligence.ArcConsistency
             {
                 return obj is UnaryRelation && ((UnaryRelation)obj).Variable.Equals(Variable);
             }
+
+
+            public override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            {
+                return new UnaryRelation(dictionary[Variable.Tag], Rule);                
+            }
+
         }
 
         internal sealed class BinaryRelation : Relation
@@ -245,7 +387,16 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            public override Variable[] Enforce()
+            public override bool IsUnresolved()
+            {
+                return VariableA.Domain.Count > 1 && VariableB.Domain.Count > 1;
+            }
+            protected internal override IEnumerable<Variable> GetAllVariables()
+            {
+                return new Variable[] { VariableA, VariableB };
+            }
+
+            public override IEnumerable<Variable> Enforce()
             {
                 //Start off to see if anything has changed.
                 int removedA = VariableA.Domain.RemoveWhere((domA) => !VariableB.Domain.Any((domB) => Rule(domA, domB)));
@@ -280,7 +431,54 @@ namespace ArtificialIntelligence.ArcConsistency
                 return false;
             }
 
+            public override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            {
+                return new BinaryRelation(dictionary[VariableA.Tag], dictionary[VariableB.Tag], Rule);
+            }
 
+        }
+
+        internal sealed class TernaryRelation : Relation
+        {
+            public readonly Variable VariableA, VariableB, VariableC;
+            public readonly Func<TDomain, TDomain, TDomain, bool> Rule;
+
+            public TernaryRelation(Variable variableA,  Variable variableB, Variable variableC, Func<TDomain,  TDomain, TDomain, bool> rule) 
+                : base(new Variable[] { variableA, variableB, variableC })
+            {
+                VariableA = variableA;
+                VariableB = variableB;
+                VariableC = variableC;
+                Rule = rule;
+            }
+            public override bool IsUnresolved()
+            {
+                return VariableA.Domain.Count > 1 && VariableB.Domain.Count > 1 && VariableC.Domain.Count > 1;
+            }
+            protected internal override IEnumerable<Variable> GetAllVariables()
+            {
+                return new Variable[] { VariableA, VariableB, VariableC };
+            }
+
+            public override IEnumerable<Variable> Enforce()
+            {
+                throw new NotImplementedException();
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (obj is TernaryRelation)
+                {
+                    TernaryRelation tr = (TernaryRelation)obj;
+                    return VariableA.Equals(tr.VariableA) && VariableB.Equals(tr.VariableB) && VariableC.Equals(tr.VariableC);
+                }
+                return false;
+            }
+
+            public override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            {
+                return new TernaryRelation(dictionary[VariableA.Tag], dictionary[VariableB.Tag], dictionary[VariableC.Tag], Rule);
+            }
         }
 
         internal sealed class GlobalRelation : Relation
@@ -295,34 +493,30 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            public override Variable[] Enforce()
+            protected internal override IEnumerable<Variable> GetAllVariables()
             {
+                return Variables;
+            }
 
-                ////Start off to see if anything has changed.
-                //int removedA = VariableA.Domain.RemoveWhere((domA) => !VariableB.Domain.Any((domB) => Rule(domA, domB)));
-                //int removedB = VariableB.Domain.RemoveWhere((domB) => !VariableA.Domain.Any((domA) => Rule(domA, domB)));
-                //bool changedA = false, changedB = false;
+            public override IEnumerable<Variable> Enforce()
+            {
+                //Get all the domains into lists that can be indexed.
+                List<TDomain>[] domainLists = new List<TDomain>[Variables.Length];
+                int varLength = Variables.Length;
+                for (int i = 0; i < varLength; i++)                
+                    domainLists[i] = new List<TDomain>(Variables[i].Domain);                
 
-                //while (removedA > 0 || removedB > 0)
-                //{
-                //    //Update the status of what has changed.
-                //    changedA |= (removedA > 0);
-                //    changedB |= (removedB > 0);
-
-                //    //Keep removing until there's nothing to remove.
-                //    removedA = VariableA.Domain.RemoveWhere((domA) => !VariableB.Domain.Any((domB) => Rule(domA, domB)));
-                //    removedB = VariableB.Domain.RemoveWhere((domB) => !VariableA.Domain.Any((domA) => Rule(domA, domB)));
-                //}
-
-                ////Return a matrix containing the changed variables.
-                //if (changedA && changedB) return new Variable[] { VariableA, VariableB };
-                //if (changedA) return new Variable[] { VariableA };
-                //if (changedB) return new Variable[] { VariableB };
-                //return null;
+                
+                
                 throw new NotImplementedException();
             }
 
             public override bool Equals(object obj)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override Relation Copy(IDictionary<TVariable, Variable> dictionary)
             {
                 throw new NotImplementedException();
             }
