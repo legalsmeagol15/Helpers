@@ -21,21 +21,20 @@ namespace ArtificialIntelligence.ArcConsistency
     /// <typeparam name="TDomain"></typeparam>
     public class ConstraintResolver<TVariable, TDomain> : ICloneable
     {
-        //TODO:  validate ConstraintResolver.
+        //TODO:  validate ConstraintResolver.  There are known issues with the way it the Copy() method works.
         private Dictionary<TVariable, Variable> _Variables = new Dictionary<TVariable, Variable>();
         private HashSet<Relation> _Relations = new HashSet<Relation>();
-
         private IEnumerable<TDomain> _StandardDomain;
-
-        public bool IsValid { get; private set; }
-        public bool IsSolved { get; private set; }
-        private bool _NeedsResolve = true;
+        
 
         public ConstraintResolver(IEnumerable<TDomain> standardDomain)
         {
             _StandardDomain = standardDomain;
         }
 
+        /// <summary>
+        /// Copies this constraint resolution problem.  Useful for backtrack searching.
+        /// </summary>        
         public ConstraintResolver<TVariable, TDomain> Copy()
         {
             ConstraintResolver<TVariable, TDomain> copy = new ConstraintResolver<TVariable, TDomain>(_StandardDomain);
@@ -59,62 +58,93 @@ namespace ArtificialIntelligence.ArcConsistency
         }
 
         /// <summary>
+        /// Resolves a constraint resolution problem embodied by a set of Relation objects by applying Mackworth's AC-1 algorithm.  This 
+        /// algorithm works by cycling through the entire set of relations, and culling each variable's domain of potential values not 
+        /// supported by the relation with regard to other variables.  Once the algorithm passes through the entire set of Relation 
+        /// objects and no change to any variable's domain is made, the algroithm terminates.
+        /// </summary>
+        /// <param name="relations">The set of relation objects which describe whether a given domain in variable A is supported by any 
+        /// potential value in the domain  of variable B.</param>
+        /// <returns>Returns the set of Variable objects which are modified by application of the algorithm.  If the problem is not 
+        /// solveable, returns null.</returns>
+        public static IEnumerable<Variable> ArcConsistency1(IEnumerable<Relation> relations)
+        {
+            bool changed = true;
+            HashSet<Variable> result = new HashSet<Variable>();
+            while (changed)
+            {
+                changed = false;
+                foreach (Relation r in relations)
+                {
+                    if (!r.IsActive) continue;
+                    IEnumerable<Variable> changedVars = r.EnforceRelation();
+                    if (changedVars == null) continue;
+                    if (changedVars.Count() > 0)
+                    {
+                        changed = true;
+                        foreach (Variable v in changedVars) result.Add(v);
+                    }
+                }
+            }
+            return result;
+        }
+        /// <summary>
+        /// Resolve a constraint resolution problem embodied by a set of Relation objects by applying Mackworth's AC-3 algorithm.  This 
+        /// algorithm works by examining each relation at least once.  Any time enforcing the relation causes a variable's domain to be 
+        /// constrained, that variables relations are enqueued for examination.  Once the queue runs out of relations to be examined, 
+        /// the algorithm terminates.
+        /// </summary>
+        /// <param name="relations">The set of relation objects which describe whether a given domain in variable A is supported by any 
+        /// potential value in the domain  of variable B.</param>
+        /// <returns>Returns the set of Variable objects which are modified by application of the algorithm.  If the problem is not 
+        /// solveable, returns null.</returns>
+        public static IEnumerable<Variable> ArcConsistency3(IEnumerable<Relation> relations)
+        {
+            HashSet<Variable> result = new HashSet<Variable>();             //The result is the set of all changed variables.
+            Queue<Relation> queue = new Queue<Relation>(relations);         //The work queue.
+            HashSet<Relation> onQueue = new HashSet<Relation>(relations);   //To allow O(1) determination if something is on the queue already.    
+
+            while (queue.Count > 0)
+            {
+                //Pull the next constraint from the queue, and run its enforcement mechanism.
+                Relation r = queue.Dequeue();
+                onQueue.Remove(r);
+                IEnumerable<Variable> changedVars = r.EnforceRelation();
+
+                //What, if anything, should be added to the queue as a result of the enforcement?                
+                if (changedVars == null) continue;
+                foreach (Variable changedVar in changedVars)
+                {
+                    //If any variable has been invalidated, the problem cannot be solved.
+                    if (changedVar.Domain.Count == 0) return null;
+
+                    //Ensure that the result includes this changed variable.
+                    result.Add(changedVar);
+
+                    //Enqueue the relations of every changed variable.
+                    foreach (Relation affectedRel in changedVar.Relations)
+                        if (affectedRel.IsActive && onQueue.Add(affectedRel))
+                            queue.Enqueue(affectedRel);
+                }
+            }
+
+            return result;
+
+        }
+
+        /// <summary>
         /// Resolves the constraint resolution problem by applying the constraints to cull the possible domains of the Variables.
         /// </summary>
         /// <returns>If any variables were changed, the returned Variable array will contain references to those variables.  If no progress towards solution could be made, 
         /// the returned array will be empty.  If the constraint resolution problem is insoluable, a null reference is returns.</returns>
-        public Variable[] Resolve()
+        public IEnumerable<Variable> Resolve()
         {
-            if (_Relations.Count == 0) return new Variable[0];
-
-            //HashSet<Relation> changed = new HashSet<Relation>();
-            HashSet<Variable> result = new HashSet<Variable>();
-            Queue<Relation> unresolved = new Queue<Relation>(_Relations);
-            HashSet<Relation> onQueue = new HashSet<Relation>(_Relations);
-            Relation lastChanged = unresolved.Last(); //The end-of-change marker.
-            
-            while (unresolved.Count > 0)
-            {
-                //Pull the next constraint from the queue, and run its enforcement mechanism.
-                Relation r = unresolved.Dequeue();
-                onQueue.Remove(r);
-                IEnumerable<Variable> updated = r.EnforceRelation();
-
-                //QUESTION #1:  What, if anything, should be added to the queue as a result of the enforcement?
-                //If any variable has been invalidated, the problem cannot be solved.
-                if (updated.Count() > 0)
-                {                    
-
-                    //If the variable is now invalid, return null.
-                    if (updated.Any((v) => v.Domain.Count == 0)) return null;
-
-                    ///Any relation involving a changed variable should be added to the queue.
-                    foreach (Variable changedVar in updated)
-                    {
-                        result.Add(changedVar);
-
-                        foreach (Relation affectedRel in changedVar.Relations)
-                            if (!ReferenceEquals(affectedRel, r) && affectedRel.IsActive && onQueue.Add(affectedRel))
-                                unresolved.Enqueue(affectedRel);
-                    }
-                }
-                
-
-                //Finally, if this relation is still active, throw it on the queue last again.
-                if (r.IsActive && onQueue.Add(r)) unresolved.Enqueue(r);
-
-                //QUESTION #2:  Have we gone thru a full set of constraints without any changes?  If so, time to quit.
-                ///If there was a change, set the end-of-change marker to the current last.  Otherwise, if we're at the end-of-change 
-                ///marker, then it's time to quit.
-                if (updated.Count() > 0) lastChanged = unresolved.Last();
-                else if (ReferenceEquals(r, lastChanged)) break;
-            }
-
-            return result.ToArray();
+            //TODO:  ConstraintResolver:  is AC-1 any faster than AC-3?  There may be some threshold at which to switch from one to the other.
+            return ArcConsistency3(_Relations);
         }
 
 
-        #region Variable and Relation content members
+        #region Variable manipulation members
 
         /// <summary>
         /// 
@@ -174,20 +204,11 @@ namespace ArtificialIntelligence.ArcConsistency
         }
         
         
-
-        //public enum Resolution
-        //{
-        //    INVALID = -1,
-        //    UNSOLVED = 0,
-        //    PARTIALLY_SOLVED = 1,
-        //    SOLVED = 2
-        //}
-        
         
         /// <summary>
         /// Represents a variable tagged by a unique identifier, whose actual value may be any value within the variable's domain.
         /// </summary>
-        public class Variable 
+        public sealed class Variable 
         {
             /// <summary>
             /// The unique identifier associated with this variable.
@@ -206,7 +227,12 @@ namespace ArtificialIntelligence.ArcConsistency
             /// Returns whether the variable still has a valid domain.  The variable has an invalid domain if it has no more 
             /// hypothetical values it could assume.
             /// </summary>
-            public bool IsValid { get { return Domain.Count > 0; } }           
+            public bool IsValid { get { return Domain.Count > 0; } }
+
+            /// <summary>
+            /// Returns whether the variable has been solved.
+            /// </summary>
+            public bool IsSolved { get { return Domain.Count == 1; } }
 
             /// <summary>
             /// Creates a new variable with the given label, and sets up the initial domain and hypothesis sets from the given domain 
@@ -216,10 +242,11 @@ namespace ArtificialIntelligence.ArcConsistency
             {
                 Tag = label;
                 Domain = new HashSet<TDomain>(domain);
-                Relations = new HashSet<Relation>();            
+                Relations = new HashSet<Relation>();
             }
-
             
+
+
             /// <summary>
             /// Returns true if the variables' tags are equal.  Does not check domains.
             /// </summary>
@@ -234,28 +261,7 @@ namespace ArtificialIntelligence.ArcConsistency
             {
                 return Tag.GetHashCode();
             }
-
             
-
-            ///// <summary>
-            ///// Adds the given domain value to this variable's domain and hypothesis sets.
-            ///// </summary>
-            ///// <returns>Returns this variable.</returns>
-            //public static Variable operator +(Variable var, TDomain domain)
-            //{
-            //    var.Domain.Add(domain);
-            //    return var;
-            //}
-            ///// <summary>
-            ///// Removes the given domain value from this variable's domain and hypothesis sets.  If the given domain value does not 
-            ///// exist in the variable's domain set, throws an exception.
-            ///// </summary>
-            ///// <returns>Returns this variable.</returns>            
-            //public static Variable operator -(Variable var, TDomain domain)
-            //{
-            //    var.Domain.Remove(domain);                    
-            //    return var;
-            //}
         }
 
         #endregion
@@ -285,9 +291,11 @@ namespace ArtificialIntelligence.ArcConsistency
             private int _HashCode = 0;
 
             /// <summary>
-            /// A cached value indicating whether this relation is still active.
+            /// A cached value indicating whether this relation is still active.  An inheriting class may set this to false once the 
+            /// relation can do no further useful work (i.e., all variables are either invalid or solved).  Inactive relations are not 
+            /// examined any further by some arc consistency algorithms 
             /// </summary>
-            internal bool IsActive = true;
+            protected internal bool IsActive = true;
 
             /// <summary>
             /// Creates a new relation object referencing the given variables.  The object's hash code will be set by summing the 
@@ -306,7 +314,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 _HashCode = Math.Abs(_HashCode);
             }
 
-            protected virtual bool IsUnresolved()
+            internal virtual bool IsUnresolved()
             {
                 return GetAllVariables().All((v) => v.Domain.Count > 1);
             }
@@ -320,10 +328,9 @@ namespace ArtificialIntelligence.ArcConsistency
             }
 
             /// <summary>
-            /// Enforces the relation by culling hypothetical domain labels from the variables' domains.  If changes to a domain 
-            /// are made, this method must return true.  Otherwise, it must return false.
-            /// </summary>
-            /// <returns></returns>
+            /// Enforces the relation by culling hypothetical domain labels from the variables' domains.  This method returns an 
+            /// IEnumerable containing all Variable objects whose domains were changed as a result of the enforcement.
+            /// </summary>            
             public abstract IEnumerable<Variable> Enforce();
 
             protected internal abstract IEnumerable<Variable> GetAllVariables();
@@ -333,6 +340,10 @@ namespace ArtificialIntelligence.ArcConsistency
             /// The hashcode returned is the sum of the hash codes of the tags of the variables related to this relation object.  
             /// This means that all relations dealing with the same variables will hash identically, even if Equals() is not true 
             /// because the variables are in different orders.
+            /// <para/>Note that inheriting members cannot override the GetHashCode() method, even if they override the Equals() 
+            /// method.  This is because the hash code is cached in a private member defined in the base class to improve hashing 
+            /// efficiency, which is a common operation in the arc consistency algorithms.  Use "#pragma warning disable CS0659" and 
+            /// "#pragma warning restore CS0659" to deal with the obnoxious warnings.
             /// </summary>            
             public override sealed int GetHashCode()
             {
@@ -345,20 +356,30 @@ namespace ArtificialIntelligence.ArcConsistency
             /// </summary>
             public override abstract bool Equals(object obj);
 
-
-            public abstract Relation Copy(IDictionary<TVariable, Variable> dictionary);
+            /// <summary>
+            /// Returns a shallow copy of this Relation, which is used to copy a constraint resolution problem.  The implementing class 
+            /// must use the given dictionary to copy the variable references contained in the Relation.
+            /// </summary>
+            protected internal abstract Relation Copy(IDictionary<TVariable, Variable> dictionary);
 
         }
 
 #pragma warning disable CS0659
 
-
-
+        /// <summary>
+        /// A relationship of a single variable.  The potential values in the variable's domain that do not comply with the given rule 
+        /// will be culled.
+        /// </summary>
         internal sealed class UnaryRelation : Relation
         {
             public readonly Variable Variable;
             public readonly Func<TDomain, bool> Rule;
 
+            /// <summary>
+            /// Creates an unary relation for a single variable.
+            /// </summary>
+            /// <param name="variable">The variable whose domain will be affected by the given rule.</param>
+            /// <param name="rule">The rule which will be examined to determine if a given domain is consistent or not.</param>
             public UnaryRelation(Variable variable, Func<TDomain, bool> rule)
                 : base(new Variable[] { variable })
             {
@@ -366,7 +387,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            protected override bool IsUnresolved()
+            internal override bool IsUnresolved()
             {
                 return Variable.Domain.Count > 1;
             }
@@ -377,17 +398,13 @@ namespace ArtificialIntelligence.ArcConsistency
 
             public override IEnumerable<Variable> Enforce()
             {
-                bool changed = false;
-                List<TDomain> toRemove = new List<TDomain>();
-                while (true)
+
+                if ( Variable.Domain.RemoveWhere((d) => !Rule(d)) > 0)
                 {
-                    foreach (TDomain d in Variable.Domain) if (!Rule(d)) toRemove.Add(d);
-                    if (toRemove.Count == 0) break;
-                    foreach (TDomain d in toRemove) Variable.Domain.Remove(d);
-                    changed = true;
-                    toRemove.Clear();
+                    if (Variable.Domain.Count <= 1) IsActive = false;
+                    return new Variable[] { Variable };
                 }
-                return changed ? new Variable[] { Variable } : null;
+                return new Variable[0];
             }
 
             public override bool Equals(object obj)
@@ -396,18 +413,25 @@ namespace ArtificialIntelligence.ArcConsistency
             }
 
 
-            public override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            protected internal override Relation Copy(IDictionary<TVariable, Variable> dictionary)
             {
                 return new UnaryRelation(dictionary[Variable.Tag], Rule);                
             }
-
         }
 
+        /// <summary>
+        /// A relationship of two variables.  At each iteration of the arc consistency algorithms, if none of Variable B's domain values 
+        /// support the existence of Variable A's domain value, that value will be culled from A's domain.
+        /// </summary>
         internal sealed class BinaryRelation : Relation
         {
             public readonly Variable VariableA, VariableB;
             public readonly Func<TDomain, TDomain, bool> Rule;
 
+            /// <summary>
+            /// Creates a binary relation for two variables.
+            /// </summary>            
+            /// <param name="rule">The rule which will be examined to determine if a given pair of domains is consistent or not.</param>
             public BinaryRelation(Variable variableA, Variable variableB, Func<TDomain, TDomain, bool> rule)
                 : base(new Variable[] { variableA, variableB })
             {
@@ -416,7 +440,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            protected override bool IsUnresolved()
+            internal override bool IsUnresolved()
             {
                 return VariableA.Domain.Count > 1 && VariableB.Domain.Count > 1;
             }
@@ -460,7 +484,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 return false;
             }
 
-            public override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            protected internal override Relation Copy(IDictionary<TVariable, Variable> dictionary)
             {
                 return new BinaryRelation(dictionary[VariableA.Tag], dictionary[VariableB.Tag], Rule);
             }
@@ -469,6 +493,7 @@ namespace ArtificialIntelligence.ArcConsistency
 
         internal sealed class TernaryRelation : Relation
         {
+            //TODO:  ConstraintResolver:  finish implementing TernaryRelation.
             public readonly Variable VariableA, VariableB, VariableC;
             public readonly Func<TDomain, TDomain, TDomain, bool> Rule;
 
@@ -480,7 +505,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 VariableC = variableC;
                 Rule = rule;
             }
-            protected override bool IsUnresolved()
+            internal override bool IsUnresolved()
             {
                 return VariableA.Domain.Count > 1 && VariableB.Domain.Count > 1 && VariableC.Domain.Count > 1;
             }
@@ -504,7 +529,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 return false;
             }
 
-            public override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            protected internal override Relation Copy(IDictionary<TVariable, Variable> dictionary)
             {
                 return new TernaryRelation(dictionary[VariableA.Tag], dictionary[VariableB.Tag], dictionary[VariableC.Tag], Rule);
             }
@@ -512,6 +537,7 @@ namespace ArtificialIntelligence.ArcConsistency
 
         internal sealed class GlobalRelation : Relation
         {
+            //TODO:  ConstraintResolver:  finish implementing GlobalRelation.
             public readonly Variable[] Variables;
             public readonly Func<IList<TDomain>, bool> Rule;
 
@@ -545,7 +571,7 @@ namespace ArtificialIntelligence.ArcConsistency
                 throw new NotImplementedException();
             }
 
-            public override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            protected internal override Relation Copy(IDictionary<TVariable, Variable> dictionary)
             {
                 throw new NotImplementedException();
             }

@@ -17,9 +17,18 @@ namespace DataStructures
     public sealed class ModularList<T> : IList<T>
         //TODO:  Validate ModularList.
     {
-        private T[] _Table = new T[17];
-        private int _Start = 0;
+        private T[] _Table;
+        private int _Start;
         
+        public ModularList()
+        {
+            _Table = new T[17];
+            _Start = 0;
+        }
+        public ModularList(IEnumerable<T> items) : this()
+        {
+            foreach (T item in items) AddLast(item);
+        }
 
         public T this[int index]
         {
