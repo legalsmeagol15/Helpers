@@ -21,7 +21,7 @@ namespace ArtificialIntelligence.ArcConsistency
     /// <typeparam name="TDomain"></typeparam>
     public class ConstraintResolver<TVariable, TDomain> : ICloneable
     {
-        //TODO:  validate ConstraintResolver.  There are known issues with the way it the Copy() method works.
+        //TODO:  validate ConstraintResolver.
         private Dictionary<TVariable, Variable> _Variables = new Dictionary<TVariable, Variable>();
         private HashSet<Relation> _Relations = new HashSet<Relation>();
         private IEnumerable<TDomain> _StandardDomain;
@@ -39,17 +39,7 @@ namespace ArtificialIntelligence.ArcConsistency
         {
             ConstraintResolver<TVariable, TDomain> copy = new ConstraintResolver<TVariable, TDomain>(_StandardDomain);
             foreach (Relation rOrig in _Relations)
-            {
-                foreach (Variable varOrig in rOrig.GetAllVariables())
-                {
-                    if (!copy._Variables.ContainsKey(varOrig.Tag))
-                    {
-                        Variable varCopy = new Variable(varOrig.Tag, varOrig.Domain);
-                        copy._Variables.Add(varOrig.Tag, varCopy);
-                    }
-                }                
-                copy._Relations.Add(rOrig.Copy(copy._Variables));
-            }
+                if (rOrig.IsActive) copy._Relations.Add(rOrig.GetCopy(copy));
             return copy;
         }
         object ICloneable.Clone()
@@ -144,14 +134,10 @@ namespace ArtificialIntelligence.ArcConsistency
         }
 
 
-        #region Variable manipulation members
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="label"></param>
-        /// <param name="rule"></param>
-        /// <returns></returns>
+        #region Problem structure manipulation members
+
+        
         public bool Add(TVariable label, Func<TDomain, bool> rule)
         {
             Variable v;
@@ -163,7 +149,7 @@ namespace ArtificialIntelligence.ArcConsistency
             UnaryRelation ur = new UnaryRelation(v, rule);
             return _Relations.Add(ur);
         }
-
+       
         public bool Add(TVariable labelA, TVariable labelB, Func<TDomain, TDomain, bool> rule)
         {            
             Variable varA, varB;
@@ -238,9 +224,9 @@ namespace ArtificialIntelligence.ArcConsistency
             /// Creates a new variable with the given label, and sets up the initial domain and hypothesis sets from the given domain 
             /// IEnumerable.
             /// </summary>
-            public Variable(TVariable label, IEnumerable<TDomain> domain)
+            public Variable(TVariable tag, IEnumerable<TDomain> domain)
             {
-                Tag = label;
+                Tag = tag;
                 Domain = new HashSet<TDomain>(domain);
                 Relations = new HashSet<Relation>();
             }
@@ -261,6 +247,7 @@ namespace ArtificialIntelligence.ArcConsistency
             {
                 return Tag.GetHashCode();
             }
+            
             
         }
 
@@ -297,6 +284,8 @@ namespace ArtificialIntelligence.ArcConsistency
             /// </summary>
             protected internal bool IsActive = true;
 
+         
+            
             /// <summary>
             /// Creates a new relation object referencing the given variables.  The object's hash code will be set by summing the 
             /// hash codes of the tags of the given variables.
@@ -304,37 +293,38 @@ namespace ArtificialIntelligence.ArcConsistency
             /// <param name="variables"></param>
             protected Relation(IEnumerable<Variable> variables)
             {
-                foreach (Variable var in variables)
+                foreach (Variable v in variables)
                 {
                     unchecked
                     {
-                        _HashCode += var.Tag.GetHashCode();
+                        _HashCode += v.Tag.GetHashCode();
                     }
+                    v.Relations.Add(this);
                 }
-                _HashCode = Math.Abs(_HashCode);
+                _HashCode = Math.Abs(_HashCode);                
             }
 
-            internal virtual bool IsUnresolved()
-            {
-                return GetAllVariables().All((v) => v.Domain.Count > 1);
-            }
+            /// <summary>
+            /// Returns whether this relation has yet to be fully resolved.
+            /// </summary>            
+            internal abstract bool GetIsUnresolved();
             
 
             internal IEnumerable<Variable> EnforceRelation()
             {
                 IEnumerable<Variable> result = Enforce();
-                IsActive = IsUnresolved();
+                IsActive = GetIsUnresolved();
                 return result;
             }
+
+            //public abstract IEnumerable<Variable> GetAllVariables();
 
             /// <summary>
             /// Enforces the relation by culling hypothetical domain labels from the variables' domains.  This method returns an 
             /// IEnumerable containing all Variable objects whose domains were changed as a result of the enforcement.
             /// </summary>            
-            public abstract IEnumerable<Variable> Enforce();
-
-            protected internal abstract IEnumerable<Variable> GetAllVariables();
-
+            public abstract IEnumerable<Variable> Enforce();            
+            
 
             /// <summary>
             /// The hashcode returned is the sum of the hash codes of the tags of the variables related to this relation object.  
@@ -357,10 +347,10 @@ namespace ArtificialIntelligence.ArcConsistency
             public override abstract bool Equals(object obj);
 
             /// <summary>
-            /// Returns a shallow copy of this Relation, which is used to copy a constraint resolution problem.  The implementing class 
-            /// must use the given dictionary to copy the variable references contained in the Relation.
+            /// Returns a deep copy of this Relation, which is used to copy a constraint resolution problem.  Variables must be copied 
+            /// automatically, but if anything else needs to be copied (like a lambda expression) this can be done here.
             /// </summary>
-            protected internal abstract Relation Copy(IDictionary<TVariable, Variable> dictionary);
+            protected internal abstract Relation GetCopy(ConstraintResolver<TVariable, TDomain> problem);
 
         }
 
@@ -370,7 +360,7 @@ namespace ArtificialIntelligence.ArcConsistency
         /// A relationship of a single variable.  The potential values in the variable's domain that do not comply with the given rule 
         /// will be culled.
         /// </summary>
-        internal sealed class UnaryRelation : Relation
+        public sealed class UnaryRelation : Relation
         {
             public readonly Variable Variable;
             public readonly Func<TDomain, bool> Rule;
@@ -387,14 +377,13 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            internal override bool IsUnresolved()
+            internal override bool GetIsUnresolved()
             {
                 return Variable.Domain.Count > 1;
             }
-            protected internal override IEnumerable<Variable> GetAllVariables()
-            {
-                return new Variable[] { Variable };
-            }
+
+           
+           
 
             public override IEnumerable<Variable> Enforce()
             {
@@ -412,11 +401,18 @@ namespace ArtificialIntelligence.ArcConsistency
                 return obj is UnaryRelation && ((UnaryRelation)obj).Variable.Equals(Variable);
             }
 
-
-            protected internal override Relation Copy(IDictionary<TVariable, Variable> dictionary)
-            {
-                return new UnaryRelation(dictionary[Variable.Tag], Rule);                
+            protected internal override Relation GetCopy(ConstraintResolver<TVariable, TDomain> problem)
+            {                
+                Variable v;
+                if (!problem._Variables.TryGetValue(Variable.Tag, out v))
+                {
+                    v = new Variable(Variable.Tag, Variable.Domain);
+                    problem._Variables.Add(v.Tag, v);
+                }
+                return new UnaryRelation(v, Rule);
             }
+            
+            
         }
 
         /// <summary>
@@ -440,14 +436,11 @@ namespace ArtificialIntelligence.ArcConsistency
                 Rule = rule;
             }
 
-            internal override bool IsUnresolved()
+            internal override bool GetIsUnresolved()
             {
-                return VariableA.Domain.Count > 1 && VariableB.Domain.Count > 1;
+                return VariableA.Domain.Count > 1 || VariableB.Domain.Count > 1;
             }
-            protected internal override IEnumerable<Variable> GetAllVariables()
-            {
-                return new Variable[] { VariableA, VariableB };
-            }
+           
 
             public override IEnumerable<Variable> Enforce()
             {
@@ -484,17 +477,29 @@ namespace ArtificialIntelligence.ArcConsistency
                 return false;
             }
 
-            protected internal override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            protected internal override Relation GetCopy(ConstraintResolver<TVariable, TDomain> problem)
             {
-                return new BinaryRelation(dictionary[VariableA.Tag], dictionary[VariableB.Tag], Rule);
-            }
+                Variable vA, vB;
+                if (!problem._Variables.TryGetValue(VariableA.Tag, out vA))
+                {
+                    vA = new Variable(VariableA.Tag, VariableA.Domain);
+                    problem._Variables.Add(vA.Tag, vA);
+                }
+                if (!problem._Variables.TryGetValue(VariableB.Tag, out vB))
+                {
+                    vB = new Variable(VariableB.Tag, VariableB.Domain);
+                    problem._Variables.Add(vB.Tag, vB);
+                }
 
+                return new BinaryRelation(vA, vB, Rule);
+            }
         }
 
         internal sealed class TernaryRelation : Relation
         {
             //TODO:  ConstraintResolver:  finish implementing TernaryRelation.
             public readonly Variable VariableA, VariableB, VariableC;
+
             public readonly Func<TDomain, TDomain, TDomain, bool> Rule;
 
             public TernaryRelation(Variable variableA,  Variable variableB, Variable variableC, Func<TDomain,  TDomain, TDomain, bool> rule) 
@@ -505,14 +510,11 @@ namespace ArtificialIntelligence.ArcConsistency
                 VariableC = variableC;
                 Rule = rule;
             }
-            internal override bool IsUnresolved()
+            internal override bool GetIsUnresolved()
             {
                 return VariableA.Domain.Count > 1 && VariableB.Domain.Count > 1 && VariableC.Domain.Count > 1;
             }
-            protected internal override IEnumerable<Variable> GetAllVariables()
-            {
-                return new Variable[] { VariableA, VariableB, VariableC };
-            }
+            
 
             public override IEnumerable<Variable> Enforce()
             {
@@ -528,40 +530,45 @@ namespace ArtificialIntelligence.ArcConsistency
                 }
                 return false;
             }
-
-            protected internal override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            protected internal override Relation GetCopy(ConstraintResolver<TVariable, TDomain> problem)
             {
-                return new TernaryRelation(dictionary[VariableA.Tag], dictionary[VariableB.Tag], dictionary[VariableC.Tag], Rule);
+                Variable vA, vB, vC;                
+                if (!problem._Variables.TryGetValue(VariableA.Tag, out vA))
+                {
+                    vA = new Variable(VariableA.Tag, VariableA.Domain);
+                    problem._Variables.Add(vA.Tag, vA);
+                }
+                if (!problem._Variables.TryGetValue(VariableB.Tag, out vB))
+                {
+                    vB = new Variable(VariableB.Tag, VariableB.Domain);
+                    problem._Variables.Add(vB.Tag, vB);
+                }
+                if (!problem._Variables.TryGetValue(VariableC.Tag, out vC))
+                {
+                    vC = new Variable(VariableC.Tag, VariableC.Domain);
+                    problem._Variables.Add(vC.Tag, vC);
+                }
+
+                return new TernaryRelation(vA, vB, vC, Rule);
             }
         }
 
         internal sealed class GlobalRelation : Relation
         {
-            //TODO:  ConstraintResolver:  finish implementing GlobalRelation.
-            public readonly Variable[] Variables;
+            //TODO:  ConstraintResolver:  finish implementing GlobalRelation.          
             public readonly Func<IList<TDomain>, bool> Rule;
 
             public GlobalRelation(IList<Variable> variables, Func<IList<TDomain>, bool> rule)
                 : base(variables)
-            {
-                Variables = variables.ToArray();
+            {               
                 Rule = rule;
             }
 
-            protected internal override IEnumerable<Variable> GetAllVariables()
-            {
-                return Variables;
-            }
+          
 
             public override IEnumerable<Variable> Enforce()
             {
-                //Get all the domains into lists that can be indexed.
-                List<TDomain>[] domainLists = new List<TDomain>[Variables.Length];
-                int varLength = Variables.Length;
-                for (int i = 0; i < varLength; i++)                
-                    domainLists[i] = new List<TDomain>(Variables[i].Domain);                
-
-                
+               
                 
                 throw new NotImplementedException();
             }
@@ -570,8 +577,11 @@ namespace ArtificialIntelligence.ArcConsistency
             {
                 throw new NotImplementedException();
             }
-
-            protected internal override Relation Copy(IDictionary<TVariable, Variable> dictionary)
+            internal override bool GetIsUnresolved()
+            {
+                throw new NotImplementedException();
+            }
+            protected internal override Relation GetCopy(ConstraintResolver<TVariable, TDomain> problem)
             {
                 throw new NotImplementedException();
             }
@@ -582,7 +592,7 @@ namespace ArtificialIntelligence.ArcConsistency
         #endregion
 
 
-
+        
     }
 
 }
