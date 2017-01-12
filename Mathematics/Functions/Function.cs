@@ -41,7 +41,7 @@ namespace Mathematics.Functions
 
         IDifferentiable<double> IDifferentiable<double>.GetDerivative()
         {
-            IDifferentiable<double> deriv = null;
+            //IDifferentiable<double> deriv = null;
             throw new NotImplementedException();
         }
 

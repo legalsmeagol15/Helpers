@@ -12,7 +12,7 @@ namespace DataStructures
     /// </summary>
     /// <remarks>This structure works by maintaining both a list and a hash map internally.  Most defined operations work in constant time.  However, the defined operation Remove(), as well as the 
     /// interface-defined methods Insert() and RemoveAt() are still O(n) operations in the worst case.  </remarks>    
-    public sealed class HashList<T> : IList<T>, ISet<T>
+    public sealed class HashList<T> : IList<T>, ISet<T>, IEnumerable
         //TODO:  Validate all members of HashList
     {
 
@@ -149,16 +149,50 @@ namespace DataStructures
             return true;
         }
 
+        
+        void IList<T>.RemoveAt(int index)
+        {
+            RemoveAt(index);         
+        }
         /// <summary>
         /// Removes the item at the given index.
-        /// </summary>        
-        void IList<T>.RemoveAt(int index)
+        /// </summary>    
+        public T RemoveAt(int index)
         {
             T item = _List[index];
             for (int i = index + 1; i < _List.Count; i++)
                 _Indices[_List[i]]--;
             _List.RemoveAt(index);
             _Indices.Remove(item);
+            return item;
+        }
+
+        /// <summary>
+        /// Removes all elements that match the conditions defined by the specified predicate from a HashList`1 collection.
+        /// </summary>
+        /// <param name="match">The System.Predicate`1 delegate that defines the conditions of the elements to remove.</param>
+        /// <returns>The number of elements that were removed from the HashList`1 collection.</returns>
+        public int RemoveWhere(Predicate<T> match)
+        {
+            int removed = 0;            
+            for (int i = 0; i < _List.Count - removed; i++)
+            {
+                T item = _List[i];
+                if (match(item))
+                {
+                    removed++;
+                    _Indices.Remove(item);
+                }
+                else
+                {
+                    _Indices[item] -= removed;
+                }
+                _List[i] = _List[i + removed];                
+            }
+
+            _List.RemoveRange(_List.Count - removed, removed);
+
+            return removed;
         }
 
         /// <summary>

@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DataStructures;
 
-namespace ArtificialIntelligence.ArcConsistency
+namespace AI.Satisfiability
 {
 
     /// <summary>
@@ -134,10 +135,80 @@ namespace ArtificialIntelligence.ArcConsistency
         }
 
 
+        public IEnumerable<IDictionary<TVariable, TDomain>> Solve()
+        {
+            ///TODO:  ConstraintResolver.Solve() works by making copies of the problem as the daughter nodes.  It would be more efficient to use backtrack searching.  Implement this in 
+            ///the future.
+            
+            Stack<ConstraintResolver<TVariable, TDomain>> stack = new Stack<ConstraintResolver<TVariable, TDomain>>();
+            HashSet<ConstraintResolver<TVariable, TDomain>> onStack = new HashSet<ConstraintResolver<TVariable, TDomain>>();
+            stack.Push(this);
+            List<IDictionary<TVariable, TDomain>> solutions = new List<IDictionary<TVariable, TDomain>>();
+
+            while (stack.Count > 0)
+            {
+                ConstraintResolver<TVariable, TDomain> problem = stack.Pop();
+                onStack.Remove(problem);
+
+                //What is changed by resolution?
+                problem.Resolve();
+                
+                int size = stack.Count; //Use to signal if we've found either an invalid constraint, or we're at a solution.
+                foreach (Variable v in problem._Variables.Values)
+                {
+                    if (v.IsValid)
+                    {
+                        size = -1;
+                        break;
+                    }
+                    if (v.IsSolved)
+                        continue;
+                    //Try each unresolved domain in each variable to see if they lead to dead ends.
+                    foreach (TDomain tryDomain in v.Domain)
+                    {
+                        ConstraintResolver<TVariable, TDomain> child = this.Copy();
+                        Variable childVar = child._Variables[v.Tag];
+                        childVar.Domain.Clear();
+                        childVar.Domain.Add(tryDomain);
+                        if (onStack.Add(child)) stack.Push(child);
+                    }
+                }
+
+                if (size < 0) continue; //Was invalid.
+                if (size == stack.Count)
+                {
+                    //Nothing new was added to the stack, which means that all variables are solved.
+                    Dictionary<TVariable, TDomain> newSolution = new Dictionary<TVariable, TDomain>();
+                    foreach (Variable v in problem._Variables.Values)                    
+                        newSolution.Add(v.Tag, v.Domain.First());
+                    solutions.Add(newSolution);                                        
+                }               
+                
+            }
+            return solutions;
+        }
+
+
+        public override bool Equals(object obj)
+        {
+            ConstraintResolver<TVariable, TDomain> cr = obj as ConstraintResolver<TVariable, TDomain>;
+            if (cr == null) return false;
+
+            foreach (Relation r in _Relations)
+            {
+                throw new NotImplementedException();
+            }
+        }
+        public override int GetHashCode()
+        {
+            return _Relations.Sum((r) => r.GetHashCode());
+        }
+
+
 
         #region Problem structure manipulation members
 
-        
+
         public bool Add(TVariable label, Func<TDomain, bool> rule)
         {
             Variable v;
@@ -204,7 +275,7 @@ namespace ArtificialIntelligence.ArcConsistency
             /// <summary>
             /// The set of labels which represent the known possible domain labels of this variable.
             /// </summary>
-            public HashSet<TDomain> Domain { get; private set; }
+            public HashList<TDomain> Domain { get; private set; }
 
 
             internal HashSet<Relation> Relations { get; private set; }
@@ -227,7 +298,7 @@ namespace ArtificialIntelligence.ArcConsistency
             public Variable(TVariable tag, IEnumerable<TDomain> domain)
             {
                 Tag = tag;
-                Domain = new HashSet<TDomain>(domain);
+                Domain = new HashList<TDomain>(domain);
                 Relations = new HashSet<Relation>();
             }
             
@@ -381,13 +452,11 @@ namespace ArtificialIntelligence.ArcConsistency
             {
                 return Variable.Domain.Count > 1;
             }
-
-           
+                     
            
 
             public override IEnumerable<Variable> Enforce()
-            {
-
+            {                
                 if ( Variable.Domain.RemoveWhere((d) => !Rule(d)) > 0)
                 {
                     if (Variable.Domain.Count <= 1) IsActive = false;
