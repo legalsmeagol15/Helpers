@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DataStructures;
 
-namespace AI.Satisfiability
+namespace AI
 {
 
     /// <summary>
@@ -20,12 +20,15 @@ namespace AI.Satisfiability
     /// </summary>
     /// <typeparam name="TVariable"></typeparam>
     /// <typeparam name="TDomain"></typeparam>
+    /// <author>Wesley Oates</author>
+    /// <date>Jan 12, 2017</date>
     public class ConstraintResolver<TVariable, TDomain> : ICloneable
     {
         //TODO:  validate ConstraintResolver.
         private Dictionary<TVariable, Variable> _Variables = new Dictionary<TVariable, Variable>();
         private HashSet<Relation> _Relations = new HashSet<Relation>();
         private IEnumerable<TDomain> _StandardDomain;
+        
         
 
         public ConstraintResolver(IEnumerable<TDomain> standardDomain)
@@ -58,7 +61,7 @@ namespace AI.Satisfiability
         /// potential value in the domain  of variable B.</param>
         /// <returns>Returns the set of Variable objects which are modified by application of the algorithm.  If the problem is not 
         /// solveable, returns null.</returns>
-        public static IEnumerable<Variable> ArcConsistency1(IEnumerable<Relation> relations)
+        private static IEnumerable<Variable> ArcConsistency1(IEnumerable<Relation> relations)
         {
             bool changed = true;
             HashSet<Variable> result = new HashSet<Variable>();
@@ -89,7 +92,7 @@ namespace AI.Satisfiability
         /// potential value in the domain  of variable B.</param>
         /// <returns>Returns the set of Variable objects which are modified by application of the algorithm.  If the problem is not 
         /// solveable, returns null.</returns>
-        public static IEnumerable<Variable> ArcConsistency3(IEnumerable<Relation> relations)
+        private static IEnumerable<Variable> ArcConsistency3(IEnumerable<Relation> relations)
         {
             HashSet<Variable> result = new HashSet<Variable>();             //The result is the set of all changed variables.
             Queue<Relation> queue = new Queue<Relation>(relations);         //The work queue.
@@ -128,18 +131,15 @@ namespace AI.Satisfiability
         /// </summary>
         /// <returns>If any variables were changed, the returned Variable array will contain references to those variables.  If no progress towards solution could be made, 
         /// the returned array will be empty.  If the constraint resolution problem is insoluable, a null reference is returns.</returns>
-        public IEnumerable<Variable> Resolve()
+        internal void Resolve()
         {
             //TODO:  ConstraintResolver:  is AC-1 any faster than AC-3?  There may be some threshold at which to switch from one to the other.
-            return ArcConsistency3(_Relations);
+            ArcConsistency3(_Relations);
         }
 
 
         public IEnumerable<IDictionary<TVariable, TDomain>> Solve()
         {
-            ///TODO:  ConstraintResolver.Solve() works by making copies of the problem as the daughter nodes.  It would be more efficient to use backtrack searching.  Implement this in 
-            ///the future.
-            
             Stack<ConstraintResolver<TVariable, TDomain>> stack = new Stack<ConstraintResolver<TVariable, TDomain>>();
             HashSet<ConstraintResolver<TVariable, TDomain>> onStack = new HashSet<ConstraintResolver<TVariable, TDomain>>();
             stack.Push(this);
@@ -193,11 +193,13 @@ namespace AI.Satisfiability
         {
             ConstraintResolver<TVariable, TDomain> cr = obj as ConstraintResolver<TVariable, TDomain>;
             if (cr == null) return false;
+            if (cr._Relations.Count != _Relations.Count) return false;
 
             foreach (Relation r in _Relations)
             {
-                throw new NotImplementedException();
+                if (!cr._Relations.Contains(r)) return false;                
             }
+            return true;
         }
         public override int GetHashCode()
         {
@@ -208,6 +210,17 @@ namespace AI.Satisfiability
 
         #region Problem structure manipulation members
 
+        public bool Add(TVariable label, Predicate<TDomain> rule)
+        {
+            Variable v;
+            if (!_Variables.TryGetValue(label, out v))
+            {
+                v = new Variable(label, _StandardDomain);
+                _Variables.Add(label, v);
+            }
+            UnaryRelation ur = new UnaryRelation(v, (d)=>rule(d));
+            return _Relations.Add(ur);
+        }
 
         public bool Add(TVariable label, Func<TDomain, bool> rule)
         {
@@ -265,7 +278,7 @@ namespace AI.Satisfiability
         /// <summary>
         /// Represents a variable tagged by a unique identifier, whose actual value may be any value within the variable's domain.
         /// </summary>
-        public sealed class Variable 
+        internal sealed class Variable 
         {
             /// <summary>
             /// The unique identifier associated with this variable.
@@ -341,7 +354,7 @@ namespace AI.Satisfiability
         /// <para/>Note for inheriting classes:  hashing for relations is defined by the variables that are managed by the relation 
         /// object.  The GetHashCode() method is defined and sealed in this class.
         /// </summary>
-        public abstract class Relation
+        internal abstract class Relation
         {
             /// <summary>
             /// A cached value storing the hash code.
@@ -431,7 +444,7 @@ namespace AI.Satisfiability
         /// A relationship of a single variable.  The potential values in the variable's domain that do not comply with the given rule 
         /// will be culled.
         /// </summary>
-        public sealed class UnaryRelation : Relation
+        internal sealed class UnaryRelation : Relation
         {
             public readonly Variable Variable;
             public readonly Func<TDomain, bool> Rule;
