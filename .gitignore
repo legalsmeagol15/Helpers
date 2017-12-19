@@ -210,3 +210,13 @@ FakesAssemblies/
 GeneratedArtifacts/
 _Pvt_Extensions/
 ModelManifest.xml
+
+# Project-specific stuff
+Mathematics/obj/
+Mathematics/bin/
+AssemblyInfo.cs
+**/*.dll
+**/*.pdb
+**/*.cache
+**/*.suo
+

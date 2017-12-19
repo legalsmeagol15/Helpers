@@ -37,7 +37,7 @@ namespace AI
         /// </param>
         /// <returns>Returns a linked list representing the route of the search from start to goal.</returns>
         public static IEnumerable<TLabel> AStarSearch<TLabel>(TLabel start, TLabel goal, Func<TLabel,
-                                                              IEnumerable<TLabel>> childGetter, IComparer<TLabel> heuristic,
+                                                              IEnumerable<TLabel>> childGetter, Func<TLabel, TLabel, int> heuristic,
                                                               out IVertex<TLabel> vField,
                                                               Func<TLabel, TLabel, double> costGetter = null,
                                                               bool terminateAtGoal = true)
@@ -138,7 +138,7 @@ namespace AI
         /// the weight in all cases will be presumed to be 1.0.</param>
         /// <returns>Returns a linked list representing the route of the search from start to goal.</returns>
         public static IEnumerable<TLabel> AStarSearch<TLabel>(TLabel start, TLabel goal, Func<TLabel,
-                                                              IEnumerable<TLabel>> childGetter, IComparer<TLabel> heuristic,
+                                                              IEnumerable<TLabel>> childGetter, Func<TLabel, TLabel,int> heuristic,
                                                               Func<TLabel, TLabel, double> costGetter = null)
         {
             IVertex<TLabel> dummyVertex;

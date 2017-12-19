@@ -276,9 +276,14 @@ namespace DataStructures
             return _List.GetEnumerator();
         }
 
+        /// <summary>
+        /// Returns the index of the given item.  This is an O(1) operation.  If the item is not contained on this list, returns -1.
+        /// </summary>        
         public int IndexOf(T item)
         {
-            return _Indices[item];
+            int result;
+            if (_Indices.TryGetValue(item, out result)) return result;
+            return -1;            
         }
 
 

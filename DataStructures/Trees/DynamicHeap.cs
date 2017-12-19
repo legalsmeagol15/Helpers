@@ -31,6 +31,10 @@ namespace DataStructures
             _Table = new List<T>(capacity);
             _Indices = new Dictionary<T, int>(capacity);
         }
+        public DynamicHeap(IEnumerable<T> items, int capacity = DEFAULT_CAPACITY) : this (Math.Max(capacity, items.Count()))
+        {
+            foreach (T item in items) Add(item);
+        }
 
         //****THIS WILL BE USED TO IMPLEMENT THE Z-INDEX IN Drawing *****
 

@@ -1,0 +1,110 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{13CA4A04-0AD2-41CC-8599-3DC870032224}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Helpers</RootNamespace>
+    <AssemblyName>Helpers</AssemblyName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Debug\Helpers.xml</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="DataStructures\Interfaces\IEdge.cs" />
+    <Compile Include="DataStructures\Interfaces\IPriorityQueue.cs" />
+    <Compile Include="DataStructures\Interfaces\IVertex.cs" />
+    <Compile Include="DataStructures\Sets\CompositeKeyDictionary.cs" />
+    <Compile Include="DataStructures\Sets\DependencyGraph.cs" />
+    <Compile Include="DataStructures\Sets\DisjointSet.cs" />
+    <Compile Include="DataStructures\Sets\DurationList.cs" />
+    <Compile Include="DataStructures\Sets\DynamicLinkedList.cs" />
+    <Compile Include="DataStructures\Sets\Extensions.cs" />
+    <Compile Include="DataStructures\Sets\HashCollection.cs" />
+    <Compile Include="DataStructures\Sets\HashList.cs" />
+    <Compile Include="DataStructures\Sets\HashStack.cs" />
+    <Compile Include="DataStructures\Sets\Heap.cs" />
+    <Compile Include="DataStructures\Sets\ModularList.cs" />
+    <Compile Include="DataStructures\Sets\SkipList.cs" />
+    <Compile Include="DataStructures\Threading\PipelineWorker.cs" />
+    <Compile Include="DataStructures\Threading\RedoWorker.cs" />
+    <Compile Include="DataStructures\Trees\DynamicHeap.cs" />
+    <Compile Include="DataStructures\Trees\DynamicMinMaxHeap.cs" />
+    <Compile Include="DataStructures\Trees\QuadTree.cs" />
+    <Compile Include="DataStructures\Trees\QuadTreeZ.cs" />
+    <Compile Include="Graphs\Heuristic.cs" />
+    <Compile Include="Graphs\IEdge.cs" />
+    <Compile Include="Graphs\IVertex.cs" />
+    <Compile Include="Graphs\Traversals.cs" />
+    <Compile Include="Mathematics\Cartesian\Operations.cs" />
+    <Compile Include="Mathematics\Cartesian\Point.cs" />
+    <Compile Include="Mathematics\Cartesian\Rect.cs" />
+    <Compile Include="Mathematics\Cartesian\Vector.cs" />
+    <Compile Include="Mathematics\CommonValues.cs" />
+    <Compile Include="Mathematics\Complex.cs" />
+    <Compile Include="Mathematics\Decimal.cs" />
+    <Compile Include="Mathematics\Cartesian\BezierCubic.cs" />
+    <Compile Include="Mathematics\Cartesian\BezierQuadratic.cs" />
+    <Compile Include="Mathematics\Cartesian\Circle.cs" />
+    <Compile Include="Mathematics\Fraction.cs" />
+    <Compile Include="Mathematics\Functions\IDifferentiable.cs" />
+    <Compile Include="Mathematics\Cartesian\Line.cs" />
+    <Compile Include="Mathematics\Cartesian\NURBS.cs" />
+    <Compile Include="Mathematics\Cartesian\PolyBezierCubic.cs" />
+    <Compile Include="Mathematics\Functions\Polynomial.cs" />
+    <Compile Include="Mathematics\Int32.cs" />
+    <Compile Include="Mathematics\Int64.cs" />
+    <Compile Include="Mathematics\Operations.cs" />
+    <Compile Include="Mathematics\Parsing\DataContext.cs" />
+    <Compile Include="Mathematics\Parsing\Exceptions.cs" />
+    <Compile Include="Mathematics\Parsing\Formula.cs" />
+    <Compile Include="Mathematics\Parsing\NamedFunction.cs" />
+    <Compile Include="Mathematics\Parsing\Operator.cs" />
+    <Compile Include="Mathematics\Parsing\Variable.cs" />
+    <Compile Include="Mathematics\Primes.cs" />
+    <Compile Include="Mathematics\Sorting.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="DataStructures\Serialization\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

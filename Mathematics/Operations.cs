@@ -21,43 +21,9 @@ namespace Mathematics
             return Math.Pow(Math.Abs(d), (1.0 / 3.0)) * Math.Sign(d);            
         }
 
-        /// <summary>
-        /// Returns the square root of the given decimal, by using the Babylonian method.
-        /// </summary>
-        /// <param name="d"></param>
-        /// <remarks>Based on code by Bobson, posted, 11/8/12, at http://stackoverflow.com/questions/4124189/performing-math-operations-on-decimal-datatype-in-c .  Retrieved 6/1/16.</remarks>
-        public static decimal Sqrt(decimal d)
-        {
-            decimal guess = d / 2m, result, avg;
-            while (true)
-            {                
-                result = d / guess;
-                avg = (guess + result) / 2m;
-                if (avg == guess) return avg;
-                guess = avg;
-            }            
-        }
+        
 
-        /// <summary>
-        /// Returns the roots of the given complex number.
-        /// </summary>
-        /// <param name="c">The value whose roots are sought.</param>
-        /// <param name="n">The order of roots to return.  For example, providing '2' will return the square roots, providing '3' will return the cubic roots, etc.</param>        
-        public static Complex[] NthRoots(this Complex c, int n)
-        {
-            double r = Math.Pow(c.Magnitude, ((double)1/ n));
-
-            Complex[] result = new Complex[n];
-            double phaseInterval = c.Phase / n;            
-            for (int m = 0; m<n; m++)
-            {
-                double newAngle = (CommonValues.PiTimes2 * (double)m / n) + phaseInterval;
-                double newReal = r * Math.Cos(newAngle);
-                double newImaginary = r * Math.Sin(newAngle);
-                result[m] = new Complex(newReal, newImaginary);
-            }            
-            return result;
-        }
+        
 
         public static int NCR(int n, int r)
         {

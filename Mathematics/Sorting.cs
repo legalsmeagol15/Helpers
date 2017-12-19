@@ -8,7 +8,7 @@ namespace Mathematics
 {
     public static class Sorting
     {
-        public static void MergeSort<T>(IList<T> list, int startIndex, int endIndex) where T : IComparable<T>
+        private static void MergeSort<T>(IList<T> list, int startIndex, int endIndex) where T : IComparable<T>
         {
             throw new NotImplementedException();
         }

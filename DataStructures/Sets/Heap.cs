@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DataStructures.Sets
+namespace DataStructures
 {
     /// <summary>
     /// A basic heap data structure, which maintains all items in partially sorted order.  The head of the heap is always 
@@ -17,7 +17,7 @@ namespace DataStructures.Sets
     {
         //TODO:  validate the heap.
 
-        private readonly IComparer<T> _Comparer;
+        private readonly Func<T, T, int> _Compare;        
         internal const int DEFAULT_CAPACITY=17;
         private T[] table;
 
@@ -40,18 +40,10 @@ namespace DataStructures.Sets
             {
                 throw new InvalidCastException("Cannot create a heap for a non-IComparable type without explicitly "
                                              + "specifying an IComparable object.");
-            }
-            else if (typeof(T) == typeof(string))
-            {
-                //Documentation recommends using a StringComparer if T is a string, something about culture-specific comparisons. 
-                //Not sure if it's necessary, but doing it anyway.
-                StringComparer sc = StringComparer.InvariantCulture;
-                Comparison<T> c = (T a, T b) => sc.Compare(a, b);
-                _Comparer = Comparer<T>.Create(c);
-            }
+            }            
             else
             {
-                _Comparer = Comparer<T>.Default;
+                _Compare = Comparer<T>.Default.Compare;
             }
 
 
@@ -64,7 +56,7 @@ namespace DataStructures.Sets
             else
             {
                 table = new T[Math.Max(capacity, items.Count())];
-                foreach (T item in items) Enqueue(item);
+                foreach (T item in items) Add(item);
                 Count = items.Count();
             }            
         }
@@ -77,20 +69,18 @@ namespace DataStructures.Sets
         /// 0.
         /// </param>
         /// <param name="capacity">The starting capacity of the heap.</param>
-        public Heap(IComparer<T> comparer, int capacity = DEFAULT_CAPACITY) : this(null, comparer, capacity) { }
+        public Heap(Func<T,T,int> comparer, int capacity = DEFAULT_CAPACITY) : this(null, comparer, capacity) { }
         /// <summary>
         /// Creates a new heap whose sort will depend on the given IComparer.
         /// </summary>
         /// <param name="items">The items to enqueued to the heap.  If null, an empty heap will be created.</param>
-        /// <param name="comparer">The IComparer object to use for priority sorting.  For any two items of type T given (a,b), if 
-        /// a&gt;b the IComparer should return 1, if a&lt;b the IComparer should return -1, and if a==b the IComparer should return 
-        /// 0.
+        /// <param name="comparer">???
         /// </param>
         /// <param name="capacity">The starting capacity of the heap.  If less than the count of items to enqueue, this will be 
         /// adjusted to accommodate the given items.</param>
-        public Heap(IEnumerable<T> items, IComparer<T> comparer, int capacity = DEFAULT_CAPACITY)
+        public Heap(IEnumerable<T> items, Func<T,T,int> comparer, int capacity = DEFAULT_CAPACITY)
         {
-            _Comparer = comparer;
+            _Compare = comparer;
             if (items == null)
             {
                 table = new T[capacity];
@@ -99,7 +89,7 @@ namespace DataStructures.Sets
             else
             {
                 table = new T[Math.Max(capacity, items.Count())];
-                foreach (T item in items) Enqueue(item);
+                foreach (T item in items) Add(item);
                 Count = items.Count();
             }            
         }
@@ -113,7 +103,7 @@ namespace DataStructures.Sets
         /// <summary>
         /// Adds the given item to the heap.
         /// </summary>        
-        public void Enqueue(T item)
+        public void Add(T item)
         {
             if (table.Length <= Count)
             {
@@ -128,9 +118,9 @@ namespace DataStructures.Sets
         /// <summary>
         /// Removes and returns the given item from the heap.
         /// </summary>
-        /// <returns></returns>
-        public T Dequeue()
+        public T Pop()
         {
+            if (Count < 1) throw new InvalidOperationException("Empty heap.");
             T result = table[0];
             table[0] = table[--Count];
             PercolateDown(0);
@@ -138,9 +128,22 @@ namespace DataStructures.Sets
         }
 
         /// <summary>
+        /// Clears all items from this heap.
+        /// </summary>
+        public void Clear()
+        {
+            Count = 0;  //I 'think' that all I need to do is just set Count to 0.
+            //table = new T[DEFAULT_CAPACITY];
+        }
+
+        /// <summary>
         /// Returns the head item from the heap without making any changes.
         /// </summary>        
-        public T Peek() { return table[0]; }
+        public T Peek()
+        {
+            if (Count < 1) throw new InvalidOperationException("Empty heap.");
+            return table[0];
+        }
 
 
         private int PercolateDown(int index)
@@ -150,12 +153,12 @@ namespace DataStructures.Sets
             while (childIdx < Count)
             {
                 T parent = table[index], rightChild = table[childIdx], leftChild = table[childIdx - 1];
-                if (_Comparer.Compare(leftChild, parent) < 0)
+                if (_Compare(leftChild, parent) < 0)
                 {
                     Swap(index, childIdx - 1);
                     index = childIdx - 1;
                 }
-                else if (_Comparer.Compare(rightChild, parent) < 0)
+                else if (_Compare(rightChild, parent) < 0)
                 {
                     Swap(index, childIdx);
                     index = childIdx;
@@ -169,7 +172,7 @@ namespace DataStructures.Sets
 
             //Handle the case of only the left child being on the table.
             childIdx = index * 2;
-            if (childIdx < Count && _Comparer.Compare(table[childIdx], table[index]) < 0)
+            if (childIdx < Count && _Compare(table[childIdx], table[index]) < 0)
             {
                 Swap(index, childIdx);
                 index = childIdx;
@@ -183,7 +186,7 @@ namespace DataStructures.Sets
             while (index > 0)
             {
                 int parentIdx = ((index-1) / 2);
-                if (_Comparer.Compare(table[index], table[parentIdx]) >= 0) break;
+                if (_Compare(table[index], table[parentIdx]) >= 0) break;
                 Swap(index, parentIdx);
                 index = parentIdx;
             }

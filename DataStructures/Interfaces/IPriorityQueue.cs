@@ -11,12 +11,12 @@ namespace DataStructures
         /// <summary>
         /// Adds the given item to the priority queue.  The item will be moved to its correct priority position.
         /// </summary>        
-        void Enqueue(T item);
+        void Add(T item);
 
         /// <summary>
         /// Removes and returns the item at the head of the priority queue.
         /// </summary>        
-        T Dequeue();
+        T Pop();
 
         /// <summary>
         /// Returns the item at the head of the priority queue without making any changes.

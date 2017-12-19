@@ -30,8 +30,10 @@ namespace DataStructures.Threading
         /// <param name="cancellable">Whether or not this worker should allow users to cancel work through the 
         /// pipeline.  Note that cancel will flush the pipeline.  The default value is false.</param>
         /// <param name="pipeSize">The maximum pipeline size.  If the queue is at maximum size and another work item is 
-        /// added, an exception will be thrown.  The default value is int.MaxValue.</param>        
-        public PipelineWorker(bool reportsProgress = false, bool cancellable = false, int pipeSize = int.MaxValue)
+        /// added, an exception will be thrown.  The default value is int.MaxValue.</param>  
+        /// <param name="strategy">The strategy when the pipeline worker is overflowed</param>
+        public PipelineWorker(bool reportsProgress = false, bool cancellable = false, int pipeSize = int.MaxValue, 
+            OverflowStrategies strategy = OverflowStrategies.ThrowException)
         {
             this.WorkerReportsProgress = reportsProgress;
             this.WorkerSupportsCancellation = cancellable;        
@@ -216,7 +218,7 @@ namespace DataStructures.Threading
             Current = default(T);
 
             //If there are more on the queue, get the worker started on the next one.
-            if (_Queue.Count > 0)
+            if (_Queue.Count > 0 && !IsBusy)
             {
                 Current = _Queue.First();
                 _Queue.RemoveFirst();

@@ -398,7 +398,7 @@ namespace Mathematics.Calculus
         IDifferentiable<double> IDifferentiable<double>.GetSum(IDifferentiable<double> other)
         {
             if (other is Polynomial) return this + (Polynomial)other;
-            if (other is Value) return this + other.Evaluate(0.0d);
+            //if (other is Value) return this + other.Evaluate(0.0d);
             if (other is Fraction) return this + other.Evaluate(0.0d);
             return other.GetSum(this);
         }
@@ -406,7 +406,7 @@ namespace Mathematics.Calculus
         IDifferentiable<double> IDifferentiable<double>.GetDifference(IDifferentiable<double> other)
         {
             if (other is Polynomial) return this - (Polynomial)other;
-            if (other is Value) return this - other.Evaluate(0.0d);
+            //if (other is Value) return this - other.Evaluate(0.0d);
             if (other is Fraction) return this - other.Evaluate(0.0d);
             throw new NotImplementedException();
         }
@@ -414,7 +414,7 @@ namespace Mathematics.Calculus
         IDifferentiable<double> IDifferentiable<double>.GetMultiple(IDifferentiable<double> factor)
         {
             if (factor is Polynomial) return this * (Polynomial)factor;
-            if (factor is Value) return this * factor.Evaluate(0.0d);
+            //if (factor is Value) return this * factor.Evaluate(0.0d);
             if (factor is Fraction) return this * factor.Evaluate(0.0d);
             return factor.GetMultiple(this);
         }
@@ -422,7 +422,7 @@ namespace Mathematics.Calculus
         IDifferentiable<double> IDifferentiable<double>.GetQuotient(IDifferentiable<double> divisor)
         {
             if (divisor is Polynomial) return this / (Polynomial)divisor;
-            if (divisor is Value) return this / divisor.Evaluate(0.0d);
+            //if (divisor is Value) return this / divisor.Evaluate(0.0d);
             if (divisor is Fraction) return this / divisor.Evaluate(0.0d);
             throw new NotImplementedException();
         }
@@ -835,79 +835,81 @@ namespace Mathematics.Calculus
         /// from what would appear there.</remarks>
         public static Complex[] GetRoots(double a, double b, double c, double d, bool realOnly = false)
         {
-            double f, g, discrim;
-            double bSquared = b * b;
-            double aSquared = a * a;
-            f = ((3 * c / a) - (bSquared / aSquared)) / 3;
-            g = (((2 * bSquared * b) / (aSquared * a)) - (9 * b * c / aSquared) + (27 * d / a)) / 27;
-            discrim = ((g * g) / 4) + ((f * f * f) / 27);
+            //double f, g, discrim;
+            //double bSquared = b * b;
+            //double aSquared = a * a;
+            //f = ((3 * c / a) - (bSquared / aSquared)) / 3;
+            //g = (((2 * bSquared * b) / (aSquared * a)) - (9 * b * c / aSquared) + (27 * d / a)) / 27;
+            //discrim = ((g * g) / 4) + ((f * f * f) / 27);
 
-            if (discrim==0 && f==0 && g == 0)
-            {
-                /// A single multi-root.  An exceedingly rare edge case. 
-                double result = -Math.Pow(d / a, CommonValues.OneThird);
-                if (realOnly) return new Complex[1] { result };
-                return new Complex[3] { result, result, result };
-            }
-            else if (discrim >= 0)
-            {
-                double r, rCubeRoot=0, t, tCubeRt=0, bOver3a;
+            //if (discrim==0 && f==0 && g == 0)
+            //{
+            //    /// A single multi-root.  An exceedingly rare edge case. 
+            //    double result = -Math.Pow(d / a, CommonValues.OneThird);
+            //    if (realOnly) return new Complex[1] { result };
+            //    return new Complex[3] { result, result, result };
+            //}
+            //else if (discrim >= 0)
+            //{
+            //    double r, rCubeRoot=0, t, tCubeRt=0, bOver3a;
 
-                r = -(g / 2) + Math.Pow(discrim, 0.5);                
-                //Get the singular real cube root of r, and store it in s.
-                Complex[] roots = Operations.NthRoots(r, 3); 
-                double smallestImaginary = double.PositiveInfinity;
-                foreach (Complex root in roots)
-                {
-                    if (Math.Abs(root.Imaginary) < smallestImaginary)
-                    {
-                        smallestImaginary = Math.Abs(root.Imaginary);
-                        rCubeRoot = root.Real;
-                    }
-                }
+            //    r = -(g / 2) + Math.Pow(discrim, 0.5);                
+            //    //Get the singular real cube root of r, and store it in s.
+            //    Complex[] roots = Complex.NthRoots(r, 3); 
+            //    double smallestImaginary = double.PositiveInfinity;
+            //    foreach (Complex root in roots)
+            //    {
+            //        if (Math.Abs(root.Imaginary) < smallestImaginary)
+            //        {
+            //            smallestImaginary = Math.Abs(root.Imaginary);
+            //            rCubeRoot = root.Real;
+            //        }
+            //    }
 
 
-                t = (-g / 2) - Math.Pow(discrim, 0.5);
-                //Get the singular real cube root of t, and store it in u.
-                roots = Mathematics.Operations.NthRoots(t, 3);
-                smallestImaginary = double.PositiveInfinity;
-                foreach (Complex root in roots)
-                {
-                    if (Math.Abs(root.Imaginary) < smallestImaginary)
-                    {
-                        smallestImaginary = Math.Abs(root.Imaginary);
-                        tCubeRt = root.Real;
-                    }
-                }
-                
-                bOver3a = -(b / (3 * a));
-                Complex x1 = new Complex( rCubeRoot + tCubeRt + bOver3a,0);
-                if (realOnly) return new Complex[1] { x1 };
-                Complex x2 = new Complex((-(rCubeRoot + tCubeRt) / 2) + bOver3a, (rCubeRoot - tCubeRt) * CommonValues.SqRt3 / 2);
-                Complex x3 = new Complex((-(rCubeRoot + tCubeRt) / 2) + bOver3a, -(rCubeRoot - tCubeRt) * CommonValues. SqRt3 / 2);
-                return new Complex[3] { x1, x2, x3 };
-            }
-            
-            else
-            {
-                //Three real roots.
-                double i, iCubeRt, k, m, n, bOver3a;
-                i = Math.Pow((g * g / 4) - discrim, 0.5);
-                iCubeRt = Math.Pow(i, CommonValues.OneThird);
-                k = Math.Acos(-(g / (2 * i)));
+            //    t = (-g / 2) - Math.Pow(discrim, 0.5);
+            //    //Get the singular real cube root of t, and store it in u.
+            //    roots = Mathematics.Complex.NthRoots(t, 3);
+            //    smallestImaginary = double.PositiveInfinity;
+            //    foreach (Complex root in roots)
+            //    {
+            //        if (Math.Abs(root.Imaginary) < smallestImaginary)
+            //        {
+            //            smallestImaginary = Math.Abs(root.Imaginary);
+            //            tCubeRt = root.Real;
+            //        }
+            //    }
 
-                //Use trig to find the other two roots.
-                double kOneThird = k/3;
-                m = Math.Cos(kOneThird);
-                n = CommonValues.SqRt3 * Math.Sin(kOneThird);
+            //    bOver3a = -(b / (3 * a));
+            //    Complex x1 = new Complex( rCubeRoot + tCubeRt + bOver3a,0);
+            //    if (realOnly) return new Complex[1] { x1 };
+            //    Complex x2 = new Complex((-(rCubeRoot + tCubeRt) / 2) + bOver3a, (rCubeRoot - tCubeRt) * CommonValues.SqRt3 / 2);
+            //    Complex x3 = new Complex((-(rCubeRoot + tCubeRt) / 2) + bOver3a, -(rCubeRoot - tCubeRt) * CommonValues. SqRt3 / 2);
+            //    return new Complex[3] { x1, x2, x3 };
+            //}
 
-                bOver3a = -(b / (3 * a));
-                double x1 = (2 * iCubeRt * m) + bOver3a;
-                double x2 = (-iCubeRt * (m + n)) + bOver3a;
-                double x3 = (-iCubeRt * (m - n)) + bOver3a;
+            //else
+            //{
+            //    //Three real roots.
+            //    double i, iCubeRt, k, m, n, bOver3a;
+            //    i = Math.Pow((g * g / 4) - discrim, 0.5);
+            //    iCubeRt = Math.Pow(i, CommonValues.OneThird);
+            //    k = Math.Acos(-(g / (2 * i)));
 
-                return new Complex[3] { x1, x2, x3 };
-            }
+            //    //Use trig to find the other two roots.
+            //    double kOneThird = k/3;
+            //    m = Math.Cos(kOneThird);
+            //    n = CommonValues.SqRt3 * Math.Sin(kOneThird);
+
+            //    bOver3a = -(b / (3 * a));
+            //    double x1 = (2 * iCubeRt * m) + bOver3a;
+            //    double x2 = (-iCubeRt * (m + n)) + bOver3a;
+            //    double x3 = (-iCubeRt * (m - n)) + bOver3a;
+
+            //    return new Complex[3] { x1, x2, x3 };
+            //}
+
+            throw new NotImplementedException();
             
         }        
 

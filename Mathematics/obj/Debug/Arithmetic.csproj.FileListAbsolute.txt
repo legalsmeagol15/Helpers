@@ -1,5 +1,0 @@
-C:\Users\Wesley\Documents\Programming\Helpers\Arithmetic\bin\Debug\Arithmetic.dll
-C:\Users\Wesley\Documents\Programming\Helpers\Arithmetic\bin\Debug\Arithmetic.pdb
-C:\Users\Wesley\Documents\Programming\Helpers\Arithmetic\obj\Debug\Arithmetic.csprojResolveAssemblyReference.cache
-C:\Users\Wesley\Documents\Programming\Helpers\Arithmetic\obj\Debug\Arithmetic.dll
-C:\Users\Wesley\Documents\Programming\Helpers\Arithmetic\obj\Debug\Arithmetic.pdb

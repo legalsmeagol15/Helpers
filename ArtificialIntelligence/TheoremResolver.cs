@@ -11,436 +11,587 @@ namespace AI.TheoremProving
 {
     public sealed class TheoremResolver
     {
+
         private HashList<Sentence> _KnowledgeBase = new HashList<Sentence>();
-        Queue<Tuple<Sentence, Sentence>> _Work = new Queue<Tuple<Sentence, Sentence>>();
         private Dictionary<object, HashSet<Sentence>> _Topics = new Dictionary<object, HashSet<Sentence>>();
-
-        public TheoremResolver()
-        {
-
-        }
 
         public bool Tell(Sentence s)
         {
-            if (_KnowledgeBase.Contains(s)) return false;
-
-            HashSet<Sentence> onQueue = new HashSet<Sentence>();
-            Queue<Sentence> queue = new Queue<Sentence>();
-
-            //First, figure out what is topical that is already on the knowledge base.            
-            foreach (Clause c in s)
-            {
-                //Is this clause a new topic?
-                HashSet<Sentence> topic;
-                if (!_Topics.TryGetValue(c, out topic))
-                {
-                    _Topics.Add(c, new HashSet<Sentence>());
-                    continue;
-                }
-
-                //If the queue doesn't already have relevant sentences in this topic, add them on.
-                foreach (Sentence sentence in topic)
-                    if (onQueue.Add(sentence))
-                        queue.Enqueue(sentence);
-            }
-
-            //Now, work through all the relevant sentences in the queue.            
-            while (true)
-            {
-
-                //Find all non-tautological resolvents.
-                List<Sentence> toAdd = new List<Sentence>();
-                while (queue.Count > 0)
-                {
-                    Sentence resolution = queue.Dequeue().Resolve(s);
-
-                    if (resolution != null)
-                    {
-                        if (resolution.Count == 0) throw new InvalidOperationException("Cannot add resolvent because it contradicts the known knowledge base.");
-                        else if (!resolution.IsTautological) toAdd.Add(resolution);
-                    }
-                }
-
-                //Add the new resolvents to the knowledge base and to the known topics.
-                if (toAdd.Count == 0) break;
-                foreach (Sentence addSentence in toAdd)
-                {
-                    foreach (Clause c in addSentence)
-                    {
-                        if (_KnowledgeBase.Add(addSentence))
-                        {
-                            _Topics[c].Add(addSentence);
-                            if (onQueue.Add(addSentence)) queue.Enqueue(addSentence);
-                        }
-                    }
-                }
-            }
-
-            //Finally, add the new sentence.
-            foreach (Clause c in s)
-                _Topics[c].Add(s);
-
-            _KnowledgeBase.Add(s);
-            return true;
+            return _KnowledgeBase.Add(s);            
         }
         
-        public Proof Prove(Sentence s)
+        public Sentence Ask(Sentence proposition)
         {
-            throw new NotImplementedException();
-        }
+            //STEP #0 - set up the data structures.  I need an empty pair heap, 
+            Sentence[] contra = !proposition;
+            int heapCapacity = (_KnowledgeBase.Count + contra.Length);
+            heapCapacity *= heapCapacity;
+            heapCapacity /= 2;
+            Heap<SentencePair> queue = new Heap<SentencePair>((a, b) => Compare(a, b, proposition), heapCapacity);
+            HashList<Sentence> kb = new HashList<Sentence>(_KnowledgeBase); //Temporary knowledge base, for purposes of this ask.  Temporary because stuff will be added.
+            foreach (Sentence c in contra) kb.Add(c);
 
-        private IEnumerable<Sentence> GetTopical(Sentence s)
-        {
-            HashSet<Sentence> topical = new HashSet<Sentence>();
-            foreach (Clause c in s)            
-                foreach (Sentence relevant in _Topics[c])                
-                    topical.Add(relevant);
-            return topical;
-        }
-
-        public enum Proof
-        {
-            Disproven,
-            Proven,
-            Unproven
-        }
-    }
-
-
-
-    public struct Clause
-    {
-        public readonly bool @Bool;
-        public object Tag;
-
-        public Clause(object tag) : this(tag, true) { }
-        private Clause(object tag, bool @bool)
-        {
-            if (tag == null) throw new ArgumentException("Clause tag cannot be null.");
-            Bool = @bool;
-            Tag = tag;
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (!(obj is Clause)) return false;
-            Clause other = (Clause)obj;
-            return Tag.Equals(other.Tag) && Bool.Equals(other.Bool);
-        }
-        public override int GetHashCode()
-        {
-            return Tag.GetHashCode();
-        }
-
-        public static Clause operator ~(Clause a)
-        {
-            return new Clause(a.Tag, !a.Bool);
-        }
-    }
-
-    /// <summary>
-    /// A collection of disjoint clauses form a sentence in conjunctive normal form.
-    /// </summary>
-    public sealed class Sentence : IEnumerable<Clause>
-    {
-        private const int DEFAULT_SIZE = 3;
-        private Clause[] _Clauses;
-        private bool[] _Present;
-        private int _HashCode;
-
-        /// <summary>
-        /// Whether or not this clause is tautological, meaning it contains both a clause and its inverse.
-        /// </summary>
-        public bool IsTautological { get; private set; }
-
-        /// <summary>
-        /// The number of clauses contained in this sentence.
-        /// </summary>
-        public int Count { get; private set; }
-
-        private Sentence(int capacity)
-        {
-            Reset(capacity);
-        }
-        public Sentence() : this(DEFAULT_SIZE) { }
-        public Sentence Copy()
-        {
-            Sentence newSentence = new Sentence(_Clauses.Length);
-            for (int i = 0; i < _Clauses.Length; i++)
+            //STEP #1 - prep the starting work queue.
+            //Enqueue the contra comparisons first, which are likely to float to the top of the queue anyway.            
+            for (int i = 0; i < contra.Length; i++)
             {
-                newSentence._Clauses[i] = _Clauses[i];
-                newSentence._Present[i] = _Present[i];
-                newSentence.IsTautological = IsTautological;
-                newSentence.Count = Count;
+                contra[i].ResetParent();
+                contra[i].SetSimilarity(proposition);
+                for (int j = 0; j < kb.Count; j++)
+                {
+                    SentencePair sp = new SentencePair(contra[i], kb[j]);
+                    queue.Enqueue(sp);
+                }
             }
-            return newSentence;
-        }
-
-        public Sentence Resolve(Sentence other)
-        {
-            foreach (Clause c in this)
+            //Add inferences within the knowledge base alone.                
+            for (int i = 0; i < kb.Count - 1; i++)
             {
-                int otherIdx = other.GetIndex(c, false);
-                if (otherIdx < 0) continue;
+                kb[i].ResetParent();
+                kb[i].SetSimilarity(proposition);
+                for (int j = i + 1; j < kb.Count; j++)
+                {
+                    SentencePair sp = new SentencePair(kb[i], kb[j]);
+                    queue.Enqueue(sp);
+                }
+            }
+            kb[kb.Count - 1].ResetParent();
 
-                int thisIdx = GetIndex(c);
-                Sentence resolution = new Sentence(Mathematics.Primes.GetNextPrime(_Clauses.Length + other._Clauses.Length - 2));
-                for (int i = 0; i < thisIdx; i++)
-                    if (_Present[i]) resolution.Add(_Clauses[i]);
-                for (int i = thisIdx + 1; i < _Clauses.Length; i++)
-                    if (_Present[i]) resolution.Add(_Clauses[i]);
-                for (int i = 0; i < otherIdx; i++)
-                    if (other._Present[i]) resolution.Add(other._Clauses[i]);
-                for (int i = otherIdx + 1; i < other._Clauses.Length; i++)
-                    if (other._Present[i]) resolution.Add(other._Clauses[i]);
-                return resolution;
+            //STEP #2 - add the contra proposition to the temp knowledge base.
+            //Combine the contra with the temporary knowledge base.
+            for (int i = 0; i < contra.Length; i++) kb.Add(contra[i]);
+
+            //STEP #3 - Now, look for resolvents.
+            while (queue.Count > 0)
+            {
+
+                //Dequeue a pair and check if it resolves.
+                SentencePair pair = queue.Dequeue();
+                Sentence resolvent = pair.A | pair.B;
+                int resolvingPairs = resolvent.Resolve();
+                if (resolvingPairs != 1) continue;      //If it doesn't resolve at all, nothing more to learn so throw away the pair.  If it resolves twice or more, it's a 
+                                                        //tautology so throw away the pair.
+
+                //Did the proposition get solved?
+                if (resolvent.Count == 0) return resolvent;
+
+                //From here, it's a valid non-empty resolvent that is either A) already known or B) new.
+
+                //If an identical sentence already exists on kb, change the resolvent ref to that sentence.
+                int knownIdx = kb.IndexOf(resolvent);
+                int newDepth = Math.Max(pair.A.Depth, pair.B.Depth) + 1;
+                if (knownIdx >= 0)
+                {
+                    resolvent = kb[knownIdx];                    
+                    if (newDepth < resolvent.Depth)
+                    {
+                        resolvent.Depth = newDepth;
+                        resolvent.ParentA = pair.A;
+                        resolvent.ParentB = pair.B;
+                    }
+                }
+                else
+                {
+                    resolvent.Depth = newDepth;
+                    resolvent.ParentA = pair.A;
+                    resolvent.ParentB = pair.B;
+                    for (int i = 0; i < kb.Count; i++) queue.Enqueue(new SentencePair(resolvent, kb[i]));
+                    kb.Add(resolvent);
+                }               
+
             }
 
+            //STEP #4 - all possible sentence pairs have been examined, with no luck.  Could not be proven.
             return null;
 
         }
+        private int Compare(SentencePair pairA, SentencePair pairB, Sentence proposition)
+        {
+
+            //First heuristic:  sentences that have more in common with a proposition should come first, unless the difference is inconsequential.            
+            if (pairA.CombinedSimilarity > pairB.CombinedSimilarity + 0.2f) return -1;
+            else if (pairA.CombinedSimilarity < pairB.CombinedSimilarity - 0.2f) return 1;
+
+            //Second heuristic:  shorter sentences go first.
+            return pairA.ClauseCount.CompareTo(pairB.ClauseCount);
+            
+        }
+
+        private struct SentencePair
+        {
+            public readonly Sentence A;
+            public readonly Sentence B;
+            public readonly int ClauseCount;
+            public readonly double CombinedSimilarity;
+            
+            public SentencePair (Sentence a, Sentence b)
+            {
+                A = a;
+                B = b;
+                CombinedSimilarity = a.Similarity * b.Similarity;
+                ClauseCount = a.Count + b.Count;
+            }
+            
+        }
+        
+        
+    }
+
+    /// <summary>
+    /// A structure representing a negateable variable tag.
+    /// </summary>
+    public struct Clause
+    {
+        public readonly bool IsPositive;
+        public readonly object Tag;
+        public Clause(object tag, bool isPositive = true)
+        {
+            IsPositive = isPositive;
+            Tag = tag;
+        }
+    }
+
+
+    /// <summary>
+    /// A Sentence is a data object that uses hashing to identify the presence or absence of positive or negative literals.  The Sentence is immutable once constructed, 
+    /// except for through the Resolve() method.
+    /// </summary>
+    public class Sentence : IEnumerable<Clause>
+    {
+        internal void ResetParent()
+        {
+            ParentA = null;
+            ParentB = null;
+            Depth = int.MaxValue;
+        }
+        internal Sentence ParentA, ParentB;
+        internal int Depth;
+
+        //Invariant rules:  Sentence must be immuteable once it has been created.
+        private const int DEFAULT_CAPACITY = 3;
+        private object[] _Literals;
+        private Flag[] _Flags;
+
+        /// <summary>
+        /// Used for heuristic sorting of sentences.  Similarity is a float representing the percentage of literals held in common with a proposition given by the 
+        /// SetProposition(Sentence) method.
+        /// </summary>
+        internal float Similarity { get; private set; } = float.NaN;
+        internal float SetSimilarity(Sentence proposition)
+        {
+            int shared = 0;
+            for (int i = 0; i < _Literals.Length; i++) if (proposition.ContainsLiteral(_Literals[i])) shared++;
+            Similarity = (float)shared / (float)_Literals.Length;
+            return Similarity;            
+        }
+
+        public int Count { get; private set; }
+
+        public Sentence() : this(DEFAULT_CAPACITY) { }
+
+        public Sentence(IEnumerable<Clause> clauses) : this(clauses.Count())
+        {
+            foreach (Clause c in clauses) Add(c.Tag, c.IsPositive);
+            _HashCode = CalculateHashCode();
+        }
+        public Sentence(IEnumerable<object> variables) : this(variables.Count())
+        {
+            foreach (object o in variables) Add(o, true);
+            _HashCode = CalculateHashCode();
+        }
+
+        internal Sentence(int capacity)
+        {
+            int size = Mathematics.Primes.GetNextPrime(capacity - 1);
+            _Literals = new object[size];
+            _Flags = new Flag[size];
+            Count = 0;
+            _HashCode = 0;
+            ResetParent();
+        }
+        internal Sentence Copy(int newCount = -1)
+        {
+            Sentence copy = new Sentence(_Literals.Length);
+            for (int i = 0; i < _Literals.Length; i++)
+            {
+                copy._Literals[i] = _Literals[i];
+                copy._Flags[i] = _Flags[i];
+            }
+            copy.Count = Count;
+            copy._HashCode = _HashCode;
+            return copy;
+        }
+
+        private int _HashCode;
+        private int CalculateHashCode()
+        {
+            int result = 0;
+            for (int i = 0; i < _Literals.Length; i++)
+            {
+                Flag f = _Flags[i];
+                if (f == Flag.Deleted || f == Flag.Empty) continue;
+                unchecked
+                {
+                    result += _Literals[i].GetHashCode();
+                }
+            }
+            return Math.Abs(result);
+        }
+
+        public static Sentence Empty() { return new Sentence(); }
+        public static Sentence FromClause(Clause c)
+        {
+            Sentence result = new Sentence();
+            result.Add(c.Tag, c.IsPositive);
+            return result;
+        }
+
+
 
         #region Sentence contents manipulation
 
         /// <summary>
-        /// Adds the given clause to this sentence.
+        /// Adds the given Clause to this Sentence.
         /// </summary>
-        /// <returns>Returns true if the clause did not exist on the sentence before, was added.  Otherwise, returns false.</returns>
-        public bool Add(Clause c)
+        /// <returns>Returns true if the item did not already exist on the Sentence but was added; otherwise, returns false.</returns>
+        private bool Add(Clause c)
         {
-            if (Count >= _Clauses.Length / 2) IncreaseCapacity();
-            int hashCode = c.Tag.GetHashCode();
-            hashCode %= _Clauses.Length;
+            return Add(c.Tag, c.IsPositive ? Flag.HasPositive : Flag.HasNegative);
+        }
+        /// <summary>
+        /// Adds the given object as a variable tag to this Sentence.
+        /// </summary>
+        /// <param name="newObj">The variable tag.</param>
+        /// <param name="isPositive">Optional.  Whether the literal to be added will represent the variable tag, or the negation of the variable tag.</param>
+        /// <returns>Returns true if the item did not already exist on the Sentence but was added; otherwise, returns false.</returns>
+        private bool Add(object newObj, bool isPositive = true)
+        {
+            return Add(newObj, isPositive ? Flag.HasPositive : Flag.HasNegative);
+        }
+        private bool Add(object newObj, Flag newFlag)
+        {
+            if (Count >= (_Literals.Length / 2))
+                SetCapacity(Mathematics.Primes.GetNextPrime(_Literals.Length * 2));
 
-            int start = c.Tag.GetHashCode() % _Clauses.Length, offset = 0, i = start;
-            int index = -1;
-            while (true)
-            {
-                Clause existing = _Clauses[i];
-                if (existing.Tag == null)
-                {
-                    if (index < 0) index = i;
-                    break;
-                }
-                else if (!_Present[i]) index = i;
-                else if (existing.Tag.Equals(c.Tag))
-                {
-                    if (existing.Bool != c.Bool) IsTautological = true;
-                    else return false;
-                }
-                i = (start + (++offset * offset)) % _Clauses.Length;  //Quadratic probing
-            }
+            int i = GetInsertIndex(newObj);
+            object oldObj = _Literals[i];
+            Flag oldFlag = _Flags[i];
+            if (oldObj.Equals(newObj) && newFlag == oldFlag) return false;
+
+            _Literals[i] = newObj;
+            _Flags[i] = newFlag;
 
             Count++;
-            _Clauses[index] = c;
-            _Present[index] = true;
-            unchecked
-            {
-                _HashCode += c.Tag.GetHashCode();
-            }
             return true;
         }
 
+
+
+        ///// <summary>
+        ///// Changes this sentence into an empty sentence.  For purposes of a logical resolution theorem prover, this will signify a contradiction.
+        ///// </summary>
+        //public void Clear()
+        //{         
+        //    _Literals = new object[DEFAULT_CAPACITY];
+        //    _Flags = new Flag[DEFAULT_CAPACITY];
+        //    Count = 0;
+        //    _HashCode = 0;
+        //}
+
         /// <summary>
-        /// Empties this sentence of all clauses.
+        /// Uses quadratic probing to finds the first index where the table is empty or the item is deleted, or the object already exists.
         /// </summary>
-        public void Clear()
+        private int GetInsertIndex(object o)
         {
-            Reset(DEFAULT_SIZE);
-        }
-
-        private void Reset(int capacity)
-        {
-            _Clauses = new Clause[capacity];
-            _Present = new bool[capacity];
-            Count = 0;
-            IsTautological = false;
-            _HashCode = 0;
-        }
-
-        private void IncreaseCapacity()
-        {
-            int newSize = Mathematics.Primes.GetNextPrime(_Clauses.Length);
-            Clause[] newClauses = new Clause[newSize];
-            bool[] newPresent = new bool[newSize];
-            for (int i = 0; i < _Clauses.Length; i++)
-            {
-                if (!_Present[i]) continue;
-                Clause c = _Clauses[i];
-                int start = c.Tag.GetHashCode() % newClauses.Length, offset = 0, index = start;
-                while (newPresent[index])
-                    index = (start + (++offset * offset)) % newClauses.Length;  //Quadratic probing
-
-                newClauses[index] = c;
-                newPresent[index] = true;
-            }
-            _Clauses = newClauses;
-            _Present = newPresent;
-
-        }
-
-        /// <summary>
-        /// Removes the given clause from this sentence.
-        /// </summary>        
-        /// <returns>Returns true if the clause existed in this sentence and was successfully removed; otherwise, returns false.</returns>
-        public bool Remove(Clause c)
-        {
-            int start = c.Tag.GetHashCode() % _Clauses.Length, offset = 0, i = start;
+            int hash = o.GetHashCode(), probe = 0, index;
             while (true)
             {
-                Clause existing = _Clauses[i];
-                if (existing.Tag == null) return false;
-                if (existing.Equals(c))
+                index = (hash + (probe * probe++)) % _Literals.Length;
+                if (_Literals[index].Equals(o)) return index;
+                Flag f = _Flags[index];
+                if (f == Flag.Deleted || f == Flag.Empty) return index;
+                if (probe > (1 << 15)) throw new InvalidOperationException("Probing error - this should be impossible.");
+            }
+        }
+
+        ///// <summary>
+        ///// Removes the given Clause from this Sentence object.
+        ///// </summary>
+        ///// <returns>Returns true if the item was removed; false if the item never existed on this Sentence to begin with.</returns>
+        //private bool Remove(Clause c)
+        //{
+        //    return Remove(c.Tag, c.IsPositive);
+        //}
+        ///// <summary>
+        ///// Removes the given variable object and positive/negative aspect from this Sentence object.
+        ///// </summary>
+        ///// <param name="obj">The variable tag to remove from this Sentence.</param>
+        ///// <param name="isPositive">The positive/negative aspect to remove.  For example, if both the positive and negative aspect of the char 'd' existed on this Sentence, 
+        ///// removing the 'isPositive = true' aspect would leave the negative aspect in place.</param>
+        ///// <returns>Returns true if the item was removed; false if the item never existed on this Sentence to begin with.</returns>
+        //private bool Remove(object obj, bool isPositive = true)
+        //{
+        //    int i = GetIndex(obj);
+        //    if (i < 0) return false;
+        //    if (isPositive)
+        //    {
+        //        if ((_Flags[i] & Flag.HasPositive) == 0) return false;
+        //        else if ((_Flags[i] & Flag.HasNegative) > 0) _Flags[i] = Flag.HasNegative;
+        //        else _Flags[i] = Flag.Deleted;
+        //    }
+        //    else
+        //    {
+        //        if ((_Flags[i] & Flag.HasNegative) == 0) return false;
+        //        else if ((_Flags[i] & Flag.HasPositive) > 0) _Flags[i] = Flag.HasPositive;
+        //        else _Flags[i] = Flag.Deleted;
+        //    }
+        //    Count--;
+        //    return true;
+        //}
+
+        /// <summary>
+        /// Resolves this theorem by removing the first positive/negative literal pair.
+        /// </summary>
+        /// <returns>Returns either 0, 1 , or 2.  If zero, there was no resolvent produced.  If 1, a single pair was resolved.  If 2, then 2 or more pairs could be 
+        /// resolved, so this Sentence is a tautology.</returns>
+        public int Resolve()
+        {
+            int resolves = 0;
+            int i = 0;
+            while (i < _Literals.Length)
+            {
+                if (_Flags[i] == Flag.HasBoth)
                 {
-                    IsTautological = false;
-                    _Present[i] = false;
-                    Count--;
-                    unchecked
-                    {
-                        _HashCode -= c.Tag.GetHashCode();
-                    }
-                    return true;
+                    _Flags[i] = Flag.Deleted;
+                    if (++resolves > 1) return resolves;                    
                 }
-                i = (start + (++offset * offset)) % _Clauses.Length;  //Quadratic probing
+                i++;
+            }
+            return resolves;
+        }
+
+
+        /// <summary>
+        /// Creates new set storage tables with the given capacity, and copies the non-empty and non-deleted entries from the old to the new.
+        /// </summary>        
+        private void SetCapacity(int newCapacity)
+        {
+            object[] oldLiterals = _Literals;
+            Flag[] oldFlags = _Flags;
+            _Literals = new object[newCapacity];
+            _Flags = new Flag[newCapacity];
+            for (int i = 0; i < oldLiterals.Length; i++)
+            {
+                Flag oldF = oldFlags[i];
+                if (oldF == Flag.Empty || oldF == Flag.Deleted) continue;
+                object oldL = oldLiterals[i];
+                int idx = GetInsertIndex(oldL);
+                _Literals[idx] = oldL;
+                _Flags[idx] = oldF;
             }
         }
 
         #endregion
+
 
 
         #region Sentence contents queries
 
         /// <summary>
-        /// Returns whether or not this sentence contains the given clause.
+        /// Returns whether the described literal is contained in this Sentence.
         /// </summary>
-        public bool Contains(Clause c)
+        /// <param name="obj">The variable tag.</param>
+        /// <param name="isPositive">Optional.  Whether to search for the variable tag, or the negation of the variable tag.  If omitted, a positive literal is 
+        /// assumed.</param>        
+        public bool Contains(object obj, bool isPositive = true)
         {
-            return GetIndex(c) >= 0;
+            return Contains(obj, isPositive ? Flag.HasPositive : Flag.HasNegative);
         }
-        /// <summary>
-        /// Returns whether or not this sentence contains the inverse of the given clause.
-        /// </summary>
-        public bool ContainsInverse(Clause c)
+        internal bool Contains(object obj, Flag f)
         {
-            return GetIndex(c, false) >= 0;
+            int i = GetIndex(obj);
+            if (i < 0) return false;
+            return f == (_Flags[i] & f);
+        }
+        internal bool ContainsLiteral(object obj) { return GetIndex(obj) >= 0; }
+
+        /// <summary>
+        /// Returns whether all literals in this Sentence are also contained in the given Sentence.  Literals are deemed to be equal if their variable tags are equal according 
+        /// to the Equals() method of the tag, and they are equivalent in terms of their positive/negative sign.
+        /// </summary>
+        public override bool Equals(object obj)
+        {
+            if (!(obj is Sentence)) return false;
+            Sentence os = (Sentence)obj;
+            for (int i = 0; i < _Literals.Length; i++)
+            {
+                Flag f = _Flags[i];
+                if (f == Flag.Deleted || f == Flag.Empty) continue;
+                object l = _Literals[i];
+                if (!os.Contains(l, f)) return false;
+            }
+            return true;
         }
 
-
         /// <summary>
-        /// Returns the index of the given clause, for either the clause itself or its complement.
+        /// Returns the index of the given object.  If the object is not contained in this Sentence, returns -1.
         /// </summary>
-        /// <param name="c">The clause to search for.</param>
-        /// <param name="same">Whether we're searching for the given clause, or its complement.  If true, seeking the clause.  If false, seeking its complement.</param>
-        private int GetIndex(Clause c, bool same = true)
+        private int GetIndex(object o)
         {
-            int start = c.Tag.GetHashCode() % _Clauses.Length, offset = 0, index = start;
+            int hash = o.GetHashCode(), probe = 0, index;
             while (true)
             {
-                Clause existing = _Clauses[index];
-                if (existing.Tag == null) return -1;        //Used slots exhausted.  The given clause isn't here.
-                if (existing.Tag.Equals(c.Tag) && (same ^ (existing.Bool ^ c.Bool)))
-                    return _Present[index] ? index : -1;    //The given clause is still here (return the index), or it was here and was deleted.
-                index = (index + (++offset * offset)) % _Clauses.Length;
+                index = (hash + (probe * probe++)) & _Literals.Length;
+                Flag f = _Flags[index];
+                if (_Literals[index].Equals(o))
+                    return (f == Flag.HasPositive || f == Flag.HasNegative) ? index : -1;
+                if (f == Flag.Empty) return -1;
             }
         }
 
         /// <summary>
-        /// Finds the indices of the clause and its complement.  If either is missing, returns -1.
-        /// </summary>
-        private void GetIndices(Clause c, out int index, out int inverse)
+        /// Returns an enumerator that steps through the clauses contained in this Sentence.  If a variable tag is present in both the positive and the negative aspects, returns 
+        /// the positive first and then the negative.
+        /// </summary>        
+        public IEnumerator<Clause> GetEnumerator()
         {
-            index = -1;
-            inverse = -1;
-            int start = c.Tag.GetHashCode() & _Clauses.Length, offset = 0, i = start;
-            while (true)
+            for (int i = 0; i < _Literals.Length; i++)
             {
-                Clause existing = _Clauses[i];
-                if (existing.Tag == null) return;
-                if (existing.Tag.Equals(c.Tag))
-                {
-                    if (existing.Bool == c.Bool) index = i;
-                    else inverse = i;
-                    if (index >= 0 && inverse >= 0) return;
-                }
-                i = (i + (++offset * offset)) % _Clauses.Length;
+                Flag f = _Flags[i];
+                if (f == Flag.Deleted || f == Flag.Empty) continue;
+                object l = _Literals[i];
+                if ((f & Flag.HasPositive) > 0) yield return new Clause(l, true);
+                if ((f & Flag.HasNegative) > 0) yield return new Clause(l, false);
             }
-        }
-
-
-
-        IEnumerator<Clause> IEnumerable<Clause>.GetEnumerator()
-        {
-            for (int i = 0; i < _Clauses.Length; i++) if (_Present[i]) yield return _Clauses[i];
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            for (int i = 0; i < _Clauses.Length; i++) if (_Present[i]) yield return _Clauses[i];
+            return GetEnumerator();
+        }
+
+        /// <summary>
+        /// Returns the hash code for this Sentence.  Because a Sentence is immutable, the hash code is cached internally upon creation.
+        /// </summary>
+        /// <returns></returns>
+        public override int GetHashCode()
+        {
+            return _HashCode;
+        }
+
+        //public IEnumerable<object> GetLiterals()
+        //{
+        //    for (int i = 0; i < Literals.Length; i++)
+        //    {
+        //        Flag f = Flags[i];
+        //        if (f == Flag.Deleted || f == Flag.Empty) continue;
+        //        yield return Literals[i];
+        //    }
+        //}
+
+        [Flags]
+        internal enum Flag
+        {
+            /// <summary>
+            /// No object has ever been stored at this index.
+            /// </summary>
+            Empty = 0,
+
+            /// <summary>
+            /// An object once stored here has since been deleted in regar to both the positive and negative aspect.
+            /// </summary>
+            Deleted = 1,
+
+            /// <summary>
+            /// The variable tag is contained in this Sentence.
+            /// </summary>
+            HasPositive = 2,
+
+            /// <summary>
+            /// The negation of the variable tag is contained in this Sentence.
+            /// </summary>
+            HasNegative = 4,
+
+            /// <summary>
+            /// Both the variable tag and its negation are contained in this Sentence.
+            /// </summary>
+            HasBoth = 6
         }
 
         #endregion
 
 
+
         #region Sentence operators
+
+        public static Sentence operator +(Sentence s, object obj)
+        {
+            Sentence copy = s.Copy();
+            s.Add(obj, Flag.HasPositive);
+            unchecked
+            {
+                copy._HashCode += obj.GetHashCode();
+            }
+            copy._HashCode = Math.Abs(copy._HashCode);
+            return s;
+        }
+        public static Sentence operator +(Sentence s, Clause c)
+        {
+            Sentence copy = s.Copy();
+            s.Add(c.Tag, Flag.HasPositive);
+            unchecked
+            {
+                copy._HashCode += c.Tag.GetHashCode();
+            }
+            copy._HashCode = Math.Abs(copy._HashCode);
+            return s;
+        }
+        public static Sentence operator +(Sentence a, Sentence b)
+        {
+            Sentence copy = a.Copy();
+            if (copy.Count + b.Count >= copy._Literals.Length / 2)
+                copy.SetCapacity(Mathematics.Primes.GetNextPrime(copy._Literals.Length * 2));
+
+            int hashCode = copy._HashCode;
+            for (int i = 0; i < b._Literals.Length; i++)
+            {
+                Flag f = b._Flags[i];
+                if (f == Flag.Deleted || f == Flag.Empty) continue;
+                object l = b._Literals[i];
+                copy.Add(l, f);
+                unchecked
+                {
+                    hashCode += l.GetHashCode();
+                }
+            }
+            copy._HashCode = Math.Abs(hashCode);
+            return copy;
+        }
+
+        public static Sentence operator |(Sentence a, Sentence b)
+        {
+            return a + b;
+        }
 
         public static implicit operator Sentence(Clause c)
         {
             Sentence s = new Sentence();
             s.Add(c);
+            s._HashCode = s.CalculateHashCode();
             return s;
         }
 
-        public static explicit operator Clause(Sentence s)
+        public static Sentence[] operator !(Sentence original)
         {
-            if (s.Count != 0) throw new InvalidOperationException("Cannot convert Sentence directly to a Clause unless the Sentence contains only a single Clause.");
-            return (s.First());
-        }
+            //Applies deMorgan's Law:  ~(a | b) = (~a & ~b);
 
-        public static Sentence operator +(Sentence s, Clause c)
-        {
-            Sentence result = s.Copy();
-            result.Add(c);
-            return result;
-        }
-        public static Sentence operator -(Sentence s, Clause c)
-        {
-            Sentence result = s.Copy();
-            result.Remove(c);
-            return result;
-        }
-        public static Sentence operator +(Sentence a, Sentence b)
-        {
-            Sentence result = a.Copy();
-            foreach (Clause toCopy in b) result.Add(toCopy);
-            return result;
-        }
-        public static Sentence operator -(Sentence a, Sentence b)
-        {
-            Sentence result = a.Copy();
-            foreach (Clause toRemove in b) result.Remove(toRemove);
-            return result;
-        }
-        public static Sentence operator ^(Sentence a, Sentence b)
-        {
-            Sentence result = new Sentence();
-            foreach (Clause clauseA in a) result.Add(clauseA);
-            foreach (Clause clauseB in b) if (!result.Add(clauseB)) result.Remove(clauseB);
+            Sentence[] result = new Sentence[original.Count];
+            int idx = 0;
+            foreach (Clause c in original)
+                result[idx++] = Sentence.FromClause(new Clause(c.Tag, !c.IsPositive));
             return result;
         }
 
-        public override bool Equals(object obj)
-        {
-            if (!(obj is Sentence)) return false;
-            Sentence other = (Sentence)obj;
-            if (Count != other.Count) return false;
-            foreach (Clause c in this) if (!other.Contains(c)) return false;
-            return true;
-        }
 
-        public override int GetHashCode()
-        {
-            return Math.Abs(_HashCode);
-        }
 
         #endregion
 
