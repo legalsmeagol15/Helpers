@@ -156,7 +156,7 @@ namespace Mathematics.Functions
             Vector vectorEnd = ptStart - ptNext;
             if (vectorStart.X != 0.0 || vectorStart.Y != 0.0) vectorStart.Normalize();
             if (vectorEnd.X != 0.0 || vectorEnd.Y != 0.0) vectorEnd.Normalize();            
-            double tensor = _Curvature * Cartesian.Operations.GetDistance(ptStart, ptEnd);
+            double tensor = _Curvature * Operations.GetDistance(ptStart, ptEnd);
 
             //Step #3 - set the control points as the start and end points plus the vectors of exit.
             Point controlA = ptStart + (vectorStart * tensor);

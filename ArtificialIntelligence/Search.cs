@@ -51,14 +51,14 @@ namespace AI
             vStart.AccumulatedCost = 0.0d;
             Dictionary<TLabel, AStarNode<TLabel>> prepared = new Dictionary<TLabel, AStarNode<TLabel>>();
             prepared.Add(start, vStart);
-            toExplore.Enqueue(start);
+            toExplore.Add(start);
             double maxCost = double.PositiveInfinity;
 
             //First, explore to find the route from start (or from all reachable labels) to goal.
             while (toExplore.Count > 0)
             {
                 //Step #1 - figure out what the current node is.
-                TLabel currentLabel = toExplore.Dequeue();
+                TLabel currentLabel = toExplore.Pop();
                 AStarNode<TLabel> currentNode = prepared[currentLabel];
 
                 //Step #2a - if the current node is equal to goal, make sure the method knows that and no further processing needed 
@@ -91,7 +91,7 @@ namespace AI
                         childNode.Prior = currentNode;
                         childNode.AccumulatedCost = accCost;
                         prepared.Add(childLabel, childNode);
-                        toExplore.Enqueue(childLabel);
+                        toExplore.Add(childLabel);
                     }
                     //If the child DOES exist on the dict, check to see if we've found a cheaper route to that child.
                     else if (accCost < childNode.AccumulatedCost)

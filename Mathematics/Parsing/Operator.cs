@@ -204,13 +204,13 @@ namespace Mathematics.Parsing
             throw new EvaluationException("Exponentation cannot be performed on object of type " + args[0].GetType().Name + ".");
         }
 
-        public static object Invert(params object[] args)
-        {
-            if (args.Length != 1) throw new EvaluationException("Only one object at a time can be inverted.");
-            if (args[0] is decimal m) return -m;
-            if (args[0] is Inverse inv) return inv.Inputs[0];
-            throw new EvaluationException("Cannot invert object of type " + args[0].GetType().Name + ".");
-        }
+        //public static object Invert(DataContext context, object obj)
+        //{            
+        //    if (obj is decimal m) return -m;
+        //    if (obj is Inverse inv) return inv.Inputs[0];
+        //    if (obj is bool b) return !b;
+        //    return new Inverse(context, obj);
+        //}
 
 
 
@@ -319,9 +319,7 @@ namespace Mathematics.Parsing
         protected override void Parse(DynamicLinkedList<object>.Node node)
         {
             base.Parse(node);
-
             Associate();
-
         }
     }
 
@@ -329,9 +327,13 @@ namespace Mathematics.Parsing
     internal sealed class Inverse : Operator
     {
         public Inverse(DataContext context) : base(context) { }
-        public Inverse(DataContext context, object item) : base(context) { }
+        internal Inverse(DataContext context, object item) : base(context)
+        {
+            Inputs = new List<object>() { item };
+            if (item is Formula f) CombineVariables(f);
+        }
 
-        
+
         internal override int ParsingPriority => PRIORITY_NOT;
 
 
@@ -387,7 +389,7 @@ namespace Mathematics.Parsing
         
         protected override object Evaluate(params object[] inputs)
         {
-            if (Inputs[0] is decimal a)
+            if (inputs[0] is decimal a)
             {
                 for (int i = 1; i < inputs.Length; i++)
                 {
@@ -401,27 +403,8 @@ namespace Mathematics.Parsing
 
         protected override void Parse(DynamicLinkedList<object>.Node node)
         {
-            if (node.Previous == null || node.Previous.Contents is Operator)
-            {
-                if (node.Next == null) throw new LexingException("Negation must be followed by input negated.");
-                else if (node.Next.Contents is Operator) throw new LexingException("Negation cannot be followed by an operator.");
-                else if (node.Next.Contents is decimal m)
-                    node.Contents = -m;
-                else
-                {
-                    Inverse inv = new Inverse(Context);
-                    inv.CombineVariables(node.Next.Contents);
-                    inv.Inputs = new List<object>() { node.Next.Contents };
-                    node.Contents = inv;
-                }                
-                node.Next.Remove();
-            }
-            else
-            {
-                base.Parse(node);
-                Associate();
-            }
-            
+            base.Parse(node);
+            Associate();
         }
 
     }
@@ -545,8 +528,42 @@ namespace Mathematics.Parsing
         protected override void Parse(DynamicLinkedList<object>.Node node)
         {
             base.Parse(node);
+            //Associate();
+            LinearAssociate();
+        }
 
-            Associate();            
+        internal void LinearAssociate()
+        {
+            int i = 0;
+            while (i < Inputs.Count)
+            {
+                if (Inputs[i] is Plus add)
+                {
+                    Inputs.RemoveAt(i);
+                    Inputs.InsertRange(i, add.Inputs);
+                }
+                else if (Inputs[i] is Minus subtract)
+                {
+                    Inputs[i] = subtract.Inputs[i];
+                    IEnumerable<object> negations = subtract.Inputs.Skip(1).Select(item => LinearInvert(Context, item));
+                    Inputs.InsertRange(i + 1, negations);
+                }
+                //if (Inputs[i] is Formula f)
+                //{
+                    
+                //    Inputs.RemoveAt(i);
+                //    Inputs.InsertRange(i, f.Inputs);
+                //}
+                else i++;
+            }
+        }
+
+        internal static object LinearInvert(DataContext context, object item)
+        {
+            if (item is decimal m) return -m;
+            if (item is Inverse inv) return inv.Inputs[0];
+            if (item is bool b) return !b;
+            return new Inverse(context, item);
         }
     }
 

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
+using System.Windows;
 
 namespace Mathematics
 {
@@ -22,8 +23,13 @@ namespace Mathematics
         }
 
         
+        public static double GetDistance(Point a, Point b)
+        {
+            double xDiff = a.X - b.X, yDiff = a.Y - b.Y; return Math.Sqrt((xDiff * xDiff) + (yDiff * yDiff));
+        }
 
-        
+
+
 
         public static int NCR(int n, int r)
         {
@@ -34,6 +40,11 @@ namespace Mathematics
             for (int i = n - r; i > 0; i--) divisor *= i;
 
             return result / divisor;  
+        }
+
+        internal static decimal Sqrt(decimal v)
+        {
+            throw new NotImplementedException();
         }
 
         public static int NPR(int n, int r)
