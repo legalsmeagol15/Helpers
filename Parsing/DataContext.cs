@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.RegularExpressions;
 
-namespace Mathematics.Parsing
+namespace Parsing
 {
 
     /// <summary>

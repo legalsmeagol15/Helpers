@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.Serialization;
 
-namespace Mathematics.Parsing
+namespace Parsing
 {
     
 
@@ -159,7 +159,7 @@ namespace Mathematics.Parsing
         /// layer which may need to be removed).  For example, if the tokens are:  "COS" "(" "3.14159" ")", then a single parenthetical 
         /// block will be returned.  The inputs will be a named function COS, then another parenthetical block whose only contents is the 
         /// number 3.14159.</summary>
-        private static Formula Lex(IList<string> rawTokens, Mathematics.Parsing.DataContext context)
+        private static Formula Lex(IList<string> rawTokens, DataContext context)
         {
             Formula.Block focus = Formula.Block.FromParenthetical(context);
             Formula.Block head = focus;

@@ -53,8 +53,10 @@
     <Compile Include="Range4.cs" />
     <Compile Include="Range3.cs" />
     <Compile Include="Sets\CompositeKeyDictionary.cs" />
+    <Compile Include="Sets\DependencyGraph.cs" />
     <Compile Include="Sets\DisjointSet.cs" />
     <Compile Include="Sets\DurationList.cs" />
+    <Compile Include="Sets\DynamicLinkedList.cs" />
     <Compile Include="Sets\Extensions.cs" />
     <Compile Include="Sets\HashStack.cs" />
     <Compile Include="Sets\Heap.cs" />

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Mathematics.Parsing
+namespace Parsing
 {
     internal abstract class Operator : Formula
     {

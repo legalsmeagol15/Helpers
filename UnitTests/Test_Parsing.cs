@@ -1,4 +1,4 @@
-﻿using Mathematics.Parsing;
+﻿using Parsing;
 using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
