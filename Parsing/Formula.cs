@@ -61,14 +61,18 @@ namespace Parsing
 
         #region Formula constructors and parsers
 
+
+
+        #region Formula parsing priorities
+
         /// <summary></summary>
-        protected const int PRIORITY_PLUS = 10;
+        protected const int PRIORITY_PLUS = 11;
         /// <summary></summary>
-        protected const int PRIORITY_MINUS = 11;
+        protected const int PRIORITY_MINUS = 10;
         /// <summary></summary>
-        protected const int PRIORITY_STAR = 8;
+        protected const int PRIORITY_STAR = 9;
         /// <summary></summary>
-        protected const int PRIORITY_DIVIDE = 9;
+        protected const int PRIORITY_DIVIDE = 8;
         /// <summary></summary>
         protected const int PRIORITY_HAT = 5;
         /// <summary></summary>
@@ -91,8 +95,14 @@ namespace Parsing
         protected const int PRIORITY_BLOCK_CURLY = -2;
         /// <summary></summary>
         protected const int PRIORITY_BLOCK_BRACKETS = -2;
-        
+
+        #endregion
+
+
+        /// <summary></summary>
         internal abstract int ParsingPriority { get; }
+
+
 
 
         /// <summary>Creates a Formula from the given LaTex string.</summary>        
@@ -106,7 +116,7 @@ namespace Parsing
         /// established, and so the Formula will be unable to interpret any Variables or NamedFunctions.</param>        
         public static object FromString(string str, DataContext context = null)
         {
-            string[] rawTokens = (context == null) ? DataContext.StandardRegex.Split(str) : context.FormulaRegex.Split(str);
+            string[] rawTokens = (context == null) ? DataContext.StandardFormulaPattern.Split(str) : context.FormulaPattern.Split(str);
 
             if (rawTokens.Length == 0) throw new LexingException("No tokens found.", rawTokens, -1);
 
@@ -153,6 +163,9 @@ namespace Parsing
             return false;
         }
 
+
+        
+        
 
 
         /// <summary>Lexes the tokens, and returns the result within a parenthetical block (this block constitutes one extra 

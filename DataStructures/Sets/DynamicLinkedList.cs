@@ -75,19 +75,6 @@ namespace DataStructures
         }
 
 
-        public Node GetFirstMatch(Func<T, bool> comparer)
-        {
-            Node focus = _FirstNode;
-            while (focus != null && !comparer(focus.Contents)) focus = focus.Next;
-            return focus;
-        }
-        public Node GetLastMatch(Func<T, bool> comparer)
-        {
-            Node focus = _LastNode;
-            while (focus != null && !comparer(focus.Contents)) focus = focus.Previous;
-            return focus;
-        }
-        
 
         /// <summary>
         /// Removes all items from this list.
@@ -99,6 +86,7 @@ namespace DataStructures
             Count = 0;
         }
 
+        
 
         public T RemoveFirst()
         {
@@ -138,6 +126,9 @@ namespace DataStructures
         }
 
         IEnumerator IEnumerable.GetEnumerator() { return GetEnumerator(); }
+
+        public Node FirstNode => _FirstNode;
+        public Node LastNode => _LastNode;
 
         #endregion
 
@@ -184,6 +175,7 @@ namespace DataStructures
                 return result;
             }
 
+
             /// <summary>
             /// Inserts the set of items immediately after this node, and returns the node of the last (most tail-ward) item added.
             /// </summary>
@@ -220,8 +212,7 @@ namespace DataStructures
                 Node previous = Previous;
                 if (items.Count() == 0) return null;
                 foreach (T item in items) InsertBefore(item);
-                return previous == null ? List._FirstNode : previous.Next;
-                
+                return previous == null ? List._FirstNode : previous.Next;                
             }
             /// <summary>
             /// Inserts the item immediately before this node, and returns the node of the newly-added item.
@@ -242,6 +233,50 @@ namespace DataStructures
                 List.Count++;
                 return newNode;
             }
+
+            
+
+
+
+            /// <summary>Removes from the containing list this Node, to the given end node.</summary>
+            /// <param name="endNode">Optional.  If omitted or provided null, removes all nodes from this one to the end.</param>
+            /// <returns>Returns the count of nodes removed from the containing list.</returns>
+            public int RemoveRange(Node endNode = null)
+            {
+                if (this == endNode) { Remove(); return 1; }
+                if (endNode != null && endNode.List != List)
+                    throw new ArgumentException("Given endNode does not exist in the same list.");
+
+                //Clean up refs to the start of the removed part.
+                var list = List;
+                if (Previous != null)
+                    Previous.Next = (endNode == null) ? null : endNode.Next;
+                if (list._FirstNode == this) list._FirstNode = endNode.Next;
+
+                //Removes the range.
+                int count = 0;
+                Node focus = this;
+                while (focus != endNode)
+                {
+                    count++;
+                    focus.List = null;
+                    focus = focus.Next;
+                }
+
+                //Clean up refs to the end of the removed part.
+                if (endNode != null)
+                {
+                    endNode.Previous = this.Previous;
+                    if (list._LastNode == endNode) list._LastNode = Previous;
+                    endNode.Next = null;
+                }
+
+                Previous = null;
+                list.Count -= count;
+                return count;
+            }
+
+
 
         }
     }

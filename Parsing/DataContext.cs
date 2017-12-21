@@ -29,7 +29,7 @@ namespace Parsing
                 NumberPattern,                          //5
                 SpacePattern,                           //6
                 _VariableManager.VariablePattern);      //7
-            FormulaRegex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
+            FormulaPattern = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
         }
 
         private DataContext(Variable.Manager varManager, NamedFunction.Factory funcFactory)
@@ -46,7 +46,7 @@ namespace Parsing
                 NumberPattern,                          //5
                 SpacePattern,                           //6
                 _VariableManager.VariablePattern);      //7
-            FormulaRegex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
+            FormulaPattern = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
         }
 
 
@@ -157,12 +157,12 @@ namespace Parsing
                                                                    NumberPattern,                          //5
                                                                    SpacePattern,                           //6
                                                                    Variable.Manager.StandardVariablePattern);      //7
-        public static Regex StandardRegex = new Regex(StandardRegExPattern, RegexOptions.IgnorePatternWhitespace);
+        public static Regex StandardFormulaPattern = new Regex(StandardRegExPattern, RegexOptions.IgnorePatternWhitespace);
 
         /// <summary>
         /// The cached regular expression structure used to lex strings into formulae.
         /// </summary>
-        public Regex FormulaRegex { get; private set; }
+        public Regex FormulaPattern { get; private set; }
 
         #endregion
     }

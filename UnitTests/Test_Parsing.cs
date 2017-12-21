@@ -43,42 +43,42 @@ namespace Helpers_Unit_Testing
         [TestMethod]
         public void Test_Formula_Add()
         {
-            //Formula add0 = (Formula)Formula.FromString("1+2");
-            //Assert.AreEqual(3m, add0.Update());
-            //Assert.AreEqual(3m, add0.Value);
-            //Assert.AreEqual("1 + 2", add0.ToString());
+            Formula add0 = (Formula)Formula.FromString("1+2");
+            Assert.AreEqual(3m, add0.Update());
+            Assert.AreEqual(3m, add0.Value);
+            Assert.AreEqual("1 + 2", add0.ToString());
 
-            //Formula add1 = (Formula)Formula.FromString("1+2+3");
-            //Assert.AreEqual(6m, add1.Update());
-            //Assert.AreEqual("1 + 2 + 3", add1.ToString());
+            Formula add1 = (Formula)Formula.FromString("1+2+3");
+            Assert.AreEqual(6m, add1.Update());
+            Assert.AreEqual("1 + 2 + 3", add1.ToString());
 
-            //Formula add2 = (Formula)Formula.FromString("1 + (2+3)");
-            //Assert.AreEqual(6m, add2.Update());
-            //Assert.AreEqual("1 + (2 + 3)", add2.ToString());
+            Formula add2 = (Formula)Formula.FromString("1 + (2+3)");
+            Assert.AreEqual(6m, add2.Update());
+            Assert.AreEqual("1 + (2 + 3)", add2.ToString());
 
-            //Formula add3 = (Formula)Formula.FromString("-1 + (2+3)");
-            //Assert.AreEqual(4m, add3.Update());
-            //Assert.AreEqual("-1 + (2 + 3)", add3.ToString());
+            Formula add3 = (Formula)Formula.FromString("-1 + (2+3)");
+            Assert.AreEqual(4m, add3.Update());
+            Assert.AreEqual("-1 + (2 + 3)", add3.ToString());
 
-            //Formula add4 = (Formula)Formula.FromString("1 + (-2+3)");
-            //Assert.AreEqual(2m, add4.Update());
-            //Assert.AreEqual("1 + (-2 + 3)", add4.ToString());
+            Formula add4 = (Formula)Formula.FromString("1 + (-2+3)");
+            Assert.AreEqual(2m, add4.Update());
+            Assert.AreEqual("1 + (-2 + 3)", add4.ToString());
 
-            //Formula add5 = (Formula)Formula.FromString("1+(2+-3)");
-            //Assert.AreEqual(0m, add5.Update());
-            //Assert.AreEqual("1 + (2 + -3)", add5.ToString());
+            Formula add5 = (Formula)Formula.FromString("1+(2+-3)");
+            Assert.AreEqual(0m, add5.Update());
+            Assert.AreEqual("1 + (2 + -3)", add5.ToString());
 
-            //Formula add6 = (Formula)Formula.FromString("-1+(-2+-3)");
-            //Assert.AreEqual(-6m, add6.Update());
-            //Assert.AreEqual("-1 + (-2 + -3)", add6.ToString());
+            Formula add6 = (Formula)Formula.FromString("-1+(-2+-3)");
+            Assert.AreEqual(-6m, add6.Update());
+            Assert.AreEqual("-1 + (-2 + -3)", add6.ToString());
 
-            //Formula add7 = (Formula)Formula.FromString("-1+-(-2+-3)");
-            //Assert.AreEqual(4m, add7.Update());
-            //Assert.AreEqual("-1 + -(-2 + -3)", add7.ToString());
+            Formula add7 = (Formula)Formula.FromString("-1+-(-2+-3)");
+            Assert.AreEqual(4m, add7.Update());
+            Assert.AreEqual("-1 + -(-2 + -3)", add7.ToString());
 
-            //Formula add8 = (Formula)Formula.FromString("1 + 2 + 3 + 4 + 5");
-            //Assert.AreEqual(15m, add8.Update());
-            //Assert.AreEqual("1 + 2 + 3 + 4 + 5", add8.ToString());
+            Formula add8 = (Formula)Formula.FromString("1 + 2 + 3 + 4 + 5");
+            Assert.AreEqual(15m, add8.Update());
+            Assert.AreEqual("1 + 2 + 3 + 4 + 5", add8.ToString());
 
             Formula add9 = (Formula)Formula.FromString("1 - 2 + 3 - 4 + 5");
             Assert.AreEqual(3m, add9.Update());

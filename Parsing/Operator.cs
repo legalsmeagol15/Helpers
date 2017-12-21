@@ -231,7 +231,7 @@ namespace Parsing
             //Ampersand requires two inputs.
             base.Parse(node);
 
-            Associate();            
+            //Associate();            
         }
         
         protected override object Evaluate(params object[] inputs) => string.Join("", inputs);
@@ -276,7 +276,7 @@ namespace Parsing
         protected override void Parse(DynamicLinkedList<object>.Node node)
         {
             base.Parse(node);
-            Associate();
+            //Associate();
             if (Inputs.Any(i => !(i is Variable)))
                 throw new LexingException("Dot operator must appear only between two Variable objects.");            
         }
@@ -319,7 +319,7 @@ namespace Parsing
         protected override void Parse(DynamicLinkedList<object>.Node node)
         {
             base.Parse(node);
-            Associate();
+            //Associate();
         }
     }
 
@@ -404,7 +404,7 @@ namespace Parsing
         protected override void Parse(DynamicLinkedList<object>.Node node)
         {
             base.Parse(node);
-            Associate();
+            //Associate();
         }
 
     }
@@ -438,7 +438,7 @@ namespace Parsing
         protected override void Parse(DynamicLinkedList<object>.Node node)
         {
             base.Parse(node);
-            Associate();
+           // Associate();
         }
     }
 
@@ -497,7 +497,7 @@ namespace Parsing
         {
             base.Parse(node);
 
-            Associate();
+           // Associate();
         }
     }
 
@@ -529,7 +529,7 @@ namespace Parsing
         {
             base.Parse(node);
             //Associate();
-            LinearAssociate();
+            //LinearAssociate();
         }
 
         internal void LinearAssociate()
@@ -625,7 +625,7 @@ namespace Parsing
         {
             base.Parse(node);
 
-            Associate();
+            //Associate();
         }
 
     }
@@ -659,7 +659,7 @@ namespace Parsing
             base.Parse(node);
 
             //Make star associative.
-            Associate();
+            //Associate();
         }
     }
 

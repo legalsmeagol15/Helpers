@@ -63,7 +63,6 @@
     <Compile Include="Test_Polynomial.cs" />
     <Compile Include="Test_Range.cs" />
     <Compile Include="Test_SkipList.cs" />
-    <Compile Include="Test_ArcConsistency.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Helpers\DataStructures\DataStructures.csproj">
