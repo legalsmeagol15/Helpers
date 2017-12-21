@@ -91,7 +91,8 @@ namespace Parsing
                 case "~": op = new Inverse(context); return true;
 
             }
-            throw new NotImplementedException();
+            op = null;
+            return false;
         }
 
 

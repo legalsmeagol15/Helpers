@@ -8,6 +8,14 @@ namespace Helpers_Unit_Testing
     [TestClass]
     public class Test_Parsing
     {
+        DataContext context = null;
+
+        [TestInitialize]
+        public void DataContext_ctor()
+        {
+            context = DataContext.FromBasic();
+        }
+
         [TestMethod]
         public void Test_Formula_ctor()
         {
@@ -39,6 +47,7 @@ namespace Helpers_Unit_Testing
             Assert.IsInstanceOfType(f6, typeof(Formula));
             Assert.AreEqual(7m, ((Formula)f6).Update());
         }
+
 
         [TestMethod]
         public void Test_Formula_Add()
@@ -89,6 +98,7 @@ namespace Helpers_Unit_Testing
             Assert.AreEqual("1 + 2 - 3 + 4 - 5", add10.ToString());
         }
 
+
         [TestMethod]
         public void Test_Formula_Divide()
         {
@@ -112,6 +122,7 @@ namespace Helpers_Unit_Testing
             Assert.AreEqual(0.125m, d4.Update());
             Assert.AreEqual("1 / 2 / 4", d4.ToString());
         }
+
 
         [TestMethod]
         public void Test_Formula_Multiply()
@@ -164,6 +175,16 @@ namespace Helpers_Unit_Testing
             Formula s5 = (Formula)Formula.FromString("-100--(-10--1)");
             Assert.AreEqual(-109m, s5.Update());
             Assert.AreEqual("-100 - -(-10 - -1)", s5.ToString());
+        }
+
+
+        [TestMethod]
+        public void Test_Formula_Cosine()
+        {
+            Formula c0 = (Formula)Formula.FromString("cos(1)", context);
+            Assert.AreEqual("COS", c0.GetType().Name);
+            Assert.AreEqual((decimal)Math.Cos(1), c0.Update());
+            Assert.AreEqual("COS(1)", c0.ToString());
         }
 
         

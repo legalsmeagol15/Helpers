@@ -57,7 +57,7 @@ namespace Parsing
             private bool Add(Type t)
             {
                 //Check that the class is okay to make an instance out of.
-                if (!t.IsClass || !typeof(NamedFunction).IsAssignableFrom(t) || t.IsAbstract)
+                if (!t.IsClass || !typeof(NamedFunction).IsAssignableFrom(t) || t.IsAbstract || t.IsNestedPrivate)
                     return false;
 
                 //Check that the name is okay and hasn't been added yet.
@@ -102,11 +102,10 @@ namespace Parsing
         }
 
 
-        public override string ToString() => GetType().Name;
+        public override string ToString() => GetType().Name + "(" + string.Join(", ", Inputs) + ")";
 
         
         #region NamedFunction predefined constants
-
 
         private class Constant : NamedFunction
         {
@@ -130,10 +129,11 @@ namespace Parsing
                 }
             }
 
-            public override string ToString() { return Name; }
+            public override string ToString() => Name;
         }
 
         private static Constant Pi = new Constant((decimal)Math.PI, "PI");
+
         #endregion
     }
 
@@ -145,7 +145,11 @@ namespace Parsing
         protected override object Evaluate(params object[] inputs)
         {
             if (inputs.Length != 1) throw new EvaluationException(ToString() + " has wrong number of inputs.");
-            return (decimal)Math.Cos((double)inputs[0]);
+            if (inputs[0] is decimal m)
+            {
+                return (decimal)Math.Cos((double)m);
+            }
+            throw new EvaluationException("Invalid input for " + GetType().Name + ": " + inputs[0].ToString());
         }
     }
 

@@ -233,7 +233,9 @@ namespace Parsing
                         if (lexxed != null)
                         {
                             //Step #6d - implied scalar?
-                            if (focus.Inputs.Count > 0 && focus.Inputs[focus.Inputs.Count - 1] is decimal) focus.Inputs.Add(new Star(context));
+                            if (focus.Inputs.Count > 0 && focus.Inputs[focus.Inputs.Count - 1] is decimal)
+                                focus.Inputs.Add(new Star(context));
+                            focus.Inputs.Add(lexxed);
                             continue;
                         }
 
