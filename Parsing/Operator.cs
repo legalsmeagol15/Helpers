@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.Serialization;
 
-namespace Parsing
+namespace Parsing.Operators
 {
     internal abstract class Operator : Formula
     {
@@ -34,36 +35,7 @@ namespace Parsing
             
         }
 
-
-        //Ensures that trees of the same Operator are flattened.
-        protected void Associate()
-        {
-
-
-            /*
-             * Associativity means:
-             * 
-             *               &                                           &
-             *              / \     => should be reinterpreted as:     / | \
-             *             &   1                                      3  2  1
-             *            / \
-             *           3   2
-             */
-
-            int i = 0;
-            while (i < Inputs.Count)
-            {
-                if (Inputs[i] is Formula f && f.GetType() == this.GetType())
-                {
-                    Inputs.RemoveAt(i);
-                    Inputs.InsertRange(i, f.Inputs);
-                }
-                else i++;
-            }
-        }
-
-
-        //internal abstract int ParsingPriority { get; }
+        
 
 
         internal static bool TryLex(string token, IList<object> existingInputs, DataContext context, out Operator op)
@@ -230,8 +202,8 @@ namespace Parsing
 
         protected override string Symbol => "&";
         internal override int ParsingPriority => PRIORITY_AMPERSAND;
+        
     }
-
 
 
     internal sealed class Colon : Operator
@@ -257,6 +229,8 @@ namespace Parsing
                 q.CombineVariables(this);
             }
         }
+
+       
     }
 
 
@@ -281,6 +255,8 @@ namespace Parsing
         public override string ToString() => string.Join(Symbol, Inputs);
 
         internal override int ParsingPriority => PRIORITY_DOT;
+
+        
     }
 
 
@@ -307,7 +283,10 @@ namespace Parsing
             }            
             throw new NotImplementedException();
         }
-
+        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 
@@ -361,6 +340,11 @@ namespace Parsing
             return base.ToString();
         }
 
+        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        {
+            throw new NotImplementedException();
+        }
+
     }
 
 
@@ -387,7 +371,11 @@ namespace Parsing
             }
             throw new NotImplementedException();
         }
-        
+
+        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        {
+            throw new NotImplementedException();
+        }
 
     }
 
@@ -416,6 +404,8 @@ namespace Parsing
             }
             throw new NotImplementedException();
         }
+
+
         
     }
 
@@ -489,7 +479,12 @@ namespace Parsing
             }
             throw new NotImplementedException();
         }
-        
+
+        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        {
+            throw new NotImplementedException();
+        }
+
     }
 
     internal sealed class Question : Operator
@@ -545,7 +540,12 @@ namespace Parsing
             }            
             throw new NotImplementedException();
         }
-        
+
+        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        {
+            throw new NotImplementedException();
+        }
+
     }
 
 
@@ -571,7 +571,12 @@ namespace Parsing
             }
             throw new NotImplementedException();
         }
-        
+
+
+        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 

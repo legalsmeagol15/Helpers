@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Parsing.NamedFunctions;
+using System;
 using System.Text.RegularExpressions;
 
 namespace Parsing

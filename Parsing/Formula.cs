@@ -1,4 +1,6 @@
 ﻿using DataStructures;
+using Parsing.NamedFunctions;
+using Parsing.Operators;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +10,7 @@ using System.Runtime.Serialization;
 
 namespace Parsing
 {
-    
+
 
     /// <summary>
     /// A Formula is a parse tree that interprets strings for evaluation.  The resulting tree should be as near as possible to the 
@@ -27,7 +29,7 @@ namespace Parsing
         public DataContext Context { get; private set; }
 
 
-        
+
 
         #region Formula value caching members
 
@@ -139,7 +141,7 @@ namespace Parsing
 
             //Third, parse.            
             result.Parse(null);
-            
+
 
             if (result.Inputs.Count != 1) throw new LexingException("Lexing structure error.  Not sure how this might even happen.");
 
@@ -164,8 +166,8 @@ namespace Parsing
         }
 
 
-        
-        
+
+
 
 
         /// <summary>Lexes the tokens, and returns the result within a parenthetical block (this block constitutes one extra 
@@ -278,7 +280,7 @@ namespace Parsing
         }
 
 
-        
+
 
 
 
@@ -287,7 +289,7 @@ namespace Parsing
         /// in node.Previous.Contents, and so forth.</param>
         protected abstract void Parse(DynamicLinkedList<object>.Node node);
 
-        
+
         /// <summary>Creates a Formula, with the given data context.</summary>        
         protected Formula(DataContext context) { Context = context; }
 
@@ -299,7 +301,7 @@ namespace Parsing
             if (other is Variable v) Variables.Add(v);
             else if (other is Formula f) foreach (Variable v1 in f.Variables) Variables.Add(v1);
         }
-        
+
 
         /// <summary>
         /// Returns a copy of this formula.  All sub-formulae and literals will be copied, but references to Variables will be the same 
@@ -316,7 +318,7 @@ namespace Parsing
                 else if (existing is Variable v) copy.Inputs.Add(v);
                 else copy.Inputs.Add(existing);
             }
-            copy.Variables = new HashSet<Variable>(Variables);            
+            copy.Variables = new HashSet<Variable>(Variables);
             return copy;
         }
 
@@ -332,10 +334,45 @@ namespace Parsing
 
 
         #region Formula calculus members
-            //Because formulas are also functions in terms of the variables in the Variables member.
-            
-        
+        //Because formulas are also functions in terms of the variables in the Variables member.
+
+        public static object GetDerivative()
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Returns the derivative of the given object, with respect to the given variables.
+        /// </summary>
+        /// <param name="variables"></param>
+        /// <param name="function"></param>
+        /// <returns></returns>
+        public static object GetDerivative(ISet<Variable> variables, object function)
+        {
+            if (function is decimal)
+                return 0m;
+            else if (function is Variable v)
+            {
+                if (variables.Contains(v)) return 1;
+                throw new DerivationException("Cannot find derivative of a variable that does not appear in the variable set.");
+            }            
+            else if (function is Formula f)
+            {
+                if (f.TryDerive(variables, out object result)) return result;
+            }
+            throw new DerivationException("Cannot find derivative of type " + function.GetType().Name + ".");
+        }
+
+        protected virtual bool TryDerive(ISet<Variable> variables, out object derivative)
+        {
+
+            derivative = null;
+            return false;
+        }
+
         #endregion
+
+
 
 
         /// <summary>A block of a formula.</summary>
@@ -347,7 +384,8 @@ namespace Parsing
             /// <summary>The symbol that closes this block.</summary>
             public readonly string Closer;
 
-            internal override int ParsingPriority {
+            internal override int ParsingPriority
+            {
                 get
                 {
                     switch (Opener)
@@ -373,7 +411,7 @@ namespace Parsing
                     Formula f_other = (Formula)other.Node.Contents;
                     int c = f_this.ParsingPriority.CompareTo(f_other.ParsingPriority);
                     if (c != 0) return c;
-                    return this.Order.CompareTo(other.Order);                    
+                    return this.Order.CompareTo(other.Order);
                 }
             }
 
@@ -383,7 +421,7 @@ namespace Parsing
                 //There is no in-place parsing for a Block.  Just parse the children.
 
                 //Create a dynamic list of all the children.
-                
+
 
                 //Put all the formula with parsing priority on a heap.
                 Heap<NodeOrder> priority = new Heap<NodeOrder>();
@@ -435,7 +473,7 @@ namespace Parsing
                 result = null;
                 return false;
             }
-            
+
 
             /// <summary>Creates a new parenthetical block.</summary>
             public static Block FromParenthetical(DataContext context) { return new Block("(", ")", context); }
@@ -458,11 +496,16 @@ namespace Parsing
                 if (inputs.Length != 1) throw new EvaluationException("Orphan data blocks can have only one input.");
                 return inputs[0];
             }
-            
+
+            protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+            {
+                if (Inputs.Count == 1 && Inputs[0] is Formula f) return f.TryDerive(variables, out derivative);
+                return base.TryDerive(variables, out derivative);
+            }
         }
 
 
-        
+
 
 
 
@@ -503,7 +546,7 @@ namespace Parsing
             Dispose(true);
         }
 
-        
+
         #endregion
 
 

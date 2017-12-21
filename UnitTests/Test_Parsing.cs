@@ -179,7 +179,7 @@ namespace Helpers_Unit_Testing
 
 
         [TestMethod]
-        public void Test_Formula_Cosine()
+        public void Test_NamedFunctions_Trig()
         {
             Formula c0 = (Formula)Formula.FromString("cos(1)", context);
             Assert.AreEqual("COS", c0.GetType().Name);

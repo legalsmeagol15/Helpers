@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using DataStructures;
 
-namespace Parsing
+namespace Parsing.NamedFunctions
 {
     internal abstract class NamedFunction : Formula
     {
@@ -150,6 +150,11 @@ namespace Parsing
                 return (decimal)Math.Cos((double)m);
             }
             throw new EvaluationException("Invalid input for " + GetType().Name + ": " + inputs[0].ToString());
+        }
+
+        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        {
+            throw new NotImplementedException();
         }
     }
 

@@ -70,6 +70,25 @@ namespace Parsing
 
 
 
+    [Serializable]
+    internal class DerivationException : Exception
+    {
+        public DerivationException()
+        {
+        }
+
+        public DerivationException(string message) : base(message)
+        {
+        }
+
+        public DerivationException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+
+        protected DerivationException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+        }
+    }
 
 
     /// <summary>An exception thrown when the evaluation of a Formula goes awry.</summary>
