@@ -114,7 +114,7 @@ namespace Parsing
         /// <returns>Returns true if a new NamedFunction could be created; otherwise, returns false.</returns>
         internal bool TryMakeFunction(string name, out NamedFunction function)
         {
-            function = _FunctionFactory.Make(name);
+            function = _FunctionFactory.Make(name, this);
             return function != null;
         }
 

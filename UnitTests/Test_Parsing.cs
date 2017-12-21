@@ -83,8 +83,35 @@ namespace Helpers_Unit_Testing
             Formula add9 = (Formula)Formula.FromString("1 - 2 + 3 - 4 + 5");
             Assert.AreEqual(3m, add9.Update());
             Assert.AreEqual("1 - 2 + 3 - 4 + 5", add9.ToString());
+
+            Formula add10 = (Formula)Formula.FromString("1+2-3+4-5");
+            Assert.AreEqual(-1m, add10.Update());
+            Assert.AreEqual("1 + 2 - 3 + 4 - 5", add10.ToString());
         }
 
+        [TestMethod]
+        public void Test_Formula_Divide()
+        {
+            Formula d0 = (Formula)Formula.FromString("1/2");
+            Assert.AreEqual(0.5m, d0.Update());
+            Assert.AreEqual("1 / 2", d0.ToString());
+
+            Formula d1 = (Formula)Formula.FromString("-1/2");
+            Assert.AreEqual(-0.5m, d1.Update());
+            Assert.AreEqual("-1 / 2", d1.ToString());
+
+            Formula d2 = (Formula)Formula.FromString("1/-2");
+            Assert.AreEqual(-0.5m, d2.Update());
+            Assert.AreEqual("1 / -2", d2.ToString());
+
+            Formula d3 = (Formula)Formula.FromString("-1 / -2");
+            Assert.AreEqual(0.5m, d3.Update());
+            Assert.AreEqual("-1 / -2", d3.ToString());
+
+            Formula d4 = (Formula)Formula.FromString("1/2/4");
+            Assert.AreEqual(0.125m, d4.Update());
+            Assert.AreEqual("1 / 2 / 4", d4.ToString());
+        }
 
         [TestMethod]
         public void Test_Formula_Multiply()
@@ -105,6 +132,9 @@ namespace Helpers_Unit_Testing
             Assert.AreEqual(6m, m3.Update());
             Assert.AreEqual("-2 * -3", m3.ToString());
 
+            Formula m4 = (Formula)Formula.FromString("2*3*4*5");
+            Assert.AreEqual(120m, m4.Update());
+            Assert.AreEqual("2 * 3 * 4 * 5", m4.ToString());            
         }
 
 

@@ -16,8 +16,8 @@ namespace Parsing
     /// </summary>
     public abstract class Formula : IDisposable, ICacheValue
     {
-        /// <summary>The arguments that determine how the formula is evaluated.</summary>
-        public List<object> Inputs { get; protected internal set; }
+        /// <summary>The arguments that determine how the formula is evaluated.  Starts out null.</summary>
+        public List<object> Inputs { get; protected internal set; } = null;
 
         /// <summary>The Variables of which this Formula is a function.</summary>
         public ISet<Variable> Variables { get; private set; } = new HashSet<Variable>();
@@ -70,9 +70,9 @@ namespace Parsing
         /// <summary></summary>
         protected const int PRIORITY_MINUS = 10;
         /// <summary></summary>
-        protected const int PRIORITY_STAR = 9;
+        protected const int PRIORITY_STAR = 8;
         /// <summary></summary>
-        protected const int PRIORITY_DIVIDE = 8;
+        protected const int PRIORITY_DIVIDE = 9;
         /// <summary></summary>
         protected const int PRIORITY_HAT = 5;
         /// <summary></summary>
@@ -329,7 +329,11 @@ namespace Parsing
 
 
 
-
+        #region Formula calculus members
+            //Because formulas are also functions in terms of the variables in the Variables member.
+            
+        
+        #endregion
 
 
         /// <summary>A block of a formula.</summary>

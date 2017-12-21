@@ -31,8 +31,7 @@ namespace Parsing
 
             node.Previous.Remove();
             node.Next.Remove();
-
-            Update();
+            
         }
 
 
@@ -225,14 +224,6 @@ namespace Parsing
     internal sealed class Ampersand : Operator
     {
         public Ampersand(DataContext context) : base(context) { }
-
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            //Ampersand requires two inputs.
-            base.Parse(node);
-
-            //Associate();            
-        }
         
         protected override object Evaluate(params object[] inputs) => string.Join("", inputs);
 
@@ -316,11 +307,6 @@ namespace Parsing
             throw new NotImplementedException();
         }
 
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            base.Parse(node);
-            //Associate();
-        }
     }
 
 
@@ -400,12 +386,7 @@ namespace Parsing
             }
             throw new NotImplementedException();
         }
-
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            base.Parse(node);
-            //Associate();
-        }
+        
 
     }
 
@@ -434,12 +415,7 @@ namespace Parsing
             }
             throw new NotImplementedException();
         }
-
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            base.Parse(node);
-           // Associate();
-        }
+        
     }
 
 
@@ -459,12 +435,6 @@ namespace Parsing
             throw new NotImplementedException();
         }
 
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            base.Parse(node);
-
-            //TODO:  A unit clause for percentages?
-        }
     }
 
 
@@ -492,13 +462,7 @@ namespace Parsing
             }            
             throw new NotImplementedException();
         }
-
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            base.Parse(node);
-
-           // Associate();
-        }
+        
     }
 
     internal sealed class Plus : Operator
@@ -524,47 +488,7 @@ namespace Parsing
             }
             throw new NotImplementedException();
         }
-
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            base.Parse(node);
-            //Associate();
-            //LinearAssociate();
-        }
-
-        internal void LinearAssociate()
-        {
-            int i = 0;
-            while (i < Inputs.Count)
-            {
-                if (Inputs[i] is Plus add)
-                {
-                    Inputs.RemoveAt(i);
-                    Inputs.InsertRange(i, add.Inputs);
-                }
-                else if (Inputs[i] is Minus subtract)
-                {
-                    Inputs[i] = subtract.Inputs[i];
-                    IEnumerable<object> negations = subtract.Inputs.Skip(1).Select(item => LinearInvert(Context, item));
-                    Inputs.InsertRange(i + 1, negations);
-                }
-                //if (Inputs[i] is Formula f)
-                //{
-                    
-                //    Inputs.RemoveAt(i);
-                //    Inputs.InsertRange(i, f.Inputs);
-                //}
-                else i++;
-            }
-        }
-
-        internal static object LinearInvert(DataContext context, object item)
-        {
-            if (item is decimal m) return -m;
-            if (item is Inverse inv) return inv.Inputs[0];
-            if (item is bool b) return !b;
-            return new Inverse(context, item);
-        }
+        
     }
 
     internal sealed class Question : Operator
@@ -609,7 +533,7 @@ namespace Parsing
         
         protected override object Evaluate(object[] inputs)
         {
-            if (Inputs[0] is decimal a)
+            if (inputs[0] is decimal a)
             {
                 for (int i =1; i < inputs.Length; i++)
                 {
@@ -620,14 +544,7 @@ namespace Parsing
             }            
             throw new NotImplementedException();
         }
-
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            base.Parse(node);
-
-            //Associate();
-        }
-
+        
     }
 
 
@@ -653,14 +570,7 @@ namespace Parsing
             }
             throw new NotImplementedException();
         }
-
-        protected override void Parse(DynamicLinkedList<object>.Node node)
-        {
-            base.Parse(node);
-
-            //Make star associative.
-            //Associate();
-        }
+        
     }
 
 
