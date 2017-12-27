@@ -9,7 +9,7 @@ namespace Parsing.NamedFunctions
         protected NamedFunction(DataContext context) : base(context) { }
 
 
-        internal override int ParsingPriority => PRIORITY_NAMED_FUNCTION;
+        protected internal override int ParsingPriority => PRIORITY_NAMED_FUNCTION;
 
 
         public class Factory
@@ -151,11 +151,8 @@ namespace Parsing.NamedFunctions
             }
             throw new EvaluationException("Invalid input for " + GetType().Name + ": " + inputs[0].ToString());
         }
-
-        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
-        {
-            throw new NotImplementedException();
-        }
+        
     }
+    
 
 }

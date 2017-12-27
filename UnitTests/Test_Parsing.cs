@@ -1,5 +1,6 @@
 ﻿using Parsing;
 using System;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 
@@ -175,6 +176,58 @@ namespace Helpers_Unit_Testing
             Formula s5 = (Formula)Formula.FromString("-100--(-10--1)");
             Assert.AreEqual(-109m, s5.Update());
             Assert.AreEqual("-100 - -(-10 - -1)", s5.ToString());
+        }
+
+
+        [TestMethod]
+        public void Test_Variable_ctor()
+        {
+            Formula f0 = (Formula)Formula.FromString("3x", context);
+            Variable v_x = f0.Variables.First();
+            Assert.IsTrue(v_x.Name == "x");
+            v_x.Contents = 3m;
+            Assert.IsNull(v_x.Value);
+            Assert.AreEqual(3m, v_x.Update());
+            Assert.AreEqual(3m, v_x.Value);
+            Assert.AreEqual(9m, f0.Update());
+            Assert.AreEqual("3x", f0.ToString());
+
+
+            Formula f1 = (Formula)Formula.FromString("4x+2", context);
+            Assert.IsTrue(f1.Variables.First().Name == "x");
+            Assert.AreEqual(v_x.Contents, 3m);
+            Assert.AreEqual(v_x.Value, 3m);
+            Assert.AreEqual(14m, f1.Update());
+            Assert.AreEqual("4x + 2", f1.ToString());
+
+            Formula f2 = (Formula)Formula.FromString("4 (x + 2)", context);
+            Assert.IsTrue(f2.Variables.First().Name == "x");
+            Assert.IsTrue(f2.Variables.Count == 1);
+            Assert.AreEqual(v_x.Contents, 3m);
+            Assert.AreEqual(v_x.Value, 3m);
+            Assert.AreEqual(20m, f2.Update());
+            Assert.AreEqual("4(x + 2)", f2.ToString());
+
+            Variable v_y = context.AddVariable("y");
+            Assert.IsNull(v_y.Contents);
+            v_y.Contents = Formula.FromString("x*2", context);
+            Assert.AreEqual(v_x.Contents, 3m);
+            Assert.AreEqual(v_x.Value, 3m);
+            Assert.IsNotNull(v_y.Contents);
+            Assert.IsNull(v_y.Value);
+            Assert.AreEqual(6m, v_y.Update());
+            Assert.AreEqual(6m, v_y.Value);
+
+            //Test that a change at the bottom of the update change requires calls to Update() before the top of the update change will 
+            //be aware.
+            v_x.Contents = 10m;
+            Assert.AreEqual(10m, v_x.Contents);
+            Assert.AreEqual(3m, v_x.Value);
+            Assert.AreEqual(6m, v_y.Value);
+            Assert.AreEqual(10m, v_x.Update());
+            Assert.AreEqual(6m, v_y.Value);
+            Assert.AreEqual(20m, v_y.Update());
+
         }
 
 

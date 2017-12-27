@@ -18,7 +18,7 @@ namespace Parsing
         private DataContext(Func<string, bool> variableNameValidator, Func<string, string> variableNameNormalizer, 
                             Func<string, bool> functionNameValidator, Func<string, string> functionNameNormalizer)
         {
-            _VariableManager = new Variable.Manager(variableNameValidator, variableNameNormalizer);
+            _VariableManager = new Variable.Manager(this,  variableNameValidator, variableNameNormalizer);
             _FunctionFactory = NamedFunction.Factory.FromStandard();
 
             string regExPattern = string.Format("({0}) | ({1}) | ({2}) | ({3}) | ({4}) | ({5}) | ({6}) | ({7})",
@@ -169,9 +169,4 @@ namespace Parsing
     }
 
 
-    internal interface ICacheValue
-    {
-        object Value { get; }
-        object Update();
-    }
 }

@@ -1,4 +1,5 @@
 ﻿using DataStructures;
+using Mathematics.Functions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +12,8 @@ namespace Parsing.Operators
     internal abstract class Operator : Formula
     {
 
-        protected Operator(DataContext context) : base(context) { }
+        //protected Operator(DataContext context) : base(context) { }
+        protected Operator(DataContext context, params object[] inputs) : base(context) { Inputs = inputs.ToList(); }
 
 
         protected abstract string Symbol { get; }
@@ -25,10 +27,11 @@ namespace Parsing.Operators
         {
             if (node.Previous == null) throw new LexingException("Operator type " + Symbol + " requires preceding input.");
             if (node.Next == null) throw new LexingException("Operator type " + Symbol + " requires following input.");
-            Inputs = new List<object>() { node.Previous.Contents, node.Next.Contents };
+            Inputs.Add(node.Previous.Contents);
+            Inputs.Add(node.Next.Contents);            
 
-            CombineVariables(node.Previous);
-            CombineVariables(node.Next);
+            CombineVariables(node.Previous.Contents);
+            CombineVariables(node.Next.Contents);
 
             node.Previous.Remove();
             node.Next.Remove();
@@ -70,7 +73,9 @@ namespace Parsing.Operators
 
         public override string ToString()
         {
-            return string.Join(" " + Symbol + " ", Inputs);
+            if (Inputs.Count > 1) return string.Join(" " + Symbol + " ", Inputs);
+            if (Inputs.Count == 1) return Inputs[0] + Symbol + "_";
+            return Symbol;            
         }
 
         
@@ -201,7 +206,7 @@ namespace Parsing.Operators
         protected override object Evaluate(params object[] inputs) => string.Join("", inputs);
 
         protected override string Symbol => "&";
-        internal override int ParsingPriority => PRIORITY_AMPERSAND;
+        protected internal override int ParsingPriority => PRIORITY_AMPERSAND;
         
     }
 
@@ -212,7 +217,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => ":";
 
-        internal override int ParsingPriority => PRIORITY_COLON;
+        protected internal override int ParsingPriority => PRIORITY_COLON;
 
         
         protected override object Evaluate(params object[] inputs) => throw new NotImplementedException();
@@ -254,7 +259,7 @@ namespace Parsing.Operators
 
         public override string ToString() => string.Join(Symbol, Inputs);
 
-        internal override int ParsingPriority => PRIORITY_DOT;
+        protected internal override int ParsingPriority => PRIORITY_DOT;
 
         
     }
@@ -267,7 +272,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => "^";
 
-        internal override int ParsingPriority => PRIORITY_HAT;
+        protected internal override int ParsingPriority => PRIORITY_HAT;
 
         
         protected override object Evaluate(params object[] inputs)
@@ -283,10 +288,6 @@ namespace Parsing.Operators
             }            
             throw new NotImplementedException();
         }
-        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
-        {
-            throw new NotImplementedException();
-        }
     }
 
 
@@ -300,13 +301,12 @@ namespace Parsing.Operators
         }
 
 
-        internal override int ParsingPriority => PRIORITY_NOT;
+        protected internal override int ParsingPriority => PRIORITY_NOT;
 
 
         protected override void Parse(DynamicLinkedList<object>.Node node)
         {
-            if (node.Next == null) throw new LexingException("Inverse operator must be followed by the argument being inverted.");
-            if (Inputs != null) throw new LexingException("Sanity check.");
+            if (node.Next == null) throw new LexingException("Inverse operator must be followed by the argument being inverted.");            
             Inputs = new List<object>() { node.Next.Remove() };
             if (Inputs[0] is decimal m)
                 node.Contents = -m;
@@ -339,11 +339,7 @@ namespace Parsing.Operators
             if (Inputs.Count == 1) return "-" + Inputs[0];
             return base.ToString();
         }
-
-        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
-        {
-            throw new NotImplementedException();
-        }
+        
 
     }
 
@@ -351,11 +347,11 @@ namespace Parsing.Operators
 
     internal sealed class Minus : Operator
     {
-        public Minus(DataContext context) : base(context) { }
+        public Minus(DataContext context, params object[] inputs) : base(context, inputs) { }
 
         protected override string Symbol => "-";
 
-        internal override int ParsingPriority => PRIORITY_MINUS;
+        protected internal override int ParsingPriority => PRIORITY_MINUS;
 
         
         protected override object Evaluate(params object[] inputs)
@@ -371,12 +367,7 @@ namespace Parsing.Operators
             }
             throw new NotImplementedException();
         }
-
-        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
-        {
-            throw new NotImplementedException();
-        }
-
+        
     }
 
 
@@ -386,7 +377,7 @@ namespace Parsing.Operators
         public Nor(DataContext context) : base(context) { }
         internal Nor(DataContext context, IEnumerable<object> inputs) : base(context) { }
 
-        internal override int ParsingPriority => PRIORITY_PIPE;
+        protected internal override int ParsingPriority => PRIORITY_PIPE;
 
         protected override string Symbol => "nor";
 
@@ -417,7 +408,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => "%";
 
-        internal override int ParsingPriority => throw new NotImplementedException();
+        protected internal override int ParsingPriority => throw new NotImplementedException();
 
         
         protected override object Evaluate(object[] inputs)
@@ -435,7 +426,7 @@ namespace Parsing.Operators
         public Pipe(DataContext context) : base(context) { }
         internal Pipe(DataContext context, IEnumerable<object> inputs) : base(context) { }
 
-        internal override int ParsingPriority => PRIORITY_PIPE;
+        protected internal override int ParsingPriority => PRIORITY_PIPE;
 
         protected override string Symbol => "|";
 
@@ -462,7 +453,7 @@ namespace Parsing.Operators
         public Plus(DataContext context) : base(context) { }
 
 
-        internal override int ParsingPriority => PRIORITY_PLUS;
+        protected internal override int ParsingPriority => PRIORITY_PLUS;
 
         protected override string Symbol => "+";
         
@@ -479,11 +470,7 @@ namespace Parsing.Operators
             }
             throw new NotImplementedException();
         }
-
-        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
-        {
-            throw new NotImplementedException();
-        }
+        
 
     }
 
@@ -494,7 +481,7 @@ namespace Parsing.Operators
         protected override string Symbol => "?";
 
 
-        internal override int ParsingPriority => PRIORITY_COLON;
+        protected internal override int ParsingPriority => PRIORITY_COLON;
         
         protected override object Evaluate(object[] inputs)
         {
@@ -518,14 +505,14 @@ namespace Parsing.Operators
 
 
 
-    internal sealed class Slash : Operator
+    internal sealed class Slash : Operator, IDifferentiable<object, object>
     {
 
-        public Slash(DataContext context) : base(context) { }
+        public Slash(DataContext context, params object[] inputs) : base(context, inputs) { }
 
         protected override string Symbol => "/";
 
-        internal override int ParsingPriority => PRIORITY_DIVIDE;
+        protected internal override int ParsingPriority => PRIORITY_DIVIDE;
         
         protected override object Evaluate(object[] inputs)
         {
@@ -540,12 +527,38 @@ namespace Parsing.Operators
             }            
             throw new NotImplementedException();
         }
+        
+        object IDifferentiable<object, object>.Evaluate(object atValue) => Value;
 
-        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        object IDifferentiable<object, object>.GetDerivative(IEnumerable<IVariable<object>> differentiatingVariables)
         {
+
+            //object f, f_prime, g, g_prime;
+
+            //if (Inputs[1] is IDifferentiable<object, object> gid)
+            //{
+            //    if (gid is Formula g_f) g = g_f.Copy();
+
+            //    g = ((Formula)gid).Copy();
+            //    g_prime = gid.GetDerivative(differentiatingVariables);
+            //}
+            //if (Inputs[0] is IDifferentiable<object, object> f)
+            //{
+            //    if (Inputs[1] is IDifferentiable<object, object> g)
+            //    {
+            //        g_copy = ((Formula)g).Copy();                    
+            //        f_prime_g = new Operators.Star(Context, f.GetDerivative(differentiatingVariables), g_copy);
+            //        f_g_prime = new Operators.Star(Context, ((Formula)f).Copy(), g.GetDerivative(differentiatingVariables));
+            //        object numer = new Operators.Minus(Context, f_prime_g, f_g_prime);
+            //    }
+            //}
             throw new NotImplementedException();
         }
 
+        IDifferentiable<object, object> IDifferentiable<object, object>.GetIntegral(object constant, IEnumerable<IVariable<object>> integratingVariables)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 
@@ -553,18 +566,20 @@ namespace Parsing.Operators
     {
 
         public Star(DataContext context) : base(context) { }
+        internal Star(DataContext context, params object[] inputs) :base(context) { Inputs = inputs.ToList(); }
 
         protected override string Symbol => "*";
 
-        internal override int ParsingPriority => PRIORITY_STAR;
+        protected internal override int ParsingPriority => PRIORITY_STAR;
         
         protected override object Evaluate(object[] inputs)
         {
             if (inputs[0] is decimal a)
             {
                 for (int i = 1; i < inputs.Length; i++)
-                {
+                {   
                     if (inputs[i] is decimal b) a *= b;
+                    
                     else throw new NotImplementedException();
                 }
                 return a;
@@ -572,11 +587,17 @@ namespace Parsing.Operators
             throw new NotImplementedException();
         }
 
-
-        protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+        public override string ToString()
         {
-            throw new NotImplementedException();
+            if (Inputs.Count == 2 && Inputs[0] is decimal m)
+            {
+                if (Inputs[1] is Formula f) return m.ToString() + f.ToString();
+                if (Inputs[1] is Variable v) return m.ToString() + v.ToString();
+            }
+                
+            return base.ToString();
         }
+
     }
 
 

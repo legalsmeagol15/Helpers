@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using Mathematics.Functions;
+using System.Linq;
 
 namespace Parsing
 {
@@ -10,7 +12,7 @@ namespace Parsing
     /// An object which represents a variable whose value may change.  Variables have associated names and the update of their stored 
     /// values is handled by a Manager.
     /// </summary>
-    public class Variable : ICacheValue
+    public class Variable : IVariable<object>, IDifferentiable<object, object> //, ICacheValue
     {
         /// <summary>
         /// The count of Formulas which reference this variable.  When the count of references is 0, the Variable will be removed from 
@@ -23,13 +25,27 @@ namespace Parsing
 
 
         /// <summary>The contents of the Variable, which may be a Formula or some literal.</summary>
-        public object Contents { get; private set; } = null;
+        public object Contents { get; set; } = null;
 
-        object ICacheValue.Value => throw new NotImplementedException();
+        /// <summary>The current cached value of this Variable.</summary>
+        public object Value { get; private set; } = null;
 
+        /// <summary>Updates and returns the cached value of this Variable.  If Contents is changed, the value of the variable will not 
+        /// be updated until Update() is called.</summary>        
+        public object Update()
+        {
+            if (Contents is Formula f) return Value = f.Update();
+            return Value = Contents;
+        }
+
+        /// <summary>
+        /// The DataContext associated with this Variable.
+        /// </summary>
+        public DataContext Context { get; private set; }
+        
         /// <summary>Creates a new Variable with the given name.</summary>
         /// <param name="name">The name of the Variable.  No normalization or validation is done for the given name.</param>
-        public Variable(string name) { Name = name; }
+        public Variable(string name, DataContext context) { Name = name; Context = context; }
 
 
 
@@ -59,6 +75,9 @@ namespace Parsing
             public readonly Func<string, bool> IsValid;
 
 
+            public readonly DataContext Context;
+
+
 
             /// <summary>The hash table that associates variables to their names.</summary>
             private Dictionary<string, Variable> _Table = new Dictionary<string, Variable>();
@@ -73,8 +92,9 @@ namespace Parsing
             /// <param name="nameNormalizer">Optional.  The function that returns the normalized form of the given Variable name.  If 
             /// omitted or given null, uses the standard Variable name normalizer (which simply converts Variable names to lower 
             /// case).</param>
-            public Manager(Func<string, bool> nameValidator = null, Func<string, string> nameNormalizer = null)
+            public Manager(DataContext context, Func<string, bool> nameValidator = null, Func<string, string> nameNormalizer = null)
             {
+                Context = context;
                 GetNormalized = nameNormalizer ?? _StandardNameNormalizer;
                 IsValid = nameValidator ?? _StandardNameValidator;
             }
@@ -113,7 +133,7 @@ namespace Parsing
             {                
                 name = GetNormalized(name);
                 if (_Table.ContainsKey(name)) return null;
-                Variable v = new Variable(name);
+                Variable v = new Variable(name, Context);
                 _Table[name] = v;
                 return v;
             }
@@ -180,12 +200,36 @@ namespace Parsing
             }
         }
 
-        object ICacheValue.Update()
-        {
-            throw new NotImplementedException();
-        }
+
+        
 
         /// <summary>Returns the Name of the variable.</summary>        
         public override string ToString() => Name;
+
+
+
+        object IDifferentiable<object, object>.Evaluate(object atValue) => Value;
+
+
+
+        IDifferentiable<object, object> IDifferentiable<object, object>.GetIntegral(object constant, IEnumerable<IVariable<object>> integratingVariables)
+        {
+            var exp = new Operators.Hat(Context);
+            exp.Inputs = new List<object>() { this, 2m };
+            exp.Variables.Add(this);
+            var frac = new Operators.Slash(Context);
+            frac.Inputs = new List<object>() { exp, 2m };
+            frac.Variables.Add(this);
+            return frac;
+        }
+
+
+
+        object IDifferentiable<object, object>.GetDerivative(IEnumerable<IVariable<object>> differentiatingVariables)
+        {
+            if (differentiatingVariables.Contains(this)) return 1m;
+            return 0m;
+        }
+
     }
 }

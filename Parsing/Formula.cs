@@ -1,6 +1,7 @@
 ﻿using DataStructures;
 using Parsing.NamedFunctions;
 using Parsing.Operators;
+using Mathematics.Functions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,12 +17,12 @@ namespace Parsing
     /// A Formula is a parse tree that interprets strings for evaluation.  The resulting tree should be as near as possible to the 
     /// structure of the original string, with no flattening or simplification.
     /// </summary>
-    public abstract class Formula : IDisposable, ICacheValue
+    public abstract class Formula : IDisposable //, ICacheValue
     {
         /// <summary>The arguments that determine how the formula is evaluated.  Starts out null.</summary>
         public List<object> Inputs { get; protected internal set; } = null;
 
-        /// <summary>The Variables of which this Formula is a function.</summary>
+        /// <summary>The Variables of which this Formula is a function.  Starts out instantiated.</summary>
         public ISet<Variable> Variables { get; private set; } = new HashSet<Variable>();
 
         /// <summary>The DataContext specifying the Variables and NamedFunctions for this Formula.  If null, no references to Variables 
@@ -39,17 +40,27 @@ namespace Parsing
         /// <summary>Updates the cached value of the formula, and returns that value.</summary>        
         public object Update()
         {
-            object[] inputs = Inputs.Select(i => (i is ICacheValue icf) ? icf.Update() : i).ToArray();
+            object[] inputs = Inputs.Select(i => (i is Formula f) ? f.Update() 
+                                                                  : (i is Variable v) ? v.Update()
+                                                                                      : i).ToArray();
             return Value = Evaluate(inputs);
         }
+        
+
 
         /// <summary>The method called to find a Formula's value.</summary>
         /// <param name="inputs">The inputs to evaluate.  For inputs which are ICacheValue, the cached value is supplied instead of the 
         /// caching object.</param>        
         protected abstract object Evaluate(params object[] inputs);
 
+
         /// <summary>Returns the cached value for the object, if there is one, or the object itself.</summary>
-        protected static object GetValue(object obj) => obj is ICacheValue icv ? icv.Value : obj;
+        protected static object GetValue(object obj)
+        {
+            if (obj is Formula f) return f.Value;
+            else if (obj is Variable v) return v.Value;
+            return obj;
+        }
 
 
         ///// <summary>Returns the cached values for the objects, if they exist, or the objects themselves.</summary>
@@ -102,7 +113,7 @@ namespace Parsing
 
 
         /// <summary></summary>
-        internal abstract int ParsingPriority { get; }
+        protected internal abstract int ParsingPriority { get; }
 
 
 
@@ -347,19 +358,12 @@ namespace Parsing
         /// <param name="variables"></param>
         /// <param name="function"></param>
         /// <returns></returns>
-        public static object GetDerivative(ISet<Variable> variables, object function)
+        public static object GetDerivative(IEnumerable<Variable> variables, object function)
         {
             if (function is decimal)
                 return 0m;
-            else if (function is Variable v)
-            {
-                if (variables.Contains(v)) return 1;
-                throw new DerivationException("Cannot find derivative of a variable that does not appear in the variable set.");
-            }            
-            else if (function is Formula f)
-            {
-                if (f.TryDerive(variables, out object result)) return result;
-            }
+            else if (function is Mathematics.Functions.IDifferentiable<object, decimal> id) return id.GetDerivative(variables);
+          
             throw new DerivationException("Cannot find derivative of type " + function.GetType().Name + ".");
         }
 
@@ -384,7 +388,7 @@ namespace Parsing
             /// <summary>The symbol that closes this block.</summary>
             public readonly string Closer;
 
-            internal override int ParsingPriority
+            protected internal override int ParsingPriority
             {
                 get
                 {
