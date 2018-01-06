@@ -19,8 +19,27 @@ namespace Parsing
     /// </summary>
     public abstract class Formula : IDisposable //, ICacheValue
     {
+
+        
+        private object[] _Inputs = null;
+
         /// <summary>The arguments that determine how the formula is evaluated.  Starts out null.</summary>
-        public List<object> Inputs { get; protected internal set; } = null;
+        public object[] Inputs
+        {
+            get => _Inputs;
+            protected  set
+            {
+                //Update
+                _Inputs = value;
+
+                //Combine variables.
+                foreach (object input in value)
+                {
+                    if (input is Variable v) Variables.Add(v);
+                    else if (input is Formula f) foreach (Variable v1 in f.Variables) Variables.Add(v1);
+                }
+            }
+        }
 
         /// <summary>The Variables of which this Formula is a function.  Starts out instantiated.</summary>
         public ISet<Variable> Variables { get; private set; } = new HashSet<Variable>();
@@ -29,7 +48,54 @@ namespace Parsing
         /// or NamedFunctions will be allowed.</summary>
         public DataContext Context { get; private set; }
 
+        /// <summary>The parent of the Formula.  If this Formula is root, this will be null.</summary>
+        public Formula Parent { get; protected set; }
 
+
+        /// <summary>Returns whether this Formula is identical to the other given Formula.</summary>
+        /// <remarks>Can be overridden in derived classes.  Default behave is to return strict identicality (meaning all inputs are 
+        /// identical in identical order).</remarks>
+        protected virtual bool IsIdenticalTo(Formula other)
+        {
+            //Shortcut - reference equality must be identical.
+            if (object.ReferenceEquals(this, other)) return true;
+
+            //Shortcut - different types cannot be identical.
+            if (GetType() != other.GetType()) return false;
+
+            //Shortcut - unequal input counts cannot be identical.
+            if (Inputs.Length != other.Inputs.Length) return false;
+
+            //Examine all inputs.
+            for (int i = 0; i < other.Inputs.Length; i++)
+            {
+
+                //If both inputs are Formulas, recursively examine the inputs.
+                if (Inputs[i] is Formula a && other.Inputs[i] is Formula b && !a.IsIdenticalTo(b))
+                    return false;
+
+                //Otherwise, the inputs can be equal only if Equals() is true.
+                else if (!Inputs[i].Equals(other.Inputs[i]))
+                    return false;
+            }
+
+            //All inputs have been examined and found equal, the types are equal, so the Formula must be equal.
+            return true;
+        }
+
+        /// <summary>
+        /// A helper method which returns whether two lists are identical in all respects except that their items are in different orders.
+        /// </summary>
+        protected static bool ArePermutations(IList<object> a, IList<object> b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a.Count != b.Count) return false;
+            List<object> compare = new List<object>(b);
+            foreach (object item in a)
+                if (!compare.Remove(item)) return false;
+            return true;
+        }
+        
 
 
         #region Formula value caching members
@@ -40,18 +106,22 @@ namespace Parsing
         /// <summary>Updates the cached value of the formula, and returns that value.</summary>        
         public object Update()
         {
-            object[] inputs = Inputs.Select(i => (i is Formula f) ? f.Update() 
-                                                                  : (i is Variable v) ? v.Update()
-                                                                                      : i).ToArray();
-            return Value = Evaluate(inputs);
+            List<object> evaluatedInputs = new List<object>();
+            foreach (object obj in Inputs)
+            {
+                if (obj is Formula f) evaluatedInputs.Add(f.Update());
+                else if (obj is Variable v) evaluatedInputs.Add(v.Update());
+                else evaluatedInputs.Add(obj);
+            }
+            return Value = Evaluate(evaluatedInputs);
         }
-        
+
 
 
         /// <summary>The method called to find a Formula's value.</summary>
         /// <param name="inputs">The inputs to evaluate.  For inputs which are ICacheValue, the cached value is supplied instead of the 
         /// caching object.</param>        
-        protected abstract object Evaluate(params object[] inputs);
+        protected abstract object Evaluate(IList<object> inputs);
 
 
         /// <summary>Returns the cached value for the object, if there is one, or the object itself.</summary>
@@ -111,7 +181,6 @@ namespace Parsing
 
         #endregion
 
-
         /// <summary></summary>
         protected internal abstract int ParsingPriority { get; }
 
@@ -129,11 +198,13 @@ namespace Parsing
         /// established, and so the Formula will be unable to interpret any Variables or NamedFunctions.</param>        
         public static object FromString(string str, DataContext context = null)
         {
-            string[] rawTokens = (context == null) ? DataContext.StandardFormulaPattern.Split(str) : context.FormulaPattern.Split(str);
+            var pattern = (context == null) ? DataContext.StandardFormulaPattern : context.FormulaPattern;
+            string[] rawTokens = pattern.Split(str);
 
             if (rawTokens.Length == 0) throw new LexingException("No tokens found.", rawTokens, -1);
 
             return FromTokens(rawTokens, context);
+            
         }
 
 
@@ -145,51 +216,47 @@ namespace Parsing
             if (rawTokens == null) throw new ArgumentException("Token list cannot be null.");
 
             //First, lex the string tokens into sub-formulae and nesting structure.
-            Formula result = Lex(rawTokens.ToList(), context);
+            BlockNode result = Lex(rawTokens.ToList(), context);
 
             //Second, ensure that references to all the formula's variables are incremented.
-            foreach (Variable var in result.Variables) var.References++;
+            foreach (Variable var in result.Block.Variables) var.References++;
 
             //Third, parse.            
-            result.Parse(null);
+            result.Block.Parse(result.Inputs.FirstNode);            
 
+            //Sanity check.
+            if (result.Block.Inputs.Length != 1) throw new LexingException("Lexing structure error.  Not sure how this might even happen.");
 
-            if (result.Inputs.Count != 1) throw new LexingException("Lexing structure error.  Not sure how this might even happen.");
-
-            return result.Inputs[0];
+            return result.Block.Inputs[0];
 
         }
 
 
-        /// <summary>Tries to parse the token into a string literal.</summary>
-        private static bool TryParseString(string token, out string result)
+
+        /// <summary>A structure used for building Formulas.</summary>
+        /// <remarks>This data structure is used for building the Formulas because it allows for a dynamic linked list for its Inputs, 
+        /// whereas a finished Block must have an array specifying its Inputs.  Once building the Formula is complete, all of these 
+        /// structs are thrown away and garbage collected.</remarks>
+        protected internal struct BlockNode
         {
-            if (token[0] == '\"'                                //Starts with quotes?
-                    && token[token.Length - 1] == '\"'          //Ends with quotes?
-                    && token.Count((c) => c == '\"') == 2)      //Only two quotes?
-            {
-                result = token.Substring(1, token.Length - 2);
-                return true;
-            }
-
-            result = "";
-            return false;
+            /// <summary>The Formula block associated with these inputs.</summary>
+            public readonly Block Block;
+            /// <summary>The inputs associated with this Block.</summary>
+            public readonly DynamicLinkedList<object> Inputs;           
+            /// <summary>Creates a new Block node.</summary>
+            /// <param name="block">The Block associated with this node.</param>
+            public BlockNode(Block block) { Block = block; Inputs = new DynamicLinkedList<object>(); }
         }
-
-
-
-
-
 
         /// <summary>Lexes the tokens, and returns the result within a parenthetical block (this block constitutes one extra 
         /// layer which may need to be removed).  For example, if the tokens are:  "COS" "(" "3.14159" ")", then a single parenthetical 
         /// block will be returned.  The inputs will be a named function COS, then another parenthetical block whose only contents is the 
         /// number 3.14159.</summary>
-        private static Formula Lex(IList<string> rawTokens, DataContext context)
+        private static BlockNode Lex(IList<string> rawTokens, DataContext context)
         {
-            Formula.Block focus = Formula.Block.FromParenthetical(context);
-            Formula.Block head = focus;
-            Stack<Formula.Block> stack = new Stack<Formula.Block>();
+            BlockNode focus = new BlockNode(Block.FromParenthetical(context));
+            BlockNode headNode = focus;
+            Stack<BlockNode> stack = new Stack<BlockNode>();
 
             for (int tokenIdx = 0; tokenIdx < rawTokens.Count; tokenIdx++)
             {
@@ -202,33 +269,37 @@ namespace Parsing
                     if (string.IsNullOrWhiteSpace(token) || string.IsNullOrEmpty(token)) continue;
 
                     //Step #2 - opening nesting structures?
-                    if (Formula.Block.TryOpen(token, context, out Formula.Block nfNew))
+                    if (Block.TryOpen(token, context, out Block b))
                     {
-                        if (focus.Inputs.Count > 0 && focus.Inputs.Last() is decimal)  //A scalar?  Then it's an implied multiplication.
-                            focus.Inputs.Add(new Star(context));
-                        focus.Inputs.Add(nfNew);
+                        if (focus.Inputs.Count > 0 && focus.Inputs.Last is decimal)  //A scalar?  Then it's an implied multiplication.
+                            focus.Inputs.AddLast(new Star(context));
+
+                        //Create the new Block nested within the current focus.
+                        BlockNode bnNew = new BlockNode(b);
+                        focus.Inputs.AddLast(bnNew);
                         stack.Push(focus);
-                        focus = nfNew;
+                        focus = bnNew;
+
                         continue;
                     }
 
                     //Step #3 - closing a nesting structure?
-                    if (stack.Count > 0 && stack.Peek().Closer == token)
+                    if (stack.Count > 0 && stack.Peek().Block.Closer == token)
                     {
-                        //The parent's variable list must include everything relied on by the child.
-                        Formula.Block parent = stack.Pop();
-                        foreach (Variable childVar in focus.Variables) parent.Variables.Add(childVar);
-                        focus = parent;
+                        //The parent's variable list must include everything relied upon by the child.
+                        BlockNode parentBlockInputs = stack.Pop();
+                        //parentBlockInputs.Block.CombineVariables(focus.Block);                        
+                        focus = parentBlockInputs;
                         continue;
                     }
 
                     //Step #4 - a literal?
-                    if (decimal.TryParse(token, out decimal number)) { focus.Inputs.Add(number); continue; }
-                    if (bool.TryParse(token, out bool @bool)) { focus.Inputs.Add(@bool); continue; }
-                    if (TryParseString(token, out string str)) { focus.Inputs.Add(str); continue; }
+                    if (decimal.TryParse(token, out decimal number)) { focus.Inputs.AddLast(number); continue; }
+                    if (bool.TryParse(token, out bool @bool)) { focus.Inputs.AddLast(@bool); continue; }
+                    if (TryParseString(token, out string str)) { focus.Inputs.AddLast(str); continue; }
 
                     //Step #5 - an operator?
-                    if (Operator.TryLex(token, focus.Inputs, context, out Operator op)) { focus.Inputs.Add(op); continue; }
+                    if (Operator.TryLex(token, focus.Inputs, context, out Operator op)) { focus.Inputs.AddLast(op); continue; }
 
                     //Step #6 - Context-dependent tokens include Variables and NamedFunctions
                     if (context != null)
@@ -238,22 +309,22 @@ namespace Parsing
                         if (context.TryMakeFunction(token, out NamedFunction namedFunction)) lexxed = namedFunction;
 
                         //Step #6b - an existing variable?
-                        else if (context.TryGetVariable(token, out Variable v)) focus.Variables.Add((Variable)(lexxed = v));
+                        else if (context.TryGetVariable(token, out Variable v)) focus.Block.Variables.Add((Variable)(lexxed = v));
 
                         //Step #6c - a new variable?
-                        else if (context.IsVariableNameValid(token) && (lexxed = context.AddVariable(token)) != null) focus.Variables.Add((Variable)lexxed);
+                        else if (context.IsVariableNameValid(token) && (lexxed = context.AddVariable(token)) != null) focus.Block.Variables.Add((Variable)lexxed);
 
                         if (lexxed != null)
                         {
                             //Step #6d - implied scalar?
-                            if (focus.Inputs.Count > 0 && focus.Inputs[focus.Inputs.Count - 1] is decimal)
-                                focus.Inputs.Add(new Star(context));
-                            focus.Inputs.Add(lexxed);
+                            if (focus.Inputs.Count > 0 && focus.Inputs.Last is decimal)
+                                focus.Inputs.AddLast(new Star(context));
+                            focus.Inputs.AddLast(lexxed);
                             continue;
                         }
 
                         //Step #6e - special handling provided by the context?
-                        if (context.InterpretToken(token, out object specialToken)) { focus.Inputs.Add(specialToken); continue; }
+                        if (context.InterpretToken(token, out object specialToken)) { focus.Inputs.AddLast(specialToken); continue; }
                     }
 
 
@@ -262,56 +333,77 @@ namespace Parsing
 
                     //Step #8 - a divider between sub-vectors?
                     if (token == ";") throw new NotImplementedException();
+
+                    //Step #9 - some blocking exceptions
+                    if (token == ")" || token == "]" || token == "}")
+                        throw new LexingException("Closing bracket '" + token + "' without an opening bracket.");
+
+                    //Step #10 - something else?  interpret as a string and parse later.
+                    focus.Inputs.AddLast(token);
+                }
+                catch (LexingException l_ex)
+                {
+                    l_ex.TokenIndex = tokenIdx;
+                    l_ex.Tokens = rawTokens.ToArray();
+                    throw;
                 }
                 catch (Exception ex)
                 {
-                    if (ex is LexingException fe) { fe.TokenIndex = tokenIdx; fe.Tokens = rawTokens.ToArray(); throw; }
-                    else throw new LexingException(ex.Message, ex, rawTokens.ToArray(), tokenIdx);
+                    throw new LexingException(ex.Message, ex, rawTokens.ToArray(), tokenIdx);
                 }
-
-                //Error handling.
-                {
-                    //Invalid nest closure?
-                    if (token == ")" || token == "]" || token == "}")
-                        throw new LexingException("Closing bracket '" + token + "' without opening bracket.", rawTokens, tokenIdx);
-
-                    //Something else?
-                    throw new LexingException("Unrecognized token: " + token + ".", rawTokens, tokenIdx);
-                }
-
-            }
+            }            
 
             //Some final global error handling.
             if (stack.Count > 0) throw new FormatException("Unclosed brackets.");
-            if (focus != head) throw new FormatException("Incomplete nesting.");
-            if (head.Opener != "(" || head.Closer != ")") throw new FormatException("Undefined nesting error.");
-            if (head.Inputs.Count < 1) throw new FormatException("No lexable tokens.");
+            if (focus.Block != headNode.Block) throw new FormatException("Incomplete nesting.");
+            if (headNode.Block.Opener != "(" || headNode.Block.Closer != ")") throw new FormatException("Undefined nesting error.");
+            if (headNode.Inputs.Count < 1) throw new FormatException("No lexable tokens.");
+            
+            return headNode;
 
-            return head;
+
+
+            
+        }
+
+        private static bool TryParseString(string token, out string result)
+        {
+            if (token[0] == '\"'                                //Starts with quotes?
+                        && token[token.Length - 1] == '\"'          //Ends with quotes?
+                        && token.Count((c) => c == '\"') == 2)      //Only two quotes?
+            {
+                result = token.Substring(1, token.Length - 2);
+                return true;
+            }
+
+            result = "";
+            return false;
         }
 
 
 
 
-
-
-        /// <summary>Parses the given Formula as situated within a list of inputs.</summary>
-        /// <param name="node">The node containing this formula.  The next input will be in node.Next.Contents, and previous will be 
-        /// in node.Previous.Contents, and so forth.</param>
+        /// <summary>Parses the given Formula as situated within a list of inputs.</summary>        
         protected abstract void Parse(DynamicLinkedList<object>.Node node);
 
 
-        /// <summary>Creates a Formula, with the given data context.</summary>        
-        protected Formula(DataContext context) { Context = context; }
+        /// <summary>Creates a Formula, with the given data context.</summary>  
+        /// <param name="inputs">Optional.  The Inputs to set up this Formula with.</param>
+        /// <param name="context">The data context from which Variables will be referenced or NamedFunctions created.</param>        
+        protected Formula (DataContext context, IEnumerable<object> inputs)
+        {
+            Context = context;
+            if (inputs != null) Inputs = inputs.ToArray();
+        }
 
 
 
         /// <summary>Adds all the Variables from the given <paramref name="other"/> Formula to the this Formula's Variables.</summary>        
-        protected internal void CombineVariables(object other)
-        {
-            if (other is Variable v) Variables.Add(v);
-            else if (other is Formula f) foreach (Variable v1 in f.Variables) Variables.Add(v1);
-        }
+        //protected internal void CombineVariables(object other)
+        //{
+        //    if (other is Variable v) Variables.Add(v);
+        //    else if (other is Formula f) foreach (Variable v1 in f.Variables) Variables.Add(v1);
+        //}
 
 
         /// <summary>
@@ -321,66 +413,56 @@ namespace Parsing
         /// </summary>
         public virtual Formula Copy()
         {
-            Formula copy = (Formula)Activator.CreateInstance(this.GetType(), new object[1] { Context });
-            copy.Inputs = new List<object>();
-            foreach (object existing in Inputs)
-            {
-                if (existing is Formula existing_f) copy.Inputs.Add(existing_f.Copy());
-                else if (existing is Variable v) copy.Inputs.Add(v);
-                else copy.Inputs.Add(existing);
-            }
-            copy.Variables = new HashSet<Variable>(Variables);
-            return copy;
+            throw new NotImplementedException();
         }
 
 
-        ///// <summary>Idealizes the formula in terms of the variables given, in the order given.</summary>        
-        //public void Idealize(IEnumerable<Variable> variables)
-        //{
-
-        //}
 
         #endregion
+
 
 
 
         #region Formula calculus members
-        //Because formulas are also functions in terms of the variables in the Variables member.
+        
 
-        public static object GetDerivative()
+        /// <summary>Returns the derivative of this Formula.</summary>
+        /// <param name="obj">The object to seek the derivative of.</param>
+        /// <param name="v">The Variable, with respect to which the derivative is sought.</param>            
+        public static object GetDerivative(object obj, Variable v)
         {
-            throw new NotImplementedException();
+            if (obj is decimal) return 0m;
+            if (obj is Variable) return (obj.Equals(v)) ? 1m : 0m;
+            if (obj is Formula f)
+            {
+                object d = f.GetDerivativeRecursive(v);
+                while (d is Formula)
+                {
+                    object simpler = ((Formula)d).GetSimplified();
+                    if (simpler.Equals(d)) break;
+                    d = simpler;
+                }
+                return d;
+            }
+            throw new InvalidOperationException("Cannot find derivative of object of type " + obj.GetType().Name + ".");
         }
 
         /// <summary>
-        /// Returns the derivative of the given object, with respect to the given variables.
+        /// Attempts the simplify this Formula.  If possible, the simplified Formula is returned in the result.  If not, the original 
+        /// Formula is returned in the result.
         /// </summary>
-        /// <param name="variables"></param>
-        /// <param name="function"></param>
-        /// <returns></returns>
-        public static object GetDerivative(IEnumerable<Variable> variables, object function)
-        {
-            if (function is decimal)
-                return 0m;
-            else if (function is Mathematics.Functions.IDifferentiable<object, decimal> id) return id.GetDerivative(variables);
-          
-            throw new DerivationException("Cannot find derivative of type " + function.GetType().Name + ".");
-        }
+        public abstract object GetSimplified();
 
-        protected virtual bool TryDerive(ISet<Variable> variables, out object derivative)
-        {
+        /// <summary>Gets the derivative of the object, with respect to the given Variable.</summary>
+        protected abstract object GetDerivativeRecursive(Variable v);
 
-            derivative = null;
-            return false;
-        }
 
         #endregion
 
 
 
-
         /// <summary>A block of a formula.</summary>
-        internal sealed class Block : Formula
+        protected internal sealed class Block : Formula
         {
             /// <summary>The symbol that opens this block.</summary>
             public readonly string Opener;
@@ -388,6 +470,7 @@ namespace Parsing
             /// <summary>The symbol that closes this block.</summary>
             public readonly string Closer;
 
+            /// <summary>Blocks have very low (early) priority.</summary>
             protected internal override int ParsingPriority
             {
                 get
@@ -419,38 +502,46 @@ namespace Parsing
                 }
             }
 
-
+            
+            /// <summary>Parse the contents of this block.</summary>
+            /// <param name="node">Usually this refers to the node as its contents will appear among its parent's inputs.  For purposes of 
+            /// a block, since the blocking structure is aleady established, this refers to the first node in the block's inputs.</param>    
             protected override void Parse(DynamicLinkedList<object>.Node node)
             {
-                //There is no in-place parsing for a Block.  Just parse the children.
+                var n = node;
 
-                //Create a dynamic list of all the children.
-
-
-                //Put all the formula with parsing priority on a heap.
-                Heap<NodeOrder> priority = new Heap<NodeOrder>();
-                DynamicLinkedList<object> list = new DynamicLinkedList<object>();
-                for (int i = 0; i < Inputs.Count; i++)
+                //Prioritize the DynamicLinkedList nodes containing Formulas, according to those Formulas' parsing priority.  At the same 
+                //time, recursively parse any content Blocks.
+                Heap<DynamicLinkedList<object>.Node> priority = new Heap<DynamicLinkedList<object>.Node>(_n => ((Formula)_n.Contents).ParsingPriority);
+                while (n != null)
                 {
-                    var n = list.AddLast(Inputs[i]);
-                    if (Inputs[i] is Formula f) priority.Add(new NodeOrder(n, i));
+                    if (n.Contents is BlockNode bn)
+                    {
+                        bn.Block.Parse(bn.Inputs.FirstNode);
+                        n.Contents = bn.Block;
+                    }
+                    else if (n.Contents is Formula f) priority.Add((DynamicLinkedList<object>.Node)n);
+                    n = n.Next;
                 }
-
-                //Parse the items on the heap in order of priority.
+                
+                //Now, parse the node's contents in order of priority.
                 while (priority.Count > 0)
                 {
-                    var n = priority.Pop().Node;
-                    if (n.Contents is Formula f) f.Parse(n);
+                    n = priority.Pop();
+                    if (n.Contents is Formula f) f.Parse((DynamicLinkedList<object>.Node)n);
                 }
 
-                Inputs = list.ToList();
+                //Now, set the Block's Inputs to be the contents of the node's list.  If there were no prioritized nodes, then 'n' will 
+                //be null.
+                Inputs = (n == null) ? node.List.ToArray() : n.List.ToArray();
+                
             }
 
 
 
-            private Block(string opener, string closer, DataContext context) : base(context)
+            private Block(string opener, string closer, DataContext context) : this(opener, closer, context, new object[0]) { }
+            private Block(string opener, string closer, DataContext context, params object[] inputs) : base(context, inputs)
             {
-                Inputs = new List<object>();
                 Opener = opener;
                 Closer = closer;
             }
@@ -489,27 +580,59 @@ namespace Parsing
             public static Block FromCurly(DataContext context) { return new Block("{", "}", context); }
 
 
-
+            
+            /// <summary>Brackets the inputs with the Opener and Closer.</summary>            
             public override string ToString()
             {
                 return Opener + string.Join(", ", Inputs) + Closer;
             }
 
-            protected override object Evaluate(params object[] inputs)
+            /// <summary>A block can have only a single evaluated input in its content.</summary>
+            protected override object Evaluate(IList<object> inputs)
             {
-                if (inputs.Length != 1) throw new EvaluationException("Orphan data blocks can have only one input.");
+                if (inputs.Count != 1) throw new EvaluationException("Orphan data blocks can have only one input.");
                 return inputs[0];
             }
 
-            protected override bool TryDerive(ISet<Variable> variables, out object derivative)
+            /// <summary>A block can have only a single input, so returns the derivative of that.</summary>
+            protected override object GetDerivativeRecursive(Variable v)
             {
-                if (Inputs.Count == 1 && Inputs[0] is Formula f) return f.TryDerive(variables, out derivative);
-                return base.TryDerive(variables, out derivative);
+                if (Opener != "(" || Opener != ")") throw new InvalidOperationException("Can only find derivative of parenthetical Block.");
+                if (Inputs.Length == 1) return GetDerivative(Inputs[0], v);
+                throw new InvalidOperationException("Can only find derivative of Block with single input.");
+            }
+
+            /// <summary>
+            /// If the block's simplified contents is a Formula, then this Block's existence is meaningful and so returns a copy of itself 
+            /// with the copy's contents equal to the simplified contents.  Otherwise, returns the simplified contents themselves.
+            /// </summary>
+            /// <returns></returns>
+            public override object GetSimplified()
+            {
+                if (Inputs.Length == 1)
+                {
+                    object input = (Inputs[0] is Formula f) ? f.GetSimplified() : Inputs[0];
+                    if (input is Formula)
+                    {
+                        Block copy = new Block(Opener, Closer, Context);
+                        copy.Inputs = new object[1] { input };
+                        return copy;
+                    }
+                    return input;
+                }
+                throw new InvalidOperationException("Sanity check.");
             }
         }
 
 
 
+
+        /// <summary>Returns true if the other object is a Formula for which IsIdenticalTo is true.</summary>
+        public sealed override bool Equals(object obj) => (obj is Formula other_f) ? IsIdenticalTo(other_f) : false;
+
+        /// <summary>The hash code is the sum of all the inputs' hash codes.</summary>        
+        /// <remarks>TODO:  since Formula is immutable, would it be useful if it cached its hash code?</remarks>
+        public sealed override int GetHashCode() => Inputs.Sum(input => input.GetHashCode());
 
 
 

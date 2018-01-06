@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Graphs
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public static class Heuristic
     {
 

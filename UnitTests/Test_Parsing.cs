@@ -1,6 +1,7 @@
 ﻿using Parsing;
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 
@@ -126,6 +127,21 @@ namespace Helpers_Unit_Testing
 
 
         [TestMethod]
+        public void Test_Formula_Equality()
+        {
+            Formula a = (Formula)Formula.FromString("3x+3", context);
+            Formula b = (Formula)Formula.FromString("3x+3", context);
+            Formula c = (Formula)Formula.FromString("3x+4", context);
+            Formula d = (Formula)Formula.FromString("2x+3", context);
+
+            Assert.IsTrue(a.Equals(b));
+            Assert.IsFalse(a.Equals(c));
+            Assert.IsFalse(a.Equals(d));
+            Assert.IsFalse(c.Equals(d));
+        }
+
+
+        [TestMethod]
         public void Test_Formula_Multiply()
         {
             Formula m0 = (Formula)Formula.FromString("2*3");
@@ -147,6 +163,17 @@ namespace Helpers_Unit_Testing
             Formula m4 = (Formula)Formula.FromString("2*3*4*5");
             Assert.AreEqual(120m, m4.Update());
             Assert.AreEqual("2 * 3 * 4 * 5", m4.ToString());            
+        }
+
+
+        [TestMethod]
+        public void Test_Formula_Simplification()
+        {
+            Formula a = (Formula)Formula.FromString("3x+3+4", context);
+            Formula b = (Formula)Formula.FromString("3x+7", context);
+            object simplified = a.GetSimplified();
+
+            Assert.IsTrue(b.Equals(simplified));
         }
 
 
@@ -177,6 +204,8 @@ namespace Helpers_Unit_Testing
             Assert.AreEqual(-109m, s5.Update());
             Assert.AreEqual("-100 - -(-10 - -1)", s5.ToString());
         }
+
+        
 
 
         [TestMethod]
@@ -233,11 +262,13 @@ namespace Helpers_Unit_Testing
 
         [TestMethod]
         public void Test_NamedFunctions_Trig()
-        {
+        {            
             Formula c0 = (Formula)Formula.FromString("cos(1)", context);
             Assert.AreEqual("COS", c0.GetType().Name);
             Assert.AreEqual((decimal)Math.Cos(1), c0.Update());
             Assert.AreEqual("COS(1)", c0.ToString());
+
+            context.AddVariable("x");
         }
 
         

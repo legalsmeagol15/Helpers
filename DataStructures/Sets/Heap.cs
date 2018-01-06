@@ -94,6 +94,9 @@ namespace DataStructures
             }            
         }
 
+        public Heap(Func<T, int> prioritizer, int capacity = DEFAULT_CAPACITY) 
+            : this(null, ((a, b) => prioritizer(a).CompareTo(prioritizer(b))), capacity) { }
+
 
         /// <summary>
         /// The number of items currently held in the heap.
@@ -147,38 +150,28 @@ namespace DataStructures
 
 
         private int PercolateDown(int index)
-        {            
-            //Handle as long as there are two children.
-            int childIdx = (index * 2) + 1;
-            while (childIdx < Count)
+        {
+            //Handle as long as there are two children.            
+            while (true)
             {
-                T parent = table[index], rightChild = table[childIdx], leftChild = table[childIdx - 1];
-                if (_Compare(leftChild, parent) < 0)
+                int childIdx = (index * 2) + 1;
+                if (childIdx >= Count) break;
+
+                T parent = table[index], child = table[childIdx];
+                if (childIdx == Count - 1) // There no right child.
                 {
-                    Swap(index, childIdx - 1);
-                    index = childIdx - 1;
-                }
-                else if (_Compare(rightChild, parent) < 0)
-                {
-                    Swap(index, childIdx);
-                    index = childIdx;
+                    if (_Compare(child, parent) < 0) { Swap(index, childIdx); index = childIdx; }
                 }
                 else
                 {
-                    break;
+                    T rightChild = table[childIdx + 1];
+                    if (_Compare(rightChild, child) < 0) { childIdx++; child = rightChild; }
+                    if (_Compare(child, parent) < 0) { Swap(index, childIdx); index = childIdx; continue; }
                 }
-                childIdx = (index * 2) + 1;
-            }
+                break;
+            }            
 
-            //Handle the case of only the left child being on the table.
-            childIdx = index * 2;
-            if (childIdx < Count && _Compare(table[childIdx], table[index]) < 0)
-            {
-                Swap(index, childIdx);
-                index = childIdx;
-            }
-
-            return childIdx;
+            return index;
 
         }
         private int PercolateUp(int index)
@@ -199,5 +192,6 @@ namespace DataStructures
             table[indexB] = temp;
         }
 
+        public override string ToString() => "Count=" + Count;
     }
 }

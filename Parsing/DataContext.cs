@@ -82,12 +82,45 @@ namespace Parsing
         /// <returns>Returns true if the Variable could be retrieved; otherwise, returns false.</returns>
         public bool TryGetVariable(string name, out Variable v) => _VariableManager.TryGet(name, out v);
 
-        /// <summary>Adds a Variable with the given (normalized) name to this Manager.  If the Variable already exists, returns 
+        /// <summary>Adds a Variable with the given (normalized) name to this context.  If the Variable already exists, returns 
         /// null.</summary>
         /// <param name="name">The name of the Variable to add.  The name will be normalized according to the context's normalization 
         /// rules.</param>
         /// <returns>Returns a reference to the Variable added.</returns>
         public Variable AddVariable(string name) => _VariableManager.Add(name);
+
+        /// <summary>
+        /// Adds a Variable with the given (normalized) name to this context.  If the Variable already exists, returns null.  If it does 
+        /// not exist, sets the Variable's contents to the given object and Update()s the cached the value.
+        /// </summary>
+        /// <param name="name">The name of the Variable to add to the context.</param>
+        /// <param name="value">The new value for the Variable.</param>
+        /// <returns>Returns the Variable added.</returns>
+        public Variable AddVariable(string name, object value)
+        {
+            Variable v = _VariableManager.Add(name);
+            if (v == null) return null;
+            v.Contents = value;
+            v.Update();
+            return v;
+        }
+
+        /// <summary>
+        /// Gets or sets the Contents of the Variable associated with the given name, and calls Update().
+        /// </summary>
+        /// <param name="name">The name of the Variable to get or set.</param>
+        /// <returns>Returns the Variable with the given name, if it exists.</returns>
+        public Variable this[string name]
+        {
+            get => _VariableManager[name];
+            set
+            {
+                if (!_VariableManager.TryGet(name, out Variable v)) v = _VariableManager.Add(name);
+                v.Contents = value;
+                v.Update();
+            }
+        }
+
 
         /// <summary>
         /// Removes the given Variable from this manager, if there are no context references to it.
@@ -149,16 +182,22 @@ namespace Parsing
         private const string SpacePattern = @"?=\s+";
 
 
-        private static string StandardRegExPattern = string.Format("({0}) | ({1}) | ({2}) | ({3}) | ({4}) | ({5}) | ({6}) | ({7})",
-                                                                   StringPattern,                          //0
-                                                                   LeftNestPattern,                        //1
-                                                                   RightNestPattern,                       //2
-                                                                   OperatorPattern,                        //3
-                                                                   WordPattern,                            //4
-                                                                   NumberPattern,                          //5
-                                                                   SpacePattern,                           //6
-                                                                   Variable.Manager.StandardVariablePattern);      //7
+        private static string StandardRegExPattern = string.Format("({0}) | ({1}) | ({2}) | ({3}) | ({4}) | ({5}) | ({6}) | ({7})",        
+                                                                   StringPattern,                             //0
+                                                                   LeftNestPattern,                           //1
+                                                                   RightNestPattern,                          //2
+                                                                   OperatorPattern,                           //3
+                                                                   WordPattern,                               //4
+                                                                   NumberPattern,                             //5
+                                                                   SpacePattern,                              //6
+                                                                   Variable.Manager.StandardVariablePattern   //7
+                                                                   );
+
+        /// <summary>
+        /// The standard regular expression pattern.
+        /// </summary>
         public static Regex StandardFormulaPattern = new Regex(StandardRegExPattern, RegexOptions.IgnorePatternWhitespace);
+        //public static Regex StandardFormulaPattern = new Regex("d", RegexOptions.IgnorePatternWhitespace);
 
         /// <summary>
         /// The cached regular expression structure used to lex strings into formulae.

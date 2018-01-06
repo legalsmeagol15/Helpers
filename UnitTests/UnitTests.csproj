@@ -62,6 +62,8 @@
     <Compile Include="Test_HashCollection.cs" />
     <Compile Include="Test_Range.cs" />
     <Compile Include="Test_SkipList.cs" />
+    <Compile Include="Test_DynamicLinkedList.cs" />
+    <Compile Include="Test_Heap.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Helpers\DataStructures\DataStructures.csproj">

@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
+using System.Runtime;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,6 +15,8 @@ namespace DataStructures
     /// <summary>
     /// A linked list that allows insertions and deletions mid-list.  Each such insertion or deletion is potentially an O(N) operation.
     /// </summary>
+    [DebuggerDisplay("Count = {Count}")]    
+    [DefaultMember("Item")]
     public class DynamicLinkedList<T> : IEnumerable<T>
     {
 
@@ -129,6 +135,12 @@ namespace DataStructures
 
         public Node FirstNode => _FirstNode;
         public Node LastNode => _LastNode;
+
+        public IEnumerable<Node> Nodes()
+        {
+            Node n = FirstNode;
+            while (n != null) { yield return n; n = n.Next; }
+        }
 
         #endregion
 
@@ -276,8 +288,11 @@ namespace DataStructures
                 return count;
             }
 
-
+            public override string ToString() => "Node " + ((Contents == null) ? "_" : Contents.ToString());
 
         }
+
+
+        
     }
 }

@@ -6,8 +6,11 @@ namespace Parsing.NamedFunctions
 {
     internal abstract class NamedFunction : Formula
     {
-        protected NamedFunction(DataContext context) : base(context) { }
+        
 
+        protected NamedFunction(DataContext context, params object[] inputs) : base(context, inputs) { }
+        protected NamedFunction(DataContext context, IEnumerable<object> inputs) : base(context, inputs) { }
+        
 
         protected internal override int ParsingPriority => PRIORITY_NAMED_FUNCTION;
 
@@ -45,6 +48,7 @@ namespace Parsing.NamedFunctions
             {
                 //Add pre-defined static constants
                 _Catalogue.Add(Pi.Name, (context) => Pi);
+                _Catalogue.Add(E.Name, (context) => E);
 
                 //Add func-creators
                 IsValid = nameValidator ?? _StandardNameValidator;
@@ -100,9 +104,10 @@ namespace Parsing.NamedFunctions
             else
                 throw new FormatException(ToString() + " must be followed by block containing inputs.");            
         }
-
+        
 
         public override string ToString() => GetType().Name + "(" + string.Join(", ", Inputs) + ")";
+
 
         
         #region NamedFunction predefined constants
@@ -110,29 +115,36 @@ namespace Parsing.NamedFunctions
         private class Constant : NamedFunction
         {
             public readonly string Name;
-            public Constant(decimal constantValue, string name) : base(null)
-            {
-                Name = name;
-                Inputs = new List<object>() { constantValue };
-            }
 
-            protected override object Evaluate(params object[] inputs) => Inputs[0];
+            public Constant(decimal constantValue, string name) : base(null, constantValue) { Name = name; Value = constantValue; }
+
+            protected override object Evaluate(IList<object> inputs) => Inputs[0];
 
             protected override void Parse(DynamicLinkedList<object>.Node node)
             {
                 if (node.Next == null) return;
                 else if (node.Next.Contents is Block b)
                 {
-                    if (b.Opener != "(" || b.Closer != ")" || b.Inputs.Count != 0)
+                    if (b.Opener != "(" || b.Closer != ")" || b.Inputs.Length != 0)
                         throw new FormatException(Name + " can only be followed by empty parenthetical, or nothing.");
                     node.Next.Remove();
                 }
             }
 
             public override string ToString() => Name;
+
+            protected override bool IsIdenticalTo(Formula other) => (other is Constant k) ? k.Value == this.Value : false;
+
+            public override object GetSimplified() => this;
+
+            protected override object GetDerivativeRecursive(Variable v) => 0m;
         }
 
+
+
+
         private static Constant Pi = new Constant((decimal)Math.PI, "PI");
+        private static Constant E = new Constant((decimal)Math.E, "E");
 
         #endregion
     }
@@ -142,17 +154,31 @@ namespace Parsing.NamedFunctions
     {
         public COS(DataContext context) : base(context) { }
 
-        protected override object Evaluate(params object[] inputs)
+        
+        protected override object Evaluate(IList<object> inputs)
         {
-            if (inputs.Length != 1) throw new EvaluationException(ToString() + " has wrong number of inputs.");
+
+            if (inputs.Count != 1) throw new EvaluationException(ToString() + " has wrong number of inputs.");
             if (inputs[0] is decimal m)
             {
                 return (decimal)Math.Cos((double)m);
             }
             throw new EvaluationException("Invalid input for " + GetType().Name + ": " + inputs[0].ToString());
         }
-        
+
+        public override object GetSimplified()
+        {
+            //if (Inputs[0].Equals(Pi))
+            throw new NotImplementedException();
+        }
+
+
+        protected override object GetDerivativeRecursive(Variable v)
+        {
+            throw new NotImplementedException();
+        }
     }
+
     
 
 }

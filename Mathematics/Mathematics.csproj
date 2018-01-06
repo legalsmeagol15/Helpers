@@ -54,6 +54,7 @@
     <Compile Include="Cartesian\PointM.cs" />
     <Compile Include="Primes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Random.cs" />
     <Compile Include="Sorting.cs" />
     <Compile Include="Cartesian\VectorL.cs" />
     <Compile Include="Cartesian\VectorM.cs" />
