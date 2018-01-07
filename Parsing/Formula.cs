@@ -456,20 +456,27 @@ namespace Parsing
         /// </summary>        
         public object GetSimplified()
         {
-            object[] simps = new object[_Inputs.Length];
+            //Step #1 - simplified each Formula and sub-Formula into a linear form.
+            List<object> simps = new List<object>(_Inputs.Length);
             for (int i = 0; i < _Inputs.Length; i++)
             {
                 if (_Inputs[i] is Formula f)
                 {
-                    simps[i] = f.GetSimplified();
+                    simps.Add(f.GetSimplified());
                     if (ReferenceEquals(simps[i], _Inputs[i]))      //An implementation check
                         throw new InvalidOperationException("Reference to an Input was received when a simplification of that Input " +
                                                             "was expected.  Simplified Formulas must return copies of themselves.");
                 }
-                else simps[i] = _Inputs[i];                
+                else
+                    simps.Add(_Inputs[i]);
             }
-                
-            return FromSimplified(Context, simps);
+
+            //Step #2 - Combine like terms.
+            decimal m = simps.Sum(simp => simp is decimal _m ? _m : 0m);
+            simps.RemoveAll(simp => simp is decimal);
+            if (simps.Count == 0) return m;
+
+            throw new NotImplementedException();
         }
 
         /// <summary>Override to specify how a particular Formula type simplifies.</summary>

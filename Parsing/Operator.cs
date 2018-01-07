@@ -50,7 +50,7 @@ namespace Parsing.Operators
                 case "+": op = new Plus(context); return true;
                 case "-":   //Is it a substraction, or an inversion?
                     {
-                        if (existingInputs.Count == 0 || existingInputs.Last is Operator) op = new Inverse(context);
+                        if (existingInputs.Count == 0 || existingInputs.Last is Operator) op = new Negation(context);
                         else op = new Minus(context);
                         return true;
                     }
@@ -62,8 +62,8 @@ namespace Parsing.Operators
                 case ".": op = new Dot(context); return true;
                 case ":": op = new Colon(context); return true;
                 case "%": op = new Percent(context); return true;
-                case "!": op = new Inverse(context); return true;
-                case "~": op = new Inverse(context); return true;
+                case "!": op = new Negation(context); return true;
+                case "~": op = new Negation(context); return true;
                 default: { op = null; return false; }
             }
         }
@@ -207,10 +207,10 @@ namespace Parsing.Operators
     }
 
 
-    internal sealed class Inverse : Operator
+    internal sealed class Negation : Operator
     {
-        public Inverse(DataContext context) : base(context) { }
-        internal Inverse(DataContext context, object item) : base(context, new object[1] { item }) { }
+        public Negation(DataContext context) : base(context) { }
+        internal Negation(DataContext context, object item) : base(context, new object[1] { item }) { }
 
 
         protected override int ParsingPriority => PRIORITY_NOT;
@@ -257,21 +257,33 @@ namespace Parsing.Operators
         protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs)
         {
             if (simplifiedInputs.Count != 1) throw new InvalidOperationException("Sanity check.");
-            switch (simplifiedInputs[0])
-            {                
-                case Plus p: //Inverting a Plus means returning a Plus whose terms are inverses of the original Plus
-                    return new Plus(context, p.Inputs.Select(p_input => FromSimplified(context, new object[] { p_input })));
-                case Inverse i: //Inverting an Inverse returns the original.
-                    return i.Inputs[0];
-                case decimal m: //Inverting a decimal returns the negative of that decimal
-                    return -m;
-                case bool b:  //Inverting a bool returns the ~ of the bool.
-                    return !b;
-            }
-            return new Inverse(context, simplifiedInputs[0]);
+            return InvertSimplified(context, simplifiedInputs[0]);
         }
 
+        /// <summary>Returns the inverse of the object given.  For use with simplification.  Does not make an promises about whether an 
+        /// original reference is returned.</summary>
+        internal static object InvertSimplified(DataContext context, object obj)
+        {
+            switch (obj)
+            {
+                case Plus plus:
+                    return new Plus(context, plus.Inputs.Select(p_input => InvertSimplified(context, p_input)));
+                case Minus minus:
+                    List<object> newInputs = new List<object>();
+                    newInputs.Add(InvertSimplified(context, minus.Inputs[0]));
+                    newInputs.AddRange(minus.Inputs.Skip(1));
+                    return new Plus(context, newInputs);
+                case Negation inv:
+                    return inv.Inputs[0];
+                case decimal m:
+                    return -m;
+                case bool b:
+                    return !b;
+            }
+            return new Negation(context, obj);
+        }
         
+
         protected override object GetDerivativeRecursive(Variable v) =>
             throw new InvalidOperationException("No derivation available for operator type '" + Symbol + "'.");
     }
@@ -303,8 +315,34 @@ namespace Parsing.Operators
 
         protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs)
         {
-           
-            throw new NotImplementedException();
+
+            //The objective is to get it to a summation of negations.  The first item is treated differently from 
+            //the items that follow:  7 - 3 means the 7 is positive, while the 3 is negative, ie, 7 + -3
+
+            List<object> plusInputs = new List<object>();
+            AddLinearly(simplifiedInputs[0]);            
+            for (int i = 1; i < simplifiedInputs.Count;i++)
+                AddLinearly(Negation.InvertSimplified(context, simplifiedInputs[i]));
+            return new Plus(context, plusInputs);
+
+            void AddLinearly(object other)
+            {
+                
+                switch (other)
+                {
+                    case Plus p:
+                        plusInputs.AddRange(p.Inputs);
+                        break;
+                    case Minus m:
+                        plusInputs.Add(m.Inputs[0]);
+                        plusInputs.AddRange(m.Inputs.Skip(1).Select(s => Negation.InvertSimplified(context, s)));
+                        break;
+                    default:
+                        plusInputs.Add(other);
+                        break;
+                }
+            }
+            
         }
 
 
@@ -389,7 +427,18 @@ namespace Parsing.Operators
             }
             throw new NotImplementedException();
         }
-        
+
+        protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs)
+        {
+            List<object> newInputs = new List<object>();
+            foreach(object input in Inputs)
+            {
+                if (input is Plus p) newInputs.AddRange(p.Inputs);
+                else newInputs.Add(input);
+            }
+            return new Plus(context, newInputs);
+        }
+
 
         protected override object GetDerivativeRecursive(Variable v) =>
             throw new InvalidOperationException("No derivation available for operator type '" + Symbol + "'.");

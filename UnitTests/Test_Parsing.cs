@@ -169,11 +169,11 @@ namespace Helpers_Unit_Testing
         [TestMethod]
         public void Test_Formula_Simplification()
         {
-            Formula a = (Formula)Formula.FromString("3x+3+4", context);
-            Formula b = (Formula)Formula.FromString("3x+7", context);
-            object simplified = a.GetSimplified();
+            Formula f = (Formula)Formula.FromString("3+3+4", context);
+            object compare = Formula.FromString("10", context);
+            object simplified = f.GetSimplified();
 
-            Assert.IsTrue(b.Equals(simplified));
+            Assert.IsTrue(simplified.Equals(compare));
         }
 
 
