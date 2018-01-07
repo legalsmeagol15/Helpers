@@ -12,7 +12,7 @@ namespace Parsing.NamedFunctions
         protected NamedFunction(DataContext context, IEnumerable<object> inputs) : base(context, inputs) { }
         
 
-        protected internal override int ParsingPriority => PRIORITY_NAMED_FUNCTION;
+        protected override int ParsingPriority => PRIORITY_NAMED_FUNCTION;
 
 
         public class Factory

@@ -13,6 +13,10 @@ using System.Runtime.Serialization;
 
 namespace Parsing.Operators
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <remarks>The </remarks>
     internal abstract class Operator : Formula
     {
         protected Operator(DataContext context, params object[] inputs) : base(context, inputs) { }
@@ -104,7 +108,7 @@ namespace Parsing.Operators
         protected override object Evaluate(IList<object> evaluatedInputs) => string.Join("", evaluatedInputs);
 
         protected override string Symbol => "&";
-        protected internal override int ParsingPriority => PRIORITY_AMPERSAND;
+        protected override int ParsingPriority => PRIORITY_AMPERSAND;
         
         protected override object GetDerivativeRecursive(Variable v) =>
             throw new InvalidOperationException("No derivation available for operator type '" + Symbol + "'.");
@@ -118,7 +122,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => ":";
 
-        protected internal override int ParsingPriority => PRIORITY_COLON;
+        protected override int ParsingPriority => PRIORITY_COLON;
 
 
         protected override object Evaluate(IList<object> evaluatedInputs) => throw new NotImplementedException();
@@ -164,7 +168,7 @@ namespace Parsing.Operators
 
         public override string ToString() => string.Join(Symbol, Inputs);
 
-        protected internal override int ParsingPriority => PRIORITY_DOT;
+        protected override int ParsingPriority => PRIORITY_DOT;
         
 
         protected override object GetDerivativeRecursive(Variable v) =>
@@ -180,7 +184,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => "^";
 
-        protected internal override int ParsingPriority => PRIORITY_HAT;
+        protected override int ParsingPriority => PRIORITY_HAT;
 
 
         protected override object Evaluate(IList<object> evaluatedInputs)
@@ -209,7 +213,7 @@ namespace Parsing.Operators
         internal Inverse(DataContext context, object item) : base(context, new object[1] { item }) { }
 
 
-        protected internal override int ParsingPriority => PRIORITY_NOT;
+        protected override int ParsingPriority => PRIORITY_NOT;
 
 
         protected override void Parse(DynamicLinkedList<object>.Node node)
@@ -256,7 +260,7 @@ namespace Parsing.Operators
             switch (simplifiedInputs[0])
             {                
                 case Plus p: //Inverting a Plus means returning a Plus whose terms are inverses of the original Plus
-                    return new Plus(Context, p.Inputs.Select(p_input => FromSimplified(Context, new object[] { p_input })));
+                    return new Plus(context, p.Inputs.Select(p_input => FromSimplified(context, new object[] { p_input })));
                 case Inverse i: //Inverting an Inverse returns the original.
                     return i.Inputs[0];
                 case decimal m: //Inverting a decimal returns the negative of that decimal
@@ -264,9 +268,10 @@ namespace Parsing.Operators
                 case bool b:  //Inverting a bool returns the ~ of the bool.
                     return !b;
             }
-            return new Inverse(Context, simplifiedInputs[0]);
+            return new Inverse(context, simplifiedInputs[0]);
         }
 
+        
         protected override object GetDerivativeRecursive(Variable v) =>
             throw new InvalidOperationException("No derivation available for operator type '" + Symbol + "'.");
     }
@@ -279,7 +284,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => "-";
 
-        protected internal override int ParsingPriority => PRIORITY_MINUS;
+        protected override int ParsingPriority => PRIORITY_MINUS;
 
 
         protected override object Evaluate(IList<object> evaluatedInputs)
@@ -298,18 +303,7 @@ namespace Parsing.Operators
 
         protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs)
         {
-
-            //The objective is to return a sum of negations.
-            List<object> plusInputs;
-            switch (simplifiedInputs[0])
-            {
-                
-            }
-
-            for (int i = 1; i < simplifiedInputs.Count; i++)
-            {
-            
-            }
+           
             throw new NotImplementedException();
         }
 
@@ -325,7 +319,7 @@ namespace Parsing.Operators
         public Nor(DataContext context) : base(context) { }
         internal Nor(DataContext context, IEnumerable<object> inputs) : base(context) { }
 
-        protected internal override int ParsingPriority => PRIORITY_PIPE;
+        protected override int ParsingPriority => PRIORITY_PIPE;
 
         protected override string Symbol => "nor";
 
@@ -357,7 +351,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => "%";
 
-        protected internal override int ParsingPriority => throw new NotImplementedException();
+        protected override int ParsingPriority => throw new NotImplementedException();
 
 
         protected override object Evaluate(IList<object> evaluatedInputs)
@@ -377,7 +371,7 @@ namespace Parsing.Operators
         public Pipe(DataContext context) : base(context) { }
         internal Pipe(DataContext context, IEnumerable<object> inputs) : base(context) { }
 
-        protected internal override int ParsingPriority => PRIORITY_PIPE;
+        protected override int ParsingPriority => PRIORITY_PIPE;
 
         protected override string Symbol => "|";
 
@@ -411,7 +405,7 @@ namespace Parsing.Operators
 
 
 
-        protected internal override int ParsingPriority => PRIORITY_PLUS;
+        protected override int ParsingPriority => PRIORITY_PLUS;
 
         protected override string Symbol => "+";
 
@@ -445,7 +439,7 @@ namespace Parsing.Operators
         protected override string Symbol => "?";
 
 
-        protected internal override int ParsingPriority => PRIORITY_COLON;
+        protected override int ParsingPriority => PRIORITY_COLON;
 
         protected override object Evaluate(IList<object> evaluatedInputs)
         {
@@ -480,7 +474,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => "/";
 
-        protected internal override int ParsingPriority => PRIORITY_DIVIDE;
+        protected override int ParsingPriority => PRIORITY_DIVIDE;
 
         protected override object Evaluate(IList<object> evaluatedInputs)
         {
@@ -511,7 +505,7 @@ namespace Parsing.Operators
 
         protected override string Symbol => "*";
 
-        protected internal override int ParsingPriority => PRIORITY_STAR;
+        protected override int ParsingPriority => PRIORITY_STAR;
 
         protected override object Evaluate(IList<object> evaluatedInputs)
         {

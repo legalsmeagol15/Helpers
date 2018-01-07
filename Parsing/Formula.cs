@@ -17,7 +17,8 @@ namespace Parsing
     /// A Formula is a parse tree that interprets strings for evaluation.  The resulting tree should be as near as possible to the 
     /// structure of the original string, with no flattening or simplification.
     /// </summary>
-    public abstract class Formula : IDisposable //, ICacheValue
+    /// <remarks>The Formula implements IComparable for priority sorting.</remarks>
+    public abstract class Formula : IDisposable, IComparable<Formula> //, ICacheValue
     {
 
         
@@ -143,45 +144,7 @@ namespace Parsing
 
 
 
-        #region Formula parsing priorities
-
-        /// <summary></summary>
-        protected const int PRIORITY_PLUS = 11;
-        /// <summary></summary>
-        protected const int PRIORITY_MINUS = 10;
-        /// <summary></summary>
-        protected const int PRIORITY_STAR = 8;
-        /// <summary></summary>
-        protected const int PRIORITY_DIVIDE = 9;
-        /// <summary></summary>
-        protected const int PRIORITY_HAT = 5;
-        /// <summary></summary>
-        protected const int PRIORITY_NOT = 3;
-        /// <summary></summary>
-        protected const int PRIORITY_AMPERSAND = 13;
-        /// <summary></summary>
-        protected const int PRIORITY_PIPE = 14;
-        /// <summary></summary>
-        protected const int PRIORITY_COLON = 2;
-        /// <summary></summary>
-        protected const int PRIORITY_QUESTION = 1;
-        /// <summary></summary>
-        protected const int PRIORITY_DOT = 0;
-        /// <summary></summary>
-        protected const int PRIORITY_NAMED_FUNCTION = -1;
-        /// <summary></summary>
-        protected const int PRIORITY_BLOCK_PARENTHESES = -2;
-        /// <summary></summary>
-        protected const int PRIORITY_BLOCK_CURLY = -2;
-        /// <summary></summary>
-        protected const int PRIORITY_BLOCK_BRACKETS = -2;
-
-        #endregion
-
-
-        /// <summary></summary>
-        protected internal abstract int ParsingPriority { get; }
-
+       
 
 
 
@@ -232,7 +195,7 @@ namespace Parsing
 
 
         /// <summary>A structure used for building Formulas.</summary>
-        /// <remarks>This data structure is used for building the Formulas because it allows for a dynamic linked list for its Inputs, 
+        /// <remarks>This data structure is used for lexxing the Formulas because it allows for a dynamic linked list for its Inputs, 
         /// whereas a finished Block must have an array specifying its Inputs.  Once building the Formula is complete, all of these 
         /// structs are thrown away and garbage collected.</remarks>
         protected internal struct BlockNode
@@ -245,6 +208,7 @@ namespace Parsing
             /// <param name="block">The Block associated with this node.</param>
             public BlockNode(Block block) { Block = block; Inputs = new DynamicLinkedList<object>(); }
         }
+
 
         /// <summary>Lexes the tokens, and returns the result within a parenthetical block (this block constitutes one extra 
         /// layer which may need to be removed).  For example, if the tokens are:  "COS" "(" "3.14159" ")", then a single parenthetical 
@@ -380,6 +344,54 @@ namespace Parsing
 
 
 
+        #region Formula parsing priorities
+
+        /// <summary></summary>
+        protected const int PRIORITY_PLUS = 11;
+        /// <summary></summary>
+        protected const int PRIORITY_MINUS = 10;
+        /// <summary></summary>
+        protected const int PRIORITY_STAR = 8;
+        /// <summary></summary>
+        protected const int PRIORITY_DIVIDE = 9;
+        /// <summary></summary>
+        protected const int PRIORITY_HAT = 5;
+        /// <summary></summary>
+        protected const int PRIORITY_NOT = 3;
+        /// <summary></summary>
+        protected const int PRIORITY_AMPERSAND = 13;
+        /// <summary></summary>
+        protected const int PRIORITY_PIPE = 14;
+        /// <summary></summary>
+        protected const int PRIORITY_COLON = 2;
+        /// <summary></summary>
+        protected const int PRIORITY_QUESTION = 1;
+        /// <summary></summary>
+        protected const int PRIORITY_DOT = 0;
+        /// <summary></summary>
+        protected const int PRIORITY_NAMED_FUNCTION = -1;
+        /// <summary></summary>
+        protected const int PRIORITY_BLOCK_PARENTHESES = -2;
+        /// <summary></summary>
+        protected const int PRIORITY_BLOCK_CURLY = -2;
+        /// <summary></summary>
+        protected const int PRIORITY_BLOCK_BRACKETS = -2;
+
+        #endregion
+
+
+        /// <summary></summary>
+        protected abstract int ParsingPriority { get; }
+
+
+        int IComparable<Formula>.CompareTo(Formula other) => ComparePriority(other);
+
+        /// <summary>
+        /// Returns the comparison between one Formula and another, in terms of parsing priority.  The lower-priority Formula will be 
+        /// parsed first.  Default behavior is simply to compare numerical parsing priorities.
+        /// </summary>
+        protected virtual int ComparePriority(Formula other) => ParsingPriority.CompareTo(other.ParsingPriority);
+
 
         /// <summary>Parses the given Formula as situated within a list of inputs.</summary>        
         protected abstract void Parse(DynamicLinkedList<object>.Node node);
@@ -484,7 +496,7 @@ namespace Parsing
             public readonly string Closer;
 
             /// <summary>Blocks have very low (early) priority.</summary>
-            protected internal override int ParsingPriority
+            protected override int ParsingPriority
             {
                 get
                 {
@@ -525,7 +537,8 @@ namespace Parsing
 
                 //Prioritize the DynamicLinkedList nodes containing Formulas, according to those Formulas' parsing priority.  At the same 
                 //time, recursively parse any content Blocks.
-                Heap<DynamicLinkedList<object>.Node> priority = new Heap<DynamicLinkedList<object>.Node>(_n => ((Formula)_n.Contents).ParsingPriority);
+                //Heap<DynamicLinkedList<object>.Node> priority = new Heap<DynamicLinkedList<object>.Node>(_n => ((Formula)_n.Contents).ParsingPriority);
+                Heap<DynamicLinkedList<object>.Node> priority = new Heap<DynamicLinkedList<object>.Node>((a, b) => ((Formula)a.Contents).ComparePriority((Formula)b.Contents));
                 while (n != null)
                 {
                     if (n.Contents is BlockNode bn)
@@ -674,6 +687,8 @@ namespace Parsing
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
         }
+
+        
 
 
         #endregion
