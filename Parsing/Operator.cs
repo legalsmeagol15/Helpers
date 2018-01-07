@@ -72,7 +72,7 @@ namespace Parsing.Operators
             return "_" + Symbol + "_";
         }
 
-        protected override object FromSimplified(IList<object> simplifiedInputs) 
+        protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs) 
             => throw new InvalidOperationException("Operator " + Symbol + " cannot be simplified.");
 
 
@@ -248,7 +248,24 @@ namespace Parsing.Operators
             if (Inputs.Length == 1) return "-" + Inputs[0];
             return base.ToString();
         }
-        
+
+
+        protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs)
+        {
+            if (simplifiedInputs.Count != 1) throw new InvalidOperationException("Sanity check.");
+            switch (simplifiedInputs[0])
+            {                
+                case Plus p: //Inverting a Plus means returning a Plus whose terms are inverses of the original Plus
+                    return new Plus(Context, p.Inputs.Select(p_input => FromSimplified(Context, new object[] { p_input })));
+                case Inverse i: //Inverting an Inverse returns the original.
+                    return i.Inputs[0];
+                case decimal m: //Inverting a decimal returns the negative of that decimal
+                    return -m;
+                case bool b:  //Inverting a bool returns the ~ of the bool.
+                    return !b;
+            }
+            return new Inverse(Context, simplifiedInputs[0]);
+        }
 
         protected override object GetDerivativeRecursive(Variable v) =>
             throw new InvalidOperationException("No derivation available for operator type '" + Symbol + "'.");
@@ -278,7 +295,24 @@ namespace Parsing.Operators
             }
             throw new NotImplementedException();
         }
-        
+
+        protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs)
+        {
+
+            //The objective is to return a sum of negations.
+            List<object> plusInputs;
+            switch (simplifiedInputs[0])
+            {
+                
+            }
+
+            for (int i = 1; i < simplifiedInputs.Count; i++)
+            {
+            
+            }
+            throw new NotImplementedException();
+        }
+
 
         protected override object GetDerivativeRecursive(Variable v) =>
             throw new InvalidOperationException("No derivation available for operator type '" + Symbol + "'.");

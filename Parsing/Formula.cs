@@ -446,14 +446,24 @@ namespace Parsing
         {
             object[] simps = new object[_Inputs.Length];
             for (int i = 0; i < _Inputs.Length; i++)
-                simps[i] = (_Inputs[i] is Formula f) ? f.GetSimplified() : _Inputs[i];
-            return FromSimplified(simps);
+            {
+                if (_Inputs[i] is Formula f)
+                {
+                    simps[i] = f.GetSimplified();
+                    if (ReferenceEquals(simps[i], _Inputs[i]))      //An implementation check
+                        throw new InvalidOperationException("Reference to an Input was received when a simplification of that Input " +
+                                                            "was expected.  Simplified Formulas must return copies of themselves.");
+                }
+                else simps[i] = _Inputs[i];                
+            }
+                
+            return FromSimplified(Context, simps);
         }
 
         /// <summary>Override to specify how a particular Formula type simplifies.</summary>
         /// <param name="simplifiedInputs">The inputs have already had GetSimplified() called on them, and returned here.</param>
-        /// <returns></returns>
-        protected abstract object FromSimplified(IList<object> simplifiedInputs);
+        /// <param name="context">The DataContext in which a new Formula may be returned.</param>
+        protected internal abstract object FromSimplified(DataContext context, IList<object> simplifiedInputs);
 
 
         /// <summary>Gets the derivative of the object, with respect to the given Variable.</summary>
@@ -609,7 +619,7 @@ namespace Parsing
             /// If the block's simplified contents is a Formula, then this Block's existence is meaningful and so returns a copy of itself 
             /// with the copy's contents equal to the simplified contents.  Otherwise, returns the simplified contents themselves.
             /// </summary>
-            protected override object FromSimplified(IList<object> simplifiedInputs)
+            protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs)
             {
                 if (simplifiedInputs.Count != 1) throw new InvalidOperationException("Sanity check.");
                 return (simplifiedInputs[0] is Formula f) ? new Block(Opener, Closer, Context, f) : simplifiedInputs[0];

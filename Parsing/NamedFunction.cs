@@ -136,8 +136,8 @@ namespace Parsing.NamedFunctions
             protected override bool IsIdenticalTo(Formula other) => (other is Constant k) ? k.Value == this.Value : false;
 
             /// <summary>Returns a copy of this NamedFunction, with the given simplified inputs as the new Inputs.</summary>
-            protected override object FromSimplified(IList<object> simplifiedInputs) 
-                => (NamedFunction)Activator.CreateInstance(this.GetType(), new object[] { Context, simplifiedInputs });
+            protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs) 
+                => (NamedFunction)Activator.CreateInstance(this.GetType(), new object[] { context, simplifiedInputs });
 
 
             protected override object GetDerivativeRecursive(Variable v) => 0m;
@@ -169,12 +169,13 @@ namespace Parsing.NamedFunctions
             throw new EvaluationException("Invalid input for " + GetType().Name + ": " + inputs[0].ToString());
         }
         
-        protected override object FromSimplified(IList<object> simplifiedInputs)
+
+        protected override object GetDerivativeRecursive(Variable v)
         {
             throw new NotImplementedException();
         }
 
-        protected override object GetDerivativeRecursive(Variable v)
+        protected internal override object FromSimplified(DataContext context, IList<object> simplifiedInputs)
         {
             throw new NotImplementedException();
         }
