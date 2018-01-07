@@ -119,9 +119,9 @@ namespace Parsing
 
 
         /// <summary>The method called to find a Formula's value.</summary>
-        /// <param name="inputs">The inputs to evaluate.  For inputs which are ICacheValue, the cached value is supplied instead of the 
+        /// <param name="evaluatedInputs">The inputs to evaluate.  For inputs which are ICacheValue, the cached value is supplied instead of the 
         /// caching object.</param>        
-        protected abstract object Evaluate(IList<object> inputs);
+        protected abstract object Evaluate(IList<object> evaluatedInputs);
 
 
         /// <summary>Returns the cached value for the object, if there is one, or the object itself.</summary>
@@ -132,10 +132,7 @@ namespace Parsing
             return obj;
         }
 
-
-        ///// <summary>Returns the cached values for the objects, if they exist, or the objects themselves.</summary>
-        //protected static object[] GetValues(IEnumerable<object> inputs) => 
-        //                                    (inputs.Select((input) => (input is ICacheValue icf) ? icf.Value() : input)).ToArray();
+        
 
         #endregion
 
@@ -180,6 +177,7 @@ namespace Parsing
         protected const int PRIORITY_BLOCK_BRACKETS = -2;
 
         #endregion
+
 
         /// <summary></summary>
         protected internal abstract int ParsingPriority { get; }
@@ -397,14 +395,7 @@ namespace Parsing
         }
 
 
-
-        /// <summary>Adds all the Variables from the given <paramref name="other"/> Formula to the this Formula's Variables.</summary>        
-        //protected internal void CombineVariables(object other)
-        //{
-        //    if (other is Variable v) Variables.Add(v);
-        //    else if (other is Formula f) foreach (Variable v1 in f.Variables) Variables.Add(v1);
-        //}
-
+        
 
         /// <summary>
         /// Returns a copy of this formula.  All sub-formulae and literals will be copied, but references to Variables will be the same 
@@ -447,11 +438,23 @@ namespace Parsing
             throw new InvalidOperationException("Cannot find derivative of object of type " + obj.GetType().Name + ".");
         }
 
+        
         /// <summary>
-        /// Attempts the simplify this Formula.  If possible, the simplified Formula is returned in the result.  If not, the original 
-        /// Formula is returned in the result.
-        /// </summary>
-        public abstract object GetSimplified();
+        /// Returns the simplified version of this Formula.  If the Formula cannot be simplified, returns a copy of the Formula.
+        /// </summary>        
+        public object GetSimplified()
+        {
+            object[] simps = new object[_Inputs.Length];
+            for (int i = 0; i < _Inputs.Length; i++)
+                simps[i] = (_Inputs[i] is Formula f) ? f.GetSimplified() : _Inputs[i];
+            return FromSimplified(simps);
+        }
+
+        /// <summary>Override to specify how a particular Formula type simplifies.</summary>
+        /// <param name="simplifiedInputs">The inputs have already had GetSimplified() called on them, and returned here.</param>
+        /// <returns></returns>
+        protected abstract object FromSimplified(IList<object> simplifiedInputs);
+
 
         /// <summary>Gets the derivative of the object, with respect to the given Variable.</summary>
         protected abstract object GetDerivativeRecursive(Variable v);
@@ -606,21 +609,10 @@ namespace Parsing
             /// If the block's simplified contents is a Formula, then this Block's existence is meaningful and so returns a copy of itself 
             /// with the copy's contents equal to the simplified contents.  Otherwise, returns the simplified contents themselves.
             /// </summary>
-            /// <returns></returns>
-            public override object GetSimplified()
+            protected override object FromSimplified(IList<object> simplifiedInputs)
             {
-                if (Inputs.Length == 1)
-                {
-                    object input = (Inputs[0] is Formula f) ? f.GetSimplified() : Inputs[0];
-                    if (input is Formula)
-                    {
-                        Block copy = new Block(Opener, Closer, Context);
-                        copy.Inputs = new object[1] { input };
-                        return copy;
-                    }
-                    return input;
-                }
-                throw new InvalidOperationException("Sanity check.");
+                if (simplifiedInputs.Count != 1) throw new InvalidOperationException("Sanity check.");
+                return (simplifiedInputs[0] is Formula f) ? new Block(Opener, Closer, Context, f) : simplifiedInputs[0];
             }
         }
 
