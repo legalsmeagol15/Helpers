@@ -13,7 +13,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mathematics", "Mathematics\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ArtificialIntelligence", "ArtificialIntelligence\ArtificialIntelligence.csproj", "{0BD847DB-678D-4BC5-9BD6-F70B0A0FF5B2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parsing", "Parsing\Parsing.csproj", "{4A39A275-F0C6-4037-B23F-BAF3DD63E9CC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parsing", "Parsing\Parsing.csproj", "{BF4A81F3-FC3D-434A-9CC2-16FB12EC0E03}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,10 +41,10 @@ Global
 		{0BD847DB-678D-4BC5-9BD6-F70B0A0FF5B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0BD847DB-678D-4BC5-9BD6-F70B0A0FF5B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0BD847DB-678D-4BC5-9BD6-F70B0A0FF5B2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4A39A275-F0C6-4037-B23F-BAF3DD63E9CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4A39A275-F0C6-4037-B23F-BAF3DD63E9CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4A39A275-F0C6-4037-B23F-BAF3DD63E9CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4A39A275-F0C6-4037-B23F-BAF3DD63E9CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF4A81F3-FC3D-434A-9CC2-16FB12EC0E03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF4A81F3-FC3D-434A-9CC2-16FB12EC0E03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF4A81F3-FC3D-434A-9CC2-16FB12EC0E03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF4A81F3-FC3D-434A-9CC2-16FB12EC0E03}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

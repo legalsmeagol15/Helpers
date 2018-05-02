@@ -4,14 +4,13 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{4A39A275-F0C6-4037-B23F-BAF3DD63E9CC}</ProjectGuid>
+    <ProjectGuid>{BF4A81F3-FC3D-434A-9CC2-16FB12EC0E03}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Parsing</RootNamespace>
     <AssemblyName>Parsing</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -21,7 +20,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Debug\Parsing.xml</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -42,27 +40,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DataContext.cs" />
-    <Compile Include="Exceptions.cs" />
-    <Compile Include="Formula.cs" />
-    <Compile Include="NamedFunction.cs" />
-    <Compile Include="Operator.cs" />
+    <Compile Include="Boolean.cs" />
+    <Compile Include="Nesting.cs" />
+    <Compile Include="Error.cs" />
+    <Compile Include="Functions\Function.cs" />
+    <Compile Include="Expression.cs" />
+    <Compile Include="Number.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="String.cs" />
+    <Compile Include="Unit.cs" />
     <Compile Include="Variable.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\DataStructures\DataStructures.csproj">
-      <Project>{b1da6068-30a2-478f-8115-f3ede4ef1388}</Project>
-      <Name>DataStructures</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Graphs\Graphs.csproj">
-      <Project>{76524399-7d62-4bd8-96b1-53cef1d9962a}</Project>
-      <Name>Graphs</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Mathematics\Mathematics.csproj">
-      <Project>{dc7c8e96-6f24-48df-a32f-2dc12b1d315b}</Project>
-      <Name>Mathematics</Name>
-    </ProjectReference>
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
