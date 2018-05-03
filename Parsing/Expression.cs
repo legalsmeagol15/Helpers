@@ -5,107 +5,159 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using DataStructures;
+using Helpers.Parsing;
+using Helpers.Parsing.Functions;
 
 namespace Helpers.Parsing
 {
-    public interface IExpression
+    
+    public interface IEvaluatable 
     {
-        IExpression Evaluate();        
+        IEvaluatable Evaluate();        
     }
 
     
 
     public static class Expression
     {
-        public static IExpression FromString(string str, Variable.DataContext context = null, Function.Factory factory = null)
+        private class TokenList : DynamicLinkedList<object>
         {
-            if (str == null) return new Error("Expression string cannot be null.");
-            string[] rawTokens = _Regex.Split(str);
-            Debug.Assert(rawTokens.Length > 0);
-            Stack<Nesting> nestStack = new Stack<Nesting>();
-            Nesting focus = Nesting.Parenthetical(), root = focus;
-            nestStack.Push(focus);
-            for (int tokenIdx = 0; tokenIdx < rawTokens.Length; tokenIdx++)
+            public string Opener = "";
+            public string Closer = "";
+            public int Start;
+            public int End;
+            public TokenList(string opener, int startIndex) : base() { this.Opener = opener; this.Start = startIndex; }
+            public TokenList(IEnumerable<object> items, string opener, int startIndex) : base(items) { this.Opener = opener; this.Start = startIndex; }
+            public void Close(String closer, int endIndex) { this.Closer = closer; this.End = endIndex; }
+
+            /// <exception cref="InvalidOperationException">Thrown for a mismatch.</exception>
+            public IEvaluatable ToClause()
             {
-                //Step #2a - skip whitespace.
-                string rawToken = rawTokens[tokenIdx].Trim();
-                if (rawToken == "" || string.IsNullOrWhiteSpace(rawToken)) continue;
-
-                //Step #2b - handle particular tokens.
-                switch (rawToken)
+                // Watch for malformed nestings.
+                switch (Opener)
                 {
-                    // Starting a new nesting clause?
-                    case "(":
-                    case "[":
-                    case "{":
-                        nestStack.Push(Nesting.FromSymbol(rawToken));
-                        // An implicit scalar?
-                        if (focus.Inputs.Count > 0 && focus.Inputs.Last() is Number)
-                            focus.Inputs.Add(new Helpers.Parsing.Functions.Multiplication());
-                        focus.Inputs.Add(nestStack.Peek());
-                        continue;
-                    // Concluding the current nesting clause?
-                    case ")":
-                    case "]":
-                    case "}":
-                        if (nestStack.Pop().Closer == rawToken[0]) return new Error("Nesting error.");
-                        if (nestStack.Count == 0) return new Error("Too many closing brackets.");
-                        focus = nestStack.Peek();
-                        continue;
-                    // A divider between inputs?
-                    case ",": continue;
-                    // A divider between sub-vectors?
-                    case ";":
-                        if (nestStack.Count == 0 || nestStack.Peek().Opener != '[')
-                            return new Error("Vector subdivision outside of declared vector.");
-                        int lastIdx = focus.Inputs.FindLastIndex((item) => item is Nesting n && n.Opener == '[');
-                        Nesting subVector = Nesting.Bracketed(focus.Inputs.Skip(lastIdx + 1));
-                        focus.Inputs.RemoveRange(0, lastIdx + 1);
-                        focus.Inputs.Add(subVector);
-                        continue;
-                    // A string?
-                    case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2:
-                        focus.Inputs.Add(new Helpers.Parsing.String(s.Substring(1, s.Length - 2)));
-                        continue;
-
-                    //A negation?                        
-                    case "-":
-                    case "!":
-                    case "~":
-                        Function op;
-                        if (focus.Inputs.Count == 0 || focus.Inputs.Last() is Helpers.Parsing.Functions.Operator) op = new Helpers.Parsing.Functions.Negation();
-                        else op = new Helpers.Parsing.Functions.Subtraction();
-                        focus.Inputs.Add(op);
-                        continue;
-
-                    //Some other operation?
-                    case "+": { focus.Inputs.Add(new Helpers.Parsing.Functions.Addition()); continue; }
-                    case "*": { focus.Inputs.Add(new Helpers.Parsing.Functions.Multiplication()); continue; }
-                    case "/": { focus.Inputs.Add(new Helpers.Parsing.Functions.Division()); continue; }
-                    case "^": { focus.Inputs.Add(new Helpers.Parsing.Functions.Exponentiation()); continue; }
-                    case "|": { focus.Inputs.Add(new Helpers.Parsing.Functions.Or()); continue; }
-                    case "&": { focus.Inputs.Add(new Helpers.Parsing.Functions.And()); continue; }
-                    case ".": { focus.Inputs.Add(new Helpers.Parsing.Functions.Relation()); continue; }
-                    case ":": { focus.Inputs.Add(new Helpers.Parsing.Functions.Range()); continue; }
-
+                    case "":  if (Closer != "") throw new Exception("Mismatched brackets."); break;
+                    case "(": if (Closer != ")") throw new Exception("Mismatched brackets."); break;
+                    case "[": if (Closer != "]") throw new Exception("Mismatched brackets."); break;
+                    case "{": if (Closer != "}") throw new Exception("Mismatched brackets."); break;
+                    default: throw new Exception("Unrecognized bracket: " + Opener);
                 }
 
-                //Step #2c - try to interpret as literals.
-                if (decimal.TryParse(rawToken, out decimal m)) { focus.Inputs.Add(new Helpers.Parsing.Number(m)); continue; }
-                if (bool.TryParse(rawToken, out bool b)) { focus.Inputs.Add(new Helpers.Parsing.Boolean(b)); continue; }
-
-                //Step #2d - try to interpret as a named function.
-                if (factory != null && factory.TryMakeFunction(rawToken, out Function f)) { focus.Inputs.Add(f); continue; }
-
-                //Step #2e - try to interpret as a variable, or create the variable.
-                if (context != null)
+                // Evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
+                List<IEvaluatable> evaluatables = new List<IEvaluatable>();
+                DynamicHeap<Operator> operators = new DynamicHeap<Operator>();
+                DynamicLinkedList<object>.Node node = this.FirstNode;
+                while (node != null)
                 {
-                    if (context.TryGetVariable(rawToken, out Variable v1)) { focus.Inputs.Add(v1); continue; }
-                    if (context.TryCreateVariable(rawToken, out Variable v2) { focus.Inputs.Add(v2); continue; }
+                    switch (node.Contents)
+                    {
+                        case TokenList tl: node.Contents = tl.ToClause(); continue;
+                        case Clause c:
+                            if (node.Previous != null && node.Previous.Contents is Function precedingFunction)
+                            {
+                                if (!precedingFunction.ValidateInputs(c.Inputs))
+                                    return new Error("Invalid inputs for function " + precedingFunction.Name, this.Start, this.End);
+                                c.Function = (Function)node.Previous.Remove();
+                            }
+                            evaluatables.Add(c);
+                            break;
+                        case Error e: return e;
+                        case Operator op:
+                            break;
+                        case Constant k:
+                        case Number n:
+                            if (node.Next == null) break;
+                            if (node.Next.Contents is TokenList || node.Next.Contents is Variable || node.Next.Contents is Function)
+                                node.InsertAfter(Function.Multiplication);
+                            evaluatables.Add((IEvaluatable) node.Contents);
+                            break;
+                        case Function f:
+                            if (node.Next == null || !(node.Next.Contents is TokenList)) return new Error("No inputs for given function.", this.Start, this.End);
+                            break;
+                        default: throw new NotImplementedException();
+                    }
+                    node = node.Next;
                 }
-                
+
+                // Finally, construct trees according to operator precedence within this clause.
+                throw new NotImplementedException();
+
+                // Return the fully-parsed clause.
+                return new Clause(evaluatables, Opener[0], Closer[0]);                
             }
         }
+
+
+        public static IEvaluatable FromString(string str, out ISet<Variable> dependees, Variable.DataContext context = null, Function.Factory factory = null)
+        {
+            // Step #1 setup
+            dependees = new HashSet<Variable>();
+            if (str == null) return new Error("Expression string cannot be null.");
+            string[] rawTokens = _Regex.Split(str);            
+            Debug.Assert(rawTokens.Length > 0);
+            
+            // Step #2 - Parse into tree structure containing tokenized objects
+            Stack<TokenList> stack = new Stack<TokenList>();
+            TokenList root = new TokenList("", 0);
+            stack.Push(root);
+            for (int i = 0; i < rawTokens.Length; i++)
+            {
+                // Step #2a - skip whitespace
+                string rawToken = rawTokens[i].Trim();
+                if (rawToken == "" || string.IsNullOrWhiteSpace(rawToken)) continue;
+
+                // Step #2b - simple tokens
+                switch (rawToken)
+                {
+
+                    //Nesting?
+                    case "(":
+                    case "[":
+                    case "{": stack.Push(new TokenList(rawToken, i)); continue;
+                    case ")":
+                    case "]":
+                    case "}": stack.Pop().Close(rawToken, i); if (stack.Count == 0) return new Error("Too many closing brackets.", 0, i); continue;
+
+                    //Sectioner?
+                    case ",": continue;
+                    case ";": throw new NotImplementedException();// A sub-vector.                    
+                    case "-":
+
+                    //Operator?
+                    case "!":
+                    case "~":
+                        if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator) stack.Peek().AddLast(Function.Negation);
+                        else stack.Peek().AddLast(Function.Subtraction);
+                        continue;
+                    case "+": stack.Peek().AddLast(Function.Addition); continue;
+                    case "*": stack.Peek().AddLast(Function.Multiplication); continue;
+                    case "/": stack.Peek().AddLast(Function.Division); continue;
+                    case "^": stack.Peek().AddLast(Function.Exponentiation); continue;
+                    case "|": stack.Peek().AddLast(Function.Or); continue;
+                    case "&": stack.Peek().AddLast(Function.And); continue;
+                    case ".": stack.Peek().AddLast(Function.Relation); continue;
+                    case ":": stack.Peek().AddLast(Function.Range); continue;
+
+                    //Literal?
+                    case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2: stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2))); continue;
+                    case string _ when decimal.TryParse(rawToken, out decimal m): stack.Peek().AddLast(new Number(m)); continue;
+                    case string _ when bool.TryParse(rawToken, out bool b): stack.Peek().AddLast(new Boolean(b)); continue;
+
+                    //Function?
+                    case string _ when factory.TryGetFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
+
+                    //Variable?
+                    case string _ when context.TryGetVariable(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); continue;
+                    case string _ when context.TryCreateVariable(rawToken, out Variable new_var): stack.Peek().AddLast(new_var); continue;
+
+                    default: return new Error("Unrecognized token: " + rawToken + ".", 0, i);
+                }
+            }
+
+            return root.ToClause();
+        }
+        
 
 
         private static Regex _Regex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);

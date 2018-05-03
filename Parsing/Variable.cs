@@ -6,11 +6,12 @@ using System.Threading.Tasks;
 
 namespace Helpers.Parsing
 {
-    public class Variable : IExpression
+    public class Variable : IEvaluatable
     {
         public readonly string Name;
         public readonly DataContext Context;
-        public IExpression Value;
+        public IEvaluatable Value;
+        public HashSet<Variable> Dependents = new HashSet<Variable>();
 
         public Variable(DataContext context, string name)
         {
@@ -30,7 +31,7 @@ namespace Helpers.Parsing
             return other.Context == this.Context && other.Name == this.Name;
         }
 
-        public IExpression Evaluate()
+        public IEvaluatable Evaluate()
         {
             return Value.Evaluate();
         }

@@ -6,104 +6,65 @@ using System.Threading.Tasks;
 
 namespace Helpers.Parsing
 {
-    public abstract class Function : IExpression
-    {
-        /// <summary>Invariant rule:  should never change.  A Function should be an immutable object.</summary>
-        protected internal readonly IList<IExpression> Inputs;
+    internal abstract class Function
+    {                
+        public virtual string Name => this.GetType().Name;        
+        
+        protected internal abstract IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs);
 
-        public virtual string Name => this.GetType().Name;
-
-        protected internal Function(IEnumerable<IExpression> expressions = null)
+        /// <summary>Check whether the inputs given is of the right number, type, etc.</summary>
+        public virtual bool ValidateInputs(IList<IEvaluatable> unEvaluatedInputs) => true;
+        
+        /// <summary>Returns the string representation of this function from the given clause.</summary>
+        /// <param name="clause">The parenthetical clause for this function to render into a string.</param>
+        protected internal virtual string ToString(Clause clause)
         {
-            if (expressions == null) this.Inputs = new IExpression[0];
-            else this.Inputs = expressions.ToArray();
-        }
-        protected Function() { }
-
-
-        public IExpression Evaluate(int iterations = 1)
-        {
-            IExpression[] evaluated = Inputs.ToArray();
-            while (iterations-- > 0)
-            {
-                bool complete = true;
-                for (int j = 0; j < evaluated.Length; j++)
-                {
-                    IExpression newExpression = evaluated[j].Evaluate();
-                    if (newExpression != evaluated[j] && iterations > 0) complete = false;
-                    evaluated[j] = newExpression;
-                }
-                if (complete) break;
-            }
-            return EvaluateFunction(evaluated);
-        }
-
-        IExpression IExpression.Evaluate() => Evaluate(1);
-
-        protected abstract IExpression EvaluateFunction(IList<IExpression> evaluatedInputs);
-
-        /// <summary> Uses recursion to identify all the variables in this function.</summary>
-        public HashSet<Variable> GetContainedVariables()
-        {
-            HashSet<Variable> set = new HashSet<Variable>();
-            FindVariables(set);
-            return set;
-        }
-        internal void FindVariables(HashSet<Variable> variables)
-        {
-            foreach (IExpression i in Inputs)
-            {
-                if (i is Variable v) variables.Add(v);
-                else if (i is Function f) f.FindVariables(variables);
-                else if (i is Nesting n) n.FindVariables(variables);
-            }
+            StringBuilder sb = new StringBuilder();
+            sb.Append(Name);
+            sb.Append(clause.Opener + " ");
+            if (clause.Inputs.Count > 0) sb.Append(clause.Inputs[0].ToString());
+            for (int i = 1; i < clause.Inputs.Count; i++) sb.Append(", " + clause.Inputs[i].ToString());
+            sb.Append(" " + clause.Closer);
+            return sb.ToString();
         }
 
 
-        protected class TermSorter : IComparer<IExpression>
-        {
-            int IComparer<IExpression>.Compare(IExpression a, IExpression b)
-            {
-                if (a is Error || b is Error) return 0;
-                if (a is Number) return (b is Number) ? 0 : -1;
-                if (b is Number) return 1;
-
-                //TODO:  implement further
-                return 0;
-            }
-        }
-        protected readonly TermSorter FormSorter = new TermSorter();
-
-        public override string ToString() => GetString();
-        protected abstract string GetString();
-
-        public override bool Equals(object obj)
-        {
-            Function f = obj as Function;
-            if (f == null) return false;
-            throw new NotImplementedException();
-        }
-
-
-        private int _CachedHashCode = -1;
-        public sealed override int GetHashCode()
-        {
-            /// Cache the hashcode, or else getting the hash code will be an absurd iterative process.
-            if (_CachedHashCode != -1) return _CachedHashCode;
-            int h = 0;
-            foreach (IExpression input in Inputs) h = unchecked(h + input.GetHashCode());
-            if (h == -1) h++;
-            return _CachedHashCode = h;
-        }
-
+        public static Function Addition = new Functions.Addition();
+        public static Function Subtraction = new Functions.Subtraction();
+        public static Function Division = new Functions.Division();
+        public static Function Multiplication = new Functions.Multiplication();
+        public static Function Negation = new Functions.Negation();
+        public static Function Exponentiation = new Functions.Exponentiation();
+        public static Function And = new Functions.And();
+        public static Function Or = new Functions.Or();
+        public static Function Relation = new Functions.Relation();
+        public static Function Range = new Functions.Range();
+        public static Function Concatenation = new Functions.Concatenation();
+        public static Functions.Constant Pi = new Functions.Constant("Pi", Number.Pi);
+        public static Functions.Constant E = new Functions.Constant("E", Number.E);
 
         public class Factory
         {
             private static Dictionary<string, Function> _Dictionary = new Dictionary<string, Function>();
-            public bool TryMakeFunction(string rawToken, out Function nf)
+            public Function this[string name] { get => _Dictionary[name]; }
+
+            public Factory()
             {
-                throw new NotImplementedException();
+                _Dictionary.Add("Addition", Addition);
+                _Dictionary.Add("Subtraction", Subtraction);
+                _Dictionary.Add("Division", Division);
+                _Dictionary.Add("Multiplication", Multiplication);
+                _Dictionary.Add("Exponentiation", Exponentiation);
+                _Dictionary.Add("And", And);
+                _Dictionary.Add("Or", Or);
+                _Dictionary.Add("Relation", Relation);
+                _Dictionary.Add("Range", Range);
+                _Dictionary.Add("Concatenation", Concatenation);
+                _Dictionary.Add("PI", Pi);
+                _Dictionary.Add("E", E);
             }
+
+            internal bool TryGetFunction(string rawToken, out Function f) => _Dictionary.TryGetValue(rawToken, out f);
         }
 
     }
@@ -117,139 +78,144 @@ namespace Helpers.Parsing
 
 namespace Helpers.Parsing.Functions
 {
+    internal class Constant : Function, IEvaluatable
+    {
+        private readonly string _ConstantName;
+        public override string Name => _ConstantName;
+        public readonly Number Value;
+        public Constant(string name, Number number) { this._ConstantName = name; Value = number; }
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs) => throw new Exception("Sanity check.");
+        IEvaluatable IEvaluatable.Evaluate() => Value;
+    }
+
     /// <summary>
     /// A special type of function typically written with a special relationship to its inputs.  For 
     /// example, addition could be written "add(a,b)", instead we use "a + b" with a special symbol 
     /// in between its two inputs.
     /// </summary>
-    public abstract class Operator : Function
+    internal abstract class Operator : Function, IComparable<Operator>
     {
-        protected Operator(IEnumerable<IExpression> expressions) : base(expressions) { }
-        protected Operator(params IExpression[] expressions) : base(expressions) { }
+        
+        public override string Name => base.Name + "&Operator";
+
+        
     }
 
 
-    public class Addition : Operator
-    {
-        internal Addition(IExpression a, IExpression b) : base(a, b) { }
-        internal Addition(IEnumerable<IExpression> expressions) : base(expressions) { }
-        internal Addition() : base(null, null) { }
-        protected override IExpression EvaluateFunction(IList<IExpression> evaluatedInputs)
+    internal sealed class Addition : Operator
+    {      
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
         {
             decimal m = 0.0m;
-            List<IExpression> expressions = new List<IExpression>();
-            foreach (IExpression input in evaluatedInputs)
+            List<IEvaluatable> expressions = new List<IEvaluatable>();
+            foreach (IEvaluatable input in evaluatedInputs)
             {
                 if (input is Number n) m += n.Value;
                 else expressions.Add(input);
             }
-            if (expressions.Count == 0)
-                return new Number(m);
-            else
-            {
-                expressions.Add(new Number(m));
-                expressions.Sort(FormSorter);
-                return new Addition(expressions);
-            }
+            if (expressions.Count > 0) throw new NotImplementedException();
+            return new Number(m);
         }
-
-
-        protected override string GetString() => string.Join(" + ", Inputs);
+        protected internal override string ToString(Clause n) => string.Join(" + ", n.Inputs);
     }
 
 
-    public class And : Operator
-    {
-        internal And(IExpression a, IExpression b) : base(a, b) { }
-        internal And(IEnumerable<IExpression> expressions) : base(expressions) { }
-        internal And() : base(null, null) { }
-        protected override IExpression EvaluateFunction(IList<IExpression> evaluatedInputs)
+    internal class And : Operator
+    {   
+        protected internal  override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
         {
-            if (evaluatedInputs.Count != 2) return new Error("'And' must have exactly two inputs.");
-            if (evaluatedInputs[0] is Boolean a && evaluatedInputs[1] is Boolean b) return a | b;
-            return new Subtraction(evaluatedInputs[0], evaluatedInputs[1]);
+            bool b = true;
+            List<IEvaluatable> expressions = new List<IEvaluatable>();
+            foreach (IEvaluatable input in evaluatedInputs)
+            {
+                if (input is Boolean i) b &= i;
+                else expressions.Add(input);
+            }
+            if (expressions.Count > 0) throw new NotImplementedException();
+            return new  Boolean(b);
         }
-
-        protected override string GetString() => Inputs[0] + " & " + Inputs[1];
+        protected internal override string ToString(Clause n) => string.Join(" & ", n.Inputs);
     }
 
-    public class Division : Operator
+    internal sealed class Concatenation : Operator
     {
-        internal Division(IExpression a, IExpression b) : base(a, b) { }
-        internal Division(IEnumerable<IExpression> expressions) : base(expressions) { }
-        internal Division() : base(null, null) { }
-        protected override IExpression EvaluateFunction(IList<IExpression> evaluatedInputs)
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
+        {
+            StringBuilder sb = new StringBuilder();
+            List<IEvaluatable> expressions = new List<IEvaluatable>();
+            foreach (IEvaluatable input in evaluatedInputs) sb.Append(input.ToString());                            
+            if (expressions.Count > 0) throw new NotImplementedException();
+            return new String(sb.ToString());
+        }
+        protected internal override string ToString(Clause n) => string.Join(" & ", n.Inputs);
+    }
+
+    internal class Division : Operator
+    {       
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
         {
             if (evaluatedInputs.Count != 2) return new Error("Division must have exactly two inputs.");
             if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b) return a / b;
-            return new Subtraction(evaluatedInputs[0], evaluatedInputs[1]);
+            throw new NotImplementedException();
         }
-
-        protected override string GetString() => Inputs[0] + " / " + Inputs[1];
+        protected internal override string ToString(Clause n) => string.Join(" / ", n.Inputs);
     }
 
 
-    public class Exponentiation : Operator
+    internal class Exponentiation : Operator
     {
-        internal Exponentiation(IExpression a, IExpression b) : base(a, b) { }
-        internal Exponentiation(IEnumerable<IExpression> expressions) : base(expressions) { }
-        internal Exponentiation() : base(null, null) { }
-        protected override IExpression EvaluateFunction(IList<IExpression> evaluatedInputs)
-        {
-            if (evaluatedInputs.Count != 2) return new Error("Exponentiation must have exactly two inputs.");
-            if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b) return a ^ b;
-            return new Subtraction(evaluatedInputs[0], evaluatedInputs[1]);
-        }
-
-        protected override string GetString() => Inputs[0] + " ^ " + Inputs[1];
-    }
-
-
-    public class Multiplication : Operator
-    {
-        internal Multiplication() : base(null, null) { }
-        public Multiplication(IExpression a, IExpression b) : base(a, b) { }
-        internal Multiplication(IEnumerable<IExpression> expressions) : base(expressions) { }
-        protected override IExpression EvaluateFunction(IList<IExpression> evaluatedInputs)
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
         {
             decimal m = 0.0m;
-            List<IExpression> expressions = new List<IExpression>();
-            foreach (IExpression input in evaluatedInputs)
+            List<IEvaluatable> expressions = new List<IEvaluatable>();
+            foreach (IEvaluatable input in evaluatedInputs)
             {
-                if (input is Number n) m *= n.Value;
+                if (input is Number n) m^=n;
                 else expressions.Add(input);
             }
-            if (expressions.Count == 0)
-                return new Number(m);
-            else
-            {
-                expressions.Add(new Number(m));
-                expressions.Sort(FormSorter);
-                return new Addition(expressions);
-            }
+            if (expressions.Count > 0) throw new NotImplementedException();
+            return new Number(m);
         }
-        protected override string GetString() => string.Join(" * ", Inputs);
+        protected internal override string ToString(Clause n) => string.Join(" ^ ", n.Inputs);
     }
 
 
-    public class Negation : Operator
+    internal class Multiplication : Operator
     {
-        internal Negation(IExpression a) : base(a) { }
-        internal Negation() : base((IExpression)null) { }
-        protected override IExpression EvaluateFunction(IList<IExpression> evaluatedInputs)
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
+        {
+            decimal m = 0.0m;
+            List<IEvaluatable> expressions = new List<IEvaluatable>();
+            foreach (IEvaluatable input in evaluatedInputs)
+            {
+                if (input is Number n) m *= n;
+                else expressions.Add(input);
+            }
+            if (expressions.Count > 0) throw new NotImplementedException();
+            return new Number(m);
+        }
+        protected internal override string ToString(Clause n) => string.Join(" * ", n.Inputs);
+    }
+
+
+    internal class Negation : Operator
+    {
+        
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
         {
             if (evaluatedInputs.Count != 1) return new Error("Negation must have exactly one input.");
             switch (evaluatedInputs[0])
             {
                 case Number n: return -n;
+                case Boolean b: return !b;
             }
-            return new Negation(evaluatedInputs[0]);
+            throw new NotImplementedException();
         }
 
 
-        protected override string GetString()
+        protected internal override string ToString(Clause clause)
         {
-            switch (Inputs[0])
+            switch (clause.Inputs[0])
             {
                 case Number n: return "-" + n.ToString();
                 case Boolean b: return "!" + b.ToString();
@@ -260,34 +226,47 @@ namespace Helpers.Parsing.Functions
 
 
 
-    public class Or : Operator
+    internal class Or : Operator
     {
-        internal Or(IExpression a, IExpression b) : base(a, b) { }
-        internal Or(IEnumerable<IExpression> expressions) : base(expressions) { }
-        internal Or() : base(null, null) { }
-        protected override IExpression EvaluateFunction(IList<IExpression> evaluatedInputs)
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
         {
-            if (evaluatedInputs.Count != 2) return new Error("'Or' must have exactly two inputs.");
-            if (evaluatedInputs[0] is Boolean a && evaluatedInputs[1] is Boolean b) return a | b;
-            return new Subtraction(evaluatedInputs[0], evaluatedInputs[1]);
+            bool b =false;
+            List<IEvaluatable> expressions = new List<IEvaluatable>();
+            foreach (IEvaluatable input in evaluatedInputs)
+            {
+                if (input is Boolean i) b |= i;
+                else expressions.Add(input);
+            }
+            if (expressions.Count > 0) throw new NotImplementedException();
+            return new Boolean(b);
         }
-
-        protected override string GetString() => Inputs[0] + " | " + Inputs[1];
+        protected internal override string ToString(Clause n) => string.Join(" & ", n.Inputs);
     }
 
-
-
-    public class Subtraction : Operator
+    internal class Range : Function
     {
-        internal Subtraction(IExpression a, IExpression b) : base(a, b) { }
-        internal Subtraction() : base(null, null) { }
-        protected override IExpression EvaluateFunction(IList<IExpression> evaluatedInputs)
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    internal class Relation : Function
+    {
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    internal class Subtraction : Operator
+    {
+        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
         {
             if (evaluatedInputs.Count != 2) return new Error("Subtraction must have exactly two inputs.");
             if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b) return a - b;
-            return new Subtraction(evaluatedInputs[0], evaluatedInputs[1]);
+            throw new NotImplementedException();
         }
-
-        protected override string GetString() => Inputs[0].ToString() + " - " + Inputs[1].ToString();
+        protected internal override string ToString(Clause n) => string.Join(" - ", n.Inputs);
     }
 }

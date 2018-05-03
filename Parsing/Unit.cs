@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 namespace Helpers.Parsing
 {
     /// <summary>Indicates feet, inches, kg, etc.</summary>
-    public sealed class Unit : IExpression
+    public sealed class Unit : IEvaluatable
     {
-        private readonly IExpression _Expression;
-        private Unit(IExpression expression) { this._Expression = expression; }
-        public IExpression Evaluate() => throw new NotImplementedException();
+        private readonly IEvaluatable _Expression;
+        private Unit(IEvaluatable expression) { this._Expression = expression; }
+        public IEvaluatable Evaluate() => throw new NotImplementedException();
 
         public override bool Equals(object obj) => throw new NotImplementedException();
 

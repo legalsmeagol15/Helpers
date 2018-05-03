@@ -164,7 +164,7 @@ namespace DataStructures
             }
 
             /// <summary>
-            /// Removes the item associated with this node from the list.  Returns the item removed.
+            /// Removes the item associated with this node from the list, by removing the node.  Returns the item removed.
             /// </summary>
             public T Remove()
             {

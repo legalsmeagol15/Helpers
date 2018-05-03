@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace Helpers.Parsing
 {
-    internal struct Boolean : IExpression
+    internal struct Boolean : IEvaluatable
     {
         internal readonly bool Value;
 
         internal Boolean(bool b) { this.Value = b; }
-        IExpression IExpression.Evaluate() => this;
+        IEvaluatable IEvaluatable.Evaluate() => this;
 
         public static implicit operator Boolean(bool b) => new Boolean(b);
         public static implicit operator bool(Boolean n) => n.Value;

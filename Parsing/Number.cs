@@ -6,15 +6,17 @@ using System.Threading.Tasks;
 
 namespace Helpers.Parsing
 {
-    internal struct Number : IExpression
+    internal struct Number : IEvaluatable
     {
         public static readonly Number Zero = new Number(0m);
+        public static readonly Number Pi = new Number((decimal)Math.PI);
+        public static readonly Number E = new Number((decimal)Math.E);
 
         internal readonly decimal Value;
 
         internal Number(decimal m) { this.Value = m; }
         internal Number(double d) { this.Value = (decimal)d; }
-        IExpression IExpression.Evaluate() => this;
+        IEvaluatable IEvaluatable.Evaluate() => this;
 
         public static implicit operator Number(double d) => new Number((decimal)d);
         public static implicit operator double(Number n) => (double)n.Value;
