@@ -13,18 +13,22 @@ namespace Helpers.Parsing
 
         internal readonly char Opener;
         internal readonly char Closer;
-        public readonly List<IEvaluatable> Inputs;
-        internal Function Function { get; set; }
+        public readonly IEvaluatable[] Inputs;        
+        internal Function Function { get; private set; }
         
 
-        private Clause(IEnumerable<IEvaluatable> inputs) { this.Inputs = inputs.ToList(); this.Function = null; }
-        private Clause(Function function, IEnumerable<IEvaluatable> expressions) { this.Inputs = Inputs.ToList(); this.Function = function; }
-        internal Clause(IEnumerable<IEvaluatable> expressions, char opener, char closer) : this(expressions) { this.Opener = opener; this.Closer = closer; }
+        //private Clause(IEnumerable<IEvaluatable> inputs) { this.Inputs = inputs.ToList(); this.Function = null; }
+        //private Clause(Function function, IEnumerable<IEvaluatable> expressions) { this.Inputs = Inputs.ToList(); this.Function = function; }
+        //internal Clause(IEnumerable<IEvaluatable> expressions, char opener, char closer) : this(expressions) { this.Opener = opener; this.Closer = closer; }
+        internal Clause(char opener, char closer, params IEvaluatable[] inputs) { this.Opener = opener; this.Closer = closer; this.Inputs = inputs; }
+        internal Clause(char opener, char closer, Function f, params IEvaluatable[] inputs) : this(opener, closer, inputs) { this.Function = f; }
 
-        public static Clause Parenthetical(IEnumerable<IEvaluatable> expressions = null) => new Clause(expressions ?? new List<IEvaluatable>(), '(', ')');
-        public static Clause Bracketed(IEnumerable<IEvaluatable> expressions = null) => new Clause(expressions ?? new List<IEvaluatable>(), '[', ']');
-        public static Clause Braced(IEnumerable<IEvaluatable> expressions = null) => new Clause(expressions ?? new List<IEvaluatable>(), '{', '}');
-        public static Clause FromFunction(Function function, IEnumerable<IEvaluatable> expressions = null) => new Clause(function, expressions ?? new List<IEvaluatable>());
+        public static Clause Parenthetical(Function function, params IEvaluatable[] expressions) => new Clause('(', ')', function, expressions ?? new IEvaluatable[0]);
+        public static Clause Parenthetical(params IEvaluatable[] expressions) => new Clause('(', ')', expressions ?? new IEvaluatable[0]);
+        public static Clause Bracketed(params IEvaluatable[] expressions) => new Clause('[', ']', expressions ?? new IEvaluatable[0]);
+        public static Clause Braced(params IEvaluatable[] expressions) => new Clause('{', '}', expressions ?? new IEvaluatable[0]);
+        
+        //public static Clause FromFunction(Function function, IEnumerable<IEvaluatable> expressions = null) => new Clause(function, expressions ?? new List<IEvaluatable>());
         public static Clause FromSymbol(string symbol)
         {
             switch (symbol)
@@ -49,9 +53,9 @@ namespace Helpers.Parsing
 
         public IEvaluatable Evaluate()
         {
-            IEvaluatable[] evaluated = new IEvaluatable[Inputs.Count];
-            for (int i = 0; i < Inputs.Count; i++) evaluated[i] = Inputs[i].Evaluate();
-            return (Function != null) ? Function.EvaluateFunction(evaluated) : new Clause(evaluated, Opener, Closer);
+            IEvaluatable[] evaluated = new IEvaluatable[Inputs.Length];
+            for (int i = 0; i < Inputs.Length; i++) evaluated[i] = Inputs[i].Evaluate();
+            return (Function != null) ? Function.EvaluateFunction(evaluated) : new Clause(Opener, Closer, evaluated);
         }
 
         public ISet<Variable> FindVariables()
@@ -74,8 +78,8 @@ namespace Helpers.Parsing
             if (Function != null) return Function.ToString();
             StringBuilder sb = new StringBuilder();
             sb.Append(Opener + " ");
-            if (Inputs.Count > 0) sb.Append(Inputs[0].ToString());
-            for (int i = 1; i < Inputs.Count; i++) sb.Append(", " + Inputs[i].ToString());
+            if (Inputs.Length > 0) sb.Append(Inputs[0].ToString());
+            for (int i = 1; i < Inputs.Length; i++) sb.Append(", " + Inputs[i].ToString());
             sb.Append(" " + Closer);
             return sb.ToString();
         }
@@ -86,8 +90,8 @@ namespace Helpers.Parsing
             if (other == null) return false;
             if (!this.Opener.Equals(other.Opener)) return false;
             if (!this.Closer.Equals(other.Closer)) return false;
-            if (this.Inputs.Count != other.Inputs.Count) return false;
-            for (int i = 0; i < Inputs.Count; i++) if (!Inputs[i].Equals(other.Inputs[i])) return false;
+            if (this.Inputs.Length != other.Inputs.Length) return false;
+            for (int i = 0; i < Inputs.Length; i++) if (!Inputs[i].Equals(other.Inputs[i])) return false;
             return true;
         }
 

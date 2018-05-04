@@ -63,7 +63,7 @@
     <Compile Include="Sets\ModularList.cs" />
     <Compile Include="Sets\HashCollection.cs" />
     <Compile Include="Sets\SkipList.cs" />
-    <Compile Include="Trees\DynamicHeap.cs" />
+    <Compile Include="Trees\HashedHeap.cs" />
     <Compile Include="Trees\DynamicMinMaxHeap.cs" />
     <Compile Include="Sets\HashList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

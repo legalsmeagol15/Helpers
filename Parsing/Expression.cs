@@ -11,16 +11,23 @@ using Helpers.Parsing.Functions;
 
 namespace Helpers.Parsing
 {
-    
-    public interface IEvaluatable 
+
+    public interface IEvaluatable
     {
-        IEvaluatable Evaluate();        
+        IEvaluatable Evaluate();
     }
 
-    
 
+    /// <summary>
+    /// Contains methods for returning objects which can be evaluated according to associated functions.
+    /// </summary>
     public static class Expression
     {
+        /// <summary>
+        /// A data structure that mirrors a Clause, but does not require that its contents be IEvaluatable.  This structure is designed to 
+        /// function as an intermediary between a token list and an actual IEvaluatable Clause, and contains a method Parse() which will 
+        /// return a Clause based on this structure.
+        /// </summary>
         private class TokenList : DynamicLinkedList<object>
         {
             public string Opener = "";
@@ -32,72 +39,82 @@ namespace Helpers.Parsing
             public void Close(String closer, int endIndex) { this.Closer = closer; this.End = endIndex; }
 
             /// <exception cref="InvalidOperationException">Thrown for a mismatch.</exception>
-            public IEvaluatable ToClause()
+            public IEvaluatable Parse()
             {
-                // Watch for malformed nestings.
+                //TODO:  contain all within a try/catch block to catch parsing errors?
+                
+                // Step #1 - Watch for malformed nestings.
                 switch (Opener)
                 {
-                    case "":  if (Closer != "") throw new Exception("Mismatched brackets."); break;
+                    case "": if (Closer != "") throw new Exception("Mismatched brackets."); break;
                     case "(": if (Closer != ")") throw new Exception("Mismatched brackets."); break;
                     case "[": if (Closer != "]") throw new Exception("Mismatched brackets."); break;
                     case "{": if (Closer != "}") throw new Exception("Mismatched brackets."); break;
-                    default: throw new Exception("Unrecognized bracket: " + Opener);
+                    //default: return new Error("Unrecognized brackets: \"" + Opener + "\", \"" + Closer + "\".", this.Start, this.End);
+                    default:  Debug.Assert(false); break;   //Sanity check.
                 }
 
-                // Evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
-                List<IEvaluatable> evaluatables = new List<IEvaluatable>();
-                DynamicHeap<Operator> operators = new DynamicHeap<Operator>();
+                // Step #2 - evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
+
+                // The following ungodly heap is designed to sort nodes according to the priority levels of the Function objects they contain.
+                Heap<DynamicLinkedList<object>.Node> priorities = new Heap<DynamicLinkedList<object>.Node>((a, b) => ((Function)a.Contents).Priority.CompareTo(((Function)b.Contents).Priority));
+
                 DynamicLinkedList<object>.Node node = this.FirstNode;
                 while (node != null)
                 {
                     switch (node.Contents)
                     {
-                        case TokenList tl: node.Contents = tl.ToClause(); continue;
-                        case Clause c:
-                            if (node.Previous != null && node.Previous.Contents is Function precedingFunction)
-                            {
-                                if (!precedingFunction.ValidateInputs(c.Inputs))
-                                    return new Error("Invalid inputs for function " + precedingFunction.Name, this.Start, this.End);
-                                c.Function = (Function)node.Previous.Remove();
-                            }
-                            evaluatables.Add(c);
-                            break;
+                        case TokenList tl: node.Contents = tl.Parse(); continue;
+                        case Clause c: break;
                         case Error e: return e;
-                        case Operator op:
-                            break;
-                        case Constant k:
-                        case Number n:
-                            if (node.Next == null) break;
-                            if (node.Next.Contents is TokenList || node.Next.Contents is Variable || node.Next.Contents is Function)
+                        case Function f: priorities.Add(node); break;
+                        case Number n when node.Next != null:
+                            if (node.Next.Contents is TokenList || node.Next.Contents is Variable || node.Next.Contents is Function || node.Next.Contents is Clause)
                                 node.InsertAfter(Function.Multiplication);
-                            evaluatables.Add((IEvaluatable) node.Contents);
                             break;
-                        case Function f:
-                            if (node.Next == null || !(node.Next.Contents is TokenList)) return new Error("No inputs for given function.", this.Start, this.End);
-                            break;
-                        default: throw new NotImplementedException();
+                        //default: return new Error("Unrecognized token type: " + node.Contents.GetType().Name + ".", this.Start, this.End);
+                        default: Debug.Assert(false); break;    //Sanity check.
                     }
                     node = node.Next;
                 }
 
-                // Finally, construct trees according to operator precedence within this clause.
-                throw new NotImplementedException();
+                // Step #3 - construct a within-this-clause tree according to operator precedence.
+                while (priorities.Count > 0)
+                {
+                    node = priorities.Pop();
+                    Function function = (Function)node.Contents;
+                    function.Parse(node);
+                }
+
+                // Step #4 - finally, put the contents into IEvaluatable form.
+                int i = 0;
+                IEvaluatable[] contents = new IEvaluatable[this.Count];
+                foreach (object obj in this) contents[i++] = (IEvaluatable)obj;
 
                 // Return the fully-parsed clause.
-                return new Clause(evaluatables, Opener[0], Closer[0]);                
+                return new Clause(Opener[0], Closer[0], contents);
             }
         }
 
-
-        public static IEvaluatable FromString(string str, out ISet<Variable> dependees, Variable.DataContext context = null, Function.Factory factory = null)
+        public static IEvaluatable FromLaTeX(string latex, IDictionary<string, Function> functions, out ISet<Variable> dependees, Variable.DataContext context = null)
         {
-            // Step #1 setup
+            throw new NotImplementedException();
+        }
+
+        /// <summary>Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.</summary>
+        /// <param name="str">The string to convert into an evaluatable object.</param>
+        /// <param name="functions">The allowed functions for this expression.</param>
+        /// <param name="dependees">The variables on which this expression depends, if any.</param>
+        /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
+        public static IEvaluatable FromString(string str, IDictionary<string, Function> functions, out ISet<Variable> dependees, Variable.DataContext context = null)
+        {
+            // Step #1 - setup
             dependees = new HashSet<Variable>();
             if (str == null) return new Error("Expression string cannot be null.");
-            string[] rawTokens = _Regex.Split(str);            
+            string[] rawTokens = _Regex.Split(str);
             Debug.Assert(rawTokens.Length > 0);
-            
-            // Step #2 - Parse into tree structure containing tokenized objects
+
+            // Step #2 - Parse into clause-by-clause tree structure containing tokenized objects
             Stack<TokenList> stack = new Stack<TokenList>();
             TokenList root = new TokenList("", 0);
             stack.Push(root);
@@ -145,19 +162,19 @@ namespace Helpers.Parsing
                     case string _ when bool.TryParse(rawToken, out bool b): stack.Peek().AddLast(new Boolean(b)); continue;
 
                     //Function?
-                    case string _ when factory.TryGetFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
+                    case string _ when functions.TryGetValue(rawToken, out Function f): stack.Peek().AddLast(f); continue;
 
                     //Variable?
-                    case string _ when context.TryGetVariable(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); continue;
-                    case string _ when context.TryCreateVariable(rawToken, out Variable new_var): stack.Peek().AddLast(new_var); continue;
+                    case string _ when context != null && context.TryGetVariable(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); dependees.Add(old_var); continue;
+                    case string _ when context != null && context.TryCreateVariable(rawToken, out Variable new_var): stack.Peek().AddLast(new_var); dependees.Add(new_var); continue;
 
                     default: return new Error("Unrecognized token: " + rawToken + ".", 0, i);
                 }
             }
 
-            return root.ToClause();
+            return root.Parse();
         }
-        
+
 
 
         private static Regex _Regex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);

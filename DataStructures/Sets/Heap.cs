@@ -18,7 +18,7 @@ namespace DataStructures
         //TODO:  validate the heap.
 
         private readonly Func<T, T, int> _Compare;        
-        internal const int DEFAULT_CAPACITY=17;
+        internal const int DEFAULT_CAPACITY = 17;
         private T[] table;
 
 
