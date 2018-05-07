@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Helpers.Parsing.Functions
+namespace Parsing.Functions
 {
     
 }

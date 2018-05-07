@@ -4,13 +4,21 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Helpers.Parsing.Functions
+namespace Parsing.Functions
 {
     internal sealed class Abs : Function
     {
-        protected internal override IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs)
+        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
-            throw new NotImplementedException();
+            if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
+            switch (evaluatedInputs[0])
+            {
+                case Number n: return (n.Value < 0) ? new Number(-n.Value) : n;
+                case Clause c when c is Negation: return c.Inputs[0];
+            }           
+
+            return InputTypeError(evaluatedInputs, 0, typeof(Number));            
         }
     }
+
 }

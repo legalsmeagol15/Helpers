@@ -4,58 +4,58 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Helpers.Parsing
+namespace Parsing
 {
 
 
-    public sealed class Clause : IEvaluatable
+    public class Clause : IEvaluatable
     {
 
-        internal readonly char Opener;
-        internal readonly char Closer;
-        public readonly IEvaluatable[] Inputs;        
-        internal Function Function { get; private set; }
+        internal string Opener;
+        internal string Closer;
+        public IEvaluatable[] Inputs { get; protected set; }
+       
+        internal Clause(string opener, string closer, params IEvaluatable[] inputs) { this.Opener = opener; this.Closer = closer; this.Inputs = inputs ?? new IEvaluatable[0]; }
+        
+        public static Clause Parenthetical(params IEvaluatable[] expressions) => new Clause("(", ")", expressions);
+        public static Clause Bracketed(params IEvaluatable[] expressions) => new Clause("[", "]", expressions);
+        public static Clause Braced(params IEvaluatable[] expressions) => new Clause("{", "}", expressions);
+        public static Clause Naked(params IEvaluatable[] expressions) => new Clause("", "", expressions);
         
 
-        //private Clause(IEnumerable<IEvaluatable> inputs) { this.Inputs = inputs.ToList(); this.Function = null; }
-        //private Clause(Function function, IEnumerable<IEvaluatable> expressions) { this.Inputs = Inputs.ToList(); this.Function = function; }
-        //internal Clause(IEnumerable<IEvaluatable> expressions, char opener, char closer) : this(expressions) { this.Opener = opener; this.Closer = closer; }
-        internal Clause(char opener, char closer, params IEvaluatable[] inputs) { this.Opener = opener; this.Closer = closer; this.Inputs = inputs; }
-        internal Clause(char opener, char closer, Function f, params IEvaluatable[] inputs) : this(opener, closer, inputs) { this.Function = f; }
+        public bool IsParenthetical => Opener == "(" && Closer == ")";
+        public bool IsBracketed => Opener == "[" && Closer == "]";
+        public bool IsBraced => Opener == "{" && Closer == "}";
 
-        public static Clause Parenthetical(Function function, params IEvaluatable[] expressions) => new Clause('(', ')', function, expressions ?? new IEvaluatable[0]);
-        public static Clause Parenthetical(params IEvaluatable[] expressions) => new Clause('(', ')', expressions ?? new IEvaluatable[0]);
-        public static Clause Bracketed(params IEvaluatable[] expressions) => new Clause('[', ']', expressions ?? new IEvaluatable[0]);
-        public static Clause Braced(params IEvaluatable[] expressions) => new Clause('{', '}', expressions ?? new IEvaluatable[0]);
-        
-        //public static Clause FromFunction(Function function, IEnumerable<IEvaluatable> expressions = null) => new Clause(function, expressions ?? new List<IEvaluatable>());
-        public static Clause FromSymbol(string symbol)
+        /// <summary>Call to evaluate this function or clause.</summary>
+        public IEvaluatable Evaluate() => Evaluate(Inputs.Select(i => i.Evaluate()).ToArray());
+
+        /// <summary>
+        /// Override if a function evaluates according to the given evaluated inputs, in a manner distinct from simply being a new clause 
+        /// containing those inputs.
+        /// </summary>
+        /// <param name="evaluatedInputs">The inputs, which have already been recursively evaluated.</param>
+        /// <returns>The evaluation of this clause or function, given the pre-evaluated inputs.</returns>
+        protected internal virtual IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs) => new Clause(Opener, Closer, evaluatedInputs);
+
+        public IEvaluatable Evaluate(params object[] inputs)
         {
-            switch (symbol)
+            IEvaluatable[] evaluated = new IEvaluatable[inputs.Length];
+            for (int idx = 0; idx < inputs.Length; idx++)
             {
-                case "(": return Parenthetical();
-                case "[": return Bracketed();
-                case "{": return Braced();
-                default: throw new NotImplementedException("Have not implemented nesting with symbol \"" + symbol + "\".");
+                switch (inputs[idx])
+                {
+                    case decimal m: evaluated[idx] = new Number(m); break;
+                    case double d: evaluated[idx] = new Number(d); break;
+                    case int i: evaluated[idx] = new Number((decimal)i); break;
+                    case bool b: evaluated[idx] = Boolean.FromBool(b); break;
+                    case string str: evaluated[idx] = new String(str);break;
+                    case IEvaluatable ie: evaluated[idx] = ie; break;
+                    default: throw new ArgumentException("Invalid type: " + inputs[idx].GetType().Name + ".");
+                }
+                evaluated[idx] = evaluated[idx].Evaluate();
             }
-        }
-
-        internal void Lex()
-        {
-            throw new NotImplementedException();
-        }
-        
-
-        public bool IsParenthetical => Opener == '(' && Closer == ')';
-        public bool IsBracketed => Opener == '[' && Closer == ']';
-        public bool IsBraced => Opener == '{' && Closer == '}';
-
-
-        public IEvaluatable Evaluate()
-        {
-            IEvaluatable[] evaluated = new IEvaluatable[Inputs.Length];
-            for (int i = 0; i < Inputs.Length; i++) evaluated[i] = Inputs[i].Evaluate();
-            return (Function != null) ? Function.EvaluateFunction(evaluated) : new Clause(Opener, Closer, evaluated);
+            return Evaluate(evaluated);
         }
 
         public ISet<Variable> FindVariables()
@@ -73,16 +73,7 @@ namespace Helpers.Parsing
             }
         }
 
-        public override string ToString()
-        {
-            if (Function != null) return Function.ToString();
-            StringBuilder sb = new StringBuilder();
-            sb.Append(Opener + " ");
-            if (Inputs.Length > 0) sb.Append(Inputs[0].ToString());
-            for (int i = 1; i < Inputs.Length; i++) sb.Append(", " + Inputs[i].ToString());
-            sb.Append(" " + Closer);
-            return sb.ToString();
-        }
+        public override string ToString() => (Opener != "" ? Opener + " " : "") + string.Join(", ", (object[])Inputs) + (Closer != "" ? " " + Closer : "");
 
         public override bool Equals(object obj)
         {
@@ -104,5 +95,6 @@ namespace Helpers.Parsing
             if (_CachedHashCode == -1) _CachedHashCode++;
             return _CachedHashCode = h;
         }
+        
     }
 }

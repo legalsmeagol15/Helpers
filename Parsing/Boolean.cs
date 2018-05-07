@@ -4,13 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Helpers.Parsing
+namespace Parsing
 {
-    internal struct Boolean : IEvaluatable
+    public struct Boolean : IEvaluatable
     {
+        public static readonly Boolean False = false;
+        public static readonly Boolean True = true;
+        public static Boolean FromBool(bool b) => b ? False : True;
         internal readonly bool Value;
 
-        internal Boolean(bool b) { this.Value = b; }
+        private Boolean(bool b) { this.Value = b; }
         IEvaluatable IEvaluatable.Evaluate() => this;
 
         public static implicit operator Boolean(bool b) => new Boolean(b);

@@ -3,13 +3,19 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Helpers.Parsing
+namespace Parsing
 {
-    public abstract class Function : IComparable<Function>
+    public abstract class Function : Clause, IComparable<Function>
     {
+        internal FunctionDomain Domain = null;
+        public bool IsLimited { get => Domain != null; }
+
+        protected Function(params IEvaluatable[] inputs) : base("", "", inputs) { }
+
         /// <summary>
         /// The priority for parsing this function.  Functions with higher priority will bind more tightly (meaning, first) than 
         /// functions with a lower priority.
@@ -30,72 +36,139 @@ namespace Helpers.Parsing
 
         protected internal virtual ParsingPriority Priority => ParsingPriority.Function;
 
-        public virtual string Name => this.GetType().Name;        
+        public virtual string Name => this.GetType().Name;
         
-        protected internal abstract IEvaluatable EvaluateFunction(IList<IEvaluatable> evaluatedInputs);
 
-        /// <summary>Check whether the inputs given is of the right number, type, etc.</summary>
-        public virtual bool ValidateInputs(IList<IEvaluatable> unEvaluatedInputs) => true;
+        protected internal virtual void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 0, 1);
 
-        protected internal virtual IEvaluatable Parse(DynamicLinkedList<object>.Node node) => Parse(node, 0, 1);
-
-        protected Clause Parse(DynamicLinkedList<object>.Node node, int preceding, int following)
+        protected void ParseNode(DynamicLinkedList<object>.Node node, int preceding, int following)
         {
-            Clause[] clauses = new Clause[preceding + following];
-            while (following++ < clauses.Length) clauses[following] = (Clause)node.Next.Remove();
-            while (--preceding >= 0) clauses[preceding] = (Clause)node.Previous.Remove();
-            Clause result = Clause.Parenthetical((Function)node.Contents, clauses);
-            node.Contents = result;
-            return result;
+            IEvaluatable[] inputs = new IEvaluatable[preceding + following];
+            following = preceding;
+            while (following < inputs.Length) inputs[following++] = (IEvaluatable)node.Next.Remove();
+            while (--preceding >= 0) inputs[preceding] = (IEvaluatable)node.Previous.Remove();
+            this.Inputs = inputs;
         }
 
+        /// <summary>
+        /// Returns the simplified form
+        /// </summary>
+        /// <param name="inputs"></param>
+        /// <returns></returns>
+        protected virtual IEvaluatable GetSimplified(Clause inputs) => inputs;
 
-        /// <summary>Returns the string representation of this function from the given clause.</summary>
-        /// <param name="clause">The parenthetical clause for this function to render into a string.</param>
-        protected internal virtual string ToString(Clause clause) => Name + clause.Opener + " " + string.Join(", ", (IEnumerable<IEvaluatable>)clause.Inputs) + " " + clause.Closer;
+        /// <summary>
+        /// For example, a division by any variable will be undefined if that variable is 0.
+        /// </summary>
+        /// <param name="inputs"></param>
+        /// <returns></returns>
+        protected internal IDictionary<Variable, List<IEvaluatable>> GetUndefined(Clause inputs) => throw new NotImplementedException();
 
-
-        public static Function Addition = new Functions.Addition();
-        public static Function Subtraction = new Functions.Subtraction();
-        public static Function Division = new Functions.Division();
-        public static Function Multiplication = new Functions.Multiplication();
-        public static Function Negation = new Functions.Negation();
-        public static Function Exponentiation = new Functions.Exponentiation();
-        public static Function And = new Functions.And();
-        public static Function Or = new Functions.Or();
-        public static Function Relation = new Functions.Relation();
-        public static Function Range = new Functions.Range();
-        public static Function Concatenation = new Functions.Concatenation();
-        internal static Functions.Constant Pi = new Functions.Constant("Pi", Number.Pi);
-        internal static Functions.Constant E = new Functions.Constant("E", Number.E);
+        
+        public override string ToString() => Name + ((Opener != "") ? (Opener + " ") : "") + string.Join(", ", (IEnumerable<IEvaluatable>)Inputs) + ((Closer != "") ? (" " + Closer) : "");
 
         public class Factory
         {
-            private static Dictionary<string, Function> _Dictionary = new Dictionary<string, Function>();
-            public Function this[string name] { get => _Dictionary[name]; }
-
-            public Factory()
+            private readonly Dictionary<string, Func<Function>> Functions = new Dictionary<string, Func<Function>>();
+            private readonly Dictionary<string, Functions.Constant> Constants = new Dictionary<string, Parsing.Functions.Constant>();
+            public Function this[string name] { get => Functions[name]() ; }
+            
+           
+            public Dictionary<string, Function> GetStandardDictionary()
             {
-                _Dictionary.Add("Addition", Addition);
-                _Dictionary.Add("Subtraction", Subtraction);
-                _Dictionary.Add("Division", Division);
-                _Dictionary.Add("Multiplication", Multiplication);
-                _Dictionary.Add("Exponentiation", Exponentiation);
-                _Dictionary.Add("And", And);
-                _Dictionary.Add("Or", Or);
-                _Dictionary.Add("Relation", Relation);
-                _Dictionary.Add("Range", Range);
-                _Dictionary.Add("Concatenation", Concatenation);
-                _Dictionary.Add("PI", Pi);
-                _Dictionary.Add("E", E);
+                throw new NotImplementedException();
             }
 
-            internal bool TryGetFunction(string rawToken, out Function f) => _Dictionary.TryGetValue(rawToken, out f);
+            public bool Contains(string functionName) => Functions.ContainsKey(functionName);
+
+            public bool TryCreateFunction(string functionName, out Function f)
+            {
+                if (Functions.TryGetValue(functionName, out Func<Function> constructor))
+                {
+                    f = constructor();
+                    return true;
+                }
+                f = null;
+                return false;
+            }
+
+
+            // These references are expected to be used frequently, so direct functions are included for speed
+            internal Functions.Addition CreateAddition() => new Functions.Addition();
+            internal Functions.Subtraction CreateSubtraction() => new Functions.Subtraction();
+            internal Functions.Multiplication CreateMultiplication() => new Functions.Multiplication();
+            internal Functions.Division CreateDivision() => new Functions.Division();
+            internal Functions.Exponentiation CreateExponentiation() => new Functions.Exponentiation();
+            internal Functions.And CreateAnd() => new Functions.And();
+            internal Functions.Or CreateOr() => new Functions.Or();
+            internal Functions.Relation CreateRelation() => new Functions.Relation();
+            internal Functions.Range CreateRange() => new Functions.Range();
+            internal Functions.Negation CreateNegation() => new Functions.Negation();
+            
+            public static Factory StandardFactory()
+            {
+                Factory factory = new Factory();
+                List<Function> types = new List<Function>();
+                foreach (Type type in Assembly.GetAssembly(typeof(Function)).GetTypes().Where(myType => !myType.IsAbstract && myType.IsSubclassOf(typeof(Function))))
+                {
+                    if (typeof(Functions.Constant).IsAssignableFrom(type)) continue;           
+                    Func<Function> caller  = delegate () { return (Function)Activator.CreateInstance(type); };
+                    Function specimen = caller();
+                    factory.Functions[specimen.Name] = caller;
+                }
+
+                foreach (FieldInfo fInfo in typeof(Functions.Constant).GetFields())
+                {
+                    if (!fInfo.IsStatic || !fInfo.IsPublic) continue;
+                    Functions.Constant constant = (Functions.Constant)fInfo.GetValue(null);
+                    factory.Constants[constant.Name] = constant;
+                    factory.Functions[constant.Name] = delegate () { return constant; };                    
+                }
+
+                return factory;
+            }
         }
+
+        protected Error InputTypeError(IList<IEvaluatable> inputs, int index, params Type[] t)
+        {
+            Debug.Assert(index < inputs.Count);
+            Debug.Assert(!t.Contains(inputs[index].GetType()));
+            return new Error("Input " + index + " incorrect type for function " + Name + ".  Expected " + string.Join(", ", t.Select((tp) => tp.Name)) + ", but given " + inputs[index].GetType().Name + ".");
+        }
+        
+        /// <summary>Returns an input type error with a suitable message.</summary>
+        /// <param name="inputs">The inputs that caused the error.</param>
+        /// <param name="expected">The input counts that are acceptable.  Overloaded functions may all different counts.</param>
+        protected Error InputCountError(IList<IEvaluatable> inputs, params int[] expected)
+        {
+            Debug.Assert(!expected.Contains(inputs.Count));
+            return new Error("Incorrect input count for function " + Name + ".  Expected " + string.Join(", ", expected) + ", but given " + inputs.Count + ".");
+        }
+
+        
+
+
+        /// <summary>
+        /// Presumed to be infinite, unless a limit applies.
+        /// </summary>
+        internal sealed class FunctionDomain
+        {
+            private readonly Dictionary<Variable, Functions.Comparison> Limits = new Dictionary<Variable, Functions.Comparison>();
+            
+            // TODO:  implement
+            public bool IsDefined(Variable variable, IEvaluatable value) => true;
+
+
+            public void NotEqual(Variable v, IEvaluatable value)            {
                 
+                // TODO:  further implement, along with stuff like "GreaterThan" and etc.
+            }
+            public void Limit(Functions.Comparison c) => throw new NotImplementedException();
+        }
+        
     }
 
-    
+
 
 }
 
