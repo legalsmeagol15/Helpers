@@ -27,10 +27,13 @@ namespace Parsing.Functions
     }
 
 
-    internal sealed class Addition : Operator, IDerivable
+    internal sealed class Addition : Operator
     {
+        internal Addition(params IEvaluatable[] inputs) : base(inputs) { }
+
         protected override string Symbol => "+";
         protected internal override ParsingPriority Priority => ParsingPriority.Addition;
+
         //internal Addition(params IEvaluatable[] inputs) : base(inputs) { }
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
@@ -45,28 +48,8 @@ namespace Parsing.Functions
             return new Number(m);
         }
 
-
-        IEvaluatable IDerivable.GetDerivative(params IDerivable[] inputs)
-        {
-            switch (inputs.Length)
-            {
-                case 0: return InputCountError(inputs.OfType<IEvaluatable>().ToList(), 2);
-                case 1: return inputs[0];
-                case 2: Addition a = new Addition(); a.Inputs = inputs.ToArray(); return a;
-                default:
-                    int end = inputs.Length - 2;
-                    Addition rhs = new Addition();
-                    rhs.Inputs = new IEvaluatable[] { inputs[end], inputs[end + 1] };
-                    for (int i = end - 3; i >= 0; i--) { rhs = new Addition(); rhs.Inputs = new IEvaluatable[] { inputs[i], rhs }; }                        
-                    return rhs;
-            }
-
-        }
-
-        IDerivable IEvaluatable<IDerivable>.Evaluate() => (IDerivable)base.Evaluate();
-
-        IEvaluatable IEvaluatable.Evaluate() => base.Evaluate();
-
+        protected override IEvaluatable ApplyChainRule() => GetDerivative();
+        protected override IEvaluatable GetDerivative() => new Addition(Inputs.Select(i => Differentiate(i)).ToArray());
     }
 
 
@@ -86,17 +69,25 @@ namespace Parsing.Functions
             if (expressions.Count > 0) throw new NotImplementedException();
             return b ? Boolean.True : Boolean.False;
         }
+
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
+
         protected override string Symbol => "&";
+
+        
     }
 
     
 
-    internal sealed class Division : Operator, IDerivable
+    internal sealed class Division : Operator
     {
-
+        internal Division(params IEvaluatable[] inputs) : base(inputs) { }
         protected override string Symbol => "/";
 
         protected internal override ParsingPriority Priority => ParsingPriority.Division;
+
+        
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
@@ -106,19 +97,25 @@ namespace Parsing.Functions
             throw new NotImplementedException();
         }
 
-        IDerivable IEvaluatable<IDerivable>.Evaluate() => (IDerivable)base.Evaluate();
-
-        IEvaluatable IEvaluatable.Evaluate() => base.Evaluate();
-
-        IEvaluatable IDerivable.GetDerivative(params IDerivable[] inputs)
+        protected override IEvaluatable ApplyChainRule() => GetDerivative();
+        protected override IEvaluatable GetDerivative()
         {
-            throw new NotImplementedException();
+            IEvaluatable f = Inputs[0], g = Inputs[1];
+            IEvaluatable lhs_numerator = new Multiplication(Differentiate(f), g).GetSimplified();
+            IEvaluatable rhs_numerator = new Multiplication(f, Differentiate(g)).GetSimplified();
+            IEvaluatable numerator = new Subtraction(lhs_numerator, rhs_numerator).GetSimplified();
+            IEvaluatable denominator = new Exponentiation(g, new Number(2m)).GetSimplified();
+            return new Division(numerator, denominator);
         }
+
+
     }
 
 
     internal sealed class Exponentiation : Operator
     {
+        protected override string Symbol => "^";
+        internal Exponentiation(params IEvaluatable[] inputs) : base(inputs) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Exponentiation;
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
@@ -133,12 +130,31 @@ namespace Parsing.Functions
             if (expressions.Count > 0) throw new NotImplementedException();
             return new Number(m);
         }
-        protected override string Symbol => "^";
+        
+
+        //protected override IEvaluatable ApplyChainRule() => GetDerivative();
+        protected override IEvaluatable GetDerivative()
+        {
+            List<IEvaluatable> inputs = Inputs.ToList();
+            while (inputs.Count > 2)
+            {
+                //TODO:  does this ever even happen, given how these things are parsed?
+                IEvaluatable newTail = new Exponentiation(inputs[inputs.Count - 2], inputs[inputs.Count - 1]).ApplyChainRule();
+                if (newTail is Function newTail_f) newTail = newTail_f.GetSimplified();
+                inputs[inputs.Count - 2] = newTail;
+                inputs.RemoveAt(inputs.Count - 1);
+            }
+
+            IEvaluatable @base = inputs[0], exponent = inputs[1];
+            if (@base is Variable v && exponent is Number n) return new Multiplication(n, new Exponentiation(v, n - 1));
+            else throw new NotImplementedException();
+        }
     }
 
 
     internal sealed class Multiplication : Operator
     {
+        internal Multiplication(params IEvaluatable[] inputs) : base(inputs) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Multiplication;
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
@@ -154,6 +170,12 @@ namespace Parsing.Functions
             return new Number(m);
         }
         protected override string Symbol => "*";
+        protected override IEvaluatable ApplyChainRule() => GetDerivative();
+        protected override IEvaluatable GetDerivative()
+        {
+            if (Inputs.Length != 2) throw new NotImplementedException();
+            throw new NotImplementedException();
+        }
     }
 
 
@@ -176,6 +198,13 @@ namespace Parsing.Functions
 
         protected override string Symbol => "-";
         public override string ToString() => (Opener != "" ? Opener + " " : "") + "-" + Inputs[0].ToString() + (Closer != "" ? " " + Closer : "");
+
+        protected override IEvaluatable ApplyChainRule() => GetDerivative();
+        protected override IEvaluatable GetDerivative()
+        {
+            if (Inputs.Length != 1) throw new NotImplementedException();
+            throw new NotImplementedException();
+        }
     }
 
 
@@ -196,6 +225,9 @@ namespace Parsing.Functions
             return Boolean.FromBool(b);
         }
         protected override string Symbol => "|";
+
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
     }
 
 
@@ -208,6 +240,9 @@ namespace Parsing.Functions
             throw new NotImplementedException();
         }
         protected override string Symbol => ":";
+
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
     }
 
 
@@ -220,11 +255,14 @@ namespace Parsing.Functions
             throw new NotImplementedException();
         }
         protected override string Symbol => ".";
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
     }
 
 
     internal sealed class Subtraction : Operator
     {
+        internal Subtraction(params IEvaluatable[] inputs) : base(inputs) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Subtraction;
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
@@ -234,6 +272,9 @@ namespace Parsing.Functions
             throw new NotImplementedException();
         }
         protected override string Symbol => "-";
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => new Subtraction(Inputs.Select(i => Differentiate(i)).ToArray());
+
     }
 
     #region Comparison operators
@@ -253,6 +294,8 @@ namespace Parsing.Functions
         Boolean IEvaluatable<Boolean>.Evaluate() => (Boolean)base.Evaluate();
 
         IEvaluatable IEvaluatable.Evaluate() => base.Evaluate();
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
 
     }
 
@@ -266,6 +309,8 @@ namespace Parsing.Functions
             if (a is Boolean bA && b is Boolean bB) return bA.Value == bB.Value;
             return Boolean.False;
         }
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
     }
 
     internal sealed class GreaterThan : Comparison
@@ -277,6 +322,8 @@ namespace Parsing.Functions
             if (a is Number nA && b is Number nB) return nA > nB;
             return Boolean.False;
         }
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
     }
 
     internal sealed class LessThan : Comparison
@@ -288,6 +335,8 @@ namespace Parsing.Functions
             if (a is Number nA && b is Number nB) return nA < nB;
             return Boolean.False;
         }
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
     }
 
     internal sealed class NotEqualTo : Comparison
@@ -299,6 +348,8 @@ namespace Parsing.Functions
             if (a is Boolean bA && b is Boolean bB) return bA.Value != bB.Value;
             return Boolean.True;
         }
+        protected override IEvaluatable ApplyChainRule() => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative() => throw new InvalidOperationException();
     }
 
 

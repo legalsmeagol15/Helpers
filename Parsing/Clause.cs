@@ -17,6 +17,7 @@ namespace Parsing
        
         internal Clause(string opener, string closer, params IEvaluatable[] inputs) { this.Opener = opener; this.Closer = closer; this.Inputs = inputs ?? new IEvaluatable[0]; }
         
+        
         public static Clause Parenthetical(params IEvaluatable[] expressions) => new Clause("(", ")", expressions);
         public static Clause Bracketed(params IEvaluatable[] expressions) => new Clause("[", "]", expressions);
         public static Clause Braced(params IEvaluatable[] expressions) => new Clause("{", "}", expressions);
@@ -28,7 +29,10 @@ namespace Parsing
         public bool IsBraced => Opener == "{" && Closer == "}";
 
         /// <summary>Call to evaluate this function or clause.</summary>
-        public IEvaluatable Evaluate() => Evaluate(Inputs.Select(i => i.Evaluate()).ToArray());
+        public IEvaluatable Evaluate() => Evaluate(EvaluateInputs());
+
+        /// <summary>In the base class, simply returns the evaluation of all the inputs.</summary>
+        protected virtual IEvaluatable[] EvaluateInputs() => Inputs.Select(i => i.Evaluate()).ToArray();
 
         /// <summary>
         /// Override if a function evaluates according to the given evaluated inputs, in a manner distinct from simply being a new clause 
@@ -36,7 +40,11 @@ namespace Parsing
         /// </summary>
         /// <param name="evaluatedInputs">The inputs, which have already been recursively evaluated.</param>
         /// <returns>The evaluation of this clause or function, given the pre-evaluated inputs.</returns>
-        protected internal virtual IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs) => new Clause(Opener, Closer, evaluatedInputs);
+        protected internal virtual IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        {
+            if (evaluatedInputs.Length == 1) return evaluatedInputs[0];
+            return new Clause(Opener, Closer, evaluatedInputs);
+        }
 
         public IEvaluatable Evaluate(params object[] inputs)
         {

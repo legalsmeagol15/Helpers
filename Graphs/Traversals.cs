@@ -125,4 +125,76 @@ namespace Graphs
             }
         }
     }
+
+
+    /// <summary>
+    /// An object created using the given traversal (child-getting) method to produce a tree.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public class Graph<T>
+    {
+        private Dictionary<T, Graph<T>> _Nodes = null;
+        /// <summary>The parent nodes of this node.</summary>
+        public List<Graph<T>> Parents { get; private set; } = new List<Graph<T>>();
+        /// <summary>Returns the list of parents of the given child.</summary>
+        public List<Graph<T>> ParentsOf(T child) => _Nodes[child].Parents;
+        /// <summary>The contents at this node of the tree.</summary>
+        public T Contents { get; private set; }
+        /// <summary>The child nodes of this node.</summary>
+        public List<Graph<T>> Children { get; private set; }
+        /// <summary>Returns the list of children of the given parent.</summary>
+        public List<Graph<T>> ChildrenOf(T parent) => _Nodes[parent].Children;
+        
+        private Graph(Graph<T> parent, T Contents) { this.Parents.Add(parent); this.Contents = Contents; }
+
+        private Graph(T starter, Func<T, IEnumerable<object>> children, Func<T, bool> validator = null, bool rejectCycles = false)
+        {
+            if (validator == null) validator = (child) => true;
+            _Nodes = new Dictionary<T, Graph<T>>(); //Exists only for the starter node.
+
+            this.Contents = starter;
+            Stack<Graph<T>> stack = new Stack<Graph<T>>();
+            stack.Push(this);
+            while (stack.Count > 0)
+            {
+                Graph<T> node = stack.Pop();
+
+                // If there are no children, best to never even create a list of them.
+                IEnumerable<object> kids = children(node.Contents);
+                if (kids==null || !kids.Any()) continue;
+
+                // Create the children's nodes.
+                node.Children = new List<Graph<T>>();
+                foreach (object obj in kids)
+                {
+                    if (!(obj is T)) throw new ArrayTypeMismatchException("Object of type + " + obj.GetType().Name + " cannot be stored in graph of type " + starter.GetType().Name);
+                    T kid = (T)obj;
+
+                    if (_Nodes.TryGetValue(kid, out Graph<T> childNode))
+                    {
+                        if (rejectCycles) throw new InvalidOperationException("A cycle exists: " + kid.ToString());
+                        childNode.Parents.Add(node);
+                        node.Children.Add(childNode);
+                        continue;
+                    }
+                    else if
+                        (!validator(kid)) continue;
+                    else
+                    {
+                        childNode = new Graph<T>(node, kid);
+                        node.Children.Add(node);
+                        stack.Push(childNode);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Returns an acyclic graph which traverses edges via the given Func lambda.</summary>
+        public static Graph<T> Acyclic(T starter, Func<T, IEnumerable<object>> children)
+        {
+            return new Graph<T>(starter, children, null, true);
+        }
+
+
+    }
 }

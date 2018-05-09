@@ -19,7 +19,14 @@ namespace Parsing.Functions
         public readonly Number Value;
         public Constant(string name, Number number) { this._ConstantName = name; Value = number; }
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] inputs) => Value;
-        protected internal override void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 0,0);
+        protected internal override void ParseNode(DynamicLinkedList<object>.Node node)
+        {
+            // The only "parsing" that needs to be done is to look for an optional 0-arg paren immediately following the constant.  If 
+            // it's there, it should be removed.
+            if (node.Next != null && node.Next.Contents is Clause c && c.Inputs.Length == 0) node.Next.Remove();
+        }
+
+        protected override IEvaluatable GetDerivative() => Number.Zero;
     }
 
 

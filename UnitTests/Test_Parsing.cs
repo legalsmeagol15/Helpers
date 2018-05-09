@@ -17,7 +17,34 @@ namespace UnitTests
 
 
         [TestMethod]
-        public void TestParsing_FunctionFactory()
+        public void TestParsing_Constant_Functions()
+        {
+            Function f1 = factory["PI"];
+            Function f2 = factory["PI"];
+            Assert.IsTrue(ReferenceEquals(f1, f2));
+            Assert.AreEqual(factory["PI"].Evaluate(), (decimal)Math.PI);
+            Assert.AreEqual(factory["E"].Evaluate(), (decimal)Math.E);
+
+            IEvaluatable pi = Expression.FromString("PI", factory, out _, null);
+            Assert.AreEqual("PI", pi.ToString());
+            Assert.AreEqual(pi.Evaluate(), (decimal)Math.PI);
+            pi = Expression.FromString("PI()", factory, out _, null);
+            Assert.AreEqual("PI", pi.ToString());
+            Assert.AreEqual(pi.Evaluate(), (decimal)Math.PI);
+
+            IEvaluatable e = Expression.FromString("E", factory, out _, null);
+            Assert.AreEqual("E", e.ToString());
+            Assert.AreEqual(e.Evaluate(), (decimal)Math.E);
+            e = Expression.FromString("E()", factory, out _, null);
+            Assert.AreEqual("E", e.ToString());
+            Assert.AreEqual(e.Evaluate(), (decimal)Math.E);
+            
+        }
+
+
+
+        [TestMethod]
+        public void TestParsing_Function_Factory()
         {   
             Assert.IsTrue(factory.Contains("Addition"));
             Assert.IsTrue(factory.Contains("Subtraction"));
@@ -31,9 +58,44 @@ namespace UnitTests
             Assert.IsTrue(factory.Contains("And"));
             Assert.IsTrue(factory.Contains("Or"));
             Assert.IsTrue(factory.Contains("PI"));
-            Assert.IsTrue(factory.Contains("E"));
-            
+            Assert.IsTrue(factory.Contains("E"));            
         }
+
+
+
+        [TestMethod]
+        public void TestParsing_Nesting()
+        {
+            IEvaluatable e = Expression.FromString("2+1", factory, out ISet<Variable> d, null);
+            Assert.AreEqual("2 + 1", e.ToString());
+            Assert.AreEqual(e.Evaluate(), 3);
+
+            e = Expression.FromString("3+(2+1)", factory, out d, null);
+            Assert.AreEqual("3 + ( 2 + 1 )", e.ToString());
+            Assert.AreEqual(e.Evaluate(), 6);
+
+            e = Expression.FromString("(3+2)+1", factory, out d, null);
+            Assert.AreEqual("( 3 + 2 ) + 1", e.ToString());
+            Assert.AreEqual(e.Evaluate(), 6);
+
+            e = Expression.FromString("(4+3)", factory, out d, null);
+            Assert.AreEqual("( 4 + 3 )", e.ToString());
+            Assert.AreEqual(e.Evaluate(), 7);
+
+            e = Expression.FromString("((4+3))", factory, out d, null);
+            Assert.AreEqual("( ( 4 + 3 ) )", e.ToString());
+            Assert.AreEqual(e.Evaluate(), 7);
+
+            e = Expression.FromString("((3+2))+1", factory, out d, null);
+            Assert.AreEqual("( ( 3 + 2 ) ) + 1", e.ToString());
+            Assert.AreEqual(e.Evaluate(), 6);
+
+            e = Expression.FromString("3+((2+1))", factory, out d, null);
+            Assert.AreEqual("3 + ( ( 2 + 1 ) )", e.ToString());
+            Assert.AreEqual(e.Evaluate(), 6);
+
+        }
+
 
 
         [TestMethod]
@@ -58,25 +120,15 @@ namespace UnitTests
             Assert.IsTrue(n2 > n1);
             Assert.IsFalse(n2 == n1);
             Assert.IsTrue(n2 != n1);
+
 #pragma warning disable CS1718
+            // Disable obnoxious warning about variable compared to itself
             Assert.IsTrue(n1 == n1);
             Assert.IsTrue(n2 == n2);
             Assert.IsFalse(n1 < n1);
             Assert.IsFalse(n1 > n1);
 #pragma warning restore CS1718
-            
-        }
 
-        [TestMethod]
-        public void TestParsing_Nesting()
-        {
-            IEvaluatable e = Expression.FromString("2+1", factory, out ISet<Variable> d, null);
-            Assert.AreEqual("2 + 1", e.ToString());
-            Assert.AreEqual(e.Evaluate(), 3);
-
-            e = Expression.FromString("3+(2+1)", factory, out d, null);
-            Assert.AreEqual("3 + ( 2 + 1 )", e.ToString());
-            Assert.AreEqual(e.Evaluate(), 6);
         }
     }
 }

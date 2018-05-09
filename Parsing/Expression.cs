@@ -22,10 +22,17 @@ namespace Parsing
         new T Evaluate();
     }
 
-    public interface  IDerivable : IEvaluatable<IDerivable>
+   
+
+    public interface ICanSimplify : IEvaluatable
     {
-        IEvaluatable GetDerivative(params IDerivable[] inputs);
+        IEvaluatable GetSimplified();
     }
+
+    //internal interface ICanLinearize : IEvaluatable
+    //{
+    //    IDifferentiable GetLinearized();
+    //}
 
 
     /// <summary>
@@ -100,7 +107,12 @@ namespace Parsing
 
                 // Step #5 - Return the fully-parsed clause.  If there's just one item in the parsed clause, return that with the instant 
                 // opener/closer.
-                if (contents.Length == 1 && contents[0] is Clause result) { result.Opener = Opener; result.Closer = Closer; return result; }
+                if (contents.Length == 1 && contents[0] is Clause result && result.Opener == "" && result.Closer == "")
+                {
+                    result.Opener = Opener;
+                    result.Closer = Closer;
+                    return result;
+                }
                 else return new Clause(Opener, Closer, contents);
             }
         }

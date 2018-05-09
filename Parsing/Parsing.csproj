@@ -62,6 +62,10 @@
       <Project>{b1da6068-30a2-478f-8115-f3ede4ef1388}</Project>
       <Name>DataStructures</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Graphs\Graphs.csproj">
+      <Project>{76524399-7d62-4bd8-96b1-53cef1d9962a}</Project>
+      <Name>Graphs</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
