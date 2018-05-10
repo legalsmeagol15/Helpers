@@ -19,6 +19,68 @@ namespace Parsing.Functions
 
             return InputTypeError(evaluatedInputs, 0, typeof(Number));            
         }
+
+        protected override IEvaluatable GetDerivative(Variable v)
+        {
+            Hybrid p = new Hybrid();
+            p.AddPortion(decimal.MinValue, true, 0m, false, new Negation(Differentiate(Inputs[0], v)));
+            p.AddPortion(0m, false, decimal.MaxValue, true, Differentiate(Inputs[0], v));
+            return p;
+        }
+    }
+
+    internal sealed class Hybrid : Function
+    {
+        private class DomainInterval
+        {
+            public bool IncludeFrom = true;
+            public decimal From;
+            public decimal To;
+            public bool IncludeTo = false;
+            public IEvaluatable Evaluator;
+        }
+
+        //TODO:  use an IntervalSet instead
+        private List<DomainInterval> Intervals;
+
+        public bool AddPortion(decimal from , bool includeFrom, decimal to, bool includeTo, IEvaluatable evaluator)
+        {
+            DomainInterval di = new DomainInterval();
+            di.From = from;
+            di.To = to;
+            di.IncludeFrom = includeFrom;
+            di.IncludeTo = includeTo;
+            di.Evaluator = evaluator;
+            Intervals.Add(di);
+            return true;
+        }
+        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        {
+            if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
+            if (evaluatedInputs[0] is Number n)
+            {
+                IEvaluatable e = null;
+                foreach (DomainInterval interval  in Intervals)
+                {
+                    if (n > interval.From && n < interval.To) { e = interval.Evaluator; break; }
+                    else if (n == interval.From && interval.IncludeFrom) { e = interval.Evaluator; break; }
+                    else if (n == interval.To && interval.IncludeTo) { e = interval.Evaluator; break; }
+                }
+                if (e != null)
+                {
+                    if (e is Function f) return f.Evaluate(evaluatedInputs);
+                    return e;
+                }
+                return new Error("Undefined.");
+            }
+            else return InputTypeError(evaluatedInputs, 0, typeof(Number));
+
+        }
+
+        protected override IEvaluatable GetDerivative(Variable v)
+        {
+            throw new NotImplementedException();
+        }
     }
 
 }

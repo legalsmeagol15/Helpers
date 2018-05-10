@@ -130,5 +130,50 @@ namespace UnitTests
 #pragma warning restore CS1718
 
         }
+
+        [TestMethod]
+        public void TestParsing_Operators()
+        {
+            // Addition
+            IEvaluatable e = Expression.FromString("5+4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), 9m);
+            e = Expression.FromString("5+-4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), 1);
+            e = Expression.FromString("-5+4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), -1);
+            e = Expression.FromString("-5+-4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), -9);
+
+            // Subtraction
+            e = Expression.FromString("5-4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), 1);
+            e = Expression.FromString("5--4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), 9);
+            e = Expression.FromString("-5-4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), -9);
+            e = Expression.FromString("-5--4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), -1);
+
+            // Multiplication
+            e = Expression.FromString("5*4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), 20);
+            e = Expression.FromString("5*-4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), -20);
+            e = Expression.FromString("-5*4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), -20);
+            e = Expression.FromString("-5*-4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), 20);
+
+            // Division
+            e = Expression.FromString("5/4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), 1.25);
+            e = Expression.FromString("5/-4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), -1.25);
+            e = Expression.FromString("-5/4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), -1.25);
+            e = Expression.FromString("-5/-4", factory, out ISet<Variable> _, null);
+            Assert.AreEqual(e.Evaluate(), 1.25);
+
+        }
     }
 }

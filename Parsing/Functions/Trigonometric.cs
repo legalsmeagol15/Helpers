@@ -8,6 +8,8 @@ namespace Parsing.Functions
 {
     internal sealed class Sin : Function
     {
+        internal Sin(params IEvaluatable[] inputs) : base(inputs) { }
+        protected override IEvaluatable GetDerivative(Variable v) => ApplyChainRule(v, new Cos(Inputs), Inputs[0]);
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
@@ -18,6 +20,10 @@ namespace Parsing.Functions
 
     internal sealed class Cos : Function
     {
+        internal Cos(params IEvaluatable[] inputs) : base(inputs) { }
+
+        protected override IEvaluatable GetDerivative(Variable v) => ApplyChainRule(v, new Negation(new Sin(Inputs)), Inputs[0]);
+
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
@@ -28,6 +34,10 @@ namespace Parsing.Functions
 
     internal sealed class Tan : Function
     {
+        internal Tan(params IEvaluatable[] inputs) : base(inputs) { }
+
+        protected override IEvaluatable GetDerivative(Variable v) => throw new NotImplementedException("Derivative of TAN is SEC^2");
+
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);

@@ -44,14 +44,9 @@
     <Compile Include="Interfaces\IEdge.cs" />
     <Compile Include="Interfaces\IPriorityQueue.cs" />
     <Compile Include="Interfaces\IVertex.cs" />
-    <Compile Include="Range.cs" />
-    <Compile Include="Range5.cs" />
     <Compile Include="Graphs\Edge.cs" />
     <Compile Include="Graphs\Traversals.cs" />
     <Compile Include="Graphs\Vertex.cs" />
-    <Compile Include="Int32Range.cs" />
-    <Compile Include="Range4.cs" />
-    <Compile Include="Range3.cs" />
     <Compile Include="Sets\CompositeKeyDictionary.cs" />
     <Compile Include="Sets\DependencyGraph.cs" />
     <Compile Include="Sets\DisjointSet.cs" />
@@ -60,6 +55,7 @@
     <Compile Include="Sets\Extensions.cs" />
     <Compile Include="Sets\HashStack.cs" />
     <Compile Include="Sets\Heap.cs" />
+    <Compile Include="Sets\IntervalSet.cs" />
     <Compile Include="Sets\ModularList.cs" />
     <Compile Include="Sets\HashCollection.cs" />
     <Compile Include="Sets\SkipList.cs" />

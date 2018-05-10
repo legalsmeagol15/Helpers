@@ -26,7 +26,7 @@ namespace Parsing.Functions
             if (node.Next != null && node.Next.Contents is Clause c && c.Inputs.Length == 0) node.Next.Remove();
         }
 
-        protected override IEvaluatable GetDerivative() => Number.Zero;
+        protected override IEvaluatable GetDerivative(Variable v) => Number.Zero;
     }
 
 

@@ -32,45 +32,28 @@ namespace Parsing
 
         #region Function calculus
 
-        protected internal static IEvaluatable Differentiate(IEvaluatable function)
+        protected internal static IEvaluatable Differentiate(IEvaluatable function, Variable v)
         {
             switch (function)
             {
-                case Function f: return f.ApplyChainRule();
+                case Function f: return (f.Terms.Contains(v)) ? f.GetDerivative(v) : Number.Zero;
                 case Clause c:
                     if (c.Inputs.Length != 1) return new Error("Cannot differentiate multi-input clause: " + c.ToString());
-                    return Differentiate(c.Inputs[0]);
+                    return Differentiate(c.Inputs[0], v);
                 case Number n: return Number.Zero;
+                case Variable var:  return (var == v) ? Number.One : Number.Zero;
                 case Error e: return e;
                 default: return new Error("Cannot find derivative of: " + function.ToString());
             }
         }
 
 
-        protected abstract IEvaluatable GetDerivative();
+        protected virtual IEvaluatable GetDerivative(Variable v) => NonDifferentiableFunctionError();
 
-        protected virtual IEvaluatable ApplyChainRule()
+        protected IEvaluatable ApplyChainRule(Variable v, IEvaluatable fPrime, IEvaluatable g)
         {
-            // Find f', and return it if it's not a function.
-            if (Inputs.Length != 1) return InputCountError(Inputs, 1);
-            IEvaluatable f_prime = this.GetDerivative();
-            Function f_prime_as_function = f_prime as Function;
-            if (f_prime_as_function == null) return f_prime;
-
-            // Simplify f', and return it if it's not a function.
-            f_prime = f_prime_as_function.GetSimplified();
-            f_prime_as_function = f_prime as Function;
-            if (f_prime_as_function == null) return f_prime;
-
-            // If g is not a function, just return f'
-            if (f_prime_as_function.Inputs.Length > 1) return new Error("Too many inputs for derived function: " + f_prime_as_function.ToString());
-            IEvaluatable g = Inputs[0];
-            if (!(g is Function)) return f_prime_as_function;
-
-            // Apply the chain rule.
-            if (f_prime is Function simplifiable) f_prime = simplifiable.GetSimplified();
-            Functions.Multiplication mult = new Functions.Multiplication(f_prime, Differentiate(g));
-            return mult.GetSimplified();
+            Functions.Multiplication result = new Functions.Multiplication(fPrime, g);
+            return result.GetSimplified();
         }
 
         protected internal virtual IEvaluatable GetSimplified() => this;

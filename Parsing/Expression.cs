@@ -22,18 +22,7 @@ namespace Parsing
         new T Evaluate();
     }
 
-   
-
-    public interface ICanSimplify : IEvaluatable
-    {
-        IEvaluatable GetSimplified();
-    }
-
-    //internal interface ICanLinearize : IEvaluatable
-    //{
-    //    IDifferentiable GetLinearized();
-    //}
-
+    
 
     /// <summary>
     /// Contains methods for returning objects which can be evaluated according to associated functions.
@@ -42,8 +31,8 @@ namespace Parsing
     {
         /// <summary>
         /// A data structure that mirrors a Clause, but does not require that its contents be IEvaluatable.  This structure is designed to 
-        /// function as an intermediary between a token list and an actual IEvaluatable Clause, and contains a method Parse() which will 
-        /// return a Clause based on this structure.
+        /// function as an intermediary between a simple list of tokens and an actual IEvaluatable Clause, and contains a method Parse() 
+        /// which will return a Clause based on this structure.
         /// </summary>
         private class TokenList : DynamicLinkedList<object>
         {

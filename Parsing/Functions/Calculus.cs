@@ -15,13 +15,13 @@ namespace Parsing.Functions
         
         protected override IEvaluatable[] EvaluateInputs() => Inputs.ToArray();
 
-        protected override IEvaluatable GetDerivative() => Function.Differentiate(Evaluate(Inputs.ToArray()));
+        protected override IEvaluatable GetDerivative(Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] inputs)
         {
             if (inputs.Length != 1) InputCountError(inputs, 1);
             IEvaluatable f = inputs[0];
-            return Function.Differentiate(f);
+            return Function.Differentiate(f, Variable);
         }
 
         private class Node
