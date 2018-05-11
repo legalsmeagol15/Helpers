@@ -5,16 +5,60 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DataStructures.Sets
+namespace DataStructures
 {
-    public class IntervalSet<T> : IEnumerable<T>, ISet<T>, ISet<IntervalSet<T>.Interval> where T : IComparable<T>
+
+
+    public class IntegerSet : IntervalSet<int>
+    {
+        public IntegerSet() : base(i => i + 1) { }
+    }
+
+
+
+
+    /// <summary>
+    /// An interval set is a data structure designed to account for whether a run of values is included in a set or not.  
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <remarks>For example, 
+    /// consider the case of a video editing tool.  If a user makes some change to the video, it would be useful for the renderer to have 
+    /// an efficient way of determining which frames have been rendered and which have not, without the need to store a value for every 
+    /// frame.  In the meantime, imagine the user makes another change to video which partially overlaps the original changes.  The user 
+    /// need only direct that the new run of frames is "included" in the unrendered IntervalSet, without checking to see if certain 
+    /// frames are already included.  The data structure coalesces intersecting inclusions automatically.
+    /// </remarks>
+    public class IntervalSet<T> : IEnumerable<T>, IEnumerable<IntervalSet<T>.Discontinuity>, ISet<T>, ISet<IntervalSet<T>.Interval> where T : IComparable<T>
     {
         private readonly Func<T, T> _Counter;
         protected List<Interval> Intervals = new List<Interval>();
-        public bool PositiveInfinite { get; private set; }
-        public bool NegativeInfinite { get; private set; }
+        private bool _PositiveInfinite = false, _NegativeInfinite = false;
 
-       
+        public bool PositiveInfinite
+        {
+            get => _PositiveInfinite;
+            set
+            {
+                if (_PositiveInfinite = value)
+                {
+                    if (IsEmpty) { _NegativeInfinite = true; Intervals.Clear(); Include(default(T)); }
+                }
+
+            }
+        }
+        public bool NegativeInfinite
+        {
+            get => _NegativeInfinite;
+            set
+            {
+                if (_NegativeInfinite = value)
+                {
+                    if (IsEmpty) { _PositiveInfinite = true; Intervals.Clear(); Include(default(T)); }
+                }
+
+            }
+        }
+
         /// <summary>For most IntervalSet objects, the count of its contents is meaningless, but not for all.</summary>
         protected virtual int Count { get => throw new InvalidOperationException(); }
 
@@ -38,7 +82,59 @@ namespace DataStructures.Sets
         /// </summary>
         protected virtual T GetNext(T item) => _Counter(item);
 
-#region IntervalSet contents modification
+
+        #region IntervalSet contents modification
+
+        public void Clear() { Intervals.Clear(); _PositiveInfinite = false; _NegativeInfinite = false; }
+
+        public bool Exclude(T item)
+        {
+            if (IsEmpty) return false;
+
+            int idx = GetIndex(item);
+
+            // Carve out from negative infinity?
+            if (idx < 0)
+            {
+                if (!_NegativeInfinite) return false;
+                Interval firstInterval = Intervals[0];
+                if (firstInterval.IncludesStart && AreConsecutive(item, firstInterval.Start)) { firstInterval.Start = item; firstInterval.IncludesStart = false; return true; }
+                else { Intervals.Insert(0, new Interval(item, item, false, false)); return true; }
+            }
+
+            // Carve out from positive infinity?
+            if (!TryTrimInterval(Intervals[idx], new Interval(item, item, true, true), out Interval a, out Interval b))
+            {
+                if (!_PositiveInfinite || idx < Intervals.Count - 1) return false;
+                Interval lastInterval = Intervals[Intervals.Count - 1];
+                if (lastInterval.IncludesEnd && AreConsecutive(lastInterval.End, item)) { lastInterval.End = item; lastInterval.IncludesEnd = false; return true; }
+                else { Intervals.Add(new Interval(item, item, false, false)); return true; }
+            }
+
+            // In all other cases, carve out from a middle-of-the-set interval.
+            if (b != null) Intervals.Insert(idx + 1, b);
+            if (a != null) Intervals[idx] = a;
+            else Intervals.RemoveAt(idx);
+            return true;
+        }
+
+        public bool Exclude(T start, T end)
+        {
+            // STep #0 - are start/end out of order, or better handled as a singleton?
+            int c = start.CompareTo(end);
+            if (c > 0) return Exclude(end, start);
+            else if (c == 0) return Exclude(start);
+
+            if (IsEmpty) return false;
+            int endIdx = GetIndex(end);
+            if (endIdx < 0)
+            {
+                if (!_NegativeInfinite) return false;
+                else { Intervals.Insert(0, new Interval(start, start, false, false)); return true; }
+            }
+            int startIdx = GetIndex(start, 0, endIdx + 1);
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         /// This is potentially an O(log N) operation in the best case, and an O(N) operation in the worst case.
@@ -48,15 +144,17 @@ namespace DataStructures.Sets
         /// <returns>Returns whether this IntervalSet was changed by this operation.</returns>
         public bool Include(T start, T end)
         {
-            // Case #0 - the start and end are supplied out-of-order.
-            if (start.CompareTo(end) > 0) return Include(end, start);
+            // Case #0 - the start and end are supplied out-of-order, or more efficiently handled as a singleton.
+            int c = start.CompareTo(end);
+            if (c > 0) return Include(end, start);
+            else if (c == 0) return Include(start);
 
             // Case #1 - there are no existing intervals to compare.
             Interval given = new Interval(start, end, true, true);
-            if (Intervals.Count == 0) { Intervals.Add(given); return true; }
+            if (IsEmpty) { Intervals.Add(given); return true; }
 
             // Case #2a - the starting index would precede the existing intervals.
-            int startIdx = GetPrecedingIndex(start, out bool _, out bool _);
+            int startIdx = GetIndex(start);
             if (startIdx < 0)
             {
                 Interval melded = GetMeldedInterval(given, Intervals[0]);
@@ -71,22 +169,28 @@ namespace DataStructures.Sets
             {
                 Interval melded = GetMeldedInterval(Intervals[startIdx], given);
                 if (melded == Intervals[startIdx]) return false;
-                else if (melded != null) given = melded;
-                else startIdx++;
+                if (melded == null && ++startIdx == Intervals.Count)
+                {
+                    Intervals.Add(given);
+                    return true;
+                }
+                given = melded;
             }
 
             // From the starting index, figure out how far to meld.
-            int endIdx = GetPrecedingIndex(end, out bool _, out bool _, startIdx, Intervals.Count - 1);
+            int endIdx = GetIndex(end, startIdx, Intervals.Count - 1);
 
             // Finally, replace the meldable intervals with the amalgamated interval.
             if (startIdx == endIdx)
                 Intervals[startIdx] = GetMeldedInterval(given, Intervals[startIdx]);
             else
             {
-                Interval melded = GetMeldedInterval(given, Intervals[endIdx]);
+                if (endIdx < 0) endIdx = startIdx;
+                Interval melded = endIdx < Intervals.Count ? GetMeldedInterval(given, Intervals[endIdx]) : given;
                 if (melded != null) given = melded;
                 else if (endIdx > startIdx + 1) given = GetMeldedInterval(given, Intervals[endIdx - 1]);
-                Intervals[startIdx] = given;
+                if (startIdx == Intervals.Count) Intervals.Add(given);
+                else Intervals[startIdx] = given;
                 if (startIdx + 1 < Intervals.Count) Intervals.RemoveRange(startIdx + 1, endIdx - (startIdx + 1));
             }
             return true;
@@ -94,11 +198,12 @@ namespace DataStructures.Sets
 
         public bool Include(T item)
         {
-            int idx = GetPrecedingIndex(item, out bool bracketed, out bool included);
+            if (IsEmpty) { Intervals.Add(new Interval(item, item, true, true)); return true; }
+            int idx = GetIndex(item);
             if (idx < 0)
             {
-                if (NegativeInfinite) return false;                
-                if (Intervals.Count==0) { Intervals.Add(new Interval(item, item, true, true)); return true; }
+                if (_NegativeInfinite) return false;
+                if (IsEmpty) { Intervals.Add(new Interval(item, item, true, true)); return true; }
                 Interval firstInterval = Intervals[0];
                 if (AreConsecutive(item, firstInterval.Start) && firstInterval.IncludesStart) { firstInterval.Start = item; return true; }
                 Intervals.Insert(0, new Interval(item, item, true, true)); return true;
@@ -113,7 +218,7 @@ namespace DataStructures.Sets
             }
             else if (c > 0)
             {
-                if (idx == Intervals.Count - 1 && PositiveInfinite) return false;
+                if (idx == Intervals.Count - 1 && _PositiveInfinite) return false;
                 if (AreConsecutive(prevInterval.End, item) && prevInterval.IncludesEnd) { prevInterval.End = item; return true; }
                 Intervals.Insert(idx + 1, new Interval(item, item, true, true));
                 return true;
@@ -127,7 +232,97 @@ namespace DataStructures.Sets
             return false;
         }
 
-        
+
+
+        bool ISet<T>.Add(T item) => Include(item);
+
+
+
+        public void ExceptWith(IEnumerable<T> other) { foreach (T item in other) Exclude(item); }
+
+        public void IntersectWith(IEnumerable<T> other)
+        {
+            IEnumerable<T> included = other.Where(item => this.Includes(item));
+            Clear();
+            foreach (T item in included) Include(item);
+        }
+
+        public void UnionWith(IEnumerable<T> other) { foreach (T item in other) { Include(item); } }
+
+        #endregion
+
+
+
+
+
+        #region IntervalSet contents queries
+
+        /// <summary>
+        /// Returns a - b.
+        /// </summary>       
+        /// <returns>Returns whether there was any overlap of the two intervals.</returns>
+        private bool TryTrimInterval(Interval a, Interval b, out Interval first, out Interval second)
+        {
+            // Step #1 - look for non-overlap cases.
+
+            //                     =========a=======
+            //  =========b=========
+            int start_end = a.Start.CompareTo(b.End);
+            if (start_end > 0) { first = null; second = null; return false; }
+
+            //                    =========a=======
+            //  =========b=========
+            else if (start_end == 0)
+            {
+                if (!a.IncludesStart || b.IncludesEnd) { first = null; second = null; return false; }
+                else { first = new Interval(a.Start, a.End, false, a.IncludesEnd); second = null; return true; }
+            }
+
+
+            //  =========a=========
+            //                     =========b=======
+            int end_start = a.End.CompareTo(b.Start);
+            if (end_start < 0) { first = null; second = null; return false; }
+
+            //  =========a=========
+            //                    =========b=======
+            if (end_start == 0)
+            {
+                if (!a.IncludesEnd || b.IncludesStart) { first = null; second = null; return false; }
+                else { first = new Interval(a.Start, a.End, a.IncludesStart, false); second = null; return true; }
+            }
+
+            // Step #2 - definitely an overlap occurs.  Anything remain of A's start?
+            int end_end = a.End.CompareTo(b.End), start_start = a.Start.CompareTo(b.Start);
+            Interval[] results = { null, null };
+            int i = 0;
+            if (start_start < 0)
+            {
+                if (a.IncludesStart || !b.IncludesStart || !AreConsecutive(a.Start, b.Start)) results[i++] = new Interval(a.Start, b.Start, a.IncludesStart, !b.IncludesStart);
+            }
+            else if (start_start == 0)
+            {
+                if (a.IncludesStart && !b.IncludesStart) results[i++] = new Interval(a.Start, b.Start, true, true);
+            }
+            // If start_start > 0, nothing can remain of A's start.
+
+            // Step #3 - anything remain of A's end?
+            if (end_end > 0)
+            {
+                if (a.IncludesEnd || !b.IncludesEnd || !AreConsecutive(b.End, a.End)) results[i++] = new Interval(b.End, a.End, !b.IncludesEnd, a.IncludesEnd);
+            }
+            else if (end_end == 0)
+            {
+                if (a.IncludesEnd && !b.IncludesEnd) results[i++] = new Interval(a.End, a.End, true, true);
+            }
+            // If end_end > 0, nothing can remain of A's end.
+
+            // Step #4 - return the results.
+            first = results[0];
+            second = results[0];
+            return true;
+
+        }
 
         /// <summary>
         /// Returns the melded interval two, or null if a gap exists between the intervals.  If one interval would completely subsume the 
@@ -190,49 +385,31 @@ namespace DataStructures.Sets
 
         /// <summary>
         /// Gets the index of the interval that precedes the given item.  The is an O(log N) operation, where N is the count of intervals.
-        /// </summary>
-        /// <param name="brackets">Out.  Returns whether the interval at the preceding index brackets the given item.</param>
-        /// <param name="includes">Out.  Returns whether the interval at the preceding index includes the given item.</param>
+        /// </summary>       
         /// <returns>The index of the bracket whose end is equal to or precedes the given item.  Returns -1 of no intervals precede the given item.</returns>
-        private int GetPrecedingIndex(T item, out bool brackets, out bool includes) => GetPrecedingIndex(item, out brackets, out includes, 0, Intervals.Count - 1);
+        private int GetIndex(T item) => GetIndex(item, 0, Intervals.Count - 1);
+
 
 
         /// <summary>
         /// Gets the index of the interval that precedes the given item, between the given min and max intervals.  The is an O(log N) operation, where N is the count of intervals.
-        /// </summary>
-        /// <param name="brackets">Out.  Returns whether the interval at the preceding index brackets the given item.</param>
-        /// <param name="includes">Out.  Returns whether the interval at the preceding index includes the given item.</param>
+        /// </summary>        
         /// <returns>The index of the bracket whose end is equal to or precedes the given item.  Returns -1 of no preceding intervals exist between the given min and max.</returns>
-        private int GetPrecedingIndex(T item, out bool brackets, out bool includes, int min, int max)
+        private int GetIndex(T item, int min, int max)
         {
-            if (Intervals.Count == 0 || item.CompareTo(Intervals[0].Start) < 0) { brackets = false; includes = false; return -1; }
+            if (IsEmpty || item.CompareTo(Intervals[0].Start) < 0 || min > max) return -1;
 
             while (max > min)
             {
-                int idx = (max + min) / 2;
+                int idx = ((max + min) / 2) + 1;
                 Interval interval = Intervals[idx];
-                int compareFrom, compareTo;
-                if ((compareFrom = item.CompareTo(interval.Start)) < 0)
-                {
-                    max = idx;
-                    continue;
-                }
-                if ((compareTo = item.CompareTo(interval.End)) > 0)
-                {
-                    if (min == idx)
-                    {
-                        brackets = false;
-                        includes = PositiveInfinite;
-                        return idx;
-                    }
-                    min = idx;
-                    continue;
-                }
-                brackets = true;
-                includes = (compareFrom > 0 || (compareFrom == 0 && interval.IncludesStart) || compareTo < 0 || (compareTo == 0 && interval.IncludesEnd));
+                int compareEnd = item.CompareTo(interval.End), compareStart = item.CompareTo(interval.Start);
+
+                if (compareEnd > 0) { min = idx; continue; }
+                if (compareStart < 0) { max = idx - 1; continue; }
                 return idx;
             }
-            throw new InvalidOperationException("Sanity check.");
+            return min;
         }
 
 
@@ -241,26 +418,51 @@ namespace DataStructures.Sets
 
         IEnumerator IEnumerable.GetEnumerator() => new IntervalEnumerator(this);
 
-
-
-        bool ISet<T>.Add(T item) => Include(item);
-
-        void ISet<T>.UnionWith(IEnumerable<T> other)
+        public bool Includes(T item)
         {
-            foreach (T item in other) { Include(item); }
+            if (IsEmpty) return false;
+            int idx = GetIndex(item);
+            if (idx < 0) return _NegativeInfinite;
+            Interval interval = Intervals[idx];
+            if (interval.Includes(item)) return true;
+            if (idx < Intervals.Count - 1) return false;
+            return item.CompareTo(Intervals[idx].End) > 0 && _PositiveInfinite;
         }
 
-        void ISet<T>.IntersectWith(IEnumerable<T> other)
+        public bool Includes(T start, T end)
         {
-            IEnumerable < T > included = other.Where(item => this.Includes(item));
-            this.Intervals.Clear();
-            foreach (T item in included) Include(item);
-        }
-
-        void ISet<T>.ExceptWith(IEnumerable<T> other)
-        {
+            if (IsEmpty) return false;
+            int startIdx = GetIndex(start), endIdx = GetIndex(start, startIdx, Intervals.Count - 1);
             throw new NotImplementedException();
+
         }
+
+
+        public bool IsEmpty
+        {
+            get
+            {
+                if (Intervals.Count == 0 && !_NegativeInfinite && !_PositiveInfinite) return true;
+                foreach (Interval i in Intervals) if (!i.IsEmptySingleton) return false;
+                return true;
+            }
+        }
+
+        public bool IsUniversal
+        {
+            get
+            {
+                if (!_PositiveInfinite || !_NegativeInfinite) return false;
+                if (Intervals.Count > 1) return false;
+                if (!Intervals[0].IncludesStart || !Intervals[0].IncludesEnd) return false;
+                return true;
+            }
+        }
+
+        #endregion
+
+
+
 
         void ISet<T>.SymmetricExceptWith(IEnumerable<T> other)
         {
@@ -297,35 +499,20 @@ namespace DataStructures.Sets
             throw new NotImplementedException();
         }
 
-        void ICollection<T>.Add(T item)
-        {
-            throw new NotImplementedException();
-        }
 
-        void ICollection<T>.Clear()
-        {
-            throw new NotImplementedException();
-        }
 
-        bool ICollection<T>.Contains(T item)
-        {
-            throw new NotImplementedException();
-        }
 
-        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
-        {
-            throw new NotImplementedException();
-        }
+        bool ICollection<T>.Contains(T item) => Includes(item);
 
-        bool ICollection<T>.Remove(T item)
-        {
-            throw new NotImplementedException();
-        }
+        void ICollection<T>.CopyTo(T[] array, int arrayIndex) => throw new InvalidOperationException("An IntervalSet of items cannot be copied to an array of items, because it is impossible to determine array size beforehand.");
 
-        bool ISet<Interval>.Add(Interval item)
-        {
-            throw new NotImplementedException();
-        }
+
+
+        void ICollection<T>.Add(T item) => Include(item);
+        bool ISet<Interval>.Add(Interval interval) => Include(interval.Start, interval.End);
+
+
+        bool ICollection<T>.Remove(T item) => Exclude(item);
 
         void ISet<Interval>.UnionWith(IEnumerable<Interval> other)
         {
@@ -354,7 +541,8 @@ namespace DataStructures.Sets
 
         bool ISet<Interval>.IsSupersetOf(IEnumerable<Interval> other)
         {
-            throw new NotImplementedException();
+            foreach (Interval interval in other) if (!Includes(interval.Start, interval.End)) return false;
+            return true;
         }
 
         bool ISet<Interval>.IsProperSupersetOf(IEnumerable<Interval> other)
@@ -382,29 +570,30 @@ namespace DataStructures.Sets
             throw new NotImplementedException();
         }
 
-        void ICollection<Interval>.Clear()
-        {
-            throw new NotImplementedException();
-        }
 
-        bool ICollection<Interval>.Contains(Interval item)
-        {
-            throw new NotImplementedException();
-        }
+        bool ICollection<Interval>.Contains(Interval item) => Includes(item.Start, item.End);
 
-        void ICollection<Interval>.CopyTo(Interval[] array, int arrayIndex)
-        {
-            throw new NotImplementedException();
-        }
+        void ICollection<Interval>.CopyTo(Interval[] array, int arrayIndex) => Intervals.CopyTo(array, arrayIndex);
 
         bool ICollection<Interval>.Remove(Interval item)
         {
             throw new NotImplementedException();
         }
 
-        IEnumerator<Interval> IEnumerable<Interval>.GetEnumerator()
+        IEnumerator<Interval> IEnumerable<Interval>.GetEnumerator() => Intervals.GetEnumerator();
+
+        IEnumerator<Discontinuity> IEnumerable<Discontinuity>.GetEnumerator()
         {
             throw new NotImplementedException();
+        }
+
+
+
+        public struct Discontinuity
+        {
+            public readonly T Item;
+            public readonly bool Included;
+            public Discontinuity(T item, bool included) { this.Item = item; this.Included = included; }
         }
 
         protected class Interval
@@ -421,6 +610,9 @@ namespace DataStructures.Sets
                 this.IncludesEnd = includeTo;
             }
 
+            public bool IsSingleton => Start.CompareTo(End) == 0;
+            public bool IsEmptySingleton => IsSingleton && !IncludesStart && !IncludesEnd;
+
             /// <summary>Returns whether the given item is included in this interval.</summary>
             public bool Includes(T item)
             {
@@ -434,9 +626,11 @@ namespace DataStructures.Sets
             }
             /// <summary>Includes true if this interval brackets the given item (i.e. From &lt= item &lt= To). /// </summary>
             public bool Brackets(T item) => item.CompareTo(Start) < 0 ? false : item.CompareTo(End) > 0 ? false : true;
+
+            public override string ToString() => Start.ToString() + " .. " + End.ToString();
         }
 
-        
+
         private class IntervalEnumerator : IEnumerator<T>
         {
             private int IntervalIndex = -1;
@@ -451,37 +645,63 @@ namespace DataStructures.Sets
 
             bool IEnumerator.MoveNext()
             {
-                try
+                // A negative interval index means iteration hasn't started yet.
+                if (IntervalIndex < 0)
                 {
-                    if (IntervalIndex < 0)
+                    if (IntervalSet._NegativeInfinite) throw new IndexOutOfRangeException("Cannot begin enumeration in a negative-infinite IntervalSet.");
+                    if (IntervalSet.IsEmpty) return false;
+                    try { Interval = IntervalSet.Intervals[0]; }
+                    catch { throw new InvalidOperationException("Unrecoverable modification of IntervalSet during enumeration."); }
+                    IntervalIndex = 0;
+                    Current = Interval.Start;
+                    return true;
+                }
+
+                // Null interval means iterating through positive-infinite territory.
+                if (Interval == null)
+                {
+                    T nextItem = IntervalSet.GetNext(Current);
+                    if (!IntervalSet.Includes(nextItem)) throw new InvalidOperationException("Unrecoverable modification of IntervalSet during enumeration.");
+                    Current = nextItem;
+                    return true;
+                }
+
+                // Since there's an interval, check to see if we've reached the end of it.
+                int c = Current.CompareTo(Interval.End);
+                if (c < 0)
+                {
+                    Current = IntervalSet.GetNext(Current);
+                    return true;
+                }
+                else if (c == 0)
+                {
+                    if (++IntervalIndex >= IntervalSet.Intervals.Count - 1)
                     {
-                        if (IntervalSet.Intervals.Count == 0) return false;
-                        IntervalIndex = 0;
-                        Interval = IntervalSet.Intervals[0];
-                        Current = Interval.Start;
-                        return true;
+                        if (IntervalSet._PositiveInfinite)
+                        {
+                            Interval = null;
+                            Current = IntervalSet.GetNext(Current);
+                            return true;
+                        }
+                        else return false;
                     }
-                    int c = Current.CompareTo(Interval.End);
-                    if (c < 0)
+                    else
                     {
-                        Current = IntervalSet.GetNext(Current);
+                        try { Current = (Interval = IntervalSet.Intervals[IntervalIndex]).Start; }
+                        catch { throw new InvalidOperationException("Unrecoverable modification of IntervalSet during enumeration."); }
                         return true;
-                    }
-                    else if (c == 0)
-                    {
-                        if (IntervalIndex == IntervalSet.Intervals.Count - 1) return false;
-                        else if (IntervalIndex < IntervalSet.Intervals.Count - 1) { Current = (Interval = IntervalSet.Intervals[++IntervalIndex]).Start; return true; }
                     }
                 }
-                catch { }
 
                 // If flow reaches here, it means the set has been modified during enumeration.  Not all modifications will force an 
                 // exception, but modifications that change the intervals within the set will do so, as well as any modification to the 
                 // current interval which leaves the Current outside the interval.
                 throw new InvalidOperationException("Unrecoverable modification of IntervalSet during enumeration.");
+
+
             }
 
-            void IEnumerator.Reset() => IntervalIndex = -1;
+            void IEnumerator.Reset() { IntervalIndex = -1; Interval = null; }
         }
     }
 }

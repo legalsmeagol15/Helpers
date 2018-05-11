@@ -60,11 +60,11 @@
     <Compile Include="Test_Primes.cs" />
     <Compile Include="Test_QuadTree.cs" />
     <Compile Include="Test_HashCollection.cs" />
-    <Compile Include="Test_Range.cs" />
     <Compile Include="Test_SkipList.cs" />
     <Compile Include="Test_DynamicLinkedList.cs" />
     <Compile Include="Test_Heap.cs" />
     <Compile Include="Test_Parsing.cs" />
+    <Compile Include="Test_IntervalSet.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Helpers\DataStructures\DataStructures.csproj">
