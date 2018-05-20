@@ -10,48 +10,50 @@ namespace Parsing
     {
         public readonly string Name;
         public readonly DataContext Context;
-        public IEvaluatable Value;
+
+        private IEvaluatable _Contents = null;
+        public IEvaluatable Contents { get => _Contents; set { _CachedValue = null; _Contents = value; } }
         public HashSet<Variable> Dependents = new HashSet<Variable>();
+        private IEvaluatable _CachedValue;
 
-        public Variable(DataContext context, string name)
+        public Variable(DataContext context, string name, IEvaluatable contents = null)
         {
-            context.Add(this);
             this.Name = name;
-            this.Value = new Number(0m);
-        }
-        public static int SortCompare(Variable a, Variable b)
-        {
-            return a.Name.CompareTo(b.Name);
+            this.Contents = contents;
+            this.Context = context;
+            context.Add(this);
         }
 
-        public override bool Equals(object obj)
-        {
-            Variable other = obj as Variable;
-            if (other == null) return false;
-            return other.Context == this.Context && other.Name == this.Name;
-        }
 
         public IEvaluatable Evaluate()
         {
-            return Value.Evaluate();
+            if (_CachedValue != null) return _CachedValue;
+            return _CachedValue = (Contents == null ? Contents : Contents.Evaluate());
         }
 
         public override int GetHashCode() => Name.GetHashCode();
 
+        public override bool Equals(object obj) => ReferenceEquals(this, obj);
+
+        public override string ToString() => Name;
 
         public class DataContext
         {
+
             private readonly Dictionary<string, Variable> _Variables = new Dictionary<string, Variable>();
             public Variable this[string name]
             {
                 get => _Variables[name];
             }
+
             public bool Add(Variable v)
             {
                 if (_Variables.ContainsKey(v.Name)) return false;
                 _Variables.Add(v.Name, v);
                 return true;
             }
+
+
 
             internal bool TryGetVariable(string name, out Variable v)
             {
@@ -97,6 +99,6 @@ namespace Parsing
             public bool IsNameValid(string name) => true;
         }
 
-        
+
     }
 }

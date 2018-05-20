@@ -29,6 +29,7 @@ namespace Parsing.Functions
 
     internal sealed class Addition : Operator
     {
+        
         internal Addition(params IEvaluatable[] inputs) : base(inputs) { }
 
         protected override string Symbol => "+";
@@ -55,6 +56,7 @@ namespace Parsing.Functions
 
     internal sealed class And : Operator
     {
+        
         protected internal override ParsingPriority Priority => ParsingPriority.And;
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
@@ -82,6 +84,7 @@ namespace Parsing.Functions
 
     internal sealed class Division : Operator
     {
+        
         internal Division(params IEvaluatable[] inputs) : base(inputs) { }
         protected override string Symbol => "/";
 
@@ -92,7 +95,11 @@ namespace Parsing.Functions
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
-            if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b) if (b == Number.Zero) return new Error("Division by zero."); else return a / b;
+            if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b)
+            {
+                if (b == Number.Zero) return new Error("Division by zero.");
+                else return a / b;
+            }
 
             throw new NotImplementedException();
         }
@@ -114,23 +121,26 @@ namespace Parsing.Functions
 
     internal sealed class Exponentiation : Operator
     {
+        
         protected override string Symbol => "^";
         internal Exponentiation(params IEvaluatable[] inputs) : base(inputs) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Exponentiation;
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
-            decimal m = 0.0m;
-            List<IEvaluatable> expressions = new List<IEvaluatable>();
-            foreach (IEvaluatable input in evaluatedInputs)
+            if (evaluatedInputs.Length < 1) return InputCountError(evaluatedInputs, 1, 1000000);
+            Number b;
+            if (!(evaluatedInputs[0] is Number)) return InputTypeError(evaluatedInputs, 0, typeof(Number));
+            else b = (Number)evaluatedInputs[0];
+
+            for (int i = 1; i < evaluatedInputs.Length; i++)
             {
-                if (input is Number n) m ^= n;
-                else expressions.Add(input);
+                if (!(evaluatedInputs[i] is Number)) return InputTypeError(evaluatedInputs, i, typeof(Number));
+                b ^= (Number)evaluatedInputs[i];
             }
-            if (expressions.Count > 0) throw new NotImplementedException();
-            return new Number(m);
+            return b;
         }
-        
+
 
         //protected override IEvaluatable ApplyChainRule() => GetDerivative();
         protected override IEvaluatable GetDerivative(Variable v)
@@ -150,12 +160,13 @@ namespace Parsing.Functions
 
     internal sealed class Multiplication : Operator
     {
+        
         internal Multiplication(params IEvaluatable[] inputs) : base(inputs) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Multiplication;
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
-            decimal m = 0.0m;
+            decimal m = 1.0m;
             List<IEvaluatable> expressions = new List<IEvaluatable>();
             foreach (IEvaluatable input in evaluatedInputs)
             {
@@ -177,6 +188,7 @@ namespace Parsing.Functions
 
     internal sealed class Negation : Operator
     {
+        
         internal Negation(params IEvaluatable[] input) : base(input) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Negation;
 

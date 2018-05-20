@@ -11,17 +11,14 @@ namespace Parsing.Functions
     {
         public readonly Variable Variable;
         
-        public Derivative(Variable v, Function f) : base(f) { this.Variable = v; }
-        
         protected override IEvaluatable[] EvaluateInputs() => Inputs.ToArray();
 
         protected override IEvaluatable GetDerivative(Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] inputs)
         {
-            if (inputs.Length != 1) InputCountError(inputs, 1);
-            IEvaluatable f = inputs[0];
-            return Function.Differentiate(f, Variable);
+            if (inputs.Length != 1) return InputCountError(inputs, 1);            
+            return Function.Differentiate(inputs[0], Variable);
         }
 
         private class Node

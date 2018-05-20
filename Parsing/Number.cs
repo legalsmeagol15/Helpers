@@ -15,8 +15,9 @@ namespace Parsing
 
         internal readonly decimal Value;
 
-        internal Number(decimal m) { this.Value = m; }
-        internal Number(double d) { this.Value = (decimal)d; }
+        public Number(decimal m) { this.Value = m; }
+        public Number(double d) { this.Value = (decimal)d; }
+        public Number(int i) { this.Value = (decimal)i; }
         IEvaluatable IEvaluatable.Evaluate() => this;
 
         public static implicit operator Number(int i) => new Number((decimal)i);

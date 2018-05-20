@@ -8,6 +8,7 @@ namespace Parsing.Functions
 {
     internal sealed class Abs : Function
     {
+        internal Abs() : base() { }
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
@@ -40,8 +41,8 @@ namespace Parsing.Functions
             public IEvaluatable Evaluator;
         }
 
-        //TODO:  use an IntervalSet instead
-        private List<DomainInterval> Intervals;
+        
+        private List<DomainInterval> Intervals = new List<DomainInterval>();
 
         public bool AddPortion(decimal from , bool includeFrom, decimal to, bool includeTo, IEvaluatable evaluator)
         {
@@ -51,7 +52,7 @@ namespace Parsing.Functions
             di.IncludeFrom = includeFrom;
             di.IncludeTo = includeTo;
             di.Evaluator = evaluator;
-            Intervals.Add(di);
+            this.Intervals.Add(di);
             return true;
         }
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)

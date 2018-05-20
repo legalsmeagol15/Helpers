@@ -63,7 +63,7 @@ namespace Parsing
                 // Step #2 - evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
 
                 // The following ungodly heap is designed to sort nodes according to the priority levels of the Function objects they contain.
-                Heap<DynamicLinkedList<object>.Node> priorities = new Heap<DynamicLinkedList<object>.Node>((a, b) => ((Function)a.Contents).Priority.CompareTo(((Function)b.Contents).Priority));
+                Heap<DynamicLinkedList<object>.Node> priorities = new Heap<DynamicLinkedList<object>.Node>((b, a) => ((Function)a.Contents).Priority.CompareTo(((Function)b.Contents).Priority));
 
                 DynamicLinkedList<object>.Node node = this.FirstNode;
                 while (node != null)

@@ -31,8 +31,10 @@ namespace Parsing
         /// <summary>Call to evaluate this function or clause.</summary>
         public IEvaluatable Evaluate() => Evaluate(EvaluateInputs());
 
+
         /// <summary>In the base class, simply returns the evaluation of all the inputs.</summary>
         protected virtual IEvaluatable[] EvaluateInputs() => Inputs.Select(i => i.Evaluate()).ToArray();
+
 
         /// <summary>
         /// Override if a function evaluates according to the given evaluated inputs, in a manner distinct from simply being a new clause 
@@ -45,6 +47,7 @@ namespace Parsing
             if (evaluatedInputs.Length == 1) return evaluatedInputs[0];
             return new Clause(Opener, Closer, evaluatedInputs);
         }
+
 
         public IEvaluatable Evaluate(params object[] inputs)
         {
@@ -66,22 +69,9 @@ namespace Parsing
             return Evaluate(evaluated);
         }
 
-        public ISet<Variable> FindVariables()
-        {
-            HashSet<Variable> v = new HashSet<Variable>();
-            FindVariables(v);
-            return v;
-        }
-        private void FindVariables(HashSet<Variable> variables)
-        {
-            foreach (IEvaluatable i in Inputs)
-            {
-                if (i is Variable v) variables.Add(v);                
-                else if (i is Clause n) n.FindVariables(variables);
-            }
-        }
-
+        
         public override string ToString() => (Opener != "" ? Opener + " " : "") + string.Join(", ", (object[])Inputs) + (Closer != "" ? " " + Closer : "");
+
 
         public override bool Equals(object obj)
         {
@@ -93,6 +83,7 @@ namespace Parsing
             for (int i = 0; i < Inputs.Length; i++) if (!Inputs[i].Equals(other.Inputs[i])) return false;
             return true;
         }
+
 
         private int _CachedHashCode = -1;
         public override int GetHashCode()
