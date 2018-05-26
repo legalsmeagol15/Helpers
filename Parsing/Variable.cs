@@ -6,99 +6,94 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-    public class Variable : IEvaluatable
+    public partial class DataContext
     {
-        public readonly string Name;
-        public readonly DataContext Context;
+        #region DataContext Variable dependency management
 
-        private IEvaluatable _Contents = null;
-        public IEvaluatable Contents { get => _Contents; set { _CachedValue = null; _Contents = value; } }
-        public HashSet<Variable> Dependents = new HashSet<Variable>();
-        private IEvaluatable _CachedValue;
+        private readonly Dictionary<Variable, HashSet<Variable>> Listeners = new Dictionary<Variable, HashSet<Variable>>();
+        private readonly Dictionary<Variable, HashSet<Variable>> Sources = new Dictionary<Variable, HashSet<Variable>>();
 
-        public Variable(DataContext context, string name, IEvaluatable contents = null)
+        private static HashSet<Variable> DetectSources(Variable v)
         {
-            this.Name = name;
-            this.Contents = contents;
-            this.Context = context;
-            context.Add(this);
+            HashSet<Variable> result = new HashSet<Variable>();
+            DetectSourcesRecursive(v.Contents);
+            return result;
+
+            void DetectSourcesRecursive(IEvaluatable exp)
+            {
+                switch (exp)
+                {
+                    case Variable var: result.Add(var); break;
+                    case Clause c: foreach (IEvaluatable input in c.Inputs) DetectSourcesRecursive(input); break;
+                }
+            }
         }
 
-
-        public IEvaluatable Evaluate()
+        /// <summary>Recursively notifies all a variable's listeners of a change to the contents.</summary>
+        internal void NotifyChanged(Variable v)
         {
-            if (_CachedValue != null) return _CachedValue;
-            return _CachedValue = (Contents == null ? Contents : Contents.Evaluate());
+            v._CachedValue = null;
+            lock (this)
+            {
+                foreach (Variable source in Sources[v]) Listeners[source].Remove(v);
+                Sources[v] = DetectSources(v);
+                foreach (Variable listener in Listeners[v]) NotifyChanged(listener);
+            }
         }
 
-        public override int GetHashCode() => Name.GetHashCode();
+        #endregion
 
-        public override bool Equals(object obj) => ReferenceEquals(this, obj);
 
-        public override string ToString() => Name;
 
-        public class DataContext
+        public sealed class Variable : IEvaluatable
         {
+            public readonly string Name;
+            public readonly DataContext Context;
 
-            private readonly Dictionary<string, Variable> _Variables = new Dictionary<string, Variable>();
-            public Variable this[string name]
+            internal IEvaluatable _Contents = null;
+            public IEvaluatable Contents
             {
-                get => _Variables[name];
-            }
-
-            public bool Add(Variable v)
-            {
-                if (_Variables.ContainsKey(v.Name)) return false;
-                _Variables.Add(v.Name, v);
-                return true;
-            }
-
-
-
-            internal bool TryGetVariable(string name, out Variable v)
-            {
-                if (!_Variables.ContainsKey(name))
+                get => _Contents;
+                set
                 {
-                    v = null;
-                    return false;
-                }
-                v = _Variables[name];
-                return true;
-            }
+                    _Contents = value;
 
-            /// <summary>
-            /// Attempts the create the variable within this context.  If the variable does not 
-            /// already exist and its name is valid, returns true, with the 'out' variable being 
-            /// the new variable added to this context.  If the variable already exists, the 'out' 
-            /// variable will be the existing variable, and returns false.  If the variable cannot 
-            /// be added, the 'out' variable will be null, and returns false.
-            /// </summary>
-            /// <param name="name">The name of the variable to create.</param>
-            /// <param name="v">If the variable does not exist, returns the variable newly created 
-            /// and added to this context.  If the variable does exist, returns the variable.  If 
-            /// the variable does not exist and cannot be created with the given name, returns null.
-            /// </param>
-            /// <returns>True if the variable is created and added, otherwise false.</returns>
-            internal bool TryCreateVariable(string name, out Variable v)
+                    // TODO:  Context is null in testing?
+                    Context.NotifyChanged(this);
+                    Context.TryDelete(this);
+                }
+            }
+            public HashSet<Variable> Dependents = new HashSet<Variable>();
+            internal IEvaluatable _CachedValue;
+
+            //internal ISet<Variable> Listeners { get; private set; } = new HashSet<Variable>();
+
+            internal Variable(DataContext context, string name, IEvaluatable contents = null)
             {
-                if (_Variables.ContainsKey(name))
-                {
-                    v = _Variables[name];
-                    return false;
-                }
-                if (!IsNameValid(name))
-                {
-                    v = null;
-                    return false;
-                }
-                v = new Variable(this, name);
-                _Variables.Add(name, v);
-                return true;
+                this.Name = name;
+                this.Context = context;
+                this._Contents = contents;
             }
 
-            public bool IsNameValid(string name) => true;
+            /// <summary>Returns whether this Variable depends directly on the given source.</summary>
+            public bool DependsOn(Variable source) => Context.DependencyExists(source, this);
+            /// <summary>Returns whether this Variable is a source for the given listener.</summary>
+            public bool DependedOnBy(Variable listener) => Context.DependencyExists(listener, this);
+
+
+            public IEvaluatable Evaluate()
+            {
+                if (_CachedValue != null) return _CachedValue;
+                return _CachedValue = (Contents == null ? Contents : Contents.Evaluate());
+            }
+
+            public override int GetHashCode() => Name.GetHashCode();
+
+            public override bool Equals(object obj) => ReferenceEquals(this, obj);
+
+            public override string ToString() => Name;
+
+
         }
-
-
     }
 }

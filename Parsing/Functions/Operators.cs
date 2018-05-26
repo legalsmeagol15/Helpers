@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Parsing.DataContext;
 
 namespace Parsing.Functions
 {
@@ -14,7 +15,7 @@ namespace Parsing.Functions
     /// example, addition could be written "add(a,b)", instead we use "a + b" with a special symbol 
     /// in between its two inputs.
     /// </summary>
-    internal abstract class Operator : Function
+    internal abstract class Operator : DataContext.Function
     {
         protected internal Operator(params IEvaluatable[] inputs) : base(inputs) { }
        
@@ -50,7 +51,7 @@ namespace Parsing.Functions
         }
 
         
-        protected override IEvaluatable GetDerivative(Variable v) => new Addition(Inputs.Select(i => Differentiate(i,v)).ToArray());
+        protected override IEvaluatable GetDerivative(DataContext.Variable v) => new Addition(Inputs.Select(i => Differentiate(i,v)).ToArray());
     }
 
 
@@ -73,7 +74,7 @@ namespace Parsing.Functions
         }
 
         
-        protected override IEvaluatable GetDerivative(Variable v) => NonDifferentiableFunctionError();
+        protected override IEvaluatable GetDerivative(DataContext.Variable v) => NonDifferentiableFunctionError();
 
         protected override string Symbol => "&";
 
@@ -105,7 +106,7 @@ namespace Parsing.Functions
         }
 
         
-        protected override IEvaluatable GetDerivative(Variable v)
+        protected override IEvaluatable GetDerivative(DataContext.Variable v)
         {
             IEvaluatable f = Inputs[0], g = Inputs[1];
             IEvaluatable lhs_numerator = new Multiplication(Differentiate(f, v), g).GetSimplified();
@@ -143,7 +144,7 @@ namespace Parsing.Functions
 
 
         //protected override IEvaluatable ApplyChainRule() => GetDerivative();
-        protected override IEvaluatable GetDerivative(Variable v)
+        protected override IEvaluatable GetDerivative(DataContext.Variable v)
         {
             List<IEvaluatable> inputs = Inputs.ToList();
             while (inputs.Count > 2)

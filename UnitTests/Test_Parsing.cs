@@ -2,6 +2,7 @@
 using Parsing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
+using static Parsing.DataContext;
 
 namespace UnitTests
 {
@@ -132,6 +133,7 @@ namespace UnitTests
 
         }
 
+
         [TestMethod]
         public void TestParsing_Operators()
         {
@@ -183,8 +185,16 @@ namespace UnitTests
         [TestMethod]
         public void Test_Variables()
         {
-            Variable.DataContext context = new Variable.DataContext();
-            Variable a = new Variable(context, "a"), b = new Variable(context, "b"), c = new Variable(context,"c");
+            DataContext context = new DataContext();
+            Variable a, b, c;
+            Assert.IsTrue(context.TryAdd("a", out a));
+            Assert.IsFalse(context.TryAdd("a", out Variable _));
+            Assert.IsTrue(context.TryAdd("b", out b));
+            Assert.IsTrue(context.TryAdd("c", out c));
+            
+            Assert.AreEqual(a.Context, context);
+            Assert.AreEqual(b.Context, context);
+            Assert.AreEqual(c.Context, context);
             int valA = 1, valB = 2, valC = 3;
             context["a"].Contents = new Number(valA);
             context["b"].Contents = new Number(valB);

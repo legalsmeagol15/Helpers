@@ -8,6 +8,7 @@ using System.Diagnostics;
 using DataStructures;
 using Parsing;
 using Parsing.Functions;
+using static Parsing.DataContext;
 
 namespace Parsing
 {
@@ -45,7 +46,7 @@ namespace Parsing
             public void Close(String closer, int endIndex) { this.Closer = closer; this.End = endIndex; }
 
             /// <exception cref="InvalidOperationException">Thrown for a mismatch.</exception>
-            public IEvaluatable Parse(Function.Factory functions)
+            public IEvaluatable Parse(DataContext.Function.Factory functions)
             {
                 //TODO:  contain all within a try/catch block to catch parsing errors?
                 
@@ -63,7 +64,7 @@ namespace Parsing
                 // Step #2 - evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
 
                 // The following ungodly heap is designed to sort nodes according to the priority levels of the Function objects they contain.
-                Heap<DynamicLinkedList<object>.Node> priorities = new Heap<DynamicLinkedList<object>.Node>((b, a) => ((Function)a.Contents).Priority.CompareTo(((Function)b.Contents).Priority));
+                Heap<DynamicLinkedList<object>.Node> priorities = new Heap<DynamicLinkedList<object>.Node>((a, b) => -((DataContext.Function)a.Contents).Priority.CompareTo(((DataContext.Function)b.Contents).Priority));
 
                 DynamicLinkedList<object>.Node node = this.FirstNode;
                 while (node != null)
@@ -72,11 +73,11 @@ namespace Parsing
                     {
                         case TokenList tl: node.Contents = tl.Parse(functions); break;                        
                         case Error e: return e;
-                        case Function f: priorities.Add(node); break;
+                        case DataContext.Function f: priorities.Add(node); break;
                         //case Clause c: break;
                         case Number n when node.Next != null:
                             if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
-                            if (node.Next.Contents is TokenList || node.Next.Contents is Variable || node.Next.Contents is Function || node.Next.Contents is Clause)
+                            if (node.Next.Contents is TokenList || node.Next.Contents is DataContext.Variable || node.Next.Contents is DataContext.Function || node.Next.Contents is Clause)
                                 node.InsertAfter(functions.CreateMultiplication());
                             break;                        
                     }
@@ -87,7 +88,7 @@ namespace Parsing
                 while (priorities.Count > 0)
                 {
                     node = priorities.Pop();
-                    Function function = (Function)node.Contents;
+                    DataContext.Function function = (DataContext.Function)node.Contents;
                     function.ParseNode(node);
                 }
 
@@ -107,7 +108,7 @@ namespace Parsing
         }
         
 
-        public static IEvaluatable FromLaTeX(string latex, IDictionary<string, Function> functions, out ISet<Variable> dependees, Variable.DataContext context = null)
+        public static IEvaluatable FromLaTeX(string latex, IDictionary<string, Function> functions, out ISet<Variable> dependees, Variable context = null)
         {
             throw new NotImplementedException();
         }
@@ -117,7 +118,7 @@ namespace Parsing
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="dependees">The variables on which this expression depends, if any.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        public static IEvaluatable FromString(string str, Function.Factory functions, out ISet<Variable> dependees, Variable.DataContext context = null)
+        public static IEvaluatable FromString(string str, Function.Factory functions, out ISet<Variable> dependees, DataContext context = null)
         {
             // Step #1 - setup
             dependees = new HashSet<Variable>();
@@ -176,8 +177,8 @@ namespace Parsing
                     case string _ when functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
 
                     //Variable?
-                    case string _ when context != null && context.TryGetVariable(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); dependees.Add(old_var); continue;
-                    case string _ when context != null && context.TryCreateVariable(rawToken, out Variable new_var): stack.Peek().AddLast(new_var); dependees.Add(new_var); continue;
+                    case string _ when context != null && context.TryGet(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); dependees.Add(old_var); continue;
+                    case string _ when context != null && context.TryAdd(rawToken, out Variable new_var): stack.Peek().AddLast(new_var); dependees.Add(new_var); continue;
 
                     default: return new Error("Unrecognized token: " + rawToken + ".", 0, i);
                 }

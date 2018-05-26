@@ -14,9 +14,10 @@ namespace Parsing
         internal string Opener;
         internal string Closer;
         public IEvaluatable[] Inputs { get; protected set; }
-       
+
         internal Clause(string opener, string closer, params IEvaluatable[] inputs) { this.Opener = opener; this.Closer = closer; this.Inputs = inputs ?? new IEvaluatable[0]; }
-        
+
+
         
         public static Clause Parenthetical(params IEvaluatable[] expressions) => new Clause("(", ")", expressions);
         public static Clause Bracketed(params IEvaluatable[] expressions) => new Clause("[", "]", expressions);

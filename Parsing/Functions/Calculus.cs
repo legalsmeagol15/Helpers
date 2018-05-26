@@ -4,16 +4,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Graphs;
+using static Parsing.DataContext;
 
 namespace Parsing.Functions
 {
     internal sealed class Derivative : Function
     {
-        public readonly Variable Variable;
+        public readonly DataContext.Variable Variable;
         
         protected override IEvaluatable[] EvaluateInputs() => Inputs.ToArray();
 
-        protected override IEvaluatable GetDerivative(Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
+        protected override IEvaluatable GetDerivative(DataContext.Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
 
         protected internal override IEvaluatable Evaluate(params IEvaluatable[] inputs)
         {

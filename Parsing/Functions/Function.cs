@@ -9,274 +9,277 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-    public abstract class Function : Clause, IComparable<Function>
+    public partial class DataContext
     {
-        protected internal VariableDomain Domain { get; private set; }
-        protected internal VariableDomain CoDomain { get; private set; }
-
-        public virtual string Name => this.GetType().Name;
-        public bool TermsOf(Variable v) => Terms != null && Terms.Contains(v);
-        protected internal HashSet<Variable> Terms = null;
-
-
-
-        protected Function(params IEvaluatable[] inputs) : base("", "", inputs) {
-            if (inputs == null) return;
-            IEnumerable<Variable> vars = inputs.OfType<Variable>();
-            if (!vars.Any()) return;
-            Terms = new HashSet<Variable>(vars);
-            foreach (Function f in inputs.OfType<Function>()) foreach (Variable v in f.Terms) Terms.Add(v);
-        }
-        
-        
-
-
-        #region Function calculus
-
-        protected internal static IEvaluatable Differentiate(IEvaluatable function, Variable v)
+        public abstract class Function : Clause
         {
-            switch (function)
+            protected internal VariableDomain Domain { get; private set; }
+            protected internal VariableDomain CoDomain { get; private set; }
+
+            public virtual string Name => this.GetType().Name;
+            public bool TermsOf(Variable v) => Terms != null && Terms.Contains(v);
+            protected internal HashSet<Variable> Terms = null;
+
+
+
+            protected Function(params IEvaluatable[] inputs) : base("", "", inputs)
             {
-                case Function f: return (f.Terms.Contains(v)) ? f.GetDerivative(v) : Number.Zero;
-                case Clause c:
-                    if (c.Inputs.Length != 1) return new Error("Cannot differentiate multi-input clause: " + c.ToString());
-                    return Differentiate(c.Inputs[0], v);
-                case Number n: return Number.Zero;
-                case Variable var:  return (var == v) ? Number.One : Number.Zero;
-                case Error e: return e;
-                default: return new Error("Cannot find derivative of: " + function.ToString());
+                if (inputs == null) return;
+                IEnumerable<Variable> vars = inputs.OfType<Variable>();
+                if (!vars.Any()) return;
+                Terms = new HashSet<Variable>(vars);
+                foreach (Function f in inputs.OfType<Function>()) foreach (Variable v in f.Terms) Terms.Add(v);
             }
-        }
-
-
-        protected virtual IEvaluatable GetDerivative(Variable v) => NonDifferentiableFunctionError();
-
-        protected IEvaluatable ApplyChainRule(Variable v, IEvaluatable fPrime, IEvaluatable g)
-        {
-            Functions.Multiplication result = new Functions.Multiplication(fPrime, g);
-            return result.GetSimplified();
-        }
-
-        protected internal virtual IEvaluatable GetSimplified() => this;
-
-        protected Error NonDifferentiableFunctionError() => new Error("Nondifferentiable function: " + this.ToString());
-
-        #endregion
 
 
 
 
+            #region Function calculus
 
-        #region Function parsing
-
-        /// <summary>
-        /// The priority for parsing this function.  Functions with higher priority will bind more tightly (meaning, first) than 
-        /// functions with a lower priority.
-        /// </summary>
-        protected internal enum ParsingPriority
-        {
-            None = 0,
-            Range = 1000000,
-            Addition = 2000000, Subtraction = 2000000,
-            Multiplication = 3000000, Division = 3000000,
-            Exponentiation = 4000000,
-            Concatenation = 5000000, And = 5000000, Or = 5000000,
-            Negation = 6000000,
-            Function = 7000000, Relation = 7000000
-        }
-
-        int IComparable<Function>.CompareTo(Function other) => -(this.Priority.CompareTo(other.Priority));
-
-        protected internal virtual ParsingPriority Priority => ParsingPriority.Function;
-
-
-        protected internal virtual void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 0, 1);
-
-        protected void ParseNode(DynamicLinkedList<object>.Node node, int preceding, int following)
-        {
-            IEvaluatable[] inputs = new IEvaluatable[preceding + following];
-            following = preceding;
-            while (following < inputs.Length) inputs[following++] = (IEvaluatable)node.Next.Remove();
-            while (--preceding >= 0) inputs[preceding] = (IEvaluatable)node.Previous.Remove();
-            this.Inputs = inputs;
-        }
-
-        #endregion
-
-
-
-
-        public override string ToString() => Name + ((Opener != "") ? (Opener + " ") : "") + string.Join(", ", (IEnumerable<IEvaluatable>)Inputs) + ((Closer != "") ? (" " + Closer) : "");
-
-        public sealed class Factory
-        {
-
-            private readonly static Type[] IEvaluatableArray = new Type[] { typeof(IEvaluatable[]) };
-
-            private readonly static object[] EmptyIEvaluatable = new object[] { new IEvaluatable[0] };
-
-            /// <summary>
-            /// The function used to standardize function names.  Default behavior is to return the upper-case conversion of the function 
-            /// name.
-            /// </summary>
-            public Func<string, string> Standardize = (s) => s.ToUpper();
-           
-            private readonly Dictionary<string, Func<Function>> Functions = new Dictionary<string, Func<Function>>();
-            private readonly Dictionary<string, Functions.Constant> Constants = new Dictionary<string, Parsing.Functions.Constant>();
-
-
-            public Function this[string name] { get => Functions[Standardize(name)](); }
-
-
-            
-            public bool Contains(string functionName) => Functions.ContainsKey(Standardize(functionName));
-
-            public bool TryCreateFunction(string functionName, out Function f)
+            protected internal static IEvaluatable Differentiate(IEvaluatable function, Variable v)
             {
-                if (Functions.TryGetValue(Standardize(functionName), out Func<Function> constructor))
+                switch (function)
                 {
-                    f = constructor();
-                    return true;
+                    case Function f: return (f.Terms.Contains(v)) ? f.GetDerivative(v) : Number.Zero;
+                    case Clause c:
+                        if (c.Inputs.Length != 1) return new Error("Cannot differentiate multi-input clause: " + c.ToString());
+                        return Differentiate(c.Inputs[0], v);
+                    case Number n: return Number.Zero;
+                    case Variable var: return (var == v) ? Number.One : Number.Zero;
+                    case Error e: return e;
+                    default: return new Error("Cannot find derivative of: " + function.ToString());
                 }
-                f = null;
-                return false;
             }
 
 
-            public bool AddRecipe(string functionName, Func<Function> recipe)
+            protected virtual IEvaluatable GetDerivative(Variable v) => NonDifferentiableFunctionError();
+
+            protected IEvaluatable ApplyChainRule(Variable v, IEvaluatable fPrime, IEvaluatable g)
             {
-                functionName = Standardize(functionName);
-                if (Functions.ContainsKey(functionName)) return false;
-                Functions[functionName] = recipe;
-                return true;
+                Functions.Multiplication result = new Functions.Multiplication(fPrime, g);
+                return result.GetSimplified();
             }
 
-            internal bool AddConstant(Functions.Constant constant)
-            {
-                string constantName = Standardize(constant.Name);
-                if (Constants.ContainsKey(constantName) || Functions.ContainsKey(constantName)) return false;
-                Constants[constantName] = constant;
-                Functions[constantName] = () => constant;
-                return true;
-            }
+            protected internal virtual IEvaluatable GetSimplified() => this;
 
-
-            #region Factory universal creators
-            /// It is expected that ALL function factories will be able to interpret operators, so direct creation methods 
-            /// are included for operators.
-
-            internal Functions.Addition CreateAddition() => new Functions.Addition();
-            internal Functions.Subtraction CreateSubtraction() => new Functions.Subtraction();
-            internal Functions.Multiplication CreateMultiplication() => new Functions.Multiplication();
-            internal Functions.Division CreateDivision() => new Functions.Division();
-            internal Functions.Exponentiation CreateExponentiation() => new Functions.Exponentiation();
-            internal Functions.And CreateAnd() => new Functions.And();
-            internal Functions.Or CreateOr() => new Functions.Or();
-            internal Functions.Relation CreateRelation() => new Functions.Relation();
-            internal Functions.Range CreateRange() => new Functions.Range();
-            internal Functions.Negation CreateNegation() => new Functions.Negation();
+            protected Error NonDifferentiableFunctionError() => new Error("Nondifferentiable function: " + this.ToString());
 
             #endregion
 
 
 
-            public static Factory StandardFactory()
-            {
-                
-                Factory factory = new Factory();
-                List<Function> types = new List<Function>();
-                foreach (Type type in Assembly.GetAssembly(typeof(Function)).GetTypes().Where(myType => !myType.IsAbstract && myType.IsSubclassOf(typeof(Function))))
-                {
-                    // No instances of constant functions are wasteful.  Don't create a dynamic caller for them.  Instead, callers will be
-                    // created later for each of the defined constant functions (one for 'pi', one for 'e', etc.).
-                    if (typeof(Functions.Constant).IsAssignableFrom(type)) continue;
 
-                    // The caller works by invoking an appropriate constructor for the type, and returning the resulting Function.  Public 
-                    // constructors are preferred over non-public, and IEvaluatable[] parameters are preferred over no-params ctors.
-                    Func<Function> caller = delegate ()
+
+            #region Function parsing
+
+            /// <summary>
+            /// The priority for parsing this function.  Functions with higher priority will bind more tightly (meaning, first) than 
+            /// functions with a lower priority.
+            /// </summary>
+            protected internal enum ParsingPriority
+            {
+                None = 0,
+                Range = 1000000,
+                Addition = 2000000, Subtraction = 2000000,
+                Multiplication = 3000000, Division = 3000000,
+                Exponentiation = 4000000,
+                Concatenation = 5000000, And = 5000000, Or = 5000000,
+                Negation = 6000000,
+                Function = 7000000, Relation = 7000000
+            }
+
+            protected internal virtual ParsingPriority Priority => ParsingPriority.Function;
+
+
+            protected internal virtual void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 0, 1);
+
+            protected void ParseNode(DynamicLinkedList<object>.Node node, int preceding, int following)
+            {
+                IEvaluatable[] inputs = new IEvaluatable[preceding + following];
+                following = preceding;
+                while (following < inputs.Length) inputs[following++] = (IEvaluatable)node.Next.Remove();
+                while (--preceding >= 0) inputs[preceding] = (IEvaluatable)node.Previous.Remove();
+                this.Inputs = inputs;
+            }
+
+            #endregion
+
+
+
+
+            public override string ToString() => Name + ((Opener != "") ? (Opener + " ") : "") + string.Join(", ", (IEnumerable<IEvaluatable>)Inputs) + ((Closer != "") ? (" " + Closer) : "");
+
+            public sealed class Factory
+            {
+
+                private readonly static Type[] IEvaluatableArray = new Type[] { typeof(IEvaluatable[]) };
+
+                private readonly static object[] EmptyIEvaluatable = new object[] { new IEvaluatable[0] };
+
+                /// <summary>
+                /// The function used to standardize function names.  Default behavior is to return the upper-case conversion of the function 
+                /// name.
+                /// </summary>
+                public Func<string, string> Standardize = (s) => s.ToUpper();
+
+                private readonly Dictionary<string, Func<Function>> Functions = new Dictionary<string, Func<Function>>();
+                private readonly Dictionary<string, Functions.Constant> Constants = new Dictionary<string, Parsing.Functions.Constant>();
+
+
+                public Function this[string name] { get => Functions[Standardize(name)](); }
+
+
+
+                public bool Contains(string functionName) => Functions.ContainsKey(Standardize(functionName));
+
+                public bool TryCreateFunction(string functionName, out Function f)
+                {
+                    if (Functions.TryGetValue(Standardize(functionName), out Func<Function> constructor))
                     {
-
-                        /// The standard factory must be able to call a constructor on each type which exists in the following chart:
-                        /// 
-                        ///             No parameter    IEvaluate[] as only parameter
-                        ///             ----------------------------------------------
-                        ///     Public |      2       |            1                 |
-                        ///            -----------------------------------------------
-                        ///  NonPublic |      4       |            3                 |
-                        ///            -----------------------------------------------
-
-                        
-
-                        // Case #1 - public ctor, IEvaluatable[] parameter
-                        ConstructorInfo c = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, IEvaluatableArray, null);
-                        if (c != null) return (Function)c.Invoke(EmptyIEvaluatable);
-
-                        // Case #2 - public ctor, no parameter
-                        c = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
-                        if (c != null) return (Function)c.Invoke(null);
-
-                        // Case #3 - non-public ctor, IEvaluatable[] parameter
-                        c = type.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, IEvaluatableArray, null);
-                        if (c != null) return (Function)c.Invoke(EmptyIEvaluatable);
-
-
-                        // Case #4 - non-public ctor, no parameter
-                        c = type.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
-                        if (c != null) return (Function)c.Invoke(null);
-
-                        // Case #5 - No matching ctor found, so throw an exception.
-                        throw new FactoryException("Function of type " + type.Name + " has been set up incorrectly.  Must contain a no-argument constructor for parsing purposes.");
-                    };
-                    Function specimen = caller();
-                    factory.AddRecipe(specimen.Name, caller);                    
+                        f = constructor();
+                        return true;
+                    }
+                    f = null;
+                    return false;
                 }
 
-                // Here is where the callers that return the single object for each defined constant function is created.
-                foreach (FieldInfo fInfo in typeof(Functions.Constant).GetFields())
+
+                public bool AddRecipe(string functionName, Func<Function> recipe)
                 {
-                    if (!fInfo.IsStatic || !fInfo.IsPublic) continue;
-                    Functions.Constant constant = (Functions.Constant)fInfo.GetValue(null);
-                    factory.AddConstant(constant);                    
+                    functionName = Standardize(functionName);
+                    if (Functions.ContainsKey(functionName)) return false;
+                    Functions[functionName] = recipe;
+                    return true;
                 }
 
-                return factory;
+                internal bool AddConstant(Functions.Constant constant)
+                {
+                    string constantName = Standardize(constant.Name);
+                    if (Constants.ContainsKey(constantName) || Functions.ContainsKey(constantName)) return false;
+                    Constants[constantName] = constant;
+                    Functions[constantName] = () => constant;
+                    return true;
+                }
+
+
+                #region Factory universal creators
+                /// It is expected that ALL function factories will be able to interpret operators, so direct creation methods 
+                /// are included for operators.
+
+                internal Functions.Addition CreateAddition() => new Functions.Addition();
+                internal Functions.Subtraction CreateSubtraction() => new Functions.Subtraction();
+                internal Functions.Multiplication CreateMultiplication() => new Functions.Multiplication();
+                internal Functions.Division CreateDivision() => new Functions.Division();
+                internal Functions.Exponentiation CreateExponentiation() => new Functions.Exponentiation();
+                internal Functions.And CreateAnd() => new Functions.And();
+                internal Functions.Or CreateOr() => new Functions.Or();
+                internal Functions.Relation CreateRelation() => new Functions.Relation();
+                internal Functions.Range CreateRange() => new Functions.Range();
+                internal Functions.Negation CreateNegation() => new Functions.Negation();
+
+                #endregion
+
+
+
+                public static Factory StandardFactory()
+                {
+
+                    Factory factory = new Factory();
+                    List<Function> types = new List<Function>();
+                    foreach (Type type in Assembly.GetAssembly(typeof(Function)).GetTypes().Where(myType => !myType.IsAbstract && myType.IsSubclassOf(typeof(Function))))
+                    {
+                        // No instances of constant functions are wasteful.  Don't create a dynamic caller for them.  Instead, callers will be
+                        // created later for each of the defined constant functions (one for 'pi', one for 'e', etc.).
+                        if (typeof(Functions.Constant).IsAssignableFrom(type)) continue;
+
+                        // The caller works by invoking an appropriate constructor for the type, and returning the resulting Function.  Public 
+                        // constructors are preferred over non-public, and IEvaluatable[] parameters are preferred over no-params ctors.
+                        Func<Function> caller = delegate ()
+                        {
+
+                            /// The standard factory must be able to call a constructor on each type which exists in the following chart:
+                            /// 
+                            ///             No parameter    IEvaluate[] as only parameter
+                            ///             ----------------------------------------------
+                            ///     Public |      2       |            1                 |
+                            ///            -----------------------------------------------
+                            ///  NonPublic |      4       |            3                 |
+                            ///            -----------------------------------------------
+
+
+
+                            // Case #1 - public ctor, IEvaluatable[] parameter
+                            ConstructorInfo c = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, IEvaluatableArray, null);
+                            if (c != null) return (Function)c.Invoke(EmptyIEvaluatable);
+
+                            // Case #2 - public ctor, no parameter
+                            c = type.GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+                            if (c != null) return (Function)c.Invoke(null);
+
+                            // Case #3 - non-public ctor, IEvaluatable[] parameter
+                            c = type.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, IEvaluatableArray, null);
+                            if (c != null) return (Function)c.Invoke(EmptyIEvaluatable);
+
+
+                            // Case #4 - non-public ctor, no parameter
+                            c = type.GetConstructor(BindingFlags.NonPublic | BindingFlags.Instance, null, Type.EmptyTypes, null);
+                            if (c != null) return (Function)c.Invoke(null);
+
+                            // Case #5 - No matching ctor found, so throw an exception.
+                            throw new FactoryException("Function of type " + type.Name + " has been set up incorrectly.  Must contain a no-argument constructor for parsing purposes.");
+                        };
+                        Function specimen = caller();
+                        factory.AddRecipe(specimen.Name, caller);
+                    }
+
+                    // Here is where the callers that return the single object for each defined constant function is created.
+                    foreach (FieldInfo fInfo in typeof(Functions.Constant).GetFields())
+                    {
+                        if (!fInfo.IsStatic || !fInfo.IsPublic) continue;
+                        Functions.Constant constant = (Functions.Constant)fInfo.GetValue(null);
+                        factory.AddConstant(constant);
+                    }
+
+                    return factory;
+                }
+
+
+                public class FactoryException : Exception
+                {
+                    public FactoryException(string message) : base(message) { }
+                }
             }
 
 
-            public class FactoryException : Exception
+
+            #region Function error helpers
+            protected Error InputTypeError(IList<IEvaluatable> inputs, int index, params Type[] t)
             {
-                public FactoryException(string message) : base(message) { }
+                Debug.Assert(index < inputs.Count);
+                Debug.Assert(!t.Contains(inputs[index].GetType()));
+                return new Error("Input " + index + " incorrect type for function " + Name + ".  Expected " + string.Join(", ", t.Select((tp) => tp.Name)) + ", but given " + inputs[index].GetType().Name + ".");
             }
-        }
 
+            /// <summary>Returns an input type error with a suitable message.</summary>
+            /// <param name="inputs">The inputs that caused the error.</param>
+            /// <param name="expected">The input counts that are acceptable.  Overloaded functions may all different counts.</param>
+            protected Error InputCountError(IList<IEvaluatable> inputs, params int[] expected)
+            {
+                Debug.Assert(!expected.Contains(inputs.Count));
+                return new Error("Incorrect input count for function " + Name + ".  Expected {" + string.Join(", ", expected) + "}, but given " + inputs.Count + ".");
+            }
 
+            #endregion
 
-        #region Function error helpers
-        protected Error InputTypeError(IList<IEvaluatable> inputs, int index, params Type[] t)
-        {
-            Debug.Assert(index < inputs.Count);
-            Debug.Assert(!t.Contains(inputs[index].GetType()));
-            return new Error("Input " + index + " incorrect type for function " + Name + ".  Expected " + string.Join(", ", t.Select((tp) => tp.Name)) + ", but given " + inputs[index].GetType().Name + ".");
-        }
+            protected internal class VariableDomain
+            {
 
-        /// <summary>Returns an input type error with a suitable message.</summary>
-        /// <param name="inputs">The inputs that caused the error.</param>
-        /// <param name="expected">The input counts that are acceptable.  Overloaded functions may all different counts.</param>
-        protected  Error InputCountError(IList<IEvaluatable> inputs, params int[] expected)
-        {
-            Debug.Assert(!expected.Contains(inputs.Count));
-            return new Error("Incorrect input count for function " + Name + ".  Expected {" + string.Join(", ", expected) + "}, but given " + inputs.Count + ".");
-        }
-
-        #endregion
-
-        protected internal class VariableDomain
-        {
+            }
 
         }
-      
+
+
     }
-
 
 
 }

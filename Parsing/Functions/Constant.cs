@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Parsing.Functions
 {
 
-    internal sealed class Constant : Function, IEvaluatable
+    internal sealed class Constant : DataContext.Function, IEvaluatable
     {
         // Reflection will add the following constants to a standard factory.
         public static readonly Constant PI = new Constant("PI", Number.Pi);
@@ -26,7 +26,7 @@ namespace Parsing.Functions
             if (node.Next != null && node.Next.Contents is Clause c && c.Inputs.Length == 0) node.Next.Remove();
         }
 
-        protected override IEvaluatable GetDerivative(Variable v) => Number.Zero;
+        protected override IEvaluatable GetDerivative(DataContext.Variable v) => Number.Zero;
     }
 
 
