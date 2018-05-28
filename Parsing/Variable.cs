@@ -8,89 +8,134 @@ namespace Parsing
 {
     public partial class DataContext
     {
-        #region DataContext Variable dependency management
+       
 
-        private readonly Dictionary<Variable, HashSet<Variable>> Listeners = new Dictionary<Variable, HashSet<Variable>>();
-        private readonly Dictionary<Variable, HashSet<Variable>> Sources = new Dictionary<Variable, HashSet<Variable>>();
 
-        private static HashSet<Variable> DetectSources(Variable v)
+        public class CircularDependencyException : Exception
         {
-            HashSet<Variable> result = new HashSet<Variable>();
-            DetectSourcesRecursive(v.Contents);
-            return result;
-
-            void DetectSourcesRecursive(IEvaluatable exp)
-            {
-                switch (exp)
-                {
-                    case Variable var: result.Add(var); break;
-                    case Clause c: foreach (IEvaluatable input in c.Inputs) DetectSourcesRecursive(input); break;
-                }
-            }
+            public readonly Variable V0, V1;
+            IEvaluatable Contents;
+            public CircularDependencyException(IEvaluatable contents, Variable v0, Variable v1) : base("A circular dependency exists.") { this.Contents = contents; this.V0 = v0; this.V1 = v1; }
         }
-
-        /// <summary>Recursively notifies all a variable's listeners of a change to the contents.</summary>
-        internal void NotifyChanged(Variable v)
-        {
-            v._CachedValue = null;
-            lock (this)
-            {
-                foreach (Variable source in Sources[v]) Listeners[source].Remove(v);
-                Sources[v] = DetectSources(v);
-                foreach (Variable listener in Listeners[v]) NotifyChanged(listener);
-            }
-        }
-
-        #endregion
-
 
 
         public sealed class Variable : IEvaluatable
         {
+
+
             public readonly string Name;
             public readonly DataContext Context;
 
-            internal IEvaluatable _Contents = null;
+            private IEvaluatable _Contents = null;
+            internal IEvaluatable _CachedValue;
+            internal ISet<Variable> _Sources;
+            internal readonly ISet<Variable> _Listeners;
+            
             public IEvaluatable Contents
             {
                 get => _Contents;
                 set
                 {
-                    _Contents = value;
+                    // Lock because dependency state of this context will be changed.
+                    lock (Context)
+                    {
+                        // Step # 0 - Before changing any state, check for circularity:  if a term of the new contents directly or 
+                        // indirectly listens to this Variable.
+                        if (value is Clause c)
+                        {
+                            foreach (Variable term in c.Terms) if (term.DependsOnUnsafe(this)) throw new CircularDependencyException(value, this, term);
+                        } else if (value is Variable v)
+                        {
+                            if (v.DependsOnUnsafe(this)) throw new CircularDependencyException(value, v, this);
+                        }
 
-                    // TODO:  Context is null in testing?
-                    Context.NotifyChanged(this);
+                        // Step #1 - for each source, remove this listener as a source.
+                        foreach (Variable source in _Sources) source._Listeners.Remove(this);
+
+                        // Step #2 - Set the contents to the new contents.
+                        _Contents = value;
+                        _Sources.Clear();
+
+                        // Step #3 - if the new contents is a clause, add sources/listeners.
+                        if (_Contents is Clause newClause)
+                        {
+                            foreach (Variable term in newClause.Terms)
+                            {
+                                term._Listeners.Add(this);
+                                this._Sources.Add(term);
+                            }
+                        }
+                        else if (_Contents is Variable newVariable)
+                        {
+                            newVariable._Listeners.Add(this);
+                            this._Sources.Add(newVariable);
+                        }
+
+                        // Step #4 - clear the cached values of all listeners to this Variable.
+                        Uncache(this);
+                        void Uncache(Variable listener)
+                        {
+                            listener._CachedValue = null;
+                            foreach (Variable l in listener._Listeners) Uncache(l);
+                        }
+                    }
+
+                    // If the variable is nulled and has no listeners, it can be deleted.
                     Context.TryDelete(this);
                 }
             }
-            public HashSet<Variable> Dependents = new HashSet<Variable>();
-            internal IEvaluatable _CachedValue;
-
-            //internal ISet<Variable> Listeners { get; private set; } = new HashSet<Variable>();
-
+            
+            
             internal Variable(DataContext context, string name, IEvaluatable contents = null)
             {
                 this.Name = name;
                 this.Context = context;
-                this._Contents = contents;
+                
+                this._Sources = new HashSet<Variable>();
+                this._Listeners = new HashSet<Variable>();
+
+                this.Contents = contents;
             }
 
             /// <summary>Returns whether this Variable depends directly on the given source.</summary>
-            public bool DependsOn(Variable source) => Context.DependencyExists(source, this);
-            /// <summary>Returns whether this Variable is a source for the given listener.</summary>
-            public bool DependedOnBy(Variable listener) => Context.DependencyExists(listener, this);
-
-
-            public IEvaluatable Evaluate()
+            /// <para/>Note that this method locks on the Context.
+            public bool DependsOn(Variable source)
             {
-                if (_CachedValue != null) return _CachedValue;
-                return _CachedValue = (Contents == null ? Contents : Contents.Evaluate());
+                lock (Context)
+                {
+                    return DependsOnUnsafe(source);
+                }
             }
 
-            public override int GetHashCode() => Name.GetHashCode();
+            /// <summary>This method is "unsafe" because it uses no locking.</summary>
+            private bool DependsOnUnsafe(Variable source)
+            {
+                if (source.Equals(this)) return true;
+                if (_Sources.Contains(source)) return true;
+                foreach (Variable sub_var in _Sources) if (sub_var.DependsOnUnsafe(source)) return true;
+                return false;
+            }
+            /// <summary>Returns whether this Variable is a source for the given listener.</summary>
+            /// <para/>Note that this method locks on the Context.
+            public bool DependedOnBy(Variable listener) => listener.DependsOn(this);
 
-            public override bool Equals(object obj) => ReferenceEquals(this, obj);
+            /// <summary>Returns the evaluation of this Variable.  The evaluation will be cached for fast reference next time.</summary>
+            public IEvaluatable Evaluate()
+            {
+                // Locking should not be necessary here.  Even though dependency is being relied upon to evaluate non-cached Variables, 
+                // the explicit dependency structure is neither modified nor read.  The dependencies will only exist in the forms of 
+                // direct pointers from a function to a variable, and from a variable to an immutable function.
+                if (_CachedValue != null) return _CachedValue;
+                return _CachedValue = (Contents == null ? Number.Zero : Contents.Evaluate());
+            }
 
+            /// <summary>A Variable's hash code is its name's hash code.</summary>
+            public override sealed int GetHashCode() => Name.GetHashCode();
+
+            /// <summary>Two Variables are equal only upon reference equality.</summary>
+            public override sealed bool Equals(object obj) => ReferenceEquals(this, obj);
+
+            /// <summary>Returns the Variable's name.</summary>
             public override string ToString() => Name;
 
 

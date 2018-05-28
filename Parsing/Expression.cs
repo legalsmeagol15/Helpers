@@ -48,8 +48,6 @@ namespace Parsing
             /// <exception cref="InvalidOperationException">Thrown for a mismatch.</exception>
             public IEvaluatable Parse(DataContext.Function.Factory functions)
             {
-                //TODO:  contain all within a try/catch block to catch parsing errors?
-                
                 // Step #1 - Watch for malformed nestings.
                 switch (Opener)
                 {
@@ -58,7 +56,7 @@ namespace Parsing
                     case "[": if (Closer != "]") throw new Exception("Mismatched brackets."); break;
                     case "{": if (Closer != "}") throw new Exception("Mismatched brackets."); break;
                     //default: return new Error("Unrecognized brackets: \"" + Opener + "\", \"" + Closer + "\".", this.Start, this.End);
-                    default:  Debug.Assert(false); break;   //Sanity check.
+                    default: Debug.Assert(false); break;   //Sanity check.
                 }
 
                 // Step #2 - evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
@@ -74,7 +72,6 @@ namespace Parsing
                         case TokenList tl: node.Contents = tl.Parse(functions); break;                        
                         case Error e: return e;
                         case DataContext.Function f: priorities.Add(node); break;
-                        //case Clause c: break;
                         case Number n when node.Next != null:
                             if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
                             if (node.Next.Contents is TokenList || node.Next.Contents is DataContext.Variable || node.Next.Contents is DataContext.Function || node.Next.Contents is Clause)
@@ -88,25 +85,45 @@ namespace Parsing
                 while (priorities.Count > 0)
                 {
                     node = priorities.Pop();
-                    DataContext.Function function = (DataContext.Function)node.Contents;
+                    DataContext.Function function = (DataContext.Function)node.Contents;                    
                     function.ParseNode(node);
+                    function.Terms = new HashSet<Variable>();
+                    foreach (IEvaluatable input in function.Inputs)
+                    {
+                        if (input is Variable v) function.Terms.Add(v);
+                        else if (input is Clause sub_c) foreach (Variable sub_v in sub_c.Terms) function.Terms.Add(sub_v);
+                    }
                 }
-
-                // Step #4 - finally, put the contents into IEvaluatable form.                
-                IEvaluatable[] contents = this.Select(obj => (IEvaluatable)obj).ToArray();
-
-                // Step #5 - Return the fully-parsed clause.  If there's just one item in the parsed clause, return that with the instant 
-                // opener/closer.
-                if (contents.Length == 1 && contents[0] is Clause result && result.Opener == "" && result.Closer == "")
+                
+                // Step #4 - Return the fully-parsed clause.  If there's just one naked sub-clause in the parsed clause, return that with 
+                // this clause's opener/closer.
+                if (this.Count() == 1 && this.First is Clause result && result.Opener == "" && result.Closer == "")
                 {
                     result.Opener = Opener;
                     result.Closer = Closer;
                     return result;
                 }
-                else return new Clause(Opener, Closer, contents);
+
+                // Step #5 - catch non-parseable situations.
+                try
+                {
+                    IEvaluatable[] contents = this.Select(obj => (IEvaluatable)obj).ToArray();
+                    Clause rv = new Clause(Opener, Closer, contents);
+                    rv.Terms = new HashSet<Variable>();
+                    foreach (IEvaluatable input in contents)
+                    {
+                        if (input is Variable v) rv.Terms.Add(v);
+                        else if (input is Clause sub_c) foreach (Variable sub_v in sub_c.Terms) rv.Terms.Add(sub_v);
+                    }
+                    return rv;
+                }
+                catch
+                {
+                    return new Error("Invalid objects in parsed token list.");
+                }
             }
         }
-        
+
 
         public static IEvaluatable FromLaTeX(string latex, IDictionary<string, Function> functions, out ISet<Variable> dependees, Variable context = null)
         {
@@ -116,12 +133,11 @@ namespace Parsing
         /// <summary>Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.</summary>
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
-        /// <param name="dependees">The variables on which this expression depends, if any.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        public static IEvaluatable FromString(string str, Function.Factory functions, out ISet<Variable> dependees, DataContext context = null)
+        public static IEvaluatable FromString(string str, Function.Factory functions,  DataContext context = null)
         {
             // Step #1 - setup
-            dependees = new HashSet<Variable>();
+            ISet<Variable> terms = new HashSet<Variable>();
             if (str == null) return new Error("Expression string cannot be null.");
             string[] rawTokens = _Regex.Split(str);
             Debug.Assert(rawTokens.Length > 0);
@@ -177,14 +193,16 @@ namespace Parsing
                     case string _ when functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
 
                     //Variable?
-                    case string _ when context != null && context.TryGet(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); dependees.Add(old_var); continue;
-                    case string _ when context != null && context.TryAdd(rawToken, out Variable new_var): stack.Peek().AddLast(new_var); dependees.Add(new_var); continue;
+                    case string _ when context != null && context.TryGet(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); terms.Add(old_var); continue;
+                    case string _ when context != null && context.TryAdd(rawToken, out Variable new_var): stack.Peek().AddLast(new_var); terms.Add(new_var); continue;
 
                     default: return new Error("Unrecognized token: " + rawToken + ".", 0, i);
                 }
             }
 
-            return root.Parse(functions);
+            IEvaluatable result = root.Parse(functions);
+            if (result is Clause clause) clause.Terms = terms;
+            return result;
         }
 
 

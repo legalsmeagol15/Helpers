@@ -13,6 +13,8 @@ namespace Parsing
 
         internal string Opener;
         internal string Closer;
+        internal ISet<DataContext.Variable> Terms;
+
         public IEvaluatable[] Inputs { get; protected set; }
 
         internal Clause(string opener, string closer, params IEvaluatable[] inputs) { this.Opener = opener; this.Closer = closer; this.Inputs = inputs ?? new IEvaluatable[0]; }

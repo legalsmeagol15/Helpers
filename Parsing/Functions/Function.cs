@@ -17,8 +17,8 @@ namespace Parsing
             protected internal VariableDomain CoDomain { get; private set; }
 
             public virtual string Name => this.GetType().Name;
-            public bool TermsOf(Variable v) => Terms != null && Terms.Contains(v);
-            protected internal HashSet<Variable> Terms = null;
+            //public bool TermsOf(Variable v) => Terms != null && Terms.Contains(v);
+            //protected internal HashSet<Variable> Terms = null;
 
 
 
@@ -90,16 +90,26 @@ namespace Parsing
 
             protected internal virtual ParsingPriority Priority => ParsingPriority.Function;
 
-
+            /// <summary>
+            /// Override to determine how a function is parsed in its token list.  The default behavior is to call ParseNode(node, 0, 1).
+            /// </summary>
             protected internal virtual void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 0, 1);
 
+            /// <summary>
+            /// Parses this node in its token list, with the indicate number of preceding and following tokens.  For example, parsing the 
+            /// Sin function will be called with 0 preceding and 1 following, because no token relevant to the Sin function is expected 
+            /// to precede it and only 1 token (the Sin function's contents) is expected to follow it.
+            /// </summary>
+            /// <param name="node"></param>
+            /// <param name="preceding"></param>
+            /// <param name="following"></param>
             protected void ParseNode(DynamicLinkedList<object>.Node node, int preceding, int following)
             {
                 IEvaluatable[] inputs = new IEvaluatable[preceding + following];
                 following = preceding;
                 while (following < inputs.Length) inputs[following++] = (IEvaluatable)node.Next.Remove();
                 while (--preceding >= 0) inputs[preceding] = (IEvaluatable)node.Previous.Remove();
-                this.Inputs = inputs;
+                this.Inputs = inputs;                
             }
 
             #endregion

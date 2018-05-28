@@ -7,37 +7,19 @@ using System.Threading.Tasks;
 namespace Parsing
 {
     /// <summary>
-    /// The context in which Variables live, and from which functions can be created.
-    /// <para/>It is expected that multiple threads will be accessing the context, so access is controlled by mutexes.
+    /// The context in which Variables live, and from which functions can be created.  The DataContext manages access to things I don't 
+    /// want to expose on other objects:  Variable dependency graph
+    /// <para/>It is expected that multiple threads will be accessing the context.  Changing or accessing the variable contents is 
+    /// protected by mutexes.
     /// </summary>
     public partial class DataContext
     {
 
         private readonly Dictionary<string, Variable> _Variables = new Dictionary<string, Variable>();
         public Variable this[string name] { get { lock (this) { return _Variables[name]; } } }
+        
 
-        /// <summary>Returns whether a direct dependency relationship exists between the given source and listener.</summary>
-        public bool DependencyExists(Variable source, Variable listener)
-        {
-            //TODO:  add functionality to return non-direct dependency?
-            lock (this) { return Sources.ContainsKey(listener) || Listeners.ContainsKey(source); }
-        }
-
-        /// <summary>Adds the given Variable to this data context.  Returns whether the variable was successful or not.  Add can fail 
-        /// if a Variable by the same name already exists, or if the Variable's name is invalid.</summary>
-        public bool Add(Variable v)
-        {
-            lock (this)
-            {
-                if (_Variables.ContainsKey(v.Name)) return false;
-                if (!IsNameValid(v.Name)) return false;
-                _Variables.Add(v.Name, v);
-                Sources[v] = DetectSources(v);
-                Listeners[v] = new HashSet<Variable>();
-            }
-            return true;
-        }
-
+        
         /// <summary>
         /// Tries to delete the given Variable, and returns whether the attempt was successful or not.  A variable can be delted only 
         /// if its contents are null, and nothing is listening to it.
@@ -45,15 +27,14 @@ namespace Parsing
         public bool TryDelete(Variable v)
         {
             // Delete only occurs when a Variable's contents are set to null, and it has no listeners left.
-            if (v._Contents != null) return false;
+            if (v.Contents != null) return false;
             lock (this)
             {
                 // If Contents is null, there will be no Sources left either.
-                ISet<Variable> listeners = Listeners[v];
-                if (listeners.Count != 0) return false;
+                if (v._Listeners.Any()) return false;
                 _Variables.Remove(v.Name);
-            }
-            return true;
+                return true;
+            }            
         }
 
         /// <summary>
@@ -73,8 +54,8 @@ namespace Parsing
                     return false;
                 }
                 v = _Variables[name];
-            }
-            return true;
+                return true;
+            }            
         }
 
         /// <summary>
@@ -98,7 +79,6 @@ namespace Parsing
                 return false;
             }
 
-            v = new Variable(this, name);
 
             lock (this)
             {
@@ -107,15 +87,13 @@ namespace Parsing
                     v = _Variables[name];
                     return false;
                 }
+
+                v = new Variable(this, name);
                 _Variables.Add(name, v);
-                Sources[v] = new HashSet<Variable>();
-                Listeners[v] = new HashSet<Variable>();
+                return true;
             }
-
-
-
-
-            return true;
+            
+           
         }
 
         /// <summary>The function which determines if a given variable name is valid.</summary>
