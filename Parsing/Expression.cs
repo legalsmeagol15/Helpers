@@ -84,7 +84,7 @@ namespace Parsing
                         case Number n when node.Next != null:
                             if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
                             if (node.Next.Contents is TokenList || node.Next.Contents is DataContext.Variable || node.Next.Contents is DataContext.Function || node.Next.Contents is Clause)
-                                node.InsertAfter(functions.CreateMultiplication());
+                                node.InsertAfter(Function.Factory.CreateMultiplication());
                             break;
                     }
                     node = node.Next;
@@ -143,7 +143,7 @@ namespace Parsing
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        public static IEvaluateable FromString(string str, Function.Factory functions, DataContext context = null)
+        public static IEvaluateable FromString(string str, Function.Factory functions, Context context = null)
         {
             // Step #1 - setup
             ISet<Variable> terms = new HashSet<Variable>();
@@ -183,19 +183,19 @@ namespace Parsing
                     case "-":
                     case "!":
                     case "~":
-                        if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator) stack.Peek().AddLast(functions.CreateNegation());
-                        else stack.Peek().AddLast(functions.CreateSubtraction());
+                        if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator) stack.Peek().AddLast(Function.Factory.CreateNegation());
+                        else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
                         continue;
 
                     // Binary operator?
-                    case "+": stack.Peek().AddLast(functions.CreateAddition()); continue;
-                    case "*": stack.Peek().AddLast(functions.CreateMultiplication()); continue;
-                    case "/": stack.Peek().AddLast(functions.CreateDivision()); continue;
-                    case "^": stack.Peek().AddLast(functions.CreateExponentiation()); continue;
-                    case "|": stack.Peek().AddLast(functions.CreateOr()); continue;
-                    case "&": stack.Peek().AddLast(functions.CreateAnd()); continue;
-                    case ":": stack.Peek().AddLast(functions.CreateRange()); continue;
-                    case ".": stack.Peek().AddLast(functions.CreateRelation()); continue;
+                    case "+": stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
+                    case "*": stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
+                    case "/": stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
+                    case "^": stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
+                    case "|": stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
+                    case "&": stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
+                    case ":": stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
+                    case ".": stack.Peek().AddLast(Function.Factory.CreateRelation()); continue;
 
                     //Literal?
                     case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2: stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2))); continue;
@@ -203,7 +203,7 @@ namespace Parsing
                     case string _ when bool.TryParse(rawToken, out bool b): stack.Peek().AddLast(Boolean.FromBool(b)); continue;
 
                     //Function?
-                    case string _ when functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
+                    case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
                 }
 
                 // Step #2c - handle sub-contexting and properties/variables

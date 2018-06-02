@@ -32,7 +32,8 @@ namespace Parsing
         public static implicit operator Boolean(Number n) => (n ==0) ? Boolean.False : Boolean.True;
         public static implicit operator Number(Boolean b) => b.Value ? Number.One : Number.Zero;
 
-        
+
+        public bool IsInteger => (decimal)((int)Value) == Value;
 
         public static Number operator +(Number a, Number b) => new Number(a.Value + b.Value);
         public static Number operator -(Number n) => new Number(-n.Value);

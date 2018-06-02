@@ -351,33 +351,7 @@ namespace Parsing.Functions
 
     #region Reference operators
     
-    internal sealed class Range : Operator
-    {
-        protected internal override ParsingPriority Priority => ParsingPriority.Range;
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
-        {
-            // A colon might be an actual range, or it could be a context:subcontext reference.
-            if (Inputs.Length != 2) return InputCountError(Inputs, new int[] { 2 });
-            if (Inputs[0] is Context context)
-            {
-                switch (Inputs[1])
-                {
-                    case Variable v: return v;
-                    case Context sub: return sub.Evaluate();
-                }
-                if (evaluatedInputs[1] is String str)
-                {
-                    if (context.TryGet(str, out Variable dyn_var)) return dyn_var;
-                    else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub;
-                    else return new Error("Unrecognized member of context \"" + context.Name + "\":  " + str);
-                }
-            }
-            return this;
-        }
-        protected override string Symbol => ":";
-
-    }
+    
 
 
     internal sealed class Relation : Operator
@@ -391,7 +365,7 @@ namespace Parsing.Functions
             {
                 switch (Inputs[1])
                 {
-                    case Variable v: return v;
+                    case Variable v: return v.Evaluate();
                     case Context sub: return sub.Evaluate();
                     default: return Evaluate(context, Inputs[1].Evaluate());
                 }
@@ -404,16 +378,46 @@ namespace Parsing.Functions
             Context context = (Context)inputs[0];
             if (inputs[1] is String str)
             {
-                if (context.TryGet(str, out Variable dyn_var)) return dyn_var;
-                else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub;
+                if (context.TryGet(str, out Variable dyn_var)) return dyn_var.Evaluate();
+                else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub.Evaluate();
                 else return new Error("Unrecognized member of context \"" + context.Name + "\":  " + str);
             }
             else return InputTypeError(inputs, 1, new Type[] { typeof(Variable), typeof(Context) });
         }
 
+        protected internal override void ParseNode(DynamicLinkedList<object>.Node node)
+        {
+            // Relations parse backwards:  the leftmost relation in "a.b.c" should be at the top of the parse tree.
+            ParseNode(node, 1, 1);
+            if (Inputs[0] is Relation prior)
+            {
+                Inputs[0] = prior.Inputs[1];
+                prior.Inputs[1] = this;
+            }
+        }
+
         protected override string Symbol => ".";
     }
-    
+
+    internal sealed class Span : Operator
+    {
+        protected internal override ParsingPriority Priority => ParsingPriority.Range;
+        
+        public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
+        {
+            if (inputs.Length != 2) return InputCountError(inputs, new int[] { 2 });
+            if (inputs[0] is Number a)
+            {
+                if (inputs[1] is Number b) return new Range(a, b);
+                else return InputTypeError(inputs, 1, new Type[] { typeof(Number) });
+            }
+            else return InputTypeError(inputs, 0, new Type[] { typeof(Number) });
+        }
+
+        protected override string Symbol => ":";
+
+    }
+
     #endregion
 
 

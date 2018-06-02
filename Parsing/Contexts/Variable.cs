@@ -28,6 +28,7 @@ namespace Parsing
             internal ISet<Variable> _Sources;
             internal readonly ISet<Variable> _Listeners;
             
+            
             public IEvaluateable Contents
             {
                 get => _Contents;
@@ -80,6 +81,16 @@ namespace Parsing
                     // If the variable is nulled and has no listeners, it can be deleted.
                     Context.TryDelete(this);
                 }
+            }
+
+            /// <summary>
+            /// Sets the Contents to the interpreted given string.
+            /// </summary>            
+            /// <returns>Returns the IEvaluatable contents.</returns>
+            public IEvaluateable SetContents(string str)
+            {
+                Contents = Expression.FromString(str, null, Context);
+                return Contents;
             }
             
             

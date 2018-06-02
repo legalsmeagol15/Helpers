@@ -42,6 +42,36 @@ namespace UnitTests
             
         }
 
+        [TestMethod]
+        public void TestParsing_Contexts()
+        {
+            DummyContext dummyA = new DummyContext("a", null, "varA");
+            DummyContext dummyB = new DummyContext("b", dummyA, "varB");
+            DummyContext dummyC = new DummyContext("c", dummyB, "varC");
+
+            Variable varA, varB, varC;
+            Assert.IsTrue(dummyA.TryGet("varA", out varA));
+            Assert.IsTrue(dummyB.TryGet("varB", out varB));
+            Assert.IsTrue(dummyC.TryGet("varC", out varC));
+
+            varA.Contents = Expression.FromString("10", factory, null);
+            varB.Contents = Expression.FromString("5", factory, null);
+            varC.Contents = Expression.FromString("2", factory, null);
+            Assert.IsFalse(dummyB.TryGet("varA", out Variable _));
+            varB.SetContents("varA+9");  // This should have no reference to a.varA, even though b.varA now exists.
+            Assert.IsTrue(dummyB.TryGet("varA", out Variable _));
+            Assert.AreEqual(varB.Evaluate(), 9);
+
+
+            Assert.IsTrue(dummyC.TryGet("b", out Context testContext));
+            Assert.AreEqual(dummyB, testContext);
+            Assert.IsTrue(dummyB.Equals(testContext));
+            Assert.IsTrue(dummyB.TryGet("a", out testContext));
+
+            IEvaluateable exp = Expression.FromString("b.a.varA", factory, dummyC);
+            Assert.AreEqual(exp.Evaluate(), 10);
+            
+        }
 
 
         [TestMethod]
@@ -181,7 +211,7 @@ namespace UnitTests
         }
 
         [TestMethod]
-        public void Test_Variables()
+        public void TestParsing_Variables()
         {
             DataContext context = new DataContext();
             Variable a, b, c;
@@ -277,6 +307,33 @@ namespace UnitTests
                 Assert.AreEqual(cdex.V1, d);
             }
             
+        }
+
+
+        internal class DummyContext : Parsing.Context
+        {
+            private Context sub = null;
+            private Variable var = null;
+
+            public DummyContext(String name, Context sub = null, string varName = null) : base(name)
+            {
+                this.sub = sub;
+                if (varName != null)
+                {
+                    if (!this.TryAdd(varName, out var)) throw new InvalidOperationException();
+                }
+            }
+            public override bool TryGet(string name, out Context subContext)
+            {
+                if (name.Equals(this.sub.Name)) { subContext = this.sub; return true; }
+                subContext = null;
+                return false;
+            }
+
+            public override bool TryGet(string name, out Variable v)
+            {
+                return base.TryGet(name, out v);
+            }
         }
     }
 }
