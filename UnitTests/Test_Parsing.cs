@@ -2,7 +2,7 @@
 using Parsing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
-using static Parsing.DataContext;
+using static Parsing.Context;
 
 namespace UnitTests
 {

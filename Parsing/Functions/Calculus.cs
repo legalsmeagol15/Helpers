@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Graphs;
-using static Parsing.DataContext;
+using static Parsing.Context;
 
 namespace Parsing.Functions
 {
@@ -12,7 +12,7 @@ namespace Parsing.Functions
     {
         //public readonly DataContext.Variable Variable;
         
-        protected override IEvaluateable GetDerivative(DataContext.Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
+        protected override IEvaluateable GetDerivative(Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
 
         public override IEvaluateable Evaluate()
         {

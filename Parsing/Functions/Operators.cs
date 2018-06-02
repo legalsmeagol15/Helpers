@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Parsing.DataContext;
+using static Parsing.Context;
 
 namespace Parsing.Functions
 {
@@ -359,12 +359,12 @@ namespace Parsing.Functions
         {
             // A colon might be an actual range, or it could be a context:subcontext reference.
             if (Inputs.Length != 2) return InputCountError(Inputs, new int[] { 2 });
-            if (Inputs[0] is IContext context)
+            if (Inputs[0] is Context context)
             {
                 switch (Inputs[1])
                 {
                     case Variable v: return v;
-                    case IContext sub: return sub.Evaluate();
+                    case Context sub: return sub.Evaluate();
                 }
                 if (evaluatedInputs[1] is String str)
                 {
@@ -387,28 +387,28 @@ namespace Parsing.Functions
         public override IEvaluateable Evaluate()
         {
             if (Inputs.Length != 2) return InputCountError(Inputs, new int[] { 2 });
-            if (Inputs[0] is IContext context)
+            if (Inputs[0] is Context context)
             {
                 switch (Inputs[1])
                 {
                     case Variable v: return v;
-                    case IContext sub: return sub.Evaluate();
+                    case Context sub: return sub.Evaluate();
                     default: return Evaluate(context, Inputs[1].Evaluate());
                 }
             }
-            return InputTypeError(Inputs, 0, new Type[] { typeof(IContext) });
+            return InputTypeError(Inputs, 0, new Type[] { typeof(Context) });
         }
 
         public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
         {
-            IContext context = (IContext)inputs[0];
+            Context context = (Context)inputs[0];
             if (inputs[1] is String str)
             {
                 if (context.TryGet(str, out Variable dyn_var)) return dyn_var;
                 else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub;
                 else return new Error("Unrecognized member of context \"" + context.Name + "\":  " + str);
             }
-            else return InputTypeError(inputs, 1, new Type[] { typeof(Variable), typeof(IContext) });
+            else return InputTypeError(inputs, 1, new Type[] { typeof(Variable), typeof(Context) });
         }
 
         protected override string Symbol => ".";

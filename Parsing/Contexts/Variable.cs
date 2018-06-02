@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-    public partial class DataContext
+    public abstract partial class Context
     { 
         public class CircularDependencyException : Exception
         {
@@ -21,7 +21,7 @@ namespace Parsing
 
 
             public readonly string Name;
-            public readonly DataContext Context;
+            public readonly Context Context;
 
             private IEvaluateable _Contents = null;
             internal IEvaluateable _CachedValue;
@@ -83,7 +83,7 @@ namespace Parsing
             }
             
             
-            internal Variable(DataContext context, string name, IEvaluateable contents = null)
+            internal Variable(Context context, string name, IEvaluateable contents = null)
             {
                 this.Name = name;
                 this.Context = context;

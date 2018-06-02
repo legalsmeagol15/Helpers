@@ -8,7 +8,7 @@ using System.Diagnostics;
 using DataStructures;
 using Parsing;
 using Parsing.Functions;
-using static Parsing.DataContext;
+using static Parsing.Context;
 
 namespace Parsing
 {
@@ -18,30 +18,6 @@ namespace Parsing
         IEvaluateable Evaluate();
     }
 
-    /// <summary>ISubContext objects support sub-contexts and property variables.</summary>
-    public interface IContext : IEvaluateable,  IEnumerable<IContext>
-    {
-        string Name { get; }
-
-        /// <summary>Tries to retrieve the indicated property variable.</summary>
-        /// <param name="key">The property variable's name.</param>
-        /// <param name="v">Out.  The property variable to be returned.  If no variable matched the given name, this will be null.</param>
-        /// <returns>Returns true if lookup was successful, false if it was not.</returns>
-        bool TryGet(string key, out Variable v);
-
-        /// <summary>Tries to retrieve the indicated subContext.</summary>
-        /// <param name="key">The sub-context's name.</param>
-        /// <param name="v">Out.  The The sub-context to be returned.  If no sub-context matched the given name, this will be null.</param>
-        /// <returns>Returns true if lookup was successful, false if it was not.</returns>
-        bool TryGet(string key, out IContext subContext);
-
-        /// <summary>Tries to add the described Variable to this sub-context.</summary>
-        /// <param name="key">The Variable's name.</param>
-        /// <param name="v">Out.  The new Variable returned.  If the Variable could not be added, this value will be null.</param>
-        /// <returns>Returns true if add was successful, false if it was not.</returns>
-        bool TryAdd(string name, out Variable v);
-        
-    }
 
     public interface IIndexable<T>
     {
@@ -174,7 +150,7 @@ namespace Parsing
             if (str == null) return new Error("Expression string cannot be null.");
             string[] rawTokens = _Regex.Split(str);
             Debug.Assert(rawTokens.Length > 0);
-            IContext obj = context;
+            Context obj = context;
             Stack<TokenList> stack = new Stack<TokenList>();            
             TokenList rootList = new TokenList("", 0);
             stack.Push(rootList);
@@ -237,7 +213,7 @@ namespace Parsing
                     if (obj.TryGet(rawToken, out Variable old_var)) { stack.Peek().AddLast(old_var); terms.Add(old_var); obj = context; continue; }
 
                     // Does this context have a matching sub-context?
-                    else if (obj.TryGet(rawToken, out IContext sub_obj)) { stack.Peek().AddLast(obj); obj = sub_obj; continue; }
+                    else if (obj.TryGet(rawToken, out Context sub_obj)) { stack.Peek().AddLast(obj); obj = sub_obj; continue; }
 
                     // Can the variable be added to this sub-context?
                     else if (obj.TryAdd(rawToken, out Variable new_var)) { stack.Peek().AddLast(new_var); terms.Add(new_var); obj = context; continue; }

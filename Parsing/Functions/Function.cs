@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-    public partial class DataContext
+    public abstract partial class Context
     {
         public abstract class Function : Clause
         {
