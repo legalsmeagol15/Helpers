@@ -9,12 +9,12 @@ namespace Parsing.Functions
 {
     internal sealed class Simplify : Function
     {
-        protected override IEvaluatable GetDerivative(Variable v)
+        protected override IEvaluateable GetDerivative(Variable v)
         {
             throw new NotImplementedException();
         }
 
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             throw new NotImplementedException();
             

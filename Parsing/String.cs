@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-    internal class String : IEvaluatable
+    internal class String : IEvaluateable
     {
         internal readonly string Value;
 
         internal String(string str) { this.Value = str; }
-        IEvaluatable IEvaluatable.Evaluate() => this;
+        IEvaluateable IEvaluateable.Evaluate() => this;
 
         public static implicit operator String(string str) => new String(str);
         public static implicit operator string(String s) => s.Value;

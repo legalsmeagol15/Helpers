@@ -26,14 +26,14 @@ namespace UnitTests
             Assert.AreEqual(factory["PI"].Evaluate(), (decimal)Math.PI);
             Assert.AreEqual(factory["E"].Evaluate(), (decimal)Math.E);
 
-            IEvaluatable pi = Expression.FromString("PI", factory, null);
+            IEvaluateable pi = Expression.FromString("PI", factory, null);
             Assert.AreEqual("PI", pi.ToString());
             Assert.AreEqual(pi.Evaluate(), (decimal)Math.PI);
             pi = Expression.FromString("PI()", factory, null);
             Assert.AreEqual("PI", pi.ToString());
             Assert.AreEqual(pi.Evaluate(), (decimal)Math.PI);
 
-            IEvaluatable e = Expression.FromString("E", factory, null);
+            IEvaluateable e = Expression.FromString("E", factory, null);
             Assert.AreEqual("E", e.ToString());
             Assert.AreEqual(e.Evaluate(), (decimal)Math.E);
             e = Expression.FromString("E()", factory,  null);
@@ -69,7 +69,7 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Nesting()
         {
-            IEvaluatable e = Expression.FromString("2+1", factory, null);
+            IEvaluateable e = Expression.FromString("2+1", factory, null);
             Assert.AreEqual("2 + 1", e.ToString());
             Assert.AreEqual(e.Evaluate(), 3);
 
@@ -105,12 +105,10 @@ namespace UnitTests
         {
             Function adder = factory["Addition"];
             // Test that functions are correctly doing calculations.
-            Assert.IsTrue(adder.Evaluate(1, 1).Equals(2m));
-            Assert.IsTrue(adder.Evaluate(1, 1).Equals(2));
-            Assert.IsTrue(adder.Evaluate(1, 1).Equals(2d));
-            Assert.IsTrue(adder.Evaluate(1m, 1m).Equals(2m));
-            Assert.IsTrue(adder.Evaluate(1d, 1d).Equals(2m));
-            Assert.AreEqual(adder.Evaluate(1, 1), 2);
+            Assert.IsTrue(adder.Evaluate(Number.One, Number.One).Equals(2m));
+            Assert.IsTrue(adder.Evaluate(Number.One, Number.One).Equals(2));
+            Assert.IsTrue(adder.Evaluate(Number.One, Number.One).Equals(2d));
+            Assert.AreEqual(adder.Evaluate(Number.One, Number.One), 2);
 
             Number n1 = 1;
             Number n2 = 2;
@@ -138,7 +136,7 @@ namespace UnitTests
         public void TestParsing_Operators()
         {
             // Addition
-            IEvaluatable e = Expression.FromString("5+4", factory, null);
+            IEvaluateable e = Expression.FromString("5+4", factory, null);
             Assert.AreEqual(e.Evaluate(), 9m);
             e = Expression.FromString("5+-4", factory, null);
             Assert.AreEqual(e.Evaluate(), 1);
@@ -206,7 +204,7 @@ namespace UnitTests
             context["c"].Contents = new Number(valC);
 
             // Do a simple evaluation of an expression containing a variable.
-            IEvaluatable exp = Expression.FromString("5a+3", factory, context);
+            IEvaluateable exp = Expression.FromString("5a+3", factory, context);
             Assert.AreEqual(exp.Evaluate(), (5*valA + 3));
             Assert.AreEqual(exp.Evaluate(), 8);
             Assert.IsTrue(exp is Clause clause);

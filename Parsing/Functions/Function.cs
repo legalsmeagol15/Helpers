@@ -22,7 +22,7 @@ namespace Parsing
 
 
 
-            protected Function(params IEvaluatable[] inputs) : base("", "", inputs)
+            protected Function(params IEvaluateable[] inputs) : base("", "", inputs)
             {
                 if (inputs == null) return;
                 IEnumerable<Variable> vars = inputs.OfType<Variable>();
@@ -31,12 +31,13 @@ namespace Parsing
                 foreach (Function f in inputs.OfType<Function>()) foreach (Variable v in f.Terms) Terms.Add(v);
             }
 
+            public override IEvaluateable Evaluate() => Evaluate(GetEvaluatedInputs());
 
-
+            public abstract IEvaluateable Evaluate(params IEvaluateable[] inputs);
 
             #region Function calculus
 
-            protected internal static IEvaluatable Differentiate(IEvaluatable function, Variable v)
+            protected internal static IEvaluateable Differentiate(IEvaluateable function, Variable v)
             {
                 switch (function)
                 {
@@ -52,15 +53,15 @@ namespace Parsing
             }
 
 
-            protected virtual IEvaluatable GetDerivative(Variable v) => NonDifferentiableFunctionError();
+            protected virtual IEvaluateable GetDerivative(Variable v) => NonDifferentiableFunctionError();
 
-            protected IEvaluatable ApplyChainRule(Variable v, IEvaluatable fPrime, IEvaluatable g)
+            protected IEvaluateable ApplyChainRule(Variable v, IEvaluateable fPrime, IEvaluateable g)
             {
                 Functions.Multiplication result = new Functions.Multiplication(fPrime, g);
                 return result.GetSimplified();
             }
 
-            protected internal virtual IEvaluatable GetSimplified() => this;
+            protected internal virtual IEvaluateable GetSimplified() => this;
 
             protected Error NonDifferentiableFunctionError() => new Error("Nondifferentiable function: " + this.ToString());
 
@@ -73,19 +74,19 @@ namespace Parsing
             #region Function parsing
 
             /// <summary>
-            /// The priority for parsing this function.  Functions with higher priority will bind more tightly (meaning, first) than 
+            /// The priority for parsing this function.  Functions with higher priority will bind more loosely (meaning, after) than 
             /// functions with a lower priority.
             /// </summary>
             protected internal enum ParsingPriority
             {
-                None = 0,
-                Range = 1000000,
-                Addition = 2000000, Subtraction = 2000000,
-                Multiplication = 3000000, Division = 3000000,
-                Exponentiation = 4000000,
-                Concatenation = 5000000, And = 5000000, Or = 5000000,
-                Negation = 6000000,
-                Function = 7000000, Relation = 7000000
+                None = 100000,
+                Range = 90000,
+                Addition = 80000, Subtraction = 80000,
+                Multiplication = 70000, Division = 70000,
+                Exponentiation = 60000,
+                Concatenation = 50000, And = 50000, Or = 50000,
+                Negation = 40000,
+                Function = 30000, Relation = 30000
             }
 
             protected internal virtual ParsingPriority Priority => ParsingPriority.Function;
@@ -105,10 +106,10 @@ namespace Parsing
             /// <param name="following"></param>
             protected void ParseNode(DynamicLinkedList<object>.Node node, int preceding, int following)
             {
-                IEvaluatable[] inputs = new IEvaluatable[preceding + following];
+                IEvaluateable[] inputs = new IEvaluateable[preceding + following];
                 following = preceding;
-                while (following < inputs.Length) inputs[following++] = (IEvaluatable)node.Next.Remove();
-                while (--preceding >= 0) inputs[preceding] = (IEvaluatable)node.Previous.Remove();
+                while (following < inputs.Length) inputs[following++] = (IEvaluateable)node.Next.Remove();
+                while (--preceding >= 0) inputs[preceding] = (IEvaluateable)node.Previous.Remove();
                 this.Inputs = inputs;                
             }
 
@@ -117,14 +118,14 @@ namespace Parsing
 
 
 
-            public override string ToString() => Name + ((Opener != "") ? (Opener + " ") : "") + string.Join(", ", (IEnumerable<IEvaluatable>)Inputs) + ((Closer != "") ? (" " + Closer) : "");
+            public override string ToString() => Name + ((Opener != "") ? (Opener + " ") : "") + string.Join(", ", (IEnumerable<IEvaluateable>)Inputs) + ((Closer != "") ? (" " + Closer) : "");
 
             public sealed class Factory
             {
 
-                private readonly static Type[] IEvaluatableArray = new Type[] { typeof(IEvaluatable[]) };
+                private readonly static Type[] IEvaluatableArray = new Type[] { typeof(IEvaluateable[]) };
 
-                private readonly static object[] EmptyIEvaluatable = new object[] { new IEvaluatable[0] };
+                private readonly static object[] EmptyIEvaluatable = new object[] { new IEvaluateable[0] };
 
                 /// <summary>
                 /// The function used to standardize function names.  Default behavior is to return the upper-case conversion of the function 
@@ -263,7 +264,7 @@ namespace Parsing
 
 
             #region Function error helpers
-            protected Error InputTypeError(IList<IEvaluatable> inputs, int index, params Type[] t)
+            protected Error InputTypeError(IList<IEvaluateable> inputs, int index, params Type[] t)
             {
                 Debug.Assert(index < inputs.Count);
                 Debug.Assert(!t.Contains(inputs[index].GetType()));
@@ -273,7 +274,7 @@ namespace Parsing
             /// <summary>Returns an input type error with a suitable message.</summary>
             /// <param name="inputs">The inputs that caused the error.</param>
             /// <param name="expected">The input counts that are acceptable.  Overloaded functions may all different counts.</param>
-            protected Error InputCountError(IList<IEvaluatable> inputs, params int[] expected)
+            protected Error InputCountError(IList<IEvaluateable> inputs, params int[] expected)
             {
                 Debug.Assert(!expected.Contains(inputs.Count));
                 return new Error("Incorrect input count for function " + Name + ".  Expected {" + string.Join(", ", expected) + "}, but given " + inputs.Count + ".");

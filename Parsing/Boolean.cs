@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-    public struct Boolean : IEvaluatable
+    public struct Boolean : IEvaluateable
     {
         public static readonly Boolean False = false;
         public static readonly Boolean True = true;
@@ -14,7 +14,7 @@ namespace Parsing
         internal readonly bool Value;
 
         private Boolean(bool b) { this.Value = b; }
-        IEvaluatable IEvaluatable.Evaluate() => this;
+        IEvaluateable IEvaluateable.Evaluate() => this;
 
         public static implicit operator Boolean(bool b) => new Boolean(b);
         public static implicit operator bool(Boolean n) => n.Value;

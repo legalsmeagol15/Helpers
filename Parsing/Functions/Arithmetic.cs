@@ -10,7 +10,7 @@ namespace Parsing.Functions
     internal sealed class Abs : Function
     {
         internal Abs() : base() { }
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
             switch (evaluatedInputs[0])
@@ -22,7 +22,7 @@ namespace Parsing.Functions
             return InputTypeError(evaluatedInputs, 0, typeof(Number));            
         }
 
-        protected override IEvaluatable GetDerivative(Variable v)
+        protected override IEvaluateable GetDerivative(Variable v)
         {
             Hybrid p = new Hybrid();
             p.AddPortion(decimal.MinValue, true, 0m, false, new Negation(Differentiate(Inputs[0], v)));
@@ -39,13 +39,13 @@ namespace Parsing.Functions
             public decimal From;
             public decimal To;
             public bool IncludeTo = false;
-            public IEvaluatable Evaluator;
+            public IEvaluateable Evaluator;
         }
 
         
         private List<DomainInterval> Intervals = new List<DomainInterval>();
 
-        public bool AddPortion(decimal from , bool includeFrom, decimal to, bool includeTo, IEvaluatable evaluator)
+        public bool AddPortion(decimal from , bool includeFrom, decimal to, bool includeTo, IEvaluateable evaluator)
         {
             DomainInterval di = new DomainInterval();
             di.From = from;
@@ -56,12 +56,12 @@ namespace Parsing.Functions
             this.Intervals.Add(di);
             return true;
         }
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
             if (evaluatedInputs[0] is Number n)
             {
-                IEvaluatable e = null;
+                IEvaluateable e = null;
                 foreach (DomainInterval interval  in Intervals)
                 {
                     if (n > interval.From && n < interval.To) { e = interval.Evaluator; break; }
@@ -79,7 +79,7 @@ namespace Parsing.Functions
 
         }
 
-        protected override IEvaluatable GetDerivative(Variable v)
+        protected override IEvaluateable GetDerivative(Variable v)
         {
             throw new NotImplementedException();
         }

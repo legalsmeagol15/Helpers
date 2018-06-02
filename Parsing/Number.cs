@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-    public struct Number : IEvaluatable
+    public struct Number : IEvaluateable
     {
         public static readonly Number Zero = new Number(0m);
         public static readonly Number One = new Number(1m);
@@ -18,7 +18,7 @@ namespace Parsing
         public Number(decimal m) { this.Value = m; }
         public Number(double d) { this.Value = (decimal)d; }
         public Number(int i) { this.Value = (decimal)i; }
-        IEvaluatable IEvaluatable.Evaluate() => this;
+        IEvaluateable IEvaluateable.Evaluate() => this;
 
         public static implicit operator Number(int i) => new Number((decimal)i);
         public static implicit operator int(Number n) => (int)n.Value;

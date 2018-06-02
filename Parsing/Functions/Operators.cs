@@ -17,31 +17,36 @@ namespace Parsing.Functions
     /// </summary>
     internal abstract class Operator : DataContext.Function
     {
-        protected internal Operator(params IEvaluatable[] inputs) : base(inputs) { }
-       
+        protected internal Operator(params IEvaluateable[] inputs) : base(inputs) { }
+
         protected internal override void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 1, 1);
 
         protected abstract string Symbol { get; }
 
         public override string ToString() =>
-            (Opener != "" ? Opener + " " : "") + string.Join(" " + Symbol + " ", (IEnumerable<IEvaluatable>)Inputs) + (Closer != "" ? " " + Closer : "");
+            (Opener != "" ? Opener + " " : "") + string.Join(" " + Symbol + " ", (IEnumerable<IEvaluateable>)Inputs) + (Closer != "" ? " " + Closer : "");
     }
 
 
+
+
+    #region Arithmetic operators
+
     internal sealed class Addition : Operator
     {
-        
-        internal Addition(params IEvaluatable[] inputs) : base(inputs) { }
+
+        internal Addition(params IEvaluateable[] inputs) : base(inputs) { }
 
         protected override string Symbol => "+";
         protected internal override ParsingPriority Priority => ParsingPriority.Addition;
 
-        //internal Addition(params IEvaluatable[] inputs) : base(inputs) { }
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
+
             decimal m = 0.0m;
-            List<IEvaluatable> expressions = new List<IEvaluatable>();
-            foreach (IEvaluatable input in evaluatedInputs)
+            List<IEvaluateable> expressions = new List<IEvaluateable>();
+            foreach (IEvaluateable input in evaluatedInputs)
             {
                 if (input is Number n) m += n.Value;
                 else expressions.Add(input);
@@ -50,50 +55,22 @@ namespace Parsing.Functions
             return new Number(m);
         }
 
-        
-        protected override IEvaluatable GetDerivative(DataContext.Variable v) => new Addition(Inputs.Select(i => Differentiate(i,v)).ToArray());
+
+        protected override IEvaluateable GetDerivative(DataContext.Variable v) => new Addition(Inputs.Select(i => Differentiate(i, v)).ToArray());
     }
-
-
-    internal sealed class And : Operator
-    {
-        
-        protected internal override ParsingPriority Priority => ParsingPriority.And;
-
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
-        {
-            bool b = true;
-            List<IEvaluatable> expressions = new List<IEvaluatable>();
-            foreach (IEvaluatable input in evaluatedInputs)
-            {
-                if (input is Boolean i) b &= i;
-                else expressions.Add(input);
-            }
-            if (expressions.Count > 0) throw new NotImplementedException();
-            return b ? Boolean.True : Boolean.False;
-        }
-
-        
-        protected override IEvaluatable GetDerivative(DataContext.Variable v) => NonDifferentiableFunctionError();
-
-        protected override string Symbol => "&";
-
-        
-    }
-
     
 
     internal sealed class Division : Operator
     {
-        
-        internal Division(params IEvaluatable[] inputs) : base(inputs) { }
+
+        internal Division(params IEvaluateable[] inputs) : base(inputs) { }
         protected override string Symbol => "/";
 
         protected internal override ParsingPriority Priority => ParsingPriority.Division;
 
-        
 
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
             if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b)
@@ -105,29 +82,29 @@ namespace Parsing.Functions
             throw new NotImplementedException();
         }
 
-        
-        protected override IEvaluatable GetDerivative(DataContext.Variable v)
+
+        protected override IEvaluateable GetDerivative(DataContext.Variable v)
         {
-            IEvaluatable f = Inputs[0], g = Inputs[1];
-            IEvaluatable lhs_numerator = new Multiplication(Differentiate(f, v), g).GetSimplified();
-            IEvaluatable rhs_numerator = new Multiplication(f, Differentiate(g, v)).GetSimplified();
-            IEvaluatable numerator = new Subtraction(lhs_numerator, rhs_numerator).GetSimplified();
-            IEvaluatable denominator = new Exponentiation(g, new Number(2m)).GetSimplified();
+            IEvaluateable f = Inputs[0], g = Inputs[1];
+            IEvaluateable lhs_numerator = new Multiplication(Differentiate(f, v), g).GetSimplified();
+            IEvaluateable rhs_numerator = new Multiplication(f, Differentiate(g, v)).GetSimplified();
+            IEvaluateable numerator = new Subtraction(lhs_numerator, rhs_numerator).GetSimplified();
+            IEvaluateable denominator = new Exponentiation(g, new Number(2m)).GetSimplified();
             return new Division(numerator, denominator);
         }
 
 
     }
-
+    
 
     internal sealed class Exponentiation : Operator
     {
-        
+
         protected override string Symbol => "^";
-        internal Exponentiation(params IEvaluatable[] inputs) : base(inputs) { }
+        internal Exponentiation(params IEvaluateable[] inputs) : base(inputs) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Exponentiation;
 
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length < 1) return InputCountError(evaluatedInputs, 1, 1000000);
             Number b;
@@ -144,15 +121,15 @@ namespace Parsing.Functions
 
 
         //protected override IEvaluatable ApplyChainRule() => GetDerivative();
-        protected override IEvaluatable GetDerivative(DataContext.Variable v)
+        protected override IEvaluateable GetDerivative(DataContext.Variable v)
         {
-            List<IEvaluatable> inputs = Inputs.ToList();
+            List<IEvaluateable> inputs = Inputs.ToList();
             while (inputs.Count > 2)
             {
                 throw new NotImplementedException();
             }
 
-            IEvaluatable @base = inputs[0], exponent = inputs[1];
+            IEvaluateable @base = inputs[0], exponent = inputs[1];
             if (@base == v && exponent is Number n) return new Multiplication(n, new Exponentiation(v, n - 1));
             else throw new NotImplementedException();
         }
@@ -161,15 +138,15 @@ namespace Parsing.Functions
 
     internal sealed class Multiplication : Operator
     {
-        
-        internal Multiplication(params IEvaluatable[] inputs) : base(inputs) { }
+
+        internal Multiplication(params IEvaluateable[] inputs) : base(inputs) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Multiplication;
 
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             decimal m = 1.0m;
-            List<IEvaluatable> expressions = new List<IEvaluatable>();
-            foreach (IEvaluatable input in evaluatedInputs)
+            List<IEvaluateable> expressions = new List<IEvaluateable>();
+            foreach (IEvaluateable input in evaluatedInputs)
             {
                 if (input is Number n) m *= n;
                 else expressions.Add(input);
@@ -178,10 +155,10 @@ namespace Parsing.Functions
             return new Number(m);
         }
         protected override string Symbol => "*";
-        protected override IEvaluatable GetDerivative(Variable v)
+        protected override IEvaluateable GetDerivative(Variable v)
         {
             if (Inputs.Length != 2) throw new NotImplementedException();
-            IEvaluatable f = Inputs[0], g = Inputs[1];
+            IEvaluateable f = Inputs[0], g = Inputs[1];
             return new Addition(new Multiplication(Differentiate(f, v), g).GetSimplified(), new Multiplication(f, Differentiate(g, v)).GetSimplified());
         }
     }
@@ -189,13 +166,13 @@ namespace Parsing.Functions
 
     internal sealed class Negation : Operator
     {
-        
-        internal Negation(params IEvaluatable[] input) : base(input) { }
+
+        internal Negation(params IEvaluateable[] input) : base(input) { }
         protected internal override ParsingPriority Priority => ParsingPriority.Negation;
 
         protected internal override void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 0, 1);
 
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
             switch (evaluatedInputs[0])
@@ -209,12 +186,139 @@ namespace Parsing.Functions
         protected override string Symbol => "-";
         public override string ToString() => (Opener != "" ? Opener + " " : "") + "-" + Inputs[0].ToString() + (Closer != "" ? " " + Closer : "");
 
-        
-        protected override IEvaluatable GetDerivative(Variable v)
+
+        protected override IEvaluateable GetDerivative(Variable v)
         {
             if (Inputs.Length != 1) throw new NotImplementedException();
             return this;
         }
+    }
+
+    internal sealed class Subtraction : Operator
+    {
+        internal Subtraction(params IEvaluateable[] inputs) : base(inputs) { }
+        protected internal override ParsingPriority Priority => ParsingPriority.Subtraction;
+
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        {
+            if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
+            if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b) return a - b;
+            throw new NotImplementedException();
+        }
+        protected override string Symbol => "-";
+
+        protected override IEvaluateable GetDerivative(Variable v) => new Subtraction(Inputs.Select(i => Differentiate(i, v)).ToArray());
+
+    }
+
+    #endregion
+
+
+
+
+
+    #region Comparison operators
+
+    internal abstract class Comparison : Function, IEvaluateable<Boolean>
+    {
+        protected abstract string Symbol { get; }
+
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        {
+            if (evaluatedInputs.Length != 2) InputCountError(evaluatedInputs, 2);
+            return EvaluateComparison(evaluatedInputs[0], evaluatedInputs[1]);
+        }
+
+        protected abstract Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b);
+
+        Boolean IEvaluateable<Boolean>.Evaluate() => (Boolean)Evaluate(GetEvaluatedInputs());
+
+        IEvaluateable IEvaluateable.Evaluate() => Evaluate(GetEvaluatedInputs());
+
+
+    }
+
+
+    internal sealed class EqualTo : Comparison
+    {
+        protected override string Symbol => "=";
+        protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
+        {
+            if (a is Number nA && b is Number nB) return nA.Value == nB.Value;
+            if (a is Boolean bA && b is Boolean bB) return bA.Value == bB.Value;
+            return Boolean.False;
+        }
+
+    }
+
+    internal sealed class GreaterThan : Comparison
+    {
+        protected override string Symbol => ">";
+
+        protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
+        {
+            if (a is Number nA && b is Number nB) return nA > nB;
+            return Boolean.False;
+        }
+
+    }
+
+    internal sealed class LessThan : Comparison
+    {
+        protected override string Symbol => ">";
+
+        protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
+        {
+            if (a is Number nA && b is Number nB) return nA < nB;
+            return Boolean.False;
+        }
+    }
+
+    internal sealed class NotEqualTo : Comparison
+    {
+        protected override string Symbol => "!=";
+        protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
+        {
+            if (a is Number nA && b is Number nB) return nA.Value != nB.Value;
+            if (a is Boolean bA && b is Boolean bB) return bA.Value != bB.Value;
+            return Boolean.True;
+        }
+
+    }
+
+
+    #endregion
+
+
+
+
+
+    #region Logical operators
+
+    internal sealed class And : Operator
+    {
+
+        protected internal override ParsingPriority Priority => ParsingPriority.And;
+
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        {
+            bool b = true;
+            List<IEvaluateable> expressions = new List<IEvaluateable>();
+            foreach (IEvaluateable input in evaluatedInputs)
+            {
+                if (input is Boolean i) b &= i;
+                else expressions.Add(input);
+            }
+            if (expressions.Count > 0) throw new NotImplementedException();
+            return b ? Boolean.True : Boolean.False;
+        }
+
+
+        protected override IEvaluateable GetDerivative(DataContext.Variable v) => NonDifferentiableFunctionError();
+
+        protected override string Symbol => "&";
+
+
     }
 
 
@@ -222,11 +326,11 @@ namespace Parsing.Functions
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Or;
 
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             bool b = false;
-            List<IEvaluatable> expressions = new List<IEvaluatable>();
-            foreach (IEvaluatable input in evaluatedInputs)
+            List<IEvaluateable> expressions = new List<IEvaluateable>();
+            foreach (IEvaluateable input in evaluatedInputs)
             {
                 if (input is Boolean i) b |= i;
                 else expressions.Add(input);
@@ -235,21 +339,44 @@ namespace Parsing.Functions
             return Boolean.FromBool(b);
         }
         protected override string Symbol => "|";
-        
-        protected override IEvaluatable GetDerivative(Variable v) => NonDifferentiableFunctionError();
+
+        protected override IEvaluateable GetDerivative(Variable v) => NonDifferentiableFunctionError();
     }
 
+    #endregion
 
+
+
+
+
+    #region Reference operators
+    
     internal sealed class Range : Operator
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Range;
 
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
-            throw new NotImplementedException();
+            // A colon might be an actual range, or it could be a context:subcontext reference.
+            if (Inputs.Length != 2) return InputCountError(Inputs, new int[] { 2 });
+            if (Inputs[0] is IContext context)
+            {
+                switch (Inputs[1])
+                {
+                    case Variable v: return v;
+                    case IContext sub: return sub.Evaluate();
+                }
+                if (evaluatedInputs[1] is String str)
+                {
+                    if (context.TryGet(str, out Variable dyn_var)) return dyn_var;
+                    else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub;
+                    else return new Error("Unrecognized member of context \"" + context.Name + "\":  " + str);
+                }
+            }
+            return this;
         }
         protected override string Symbol => ":";
-        
+
     }
 
 
@@ -257,101 +384,44 @@ namespace Parsing.Functions
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Relation;
 
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
+        public override IEvaluateable Evaluate()
         {
-            throw new NotImplementedException();
+            if (Inputs.Length != 2) return InputCountError(Inputs, new int[] { 2 });
+            if (Inputs[0] is IContext context)
+            {
+                switch (Inputs[1])
+                {
+                    case Variable v: return v;
+                    case IContext sub: return sub.Evaluate();
+                    default: return Evaluate(context, Inputs[1].Evaluate());
+                }
+            }
+            return InputTypeError(Inputs, 0, new Type[] { typeof(IContext) });
         }
+
+        public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
+        {
+            IContext context = (IContext)inputs[0];
+            if (inputs[1] is String str)
+            {
+                if (context.TryGet(str, out Variable dyn_var)) return dyn_var;
+                else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub;
+                else return new Error("Unrecognized member of context \"" + context.Name + "\":  " + str);
+            }
+            else return InputTypeError(inputs, 1, new Type[] { typeof(Variable), typeof(IContext) });
+        }
+
         protected override string Symbol => ".";
-        
     }
-
-
-    internal sealed class Subtraction : Operator
-    {
-        internal Subtraction(params IEvaluatable[] inputs) : base(inputs) { }
-        protected internal override ParsingPriority Priority => ParsingPriority.Subtraction;
-
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
-        {
-            if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
-            if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b) return a - b;
-            throw new NotImplementedException();
-        }
-        protected override string Symbol => "-";
-        
-        protected override IEvaluatable GetDerivative(Variable v) => new Subtraction(Inputs.Select(i => Differentiate(i, v)).ToArray());
-
-    }
-
-    #region Comparison operators
-
-    internal abstract class Comparison : Function, IEvaluatable<Boolean>
-    {
-        protected abstract string Symbol { get; }
-
-        protected internal sealed override IEvaluatable Evaluate(params IEvaluatable[] evaluatedInputs)
-        {
-            if (evaluatedInputs.Length != 2) InputCountError(evaluatedInputs, 2);
-            return EvaluateComparison(evaluatedInputs[0], evaluatedInputs[1]);
-        }
-
-        protected abstract Boolean EvaluateComparison(IEvaluatable a, IEvaluatable b);
-
-        Boolean IEvaluatable<Boolean>.Evaluate() => (Boolean)base.Evaluate();
-
-        IEvaluatable IEvaluatable.Evaluate() => base.Evaluate();
-        
-
-    }
-
     
-    internal sealed class EqualTo : Comparison
-    {
-        protected override string Symbol => "=";
-        protected override Boolean EvaluateComparison(IEvaluatable a, IEvaluatable b)
-        {
-            if (a is Number nA && b is Number nB) return nA.Value == nB.Value;
-            if (a is Boolean bA && b is Boolean bB) return bA.Value == bB.Value;
-            return Boolean.False;
-        }
-        
-    }
-
-    internal sealed class GreaterThan : Comparison
-    {
-        protected override string Symbol => ">";
-
-        protected override Boolean EvaluateComparison(IEvaluatable a, IEvaluatable b)
-        {
-            if (a is Number nA && b is Number nB) return nA > nB;
-            return Boolean.False;
-        }
-        
-    }
-
-    internal sealed class LessThan : Comparison
-    {
-        protected override string Symbol => ">";
-
-        protected override Boolean EvaluateComparison(IEvaluatable a, IEvaluatable b)
-        {
-            if (a is Number nA && b is Number nB) return nA < nB;
-            return Boolean.False;
-        }        
-    }
-
-    internal sealed class NotEqualTo : Comparison
-    {
-        protected override string Symbol => "!=";
-        protected override Boolean EvaluateComparison(IEvaluatable a, IEvaluatable b)
-        {
-            if (a is Number nA && b is Number nB) return nA.Value != nB.Value;
-            if (a is Boolean bA && b is Boolean bB) return bA.Value != bB.Value;
-            return Boolean.True;
-        }
-        
-    }
-
-
     #endregion
+
+
+
+
+
+
+
+
+
 }

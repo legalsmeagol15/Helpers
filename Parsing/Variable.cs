@@ -7,31 +7,28 @@ using System.Threading.Tasks;
 namespace Parsing
 {
     public partial class DataContext
-    {
-       
-
-
+    { 
         public class CircularDependencyException : Exception
         {
             public readonly Variable V0, V1;
-            IEvaluatable Contents;
-            public CircularDependencyException(IEvaluatable contents, Variable v0, Variable v1) : base("A circular dependency exists.") { this.Contents = contents; this.V0 = v0; this.V1 = v1; }
+            IEvaluateable Contents;
+            public CircularDependencyException(IEvaluateable contents, Variable v0, Variable v1) : base("A circular dependency exists.") { this.Contents = contents; this.V0 = v0; this.V1 = v1; }
         }
 
 
-        public sealed class Variable : IEvaluatable
+        public class Variable : IEvaluateable
         {
 
 
             public readonly string Name;
             public readonly DataContext Context;
 
-            private IEvaluatable _Contents = null;
-            internal IEvaluatable _CachedValue;
+            private IEvaluateable _Contents = null;
+            internal IEvaluateable _CachedValue;
             internal ISet<Variable> _Sources;
             internal readonly ISet<Variable> _Listeners;
             
-            public IEvaluatable Contents
+            public IEvaluateable Contents
             {
                 get => _Contents;
                 set
@@ -86,7 +83,7 @@ namespace Parsing
             }
             
             
-            internal Variable(DataContext context, string name, IEvaluatable contents = null)
+            internal Variable(DataContext context, string name, IEvaluateable contents = null)
             {
                 this.Name = name;
                 this.Context = context;
@@ -120,7 +117,7 @@ namespace Parsing
             public bool DependedOnBy(Variable listener) => listener.DependsOn(this);
 
             /// <summary>Returns the evaluation of this Variable.  The evaluation will be cached for fast reference next time.</summary>
-            public IEvaluatable Evaluate()
+            public virtual IEvaluateable Evaluate()
             {
                 // Locking should not be necessary here.  Even though dependency is being relied upon to evaluate non-cached Variables, 
                 // the explicit dependency structure is neither modified nor read.  The dependencies will only exist in the forms of 
@@ -140,5 +137,6 @@ namespace Parsing
 
 
         }
+        
     }
 }

@@ -10,23 +10,26 @@ namespace Parsing.Functions
 {
     internal sealed class Derivative : Function
     {
-        public readonly DataContext.Variable Variable;
+        //public readonly DataContext.Variable Variable;
         
-        protected override IEvaluatable[] EvaluateInputs() => Inputs.ToArray();
+        protected override IEvaluateable GetDerivative(DataContext.Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
 
-        protected override IEvaluatable GetDerivative(DataContext.Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
-
-        protected internal override IEvaluatable Evaluate(params IEvaluatable[] inputs)
+        public override IEvaluateable Evaluate()
         {
-            if (inputs.Length != 1) return InputCountError(inputs, 1);            
-            return Function.Differentiate(inputs[0], Variable);
+            throw new NotImplementedException();
         }
+
+        public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
+        {
+            throw new NotImplementedException();
+        }
+
 
         private class Node
         {
             public readonly Clause Parent;
             public readonly Clause Function;
-            public readonly List<IEvaluatable> Children = new List<IEvaluatable>();
+            public readonly List<IEvaluateable> Children = new List<IEvaluateable>();
             public Node(Clause parent, Clause function) { this.Parent = parent; this.Function = function; }
         }
 
