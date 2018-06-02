@@ -89,7 +89,7 @@ namespace Parsing
             /// <returns>Returns the IEvaluatable contents.</returns>
             public IEvaluateable SetContents(string str)
             {
-                Contents = Expression.FromString(str, null, Context);
+                Contents = Expression.FromString(str, Context);
                 return Contents;
             }
             

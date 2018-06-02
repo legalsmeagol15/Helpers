@@ -11,6 +11,8 @@ namespace Parsing
 {
     public abstract partial class Context
     {
+        public static Function.Factory Functions = Function.Factory.StandardFactory;
+
         public abstract class Function : Clause
         {
             protected internal VariableDomain Domain { get; private set; }
@@ -110,7 +112,7 @@ namespace Parsing
                 following = preceding;
                 while (following < inputs.Length) inputs[following++] = (IEvaluateable)node.Next.Remove();
                 while (--preceding >= 0) inputs[preceding] = (IEvaluateable)node.Previous.Remove();
-                this.Inputs = inputs;                
+                this.Inputs = inputs;
             }
 
             #endregion
@@ -177,22 +179,22 @@ namespace Parsing
                 /// It is expected that ALL function factories will be able to interpret operators, so direct creation methods 
                 /// are included for operators.
 
-                internal static Functions.Addition CreateAddition() => new Functions.Addition();
-                internal static Functions.Subtraction CreateSubtraction() => new Functions.Subtraction();
-                internal static Functions.Multiplication CreateMultiplication() => new Functions.Multiplication();
-                internal static Functions.Division CreateDivision() => new Functions.Division();
-                internal static Functions.Exponentiation CreateExponentiation() => new Functions.Exponentiation();
-                internal static Functions.And CreateAnd() => new Functions.And();
-                internal static Functions.Or CreateOr() => new Functions.Or();
-                internal static Functions.Relation CreateRelation() => new Functions.Relation();
-                internal static Functions.Span CreateRange() => new Functions.Span();
-                internal static Functions.Negation CreateNegation() => new Functions.Negation();
+                internal static  Functions.Addition CreateAddition() => new Functions.Addition();
+                internal static  Functions.Subtraction CreateSubtraction() => new Functions.Subtraction();
+                internal static  Functions.Multiplication CreateMultiplication() => new Functions.Multiplication();
+                internal static  Functions.Division CreateDivision() => new Functions.Division();
+                internal static  Functions.Exponentiation CreateExponentiation() => new Functions.Exponentiation();
+                internal static  Functions.And CreateAnd() => new Functions.And();
+                internal static  Functions.Or CreateOr() => new Functions.Or();
+                internal static  Functions.Relation CreateRelation() => new Functions.Relation();
+                internal static  Functions.Span CreateRange() => new Functions.Span();
+                internal static  Functions.Negation CreateNegation() => new Functions.Negation();
 
                 #endregion
 
+                public static readonly Factory StandardFactory = GetStandardFactory();
 
-
-                public static Factory StandardFactory()
+                private static Factory GetStandardFactory()
                 {
 
                     Factory factory = new Factory();

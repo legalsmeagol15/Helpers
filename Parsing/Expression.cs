@@ -134,7 +134,7 @@ namespace Parsing
         }
 
 
-        public static IEvaluateable FromLaTeX(string latex, IDictionary<string, Function> functions, out ISet<Variable> dependees, Variable context = null)
+        public static IEvaluateable FromLaTeX(string latex, out ISet<Variable> dependees, Variable context = null)
         {
             throw new NotImplementedException();
         }
@@ -143,9 +143,10 @@ namespace Parsing
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        public static IEvaluateable FromString(string str, Function.Factory functions, Context context = null)
+        public static IEvaluateable FromString(string str, Context context = null)
         {
             // Step #1 - setup
+            Function.Factory functions = (context ==null) ? null : Function.Factory.StandardFactory;
             ISet<Variable> terms = new HashSet<Variable>();
             if (str == null) return new Error("Expression string cannot be null.");
             string[] rawTokens = _Regex.Split(str);
