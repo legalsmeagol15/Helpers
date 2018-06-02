@@ -194,6 +194,7 @@ namespace Parsing.Functions
         }
     }
 
+
     internal sealed class Subtraction : Operator
     {
         internal Subtraction(params IEvaluateable[] inputs) : base(inputs) { }
@@ -361,20 +362,28 @@ namespace Parsing.Functions
         public override IEvaluateable Evaluate()
         {
             if (Inputs.Length != 2) return InputCountError(Inputs, new int[] { 2 });
+
+            // The parent context must always be determinable at compile time.  No exceptions.  If the target was parsed at "compile 
+            // time", ie, when the expression was created, return its evaluation.
             if (Inputs[0] is Context context)
-            {
+            {                
                 switch (Inputs[1])
                 {
                     case Variable v: return v.Evaluate();
                     case Context sub: return sub.Evaluate();
-                    default: return Evaluate(context, Inputs[1].Evaluate());
+                    default:
+                        // The target was NOT parsed at compile time, evaluate it and see if a its evaluation can be returned.
+                        return Evaluate(context, Inputs[1].Evaluate());
                 }
             }
+
+
             return InputTypeError(Inputs, 0, new Type[] { typeof(Context) });
         }
 
         public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
         {
+            // Only if the reference was not determined at compile time should this method be invoked.
             Context context = (Context)inputs[0];
             if (inputs[1] is String str)
             {
@@ -399,9 +408,10 @@ namespace Parsing.Functions
         protected override string Symbol => ".";
     }
 
+
     internal sealed class Span : Operator
     {
-        protected internal override ParsingPriority Priority => ParsingPriority.Range;
+        protected internal override ParsingPriority Priority => ParsingPriority.Span;
         
         public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
         {

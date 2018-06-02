@@ -80,7 +80,7 @@ namespace Parsing
             protected internal enum ParsingPriority
             {
                 None = 100000,
-                Range = 90000,
+                Span = 90000,
                 Addition = 80000, Subtraction = 80000,
                 Multiplication = 70000, Division = 70000,
                 Exponentiation = 60000,

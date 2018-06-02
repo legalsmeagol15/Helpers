@@ -85,7 +85,7 @@ namespace UnitTests
             Assert.IsTrue(factory.Contains("Negation"));
             Assert.IsTrue(factory.Contains("Subtraction"));
             Assert.IsTrue(factory.Contains("Relation"));
-            Assert.IsTrue(factory.Contains("Range"));
+            Assert.IsTrue(factory.Contains("Span"));
             Assert.IsTrue(factory.Contains("And"));
             Assert.IsTrue(factory.Contains("Or"));
             Assert.IsTrue(factory.Contains("PI"));
