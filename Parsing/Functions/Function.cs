@@ -21,7 +21,9 @@ namespace Parsing
             protected internal VariableDomain CoDomain { get; private set; }
 
             public virtual string Name => this.GetType().Name;
-            
+
+            // TODO:  this might be better as a class definition a attribute rather than a class member.
+            internal virtual IEnumerable<string> GetAliases() { return null; }
 
 
             protected Function(params IEvaluateable[] inputs) : base("", "", inputs)
@@ -36,6 +38,7 @@ namespace Parsing
             public override IEvaluateable Evaluate() => Evaluate(GetEvaluatedInputs());
 
             public abstract IEvaluateable Evaluate(params IEvaluateable[] inputs);
+
 
             #region Function calculus
 
@@ -160,7 +163,7 @@ namespace Parsing
                 public bool AddRecipe(string functionName, Func<Function> recipe)
                 {
                     functionName = Standardize(functionName);
-                    if (Functions.ContainsKey(functionName)) return false;
+                    if (Functions.ContainsKey(functionName)) return false;                    
                     Functions[functionName] = recipe;
                     return true;
                 }
@@ -242,7 +245,16 @@ namespace Parsing
                             throw new FactoryException("Function of type " + type.Name + " has been set up incorrectly.  Must contain a no-argument constructor for parsing purposes.");
                         };
                         Function specimen = caller();
-                        factory.AddRecipe(specimen.Name, caller);
+                        if (!factory.AddRecipe(specimen.Name, caller)) throw new InvalidOperationException("Could not add recipe for function " + specimen.Name + ".  A recipe already exists with that name.");
+
+                        IEnumerable < string > aliases = specimen.GetAliases();
+                        if (aliases != null)
+                        {
+                            foreach (string alias in aliases)
+                            {
+                                if (!factory.AddRecipe(alias, caller)) throw new InvalidOperationException("Could not add recipe for function " + specimen.Name + " under alias "+alias+".  A recipe already exists with that name.");
+                            }
+                        }
                     }
 
                     // Here is where the callers that return the single object for each defined constant function is created.

@@ -12,6 +12,7 @@ namespace UnitTests
     public class Test_Parsing
     {
         private Function.Factory factory;
+
         [TestInitialize]
         public void TestParsing__Initialize()
         {
@@ -351,7 +352,9 @@ namespace UnitTests
             
         }
 
-
+        /// <summary>
+        /// Used to test context feature.
+        /// </summary>
         internal class DummyContext : Parsing.Context
         {
             private Context sub = null;
