@@ -13,7 +13,7 @@ namespace Parsing
 
         internal string Opener;
         internal string Closer;
-        internal ISet<DataContext.Variable> Terms;
+        public ISet<DataContext.Variable> Terms { get; internal set; }
 
         public IEvaluateable[] Inputs { get; protected set; }
 

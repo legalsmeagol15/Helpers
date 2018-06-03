@@ -21,9 +21,7 @@ namespace Parsing
             protected internal VariableDomain CoDomain { get; private set; }
 
             public virtual string Name => this.GetType().Name;
-            //public bool TermsOf(Variable v) => Terms != null && Terms.Contains(v);
-            //protected internal HashSet<Variable> Terms = null;
-
+            
 
 
             protected Function(params IEvaluateable[] inputs) : base("", "", inputs)

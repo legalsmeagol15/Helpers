@@ -228,7 +228,27 @@ namespace UnitTests
             formatter = new BinaryFormatter();
             IEvaluateable exp2 = (IEvaluateable)formatter.Deserialize(outStream);
 
+            // Ensure that the original and the deserialized expressions evaluate equally.
             Assert.AreEqual(exp1.Evaluate(), exp2.Evaluate());
+            Assert.AreEqual(exp1.ToString(), exp2.ToString());
+
+            // Prove that the two expressions do not actually share members.
+            Function f1 = (Function)exp1, f2 = (Function)exp2;
+            int comparisons = 0;
+            foreach (Variable a1 in f1.Terms)
+            {
+                foreach (Variable a2 in f2.Terms)
+                {
+                    comparisons++;                    
+                    Assert.AreEqual("a", a1.Name);
+                    Assert.AreEqual("a", a2.Name);
+                    Assert.AreNotEqual(a1, a2);
+                    Assert.AreNotEqual(a1.Context, a2.Context);
+                }
+            }
+            Assert.AreEqual(1, comparisons);
+
+
 
         }
 
