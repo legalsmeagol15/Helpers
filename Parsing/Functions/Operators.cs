@@ -9,7 +9,7 @@ using static Parsing.Context;
 
 namespace Parsing.Functions
 {
-
+    [Serializable]
     /// <summary>
     /// A special type of function typically written with a special relationship to its inputs.  For 
     /// example, addition could be written "add(a,b)", instead we use "a + b" with a special symbol 
@@ -32,6 +32,7 @@ namespace Parsing.Functions
 
     #region Arithmetic operators
 
+    [Serializable]
     internal sealed class Addition : Operator
     {
 
@@ -58,8 +59,8 @@ namespace Parsing.Functions
 
         protected override IEvaluateable GetDerivative(DataContext.Variable v) => new Addition(Inputs.Select(i => Differentiate(i, v)).ToArray());
     }
-    
 
+    [Serializable]
     internal sealed class Division : Operator
     {
 
@@ -95,8 +96,8 @@ namespace Parsing.Functions
 
 
     }
-    
 
+    [Serializable]
     internal sealed class Exponentiation : Operator
     {
 
@@ -135,7 +136,7 @@ namespace Parsing.Functions
         }
     }
 
-
+    [Serializable]
     internal sealed class Multiplication : Operator
     {
 
@@ -163,7 +164,7 @@ namespace Parsing.Functions
         }
     }
 
-
+    [Serializable]
     internal sealed class Negation : Operator
     {
 
@@ -194,7 +195,7 @@ namespace Parsing.Functions
         }
     }
 
-
+    [Serializable]
     internal sealed class Subtraction : Operator
     {
         internal Subtraction(params IEvaluateable[] inputs) : base(inputs) { }
@@ -220,6 +221,7 @@ namespace Parsing.Functions
 
     #region Comparison operators
 
+    [Serializable]
     internal abstract class Comparison : Function, IEvaluateable<Boolean>
     {
         protected abstract string Symbol { get; }
@@ -239,7 +241,7 @@ namespace Parsing.Functions
 
     }
 
-
+    [Serializable]
     internal sealed class EqualTo : Comparison
     {
         protected override string Symbol => "=";
@@ -252,6 +254,7 @@ namespace Parsing.Functions
 
     }
 
+    [Serializable]
     internal sealed class GreaterThan : Comparison
     {
         protected override string Symbol => ">";
@@ -264,6 +267,7 @@ namespace Parsing.Functions
 
     }
 
+    [Serializable]
     internal sealed class LessThan : Comparison
     {
         protected override string Symbol => ">";
@@ -275,6 +279,7 @@ namespace Parsing.Functions
         }
     }
 
+    [Serializable]
     internal sealed class NotEqualTo : Comparison
     {
         protected override string Symbol => "!=";
@@ -296,6 +301,7 @@ namespace Parsing.Functions
 
     #region Logical operators
 
+    [Serializable]
     internal sealed class And : Operator
     {
 
@@ -322,7 +328,7 @@ namespace Parsing.Functions
 
     }
 
-
+    [Serializable]
     internal sealed class Or : Operator
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Or;
@@ -351,10 +357,10 @@ namespace Parsing.Functions
 
 
     #region Reference operators
-    
-    
 
 
+
+    [Serializable]
     internal sealed class Relation : Operator
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Relation;
@@ -408,7 +414,7 @@ namespace Parsing.Functions
         protected override string Symbol => ".";
     }
 
-
+    [Serializable]
     internal sealed class Span : Operator
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Span;

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
+    [Serializable]
     public struct Boolean : IEvaluateable
     {
         public static readonly Boolean False = false;

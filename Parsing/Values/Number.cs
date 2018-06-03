@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
+    [Serializable]
     public struct Number : IEvaluateable
     {
         public static readonly Number Zero = new Number(0m);

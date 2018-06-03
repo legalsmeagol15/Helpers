@@ -7,6 +7,7 @@ using static Parsing.Context;
 
 namespace Parsing.Functions
 {
+    [Serializable]
     internal sealed class Sin : Function
     {
         internal Sin(params IEvaluateable[] inputs) : base(inputs) { }
@@ -19,6 +20,7 @@ namespace Parsing.Functions
         }
     }
 
+    [Serializable]
     internal sealed class Cos : Function
     {
         internal Cos(params IEvaluateable[] inputs) : base(inputs) { }
@@ -33,6 +35,7 @@ namespace Parsing.Functions
         }
     }
 
+    [Serializable]
     internal sealed class Tan : Function
     {
         internal Tan(params IEvaluateable[] inputs) : base(inputs) { }

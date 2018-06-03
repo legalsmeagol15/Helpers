@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 namespace Parsing.Functions
 {
 
+    [Serializable]
     internal sealed class Constant : DataContext.Function, IEvaluateable
     {
         // Reflection will add the following constants to a standard factory.

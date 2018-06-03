@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
+    [Serializable]
     public class Error : IEvaluateable
     {
         public readonly string Message;

@@ -8,6 +8,7 @@ using static Parsing.Context;
 
 namespace Parsing.Functions
 {
+    [Serializable]
     internal sealed class Derivative : Function
     {
         //public readonly DataContext.Variable Variable;

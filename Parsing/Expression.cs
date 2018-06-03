@@ -18,7 +18,7 @@ namespace Parsing
         IEvaluateable Evaluate();
     }
 
-
+    
     public interface IIndexable<T>
     {
         T this[int index] { get; }

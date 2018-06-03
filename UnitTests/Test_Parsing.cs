@@ -2,6 +2,8 @@
 using Parsing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 using static Parsing.Context;
 
 namespace UnitTests
@@ -210,6 +212,24 @@ namespace UnitTests
             // Exponentiation
             e = Expression.FromString("2^4", null);
             Assert.AreEqual(e.Evaluate(), 16);
+        }
+
+        [TestMethod]
+        public void TestParsing_Serialization()
+        {
+            DataContext context = new DataContext();
+            IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context);
+
+            MemoryStream outStream = new MemoryStream();
+            BinaryFormatter formatter = new BinaryFormatter();
+            formatter.Serialize(outStream, exp1);
+
+            outStream.Seek(0, SeekOrigin.Begin);
+            formatter = new BinaryFormatter();
+            IEvaluateable exp2 = (IEvaluateable)formatter.Deserialize(outStream);
+
+            Assert.AreEqual(exp1.Evaluate(), exp2.Evaluate());
+
         }
 
         [TestMethod]

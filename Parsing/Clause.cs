@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Parsing
 {
 
-
+    [Serializable]
     public class Clause : IEvaluateable
     {
 
@@ -53,7 +53,7 @@ namespace Parsing
             return true;
         }
 
-
+        [NonSerialized]
         private int _CachedHashCode = -1;
         public override int GetHashCode()
         {

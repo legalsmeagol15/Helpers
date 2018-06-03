@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
+    
     public abstract partial class Context
     { 
         public class CircularDependencyException : Exception
@@ -15,7 +16,7 @@ namespace Parsing
             public CircularDependencyException(IEvaluateable contents, Variable v0, Variable v1) : base("A circular dependency exists.") { this.Contents = contents; this.V0 = v0; this.V1 = v1; }
         }
 
-
+        [Serializable]
         public class Variable : IEvaluateable
         {
 

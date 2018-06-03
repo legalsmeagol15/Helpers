@@ -7,18 +7,20 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
+    [Serializable]
     /// <summary>
     /// A Context which allows for concurrent access to member variables and sub-contexts, as well as dynamic adding and removing of 
     /// member sub-contexts.
     /// <para/>It is expected that multiple threads will be accessing the context.  Changing or accessing the variable contents is 
     /// protected by mutexes.
+    /// <para/>Instances of this class are serializable.
     /// </summary>
     public partial class DataContext : Context
     {
 
         // TODO:  Function Factory should be a member of a DataContext.
         
-        private readonly Dictionary<string, Context> _Objects = new Dictionary<string, Context>();        
+       
         public Variable this[string name] { get { lock (this) { return Variables[name]; } } }
 
         public DataContext() : base("Root") { }

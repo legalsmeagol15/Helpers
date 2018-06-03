@@ -7,6 +7,7 @@ using static Parsing.Context;
 
 namespace Parsing.Functions
 {
+    [Serializable]
     internal sealed class Simplify : Function
     {
         protected override IEvaluateable GetDerivative(Variable v)

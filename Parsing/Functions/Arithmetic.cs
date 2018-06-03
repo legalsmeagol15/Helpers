@@ -7,6 +7,7 @@ using static Parsing.Context;
 
 namespace Parsing.Functions
 {
+    [Serializable]
     internal sealed class Abs : Function
     {
         internal Abs() : base() { }
@@ -31,6 +32,7 @@ namespace Parsing.Functions
         }
     }
 
+    [Serializable]
     internal sealed class Hybrid : Function
     {
         private class DomainInterval

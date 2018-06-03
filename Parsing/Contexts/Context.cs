@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-
+    
     /// <summary>The context in which Variables live, and from which functions can be created.  The DataContext manages access to things I don't 
     /// want to expose on other objects:  Variable dependency graph</summary>
-    public abstract partial class Context : IEvaluateable, IEnumerable<Context>
+    public abstract partial class Context : IContext, IEvaluateable
     {
         /// <summary>The name of this context.</summary>
         public string Name { get; protected set; }
@@ -95,8 +95,14 @@ namespace Parsing
 
         public IEvaluateable Evaluate() => throw new InvalidOperationException("A context cannot be evaluated, but it can be stored alongside things which can.");
 
-        IEnumerator<Context> IEnumerable<Context>.GetEnumerator() => SubContexts.Values.GetEnumerator();
+        IContext IContext.GetSubContext(string key)
+        {
+            if (TryGet(key, out Context sub)) return sub;
+            throw new KeyNotFoundException();
+        }
 
-        IEnumerator IEnumerable.GetEnumerator() => SubContexts.Values.GetEnumerator();
+        IEnumerator<IContext> IEnumerable<IContext>.GetEnumerator() => this.SubContexts.Values.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => this.SubContexts.Values.GetEnumerator();
     }
 }

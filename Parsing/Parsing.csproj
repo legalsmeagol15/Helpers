@@ -40,6 +40,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Contexts\IContext.cs" />
     <Compile Include="Values\Boolean.cs" />
     <Compile Include="Clause.cs" />
     <Compile Include="Contexts\Context.cs" />

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
+    [Serializable]
     public class Range : IEvaluateable, IIndexable<IEvaluateable>
     {
         private Number _From, _To;
