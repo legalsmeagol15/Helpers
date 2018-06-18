@@ -215,15 +215,19 @@ namespace UnitTests
             Assert.AreEqual(e.Evaluate(), 16);
         }
 
+
         [TestMethod]
         public void TestParsing_Serialization()
         {
             DataContext context = new DataContext();
+            //IEvaluateable exp1 = Expression.FromString("3", context);
             IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context);
+
 
             MemoryStream outStream = new MemoryStream();
             BinaryFormatter formatter = new BinaryFormatter();
             formatter.Serialize(outStream, exp1);
+            
 
             outStream.Seek(0, SeekOrigin.Begin);
             formatter = new BinaryFormatter();
@@ -252,6 +256,7 @@ namespace UnitTests
 
 
         }
+
 
         [TestMethod]
         public void TestParsing_Variables()

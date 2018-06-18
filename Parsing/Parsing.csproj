@@ -45,7 +45,7 @@
     <Compile Include="Clause.cs" />
     <Compile Include="Contexts\Context.cs" />
     <Compile Include="Contexts\Sheet.cs" />
-    <Compile Include="Values\Error.cs" />
+    <Compile Include="Values\EvaluationError.cs" />
     <Compile Include="Functions\Arithmetic.cs" />
     <Compile Include="Functions\Calculus.cs" />
     <Compile Include="Functions\Constant.cs" />
@@ -61,6 +61,7 @@
     <Compile Include="Values\String.cs" />
     <Compile Include="Unit.cs" />
     <Compile Include="Contexts\Variable.cs" />
+    <Compile Include="Values\Vector.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DataStructures\DataStructures.csproj">

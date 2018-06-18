@@ -19,9 +19,12 @@ namespace Parsing
     }
 
     
-    public interface IIndexable<T>
+    public interface IIndexable
     {
-        T this[int index] { get; }
+        IEvaluateable this[IEvaluateable index] { get; }
+
+        int MaxIndex { get; }
+        int MinIndex { get; }
     }
 
     public interface IEvaluateable<T> : IEvaluateable where T : IEvaluateable
@@ -29,7 +32,13 @@ namespace Parsing
         new T Evaluate();
     }
 
-
+    public class SyntaxException : Exception
+    {
+        public readonly string Entry;
+        public readonly int Position;
+        public SyntaxException(string message, string entry, int position) : base(message) { this.Entry = entry; this.Position = position; }
+        public SyntaxException(string message, string entry, int position, Exception inner) : base(message, inner) { this.Entry = entry; this.Position = position; }
+    }
 
     /// <summary>
     /// Contains methods for returning objects which can be evaluated according to associated functions.
@@ -71,7 +80,8 @@ namespace Parsing
                 // Step #2 - evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
 
                 // The following ungodly heap is designed to sort nodes according to the priority levels of the Function objects they contain.
-                StableHeap<DynamicLinkedList<object>.Node> priorities = new StableHeap<DynamicLinkedList<object>.Node>((a, b) => ((DataContext.Function)a.Contents).Priority.CompareTo(((DataContext.Function)b.Contents).Priority));
+                StableHeap<DynamicLinkedList<object>.Node> prioritized
+                    = new StableHeap<DynamicLinkedList<object>.Node>((a, b) => ((DataContext.Function)a.Contents).Priority.CompareTo(((DataContext.Function)b.Contents).Priority));
 
                 DynamicLinkedList<object>.Node node = this.FirstNode;
                 while (node != null)
@@ -79,8 +89,8 @@ namespace Parsing
                     switch (node.Contents)
                     {
                         case TokenList tl: node.Contents = tl.Parse(functions); break;
-                        case Error e: return e;
-                        case DataContext.Function f: priorities.Add(node); break;
+                        case EvaluationError e: return e;
+                        case DataContext.Function f: prioritized.Add(node); break;
                         case Number n when node.Next != null:
                             if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
                             if (node.Next.Contents is TokenList || node.Next.Contents is DataContext.Variable || node.Next.Contents is DataContext.Function || node.Next.Contents is Clause)
@@ -91,9 +101,9 @@ namespace Parsing
                 }
 
                 // Step #3 - construct a within-this-clause tree according to operator precedence.
-                while (priorities.Count > 0)
+                while (prioritized.Count > 0)
                 {
-                    node = priorities.Pop();
+                    node = prioritized.Pop();
                     DataContext.Function function = (DataContext.Function)node.Contents;
                     function.ParseNode(node);
                     function.Terms = new HashSet<Variable>();
@@ -128,7 +138,7 @@ namespace Parsing
                 }
                 catch
                 {
-                    return new Error("Invalid objects in parsed token list.");
+                    return new EvaluationError("Invalid objects in parsed token list.");
                 }
             }
         }
@@ -139,98 +149,151 @@ namespace Parsing
             throw new NotImplementedException();
         }
 
+
+        
+
         /// <summary>Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.</summary>
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
-        /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
+        /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>       
+
         public static IEvaluateable FromString(string str, Context context = null)
         {
             // Step #1 - setup
-            Function.Factory functions = (context ==null) ? null : Function.Factory.StandardFactory;
+            Function.Factory functions = (context == null) ? null : Function.Factory.StandardFactory;
             ISet<Variable> terms = new HashSet<Variable>();
-            if (str == null) return new Error("Expression string cannot be null.");
+            if (str == null) return new EvaluationError("Expression string cannot be null.");
             string[] rawTokens = _Regex.Split(str);
             Debug.Assert(rawTokens.Length > 0);
             Context obj = context;
-            Stack<TokenList> stack = new Stack<TokenList>();            
+            Stack<TokenList> stack = new Stack<TokenList>();
             TokenList rootList = new TokenList("", 0);
             stack.Push(rootList);
+            Dictionary<Context, List<Variable>> addedVariables
+                = new Dictionary<Context, List<Variable>>();  // Used in case of exception so new variables can be unwound.
 
             // Step #2 - Parse into clause-by-clause tree structure containing tokenized objects
+            int position = 0;
             for (int i = 0; i < rawTokens.Length; i++)
             {
-                // Step #2a - skip whitespace
                 string rawToken = rawTokens[i];
-                if (rawToken == "" || string.IsNullOrWhiteSpace(rawToken)) continue;
-
-                // Step #2b - simple tokens
-                switch (rawToken)
+                position += rawToken.Length;
+                try
                 {
-                    case string _ when context != null && context.TryGet(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); terms.Add(old_var); continue;
+                    // Step #2a - skip whitespace                    
+                    if (rawToken.Length==0 || rawToken == "" || string.IsNullOrWhiteSpace(rawToken)) continue;
 
-                    //Nesting?
-                    case "(":
-                    case "[":
-                    case "{": TokenList tl = new TokenList(rawToken, i); stack.Peek().AddLast(tl); stack.Push(tl); continue;
-                    case ")":
-                    case "]":
-                    case "}": stack.Pop().Close(rawToken, i); if (stack.Count == 0) return new Error("Too many closing brackets.", 0, i); continue;
+                    // Step #2b - nesting, literals, functions, and operators.
+                    switch (rawToken)
+                    {
+                        case string _ when context != null && context.TryGet(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); terms.Add(old_var); continue;
 
-                    //Sectioner?
-                    case ",": continue;
-                    case ";": throw new NotImplementedException();// A sub-vector.    
+                        //Nesting?
+                        case "(":
+                        case "[":
+                        case "{": TokenList tl = new TokenList(rawToken, i); stack.Peek().AddLast(tl); stack.Push(tl); continue;
+                        case ")":
+                        case "]":
+                        case "}": stack.Pop().Close(rawToken, i); if (stack.Count == 0) return new EvaluationError("Too many closing brackets.", 0, i); continue;
 
-                    //Unary operator?
-                    case "-":
-                    case "!":
-                    case "~":
-                        if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator) stack.Peek().AddLast(Function.Factory.CreateNegation());
-                        else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
-                        continue;
+                        //Sectioner?
+                        case ",": continue;
+                        case ";": continue;
 
-                    // Binary operator?
-                    case "+": stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
-                    case "*": stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
-                    case "/": stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
-                    case "^": stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
-                    case "|": stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
-                    case "&": stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
-                    case ":": stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
-                    case ".": stack.Peek().AddLast(Function.Factory.CreateRelation()); continue;
+                        //Unary operator?
+                        case "-":
+                        case "!":
+                        case "~":
+                            if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator) stack.Peek().AddLast(Function.Factory.CreateNegation());
+                            else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
+                            continue;
 
-                    //Literal?
-                    case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2: stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2))); continue;
-                    case string _ when decimal.TryParse(rawToken, out decimal m): stack.Peek().AddLast(new Number(m)); continue;
-                    case string _ when bool.TryParse(rawToken, out bool b): stack.Peek().AddLast(Boolean.FromBool(b)); continue;
+                        // Binary operator?
+                        case "+": stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
+                        case "*": stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
+                        case "/": stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
+                        case "^": stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
+                        case "|": stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
+                        case "&": stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
+                        case ":": stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
+                        case ".": stack.Peek().AddLast(Function.Factory.CreateRelation()); continue;
 
-                    //Function?
-                    case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
+                        //Literal?
+                        case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2: stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2))); continue;
+                        case string _ when decimal.TryParse(rawToken, out decimal m): stack.Peek().AddLast(new Number(m)); continue;
+                        case string _ when bool.TryParse(rawToken, out bool b): stack.Peek().AddLast(Boolean.FromBool(b)); continue;
+
+                        //Function?
+                        case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
+                    }
+
+                    // Step #2c - sub-contexting and properties/variables
+                    if (obj != null)
+                    {
+                        // Does this context have a matching variable?
+                        if (obj.TryGet(rawToken, out Variable old_var))
+                        {
+                            stack.Peek().AddLast(old_var);
+                            terms.Add(old_var);
+                            obj = context;
+                            continue;
+                        }
+
+                        // Does this context have a matching sub-context?
+                        else if (obj.TryGet(rawToken, out Context sub_obj))
+                        {
+                            stack.Peek().AddLast(obj);
+                            obj = sub_obj;
+                            continue;
+                        }
+
+                        // Can the variable be added to this sub-context?
+                        else if (obj.TryAdd(rawToken, out Variable new_var))
+                        {
+                            stack.Peek().AddLast(new_var);
+                            terms.Add(new_var); obj = context;
+                            if (!addedVariables.TryGetValue(obj, out List<Variable> addedList))
+                                addedVariables[obj] = (addedList = new List<Variable>());
+                            addedList.Add(new_var);
+                            continue;
+                        }
+
+                        // Otherwise, snap back to the root context.
+                        else
+                        {
+                            obj = context;
+                            continue;
+                        }
+                    }
+
                 }
-
-                // Step #2c - handle sub-contexting and properties/variables
-                if (obj != null)
+                catch (Exception ex)
                 {
-                    // Does this context have a matching variable?
-                    if (obj.TryGet(rawToken, out Variable old_var)) { stack.Peek().AddLast(old_var); terms.Add(old_var); obj = context; continue; }
+                    // Since an exception was caught but state might have changed by adding variables, unwind the expression creation by 
+                    // deleting all newly-added variables.
+                    foreach (Context ctxt in addedVariables.Keys)
+                        foreach (Variable v in addedVariables[ctxt])
+                            if (!ctxt.TryDelete(v))
+                                throw new InvalidOperationException("Could not unwind added variables.  Context variable list may be corrupted.");
 
-                    // Does this context have a matching sub-context?
-                    else if (obj.TryGet(rawToken, out Context sub_obj)) { stack.Peek().AddLast(obj); obj = sub_obj; continue; }
+                    // A sanity check in case a later implementation accidentally throws SyntaxExceptions.
+                    if (ex is SyntaxException)
+                        throw new InvalidOperationException("SyntaxExceptions can be built only in the expression tokenizer method (i.e., in the FromString method).");
 
-                    // Can the variable be added to this sub-context?
-                    else if (obj.TryAdd(rawToken, out Variable new_var)) { stack.Peek().AddLast(new_var); terms.Add(new_var); obj = context; continue; }
-
-                    // Otherwise, snap back to the root context.
-                    else { obj = context; continue; }
+                    // Throw an exception that gives clues where the syntax error occurred.
+                    throw new SyntaxException(ex.Message, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, ex);
                 }
+                
 
-                // In all other cases, return an interpretation error.
-                return new Error("Invalid token: " + rawToken);
+                // In all other cases, throw a syntax exception.
+                throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length);                
             }
 
             IEvaluateable result = rootList.Parse(functions);
             if (result is Clause clause) clause.Terms = terms;
             return result;
         }
+
 
 
 

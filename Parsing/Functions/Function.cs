@@ -14,6 +14,11 @@ namespace Parsing
     {
         public static Function.Factory Functions = Function.Factory.StandardFactory;
 
+        /// <summary>
+        /// A function is a type of expression clause which performs some operation on its inputs to produce its 
+        /// outputs.  A Function is references by a particular name and new instances can be instantiation through a 
+        /// Function Factory.
+        /// </summary>
         [Serializable]
         public abstract class Function : Clause
         {
@@ -22,7 +27,7 @@ namespace Parsing
 
             public virtual string Name => this.GetType().Name;
 
-            // TODO:  this might be better as a class definition a attribute rather than a class member.
+            // TODO:  this might be better as a class definition an attribute rather than a class member.
             internal virtual IEnumerable<string> GetAliases() { return null; }
 
 
@@ -48,12 +53,12 @@ namespace Parsing
                 {
                     case Function f: return (f.Terms.Contains(v)) ? f.GetDerivative(v) : Number.Zero;
                     case Clause c:
-                        if (c.Inputs.Length != 1) return new Error("Cannot differentiate multi-input clause: " + c.ToString());
+                        if (c.Inputs.Length != 1) return new EvaluationError("Cannot differentiate multi-input clause: " + c.ToString());
                         return Differentiate(c.Inputs[0], v);
                     case Number n: return Number.Zero;
                     case Variable var: return (var == v) ? Number.One : Number.Zero;
-                    case Error e: return e;
-                    default: return new Error("Cannot find derivative of: " + function.ToString());
+                    case EvaluationError e: return e;
+                    default: return new EvaluationError("Cannot find derivative of: " + function.ToString());
                 }
             }
 
@@ -68,7 +73,7 @@ namespace Parsing
 
             protected internal virtual IEvaluateable GetSimplified() => this;
 
-            protected Error NonDifferentiableFunctionError() => new Error("Nondifferentiable function: " + this.ToString());
+            protected EvaluationError NonDifferentiableFunctionError() => new EvaluationError("Nondifferentiable function: " + this.ToString());
 
             #endregion
 
@@ -91,7 +96,9 @@ namespace Parsing
                 Exponentiation = 60000,
                 Concatenation = 50000, And = 50000, Or = 50000,
                 Negation = 40000,
-                Function = 30000, Relation = 30000
+                Function = 30000, Relation = 30000,
+                Comma = 20000,
+                Semicolon = 10000
             }
 
             protected internal virtual ParsingPriority Priority => ParsingPriority.Function;
@@ -195,7 +202,13 @@ namespace Parsing
 
                 #endregion
 
+
+                /// <summary>
+                /// The standard function factory.
+                /// </summary>
                 public static readonly Factory StandardFactory = GetStandardFactory();
+
+
 
                 private static Factory GetStandardFactory()
                 {
@@ -278,20 +291,20 @@ namespace Parsing
 
 
             #region Function error helpers
-            protected Error InputTypeError(IList<IEvaluateable> inputs, int index, params Type[] t)
+            protected EvaluationError InputTypeError(IList<IEvaluateable> inputs, int index, params Type[] t)
             {
                 Debug.Assert(index < inputs.Count);
                 Debug.Assert(!t.Contains(inputs[index].GetType()));
-                return new Error("Input " + index + " incorrect type for function " + Name + ".  Expected " + string.Join(", ", t.Select((tp) => tp.Name)) + ", but given " + inputs[index].GetType().Name + ".");
+                return new EvaluationError("Input " + index + " incorrect type for function " + Name + ".  Expected " + string.Join(", ", t.Select((tp) => tp.Name)) + ", but given " + inputs[index].GetType().Name + ".");
             }
 
             /// <summary>Returns an input type error with a suitable message.</summary>
             /// <param name="inputs">The inputs that caused the error.</param>
             /// <param name="expected">The input counts that are acceptable.  Overloaded functions may all different counts.</param>
-            protected Error InputCountError(IList<IEvaluateable> inputs, params int[] expected)
+            protected EvaluationError InputCountError(IList<IEvaluateable> inputs, params int[] expected)
             {
                 Debug.Assert(!expected.Contains(inputs.Count));
-                return new Error("Incorrect input count for function " + Name + ".  Expected {" + string.Join(", ", expected) + "}, but given " + inputs.Count + ".");
+                return new EvaluationError("Incorrect input count for function " + Name + ".  Expected {" + string.Join(", ", expected) + "}, but given " + inputs.Count + ".");
             }
 
             #endregion
@@ -304,6 +317,19 @@ namespace Parsing
 
         }
 
+
+        internal sealed class CommaToken : Function
+        {
+            protected internal override ParsingPriority Priority => ParsingPriority.Comma;
+
+            protected internal override void ParseNode(DynamicLinkedList<object>.Node node)
+            {
+                base.ParseNode(node);
+            }
+
+            public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
+                => throw new InvalidOperationException("Instances of this placeholder  class are not intended to remain part of a fully-parsed tree.");
+        }
 
     }
 

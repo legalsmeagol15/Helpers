@@ -7,19 +7,28 @@ using System.Threading.Tasks;
 namespace Parsing
 {
     [Serializable]
-    public class Range : IEvaluateable, IIndexable<IEvaluateable>
+    public class Range : IEvaluateable, IIndexable
     {
         private Number _From, _To;
         public Range(Number a, Number b) { this._From = a; this._To = b; }
 
-        public IEvaluateable this[int index]
+        public IEvaluateable this[IEvaluateable index]
         {
             get
             {
-                if (!(_From.IsInteger)) return new Error("Non-integer range start cannot be indexed.");
-                decimal idx = _From.Value + index;
-                if (idx > _To) return new Error("Index exceeds maximum range.");
-                return new Number(idx);
+                if (index is Number n)
+                {
+                    // If the Range starts with an int, should it be indexed by an int?
+                    if (!(_From.IsInteger)) return new EvaluationError("Non-integer range start cannot be indexed.", -1, -1, this);
+                    decimal idx = _From.Value + n;
+                    if (idx > _To) return new EvaluationError("Index exceeds maximum range.");
+                    return new Number(idx);
+                }
+                else if (index is DataContext.Variable v)
+                {
+                    throw new NotImplementedException("TODO:  implement indexing into spreadsheet variables.");
+                }
+                else return new EvaluationError("Indexing into a Range requires an integer value.", -1, -1, this);
             }
         }
 

@@ -76,7 +76,7 @@ namespace Parsing.Functions
             if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
             if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b)
             {
-                if (b == Number.Zero) return new Error("Division by zero.");
+                if (b == Number.Zero) return new EvaluationError("Division by zero.");
                 else return a / b;
             }
 
@@ -228,7 +228,7 @@ namespace Parsing.Functions
 
         public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
-            if (evaluatedInputs.Length != 2) InputCountError(evaluatedInputs, 2);
+            if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
             return EvaluateComparison(evaluatedInputs[0], evaluatedInputs[1]);
         }
 
@@ -395,7 +395,7 @@ namespace Parsing.Functions
             {
                 if (context.TryGet(str, out Variable dyn_var)) return dyn_var.Evaluate();
                 else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub.Evaluate();
-                else return new Error("Unrecognized member of context \"" + context.Name + "\":  " + str);
+                else return new EvaluationError("Unrecognized member of context \"" + context.Name + "\":  " + str);
             }
             else return InputTypeError(inputs, 1, new Type[] { typeof(Variable), typeof(Context) });
         }
