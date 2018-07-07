@@ -16,84 +16,92 @@ namespace Parsing
             public CircularDependencyException(IEvaluateable contents, Variable v0, Variable v1) : base("A circular dependency exists.") { this.Contents = contents; this.V0 = v0; this.V1 = v1; }
         }
 
+        
+
         [Serializable]
         public class Variable : IEvaluateable
         {
 
 
             public readonly string Name;
+
+            /// <summary>Where this variable lives.</summary>
             public readonly Context Context;
+
+            public virtual bool IsReadOnly => false;
 
             private IEvaluateable _Contents = null;
             internal IEvaluateable _CachedValue;
             internal ISet<Variable> _Sources;
             internal readonly ISet<Variable> _Listeners;
-            
-            
-            public IEvaluateable Contents
-            {
-                get => _Contents;
-                set
-                {
-                    // Lock because dependency state of this context will be changed.
-                    lock (Context)
-                    {
-                        // Step # 0 - Before changing any state, check for circularity:  if a term of the new contents directly or 
-                        // indirectly listens to this Variable.
-                        if (value is Clause c)
-                        {
-                            foreach (Variable term in c.Terms) if (term.DependsOnUnsafe(this)) throw new CircularDependencyException(value, this, term);
-                        } else if (value is Variable v)
-                        {
-                            if (v.DependsOnUnsafe(this)) throw new CircularDependencyException(value, v, this);
-                        }
 
-                        // Step #1 - for each source, remove this listener as a source.
-                        foreach (Variable source in _Sources) source._Listeners.Remove(this);
 
-                        // Step #2 - Set the contents to the new contents.
-                        _Contents = value;
-                        _Sources.Clear();
-
-                        // Step #3 - if the new contents is a clause, add sources/listeners.
-                        if (_Contents is Clause newClause)
-                        {
-                            foreach (Variable term in newClause.Terms)
-                            {
-                                term._Listeners.Add(this);
-                                this._Sources.Add(term);
-                            }
-                        }
-                        else if (_Contents is Variable newVariable)
-                        {
-                            newVariable._Listeners.Add(this);
-                            this._Sources.Add(newVariable);
-                        }
-
-                        // Step #4 - clear the cached values of all listeners to this Variable.
-                        Uncache(this);
-                        void Uncache(Variable listener)
-                        {
-                            listener._CachedValue = null;
-                            foreach (Variable l in listener._Listeners) Uncache(l);
-                        }
-                    }
-
-                    // If the variable is nulled and has no listeners, it can be deleted.
-                    Context.TryDelete(this);
-                }
-            }
+            public virtual IEvaluateable Contents { get => _Contents; set => SetContents(value); }
 
             /// <summary>
-            /// Sets the Contents to the interpreted given string.
+            /// Sets the Contents as indicated.
             /// </summary>            
             /// <returns>Returns the IEvaluatable contents.</returns>
-            public IEvaluateable SetContents(string str)
+            public virtual IEvaluateable SetContents(string str)
             {
                 Contents = Expression.FromString(str, Context);
                 return Contents;
             }
+
+            /// <summary>Sets the Contents as indicated. </summary>                       
+            protected void SetContents(IEvaluateable value)
+            {
+                // Lock because dependency state of this context will be changed.
+                lock (Context)
+                {
+                    // Step # 0 - Before changing any state, check for circularity:  if a term of the new contents directly or 
+                    // indirectly listens to this Variable.
+                    if (value is Clause c)
+                    {
+                        foreach (Variable term in c.Terms) if (term.DependsOnUnsafe(this)) throw new CircularDependencyException(value, this, term);
+                    }
+                    else if (value is Variable v)
+                    {
+                        if (v.DependsOnUnsafe(this)) throw new CircularDependencyException(value, v, this);
+                    }
+
+                    // Step #1 - for each source, remove this listener as a source.
+                    foreach (Variable source in _Sources) source._Listeners.Remove(this);
+
+                    // Step #2 - Set the contents to the new contents.
+                    _Contents = value;
+                    _Sources.Clear();
+
+                    // Step #3 - if the new contents is a clause, add sources/listeners.
+                    if (_Contents is Clause newClause)
+                    {
+                        foreach (Variable term in newClause.Terms)
+                        {
+                            term._Listeners.Add(this);
+                            this._Sources.Add(term);
+                        }
+                    }
+                    else if (_Contents is Variable newVariable)
+                    {
+                        newVariable._Listeners.Add(this);
+                        this._Sources.Add(newVariable);
+                    }
+
+                    // Step #4 - clear the cached values of all listeners to this Variable.
+                    Uncache(this);
+                    void Uncache(Variable listener)
+                    {
+                        listener._CachedValue = null;
+                        foreach (Variable l in listener._Listeners) Uncache(l);
+                    }
+                }
+
+                // If the variable is nulled and has no listeners, it can be deleted.
+                Context.TryDelete(this);
+
+            }
             
+           
             
             internal Variable(Context context, string name, IEvaluateable contents = null)
             {
@@ -150,5 +158,12 @@ namespace Parsing
 
         }
         
+
+        public sealed class ReadOnlyVariable : Variable
+        {
+            public ReadOnlyVariable(Context context, string name, IEvaluateable contents) : base(context, name, contents) { }
+
+
+        }
     }
 }

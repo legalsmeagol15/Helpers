@@ -95,10 +95,20 @@ namespace Parsing
 
         public IEvaluateable Evaluate() => throw new InvalidOperationException("A context cannot be evaluated, but it can be stored alongside things which can.");
 
-        IContext IContext.GetSubContext(string key)
+
+
+        public bool TryGet(string key, out IContext sub)
         {
-            if (TryGet(key, out Context sub)) return sub;
-            throw new KeyNotFoundException();
+            bool result = TryGet(key, out Context s);
+            sub = s;
+            return result;
+        }
+
+        bool IContext.TryGet(string key, out IEvaluateable var)
+        {
+            bool result = TryGet(key, out Variable v);
+            var = v;
+            return result;
         }
 
         IEnumerator<IContext> IEnumerable<IContext>.GetEnumerator() => this.SubContexts.Values.GetEnumerator();

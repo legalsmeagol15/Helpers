@@ -22,10 +22,14 @@ namespace Mathematics
             return Math.Pow(Math.Abs(d), (1.0 / 3.0)) * Math.Sign(d);            
         }
 
-        
-        public static double GetDistance(Point a, Point b)
+
+        public static double GetDistance(Point a, Point b) => GetDistance(a.X, a.Y, b.X, b.Y);
+
+        public static double GetDistance(double x0, double y0, double x1, double y1)
         {
-            double xDiff = a.X - b.X, yDiff = a.Y - b.Y; return Math.Sqrt((xDiff * xDiff) + (yDiff * yDiff));
+            double a = (x0 - x1);
+            double b = (y0 - y1);
+            return Math.Sqrt((a * a) + (b * b));
         }
 
 

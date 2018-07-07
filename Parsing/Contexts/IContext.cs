@@ -8,6 +8,8 @@ namespace Parsing
 {
     public interface IContext : IEnumerable<IContext>
     {        
-        IContext GetSubContext(string key);
+        bool TryGet(string key, out IContext sub);
+
+        bool TryGet(string key, out IEvaluateable var);
     }
 }

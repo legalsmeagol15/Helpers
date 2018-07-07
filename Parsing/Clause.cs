@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Parsing.DataContext;
 
 namespace Parsing
 {
@@ -13,7 +14,7 @@ namespace Parsing
 
         internal string Opener;
         internal string Closer;
-        public ISet<DataContext.Variable> Terms { get; internal set; }
+        public ISet<Context.Variable> Terms { get; internal set; }
 
         public IEvaluateable[] Inputs { get; protected set; }
 

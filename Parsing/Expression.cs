@@ -165,7 +165,7 @@ namespace Parsing
             if (str == null) return new EvaluationError("Expression string cannot be null.");
             string[] rawTokens = _Regex.Split(str);
             Debug.Assert(rawTokens.Length > 0);
-            Context obj = context;
+            IContext obj = context;
             Stack<TokenList> stack = new Stack<TokenList>();
             TokenList rootList = new TokenList("", 0);
             stack.Push(rootList);
@@ -230,17 +230,19 @@ namespace Parsing
                     // Step #2c - sub-contexting and properties/variables
                     if (obj != null)
                     {
+                        
+
                         // Does this context have a matching variable?
-                        if (obj.TryGet(rawToken, out Variable old_var))
+                        if (obj.TryGet(rawToken, out IEvaluateable sub_val))
                         {
-                            stack.Peek().AddLast(old_var);
-                            terms.Add(old_var);
+                            stack.Peek().AddLast(sub_val);
+                            if (sub_val is Variable v) terms.Add(v);
                             obj = context;
                             continue;
                         }
 
-                        // Does this context have a matching sub-context?
-                        else if (obj.TryGet(rawToken, out Context sub_obj))
+                        // Does this context have a matching sub-context?                        
+                        else if (obj.TryGet(rawToken, out IContext sub_obj))
                         {
                             stack.Peek().AddLast(obj);
                             obj = sub_obj;
@@ -248,12 +250,12 @@ namespace Parsing
                         }
 
                         // Can the variable be added to this sub-context?
-                        else if (obj.TryAdd(rawToken, out Variable new_var))
+                        else if (obj is Context ctxt && ctxt.TryAdd(rawToken, out Variable new_var)) 
                         {
                             stack.Peek().AddLast(new_var);
                             terms.Add(new_var); obj = context;
-                            if (!addedVariables.TryGetValue(obj, out List<Variable> addedList))
-                                addedVariables[obj] = (addedList = new List<Variable>());
+                            if (!addedVariables.TryGetValue(ctxt, out List<Variable> addedList))
+                                addedVariables[ctxt] = (addedList = new List<Variable>());
                             addedList.Add(new_var);
                             continue;
                         }

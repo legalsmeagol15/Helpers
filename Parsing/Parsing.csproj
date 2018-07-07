@@ -55,6 +55,7 @@
     <Compile Include="Expression.cs" />
     <Compile Include="Functions\Operators.cs" />
     <Compile Include="Functions\Trigonometry.cs" />
+    <Compile Include="Values\Fraction.cs" />
     <Compile Include="Values\Number.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Values\Range.cs" />
@@ -71,6 +72,10 @@
     <ProjectReference Include="..\Graphs\Graphs.csproj">
       <Project>{76524399-7d62-4bd8-96b1-53cef1d9962a}</Project>
       <Name>Graphs</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Mathematics\Mathematics.csproj">
+      <Project>{dc7c8e96-6f24-48df-a32f-2dc12b1d315b}</Project>
+      <Name>Mathematics</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

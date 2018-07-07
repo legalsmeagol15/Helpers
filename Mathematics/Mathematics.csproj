@@ -47,7 +47,6 @@
     <Compile Include="Functions\IVariable.cs" />
     <Compile Include="Operations.cs" />
     <Compile Include="CommonValues.cs" />
-    <Compile Include="Cartesian\Operations.cs" />
     <Compile Include="Int32.cs" />
     <Compile Include="Int64.cs" />
     <Compile Include="Cartesian\PointL.cs" />

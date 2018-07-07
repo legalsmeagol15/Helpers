@@ -38,6 +38,14 @@ namespace UnitTests
         }
 
         [TestMethod]
+        public void TestPrimes_GetGCD()
+        {
+            Assert.AreEqual(5, Mathematics.Primes.GetGreatestCommonDenominator(15, 10));
+            Assert.AreEqual(10, Mathematics.Primes.GetGreatestCommonDenominator(10, 20));
+            Assert.AreEqual(1, Mathematics.Primes.GetGreatestCommonDenominator(7, 5));
+        }
+
+        [TestMethod]
         public void TestPrimes_GetNextPrime()
         {
             Assert.AreEqual(2, Mathematics.Primes.GetNextPrime(-1));

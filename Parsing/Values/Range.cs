@@ -10,6 +10,13 @@ namespace Parsing
     public class Range : IEvaluateable, IIndexable
     {
         private Number _From, _To;
+
+        int IIndexable.MaxIndex => throw new NotImplementedException();
+
+        int IIndexable.MinIndex => throw new NotImplementedException();
+
+        IEvaluateable IIndexable.this[IEvaluateable index] => throw new NotImplementedException();
+
         public Range(Number a, Number b) { this._From = a; this._To = b; }
 
         public IEvaluateable this[IEvaluateable index]

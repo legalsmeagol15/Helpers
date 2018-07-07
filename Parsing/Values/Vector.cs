@@ -126,5 +126,7 @@ namespace Parsing.Values
                 if (!_ThisLevel[i].Equals(other._ThisLevel[i])) return false;            
             return true;
         }
+
+        public override int GetHashCode()=> unchecked(_ThisLevel.Sum(o => o.GetHashCode()));
     }
 }

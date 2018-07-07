@@ -35,6 +35,9 @@ namespace Parsing.Functions
         }
     }
 
+    /// <summary>
+    /// The standard trig functions...
+    /// </summary>
     [Serializable]
     internal sealed class Tan : Function
     {
