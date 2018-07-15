@@ -36,10 +36,17 @@ namespace DataStructures
         {
             this._BoundaryGetter = boundaryGetter;
         }
-      
+
+        public Rect Bounds => (_Root==null) ? Rect.Empty : _Root.Boundary;
+
 
         #region RectTree contents changing
 
+        /// <summary>
+        /// Adds the given item to this quad tree, and returns the count of identical items on the tree when the add is complete.
+        /// </summary>
+        /// <param name="item">The item to add to this tree.</param>
+        /// <param name="copies">Optional.  The number of copies of the given item to add to the tree.  If omitted, a single copy will be added.</param>
         public int Add(T item, int copies = 1)
         {
             return Add(item, _BoundaryGetter(item), copies);
@@ -125,7 +132,8 @@ namespace DataStructures
                 {
                     //Create the children.
                     focus.Children = new Node[4];
-                    Point center = new Point(focus.Boundary.X + (focus.Boundary.Width / 2), focus.Boundary.Y + (focus.Boundary.Height / 2));
+                    System.Windows.Point center = new System.Windows.Point(focus.Boundary.X + (focus.Boundary.Width / 2), 
+                                                                           focus.Boundary.Y + (focus.Boundary.Height / 2));
                     focus.Children[0] = new Node(new Rect(center, focus.Boundary.TopRight));
                     focus.Children[1] = new Node(new Rect(center, focus.Boundary.TopLeft));
                     focus.Children[2] = new Node(new Rect(center, focus.Boundary.BottomLeft));
@@ -265,11 +273,7 @@ namespace DataStructures
                 array[arrayIndex++] = item;
             }            
         }
-
-        /// <summary>
-        /// The overall size of this items contained in this quadtree.
-        /// </summary>
-        public Rect Extent { get { return (_Root == null) ? Rect.Empty : _Root.Boundary; } }
+        
 
         /// <summary>
         /// Finds the unioned extent of all the items on this quad tree.  This is an O(n) operation.
@@ -306,6 +310,8 @@ namespace DataStructures
             }
             return result;
         }
+
+
 
 
         bool ICollection<T>.IsReadOnly { get { return false; } }
@@ -352,7 +358,8 @@ namespace DataStructures
         private static QuadrantFlags GetQuadrant(Node node, Rect testedBounds)
         {
             QuadrantFlags result = 0;
-            Point center = new Point((node.Boundary.Left + node.Boundary.Right) / 2, (node.Boundary.Top + node.Boundary.Bottom) / 2);
+            System.Windows.Point center = new System.Windows.Point((node.Boundary.Left + node.Boundary.Right) / 2,
+                                                                   (node.Boundary.Top + node.Boundary.Bottom) / 2);
 
             if (testedBounds.Left >= center.X && testedBounds.Bottom <= center.Y) result |=QuadrantFlags.TopRight;
             if (testedBounds.Right <= center.X && testedBounds.Bottom <= center.Y) result |= QuadrantFlags.TopLeft;

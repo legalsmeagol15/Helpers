@@ -129,7 +129,7 @@ namespace DataStructures
                 //If the node has no child nodes, now is the time to build the child nodes.
                 if (node.Children == null)
                 {
-                    Point center = new Point((node.Boundary.Left + node.Boundary.Right) / 2, (node.Boundary.Top + node.Boundary.Bottom) / 2);
+                    System.Windows.Point center = new System.Windows.Point((node.Boundary.Left + node.Boundary.Right) / 2, (node.Boundary.Top + node.Boundary.Bottom) / 2);
                     node.Children = new Node[4];
                     node.Children[0] = new Node(new Rect(center, node.Boundary.TopRight));
                     node.Children[1] = new Node(new Rect(center, node.Boundary.TopLeft));
@@ -403,7 +403,7 @@ namespace DataStructures
         /// <summary>
         /// Returns the set of all items contained in this tree that intersect or contain the given point.
         /// </summary>        
-        public ISet<T> GetIntersection(Point point)
+        public ISet<T> GetIntersection(System.Windows.Point point)
         {
             HashSet<T> result = new HashSet<T>();
             if (_Root == null) return result;
@@ -448,7 +448,7 @@ namespace DataStructures
         private static QuadrantFlags GetQuadrant(Node node, Rect boundary)
         {
             QuadrantFlags result = 0;
-            Point center = new Point((boundary.Left + boundary.Right) / 2, (boundary.Top + boundary.Bottom) / 2);
+            System.Windows.Point center = new System.Windows.Point((boundary.Left + boundary.Right) / 2, (boundary.Top + boundary.Bottom) / 2);
 
             if (node.Boundary.TopRight.X >= center.X && node.Boundary.TopRight.Y >= center.Y) result |= QuadrantFlags.TopRight;
             if (node.Boundary.TopLeft.X <= center.X && node.Boundary.TopLeft.Y >= center.Y) result |= QuadrantFlags.TopLeft;

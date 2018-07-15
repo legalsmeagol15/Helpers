@@ -31,7 +31,7 @@ namespace Parsing
                     if (idx > _To) return new EvaluationError("Index exceeds maximum range.");
                     return new Number(idx);
                 }
-                else if (index is DataContext.Variable v)
+                else if (index is Context.Variable v)
                 {
                     throw new NotImplementedException("TODO:  implement indexing into spreadsheet variables.");
                 }

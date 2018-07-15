@@ -10,6 +10,7 @@ namespace Parsing
     public struct Number : IEvaluateable
     {
         public static readonly Number Zero = new Number(0m);
+        public static readonly Number Null = Zero;
         public static readonly Number One = new Number(1m);
         public static readonly Number Pi = new Number((decimal)Math.PI);
         public static readonly Number E = new Number((decimal)Math.E);
@@ -85,5 +86,6 @@ namespace Parsing
 
         public override int GetHashCode() => Value.GetHashCode();
         public override string ToString() => Value.ToString();
+        public double ToDouble() => (double)Value;
     }
 }

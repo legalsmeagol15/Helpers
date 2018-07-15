@@ -219,7 +219,7 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Serialization()
         {
-            DataContext context = new DataContext();
+            Context context = new Context("root");
             //IEvaluateable exp1 = Expression.FromString("3", context);
             IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context);
 
@@ -261,7 +261,7 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Variables()
         {
-            DataContext context = new DataContext();
+            Context context = new Context();
             Variable a, b, c;
             Assert.IsTrue(context.TryAdd("a", out a));
             Assert.IsFalse(context.TryAdd("a", out Variable _));
@@ -365,7 +365,7 @@ namespace UnitTests
             private Context sub = null;
             private Variable var = null;
 
-            public DummyContext(String name, Context sub = null, string varName = null) : base(name)
+            public DummyContext(string name, Context sub = null, string varName = null) : base(name)
             {
                 this.sub = sub;
                 if (varName != null)

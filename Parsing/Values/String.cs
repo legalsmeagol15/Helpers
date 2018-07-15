@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 namespace Parsing
 {
     [Serializable]
-    internal class String : IEvaluateable
+    public struct String : IEvaluateable
     {
         internal readonly string Value;
 
-        internal String(string str) { this.Value = str; }
+        public String(string str) { this.Value = str; }
         IEvaluateable IEvaluateable.Evaluate() => this;
 
         public static implicit operator String(string str) => new String(str);

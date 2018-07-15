@@ -63,7 +63,7 @@ namespace Parsing
 
 
             /// <exception cref="InvalidOperationException">Thrown for a mismatch.</exception>
-            public IEvaluateable Parse(DataContext.Function.Factory functions)
+            public IEvaluateable Parse(Context.Function.Factory functions)
             {
                 // Step #1 - Watch for malformed nestings.
                 switch (Opener)
@@ -81,7 +81,7 @@ namespace Parsing
 
                 // The following ungodly heap is designed to sort nodes according to the priority levels of the Function objects they contain.
                 StableHeap<DynamicLinkedList<object>.Node> prioritized
-                    = new StableHeap<DynamicLinkedList<object>.Node>((a, b) => ((DataContext.Function)a.Contents).Priority.CompareTo(((DataContext.Function)b.Contents).Priority));
+                    = new StableHeap<DynamicLinkedList<object>.Node>((a, b) => ((Context.Function)a.Contents).Priority.CompareTo(((Context.Function)b.Contents).Priority));
 
                 DynamicLinkedList<object>.Node node = this.FirstNode;
                 while (node != null)
@@ -90,10 +90,10 @@ namespace Parsing
                     {
                         case TokenList tl: node.Contents = tl.Parse(functions); break;
                         case EvaluationError e: return e;
-                        case DataContext.Function f: prioritized.Add(node); break;
+                        case Context.Function f: prioritized.Add(node); break;
                         case Number n when node.Next != null:
                             if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
-                            if (node.Next.Contents is TokenList || node.Next.Contents is DataContext.Variable || node.Next.Contents is DataContext.Function || node.Next.Contents is Clause)
+                            if (node.Next.Contents is TokenList || node.Next.Contents is Context.Variable || node.Next.Contents is Context.Function || node.Next.Contents is Clause)
                                 node.InsertAfter(Function.Factory.CreateMultiplication());
                             break;
                     }
@@ -104,7 +104,7 @@ namespace Parsing
                 while (prioritized.Count > 0)
                 {
                     node = prioritized.Pop();
-                    DataContext.Function function = (DataContext.Function)node.Contents;
+                    Context.Function function = (Context.Function)node.Contents;
                     function.ParseNode(node);
                     function.Terms = new HashSet<Variable>();
                     foreach (IEvaluateable input in function.Inputs)
@@ -157,7 +157,7 @@ namespace Parsing
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>       
 
-        public static IEvaluateable FromString(string str, Context context = null)
+        public static IEvaluateable FromString(string str, IContext context = null)
         {
             // Step #1 - setup
             Function.Factory functions = (context == null) ? null : Function.Factory.StandardFactory;
@@ -169,8 +169,7 @@ namespace Parsing
             Stack<TokenList> stack = new Stack<TokenList>();
             TokenList rootList = new TokenList("", 0);
             stack.Push(rootList);
-            Dictionary<Context, List<Variable>> addedVariables
-                = new Dictionary<Context, List<Variable>>();  // Used in case of exception so new variables can be unwound.
+            HashSet<Variable> addedVariables = new HashSet<Variable>();
 
             // Step #2 - Parse into clause-by-clause tree structure containing tokenized objects
             int position = 0;
@@ -186,7 +185,9 @@ namespace Parsing
                     // Step #2b - nesting, literals, functions, and operators.
                     switch (rawToken)
                     {
-                        case string _ when context != null && context.TryGet(rawToken, out Variable old_var): stack.Peek().AddLast(old_var); terms.Add(old_var); continue;
+                        case string _ when context != null && context.TryGet(rawToken, out IEvaluateable old_var):
+                            if (old_var is Variable v) { stack.Peek().AddLast(old_var); terms.Add(v); }
+                            continue;
 
                         //Nesting?
                         case "(":
@@ -254,9 +255,7 @@ namespace Parsing
                         {
                             stack.Peek().AddLast(new_var);
                             terms.Add(new_var); obj = context;
-                            if (!addedVariables.TryGetValue(ctxt, out List<Variable> addedList))
-                                addedVariables[ctxt] = (addedList = new List<Variable>());
-                            addedList.Add(new_var);
+                            addedVariables.Add(new_var);                            
                             continue;
                         }
 
@@ -273,11 +272,8 @@ namespace Parsing
                 {
                     // Since an exception was caught but state might have changed by adding variables, unwind the expression creation by 
                     // deleting all newly-added variables.
-                    foreach (Context ctxt in addedVariables.Keys)
-                        foreach (Variable v in addedVariables[ctxt])
-                            if (!ctxt.TryDelete(v))
-                                throw new InvalidOperationException("Could not unwind added variables.  Context variable list may be corrupted.");
-
+                    foreach (Variable v in addedVariables) v.Context.Delete(v);
+                    
                     // A sanity check in case a later implementation accidentally throws SyntaxExceptions.
                     if (ex is SyntaxException)
                         throw new InvalidOperationException("SyntaxExceptions can be built only in the expression tokenizer method (i.e., in the FromString method).");

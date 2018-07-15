@@ -49,7 +49,6 @@
     <Compile Include="Functions\Arithmetic.cs" />
     <Compile Include="Functions\Calculus.cs" />
     <Compile Include="Functions\Constant.cs" />
-    <Compile Include="Contexts\DataContext.cs" />
     <Compile Include="Functions\Form.cs" />
     <Compile Include="Functions\Function.cs" />
     <Compile Include="Expression.cs" />

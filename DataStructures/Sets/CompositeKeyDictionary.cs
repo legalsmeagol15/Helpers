@@ -38,22 +38,24 @@ namespace DataStructures
         {
             get
             {
-                int idx = FindIndex(key);
-                if (idx == -1) throw new KeyNotFoundException("The given key does not exist on this CompositeKeyDictionary.");
-                return _Values[idx];
+                throw new NotImplementedException();
+                //int idx = FindIndex(key);
+                //if (idx == -1) throw new KeyNotFoundException("The given key does not exist on this CompositeKeyDictionary.");
+                //return _Values[idx];
             }
 
             set
             {
-                int idx = FindIndex(key);
-                if (idx == -1)
-                {
-                    idx = FindEmptyIndex(key);
-                    if (idx == -1) throw new InvalidOperationException("This isn't happening... this isn't happening... this isn't happening...");
-                }
-                _Keys[idx] = key;
-                _Values[idx] = value;
-                _Deleted[idx] = false;
+                throw new NotImplementedException();
+                //int idx = FindIndex(key);
+                //if (idx == -1)
+                //{
+                //    idx = FindEmptyIndex(key);
+                //    if (idx == -1) throw new InvalidOperationException("This isn't happening... this isn't happening... this isn't happening...");
+                //}
+                //_Keys[idx] = key;
+                //_Values[idx] = value;
+                //_Deleted[idx] = false;
             }
         }
 
@@ -64,7 +66,10 @@ namespace DataStructures
         private static int GetHash(IEnumerable<TKeyPart> key)
         {
             int hash = 0;
-            foreach (TKeyPart part in key) hash += part.GetHashCode();
+            checked
+            {
+                foreach (TKeyPart part in key) hash += part.GetHashCode();
+            }            
             return Math.Abs(hash);
         }
 
@@ -93,7 +98,7 @@ namespace DataStructures
         /// Uses quadratic probing to return the index of the given key, if it exists on this dictionary.  If it does not exist (or it did exist but has been deleted since), 
         /// returns -1.
         /// </summary>
-        private int FindIndex(ISet<TKeyPart> key)
+        private int FindIndex(IList<TKeyPart> key)
         {
             int hash = GetHash(key);
             for (int probe = 0; probe < 50000; probe++)
@@ -101,7 +106,7 @@ namespace DataStructures
                 int idx = (hash + (probe * probe)) % _Keys.Length;
                 ISet<TKeyPart> compareKey = _Keys[idx];
                 if (compareKey == null) return -1;
-                if (compareKey.Count == key.Count && hash == GetHash(compareKey) && key.SetEquals(compareKey))
+                if (compareKey.Count == key.Count && hash == GetHash(compareKey) && key.All(k => compareKey.Contains(k)))
                     return _Deleted[idx] ? -1 : idx;
             }
             throw new KeyNotFoundException("Given key could not be located and probing exceeded allowed bounds.");
@@ -188,11 +193,12 @@ namespace DataStructures
         /// </summary>
         public bool Remove(ISet<TKeyPart> key)
         {
-            int idx = FindIndex(key);
-            if (idx == -1) return false;
-            _Deleted[idx] = true;
-            Count--;
-            return true;
+            throw new NotImplementedException();
+            //int idx = FindIndex(key);
+            //if (idx == -1) return false;
+            //_Deleted[idx] = true;
+            //Count--;
+            //return true;
         }
 
         /// <summary>
@@ -219,12 +225,13 @@ namespace DataStructures
 
         bool ICollection<KeyValuePair<ISet<TKeyPart>, TValue>>.Remove(KeyValuePair<ISet<TKeyPart>, TValue> kvp)
         {
-            int idx = FindIndex(kvp.Key);
-            if (idx == -1) return false;
-            if (!object.Equals(kvp.Value, _Values[idx])) return false;
-            _Deleted[idx] = true;
-            Count--;
-            return true;
+            throw new NotImplementedException();
+            //int idx = FindIndex(kvp.Key);
+            //if (idx == -1) return false;
+            //if (!object.Equals(kvp.Value, _Values[idx])) return false;
+            //_Deleted[idx] = true;
+            //Count--;
+            //return true;
         }
 
 
@@ -237,7 +244,7 @@ namespace DataStructures
         /// <summary>
         /// Returns whether a key identical to the given key exists on this dictionary.
         /// </summary> 
-        public bool ContainsKey(ISet<TKeyPart> key) { return FindIndex(key) != -1; }
+        public bool ContainsKey(ISet<TKeyPart> key) { throw new NotImplementedException(); /*return FindIndex(key) != -1;*/ }
 
         /// <summary>
         /// Returns the count of items on this dictionary.
@@ -277,22 +284,29 @@ namespace DataStructures
         /// </summary> 
         public bool TryGetValue(ISet<TKeyPart> key, out TValue value)
         {
-            int idx = FindIndex(key);
-            if (idx == -1)
-            {
-                value = default(TValue);
-                return false;
-            }
-            value = _Values[idx];
-            return false;
+            throw new NotImplementedException();
+            //int idx = FindIndex(key);
+            //if (idx == -1)
+            //{
+            //    value = default(TValue);
+            //    return false;
+            //}
+            //value = _Values[idx];
+            //return false;
+        }
+
+        public bool TryGetValue(out TValue value, params TKeyPart[] key)
+        {
+            throw new NotImplementedException();
         }
 
 
         bool ICollection<KeyValuePair<ISet<TKeyPart>, TValue>>.Contains(KeyValuePair<ISet<TKeyPart>, TValue> kvp)
         {
-            int idx = FindIndex(kvp.Key);
-            if (idx == -1) return false;
-            return (object.Equals(kvp.Value, _Values[idx]));
+            throw new NotImplementedException();
+            //int idx = FindIndex(kvp.Key);
+            //if (idx == -1) return false;
+            //return (object.Equals(kvp.Value, _Values[idx]));
         }
 
 
@@ -364,7 +378,7 @@ namespace DataStructures
             public bool IsReadOnly { get { return true; } }
 
 
-            public bool Contains(ISet<TKeyPart> key) { return _Source.FindIndex(key) != -1; }
+            public bool Contains(ISet<TKeyPart> key) { throw new NotImplementedException(); /*return _Source.FindIndex(key) != -1;*/ }
 
             void ICollection<ISet<TKeyPart>>.CopyTo(ISet<TKeyPart>[] array, int arrayIndex)
             {

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Parsing
 {
     [Serializable]
-    public abstract partial class Context
+    public partial class Context
     {
         public static Function.Factory Functions = Function.Factory.StandardFactory;
 
@@ -68,7 +68,7 @@ namespace Parsing
             protected IEvaluateable ApplyChainRule(Variable v, IEvaluateable fPrime, IEvaluateable g)
             {
                 Functions.Multiplication result = new Functions.Multiplication(fPrime, g);
-                return result.GetSimplified();
+                throw new NotImplementedException();                
             }
 
             protected internal virtual IEvaluateable GetSimplified() => this;

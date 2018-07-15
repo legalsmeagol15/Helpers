@@ -1,119 +1,56 @@
-﻿using Mathematics.Calculus;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
-
 namespace Mathematics.Cartesian
 {
-    public class Line : IDifferentiable<Point>
+    public sealed class Line : AbstractShape
     {
+        public static readonly Line Empty = new Line(double.NaN, double.NaN, double.NaN, double.NaN);
 
-        public Point PointA { get; }
-        public Point  PointB { get; }
+        public readonly double X0, Y0, X1, Y1;
+        public Line(double x0, double y0, double x1, double y1) { this.X0 = x0; this.Y0 = y0; this.X1 = x1; this.Y1 = y1; }
 
-        public double Slope { get { return (PointB.Y - PointA.Y) / (PointB.X - PointA.X); } }
-        public double YIntercept
-        {
-            get
-            {                                
-                return PointA.Y - (Slope * PointA.X);
-            }
-        }
-        public double XIntercept
-        {
-            get
-            {
-                return PointA.X - (PointA.Y / Slope);
-            }
-        }
+        public bool IsEmpty() => double.IsNaN(X0) || double.IsNaN(X1) || double.IsNaN(Y0) || double.IsNaN(Y1);
 
-        public Line(Point pointA, Point pointB)
-        {
-            this.PointA = pointA;
-            this.PointB = pointB;
-        }
+        public double GetLength() => Mathematics.Operations.GetDistance(X0, Y0, X1, Y1);
 
-        public Point Evaluate(double t)
+
+
+        public System.Windows.Point GetNearest(System.Windows.Point pt, bool clamp, out double t, out double distance)
         {
-            double x = PointA.X + ((PointB.X - PointA.X) * t);
-            double y = PointA.Y + ((PointB.Y - PointA.Y) * t);
-            return new Point(x, y);
-        }
-        
-        public Vector GetDerivative()
-        {
-            Vector result = PointB - PointA;
-            result.Normalize();
+            double xDiff = (X1 - X0), yDiff = (Y1 - Y0), l2 = ((xDiff * xDiff) + (yDiff * yDiff));
+            System.Windows.Point v = new System.Windows.Point(X0, Y0), w = new System.Windows.Point(X1, Y1);
+            if (l2 == 0.0) { t = 0; distance = Operations.GetDistance(pt, v); return pt; }
+            t = System.Windows.Vector.Multiply(pt - v, new System.Windows.Vector(xDiff, yDiff)) / l2;
+            if (clamp) { if (t < 0) t = 0; else if (t > 1) t = 1; }
+            System.Windows.Point result = (System.Windows.Point)(v + ((w - v) * t));
+            distance = Operations.GetDistance(pt, result);
             return result;
         }
-        
-        ///// <summary>
-        ///// Returns a constant polynomial describing the derivative (slope) of this line.  If the line is vertical, throws a divide-by-zero exception.
-        ///// </summary>        
-        //public IDifferentiable<Point> GetDerivative()
-        //{
-        //    return new Line(new Point(0, 0), (Point)GetDerivative());                 
-        //}
 
-        ///// <summary>
-        ///// Returns a quadratic polynomial describing the integral of this line.  If the line is vertical, throws a divide-by-zero exception.
-        ///// </summary>
-        ///// <param name="constant"></param>
-        ///// <returns></returns>
-        //public IDifferentiable<Point> GetIntegral(double constant = 0)
-        //{
-        //    //return Polynomial.FromQuadratic(Slope / 2, YIntercept, constant);
-        //}
-
-        IDifferentiable<Point> IDifferentiable<Point>.GetDerivative()
+        /// <summary>Returns whether any part of this line exists in the given range.</summary>
+        public bool GetIntersects(Rect range)
         {
-            throw new NotImplementedException();
+            System.Windows.Point a = new System.Windows.Point(X0, Y0), b = new System.Windows.Point(X1, Y1);
+            if (range.Contains(a) || range.Contains(b)) return true;
+            if (Operations.GetDoIntersect(a, b, range.TopLeft, range.TopRight)) return true;
+            if (Operations.GetDoIntersect(a, b, range.BottomRight, range.TopRight)) return true;
+            if (Operations.GetDoIntersect(a, b, range.BottomRight, range.BottomLeft)) return true;
+            if (Operations.GetDoIntersect(a, b, range.TopLeft, range.BottomLeft)) return true;
+            return false;
         }
 
-        IDifferentiable<Point> IDifferentiable<Point>.GetIntegral(double constant)
-        {
-            throw new NotImplementedException();
-        }
-        
+        /// <summary>Returns whether this line intersects with the line segment described by the given two points.</summary>
+        public bool GetIntersects(System.Windows.Point otherPointA, System.Windows.Point otherPointB)
+            => Operations.GetDoIntersect(new System.Windows.Point(X0, Y0), new System.Windows.Point(X1, Y1), otherPointA, otherPointB);
 
-        Point IDifferentiable<Point>.Evaluate(double value)
-        {
-            throw new NotImplementedException();
-        }
 
-        IDifferentiable<Point> IDifferentiable<Point>.GetLength()
-        {
-            
-            throw new NotImplementedException();
-        }
-
-        IDifferentiable<Point> IDifferentiable<Point>.GetSum(IDifferentiable<Point> other)
-        {
-            throw new NotImplementedException();
-        }
-
-        IDifferentiable<Point> IDifferentiable<Point>.GetDifference(IDifferentiable<Point> other)
-        {
-            throw new NotImplementedException();
-        }
-
-        IDifferentiable<Point> IDifferentiable<Point>.GetMultiple(IDifferentiable<Point> factor)
-        {
-            throw new NotImplementedException();
-        }
-
-        IDifferentiable<Point> IDifferentiable<Point>.GetQuotient(IDifferentiable<Point> divisor)
-        {
-            throw new NotImplementedException();
-        }
-
-        IDifferentiable<Point> IDifferentiable<Point>.GetNegation()
-        {
-            throw new NotImplementedException();
-        }
+        public override Rect ToRect() => new Rect(new System.Windows.Point(X0, Y0), new System.Windows.Point(X1, Y1));
     }
+
+
 }

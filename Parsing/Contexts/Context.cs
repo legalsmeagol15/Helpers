@@ -10,7 +10,7 @@ namespace Parsing
     
     /// <summary>The context in which Variables live, and from which functions can be created.  The DataContext manages access to things I don't 
     /// want to expose on other objects:  Variable dependency graph</summary>
-    public abstract partial class Context : IContext, IEvaluateable
+    public partial class Context : IContext, IEvaluateable
     {
         /// <summary>The name of this context.</summary>
         public string Name { get; protected set; }
@@ -21,7 +21,7 @@ namespace Parsing
         protected readonly Dictionary<string, Variable> Variables = new Dictionary<string, Variable>();
         protected readonly Dictionary<string, Context> SubContexts = new Dictionary<string, Context>();
 
-        protected Context(string name, Func<string, bool> variableNameValidator  = null)
+        public Context(string name, Func<string, bool> variableNameValidator  = null)
         {
             IsVariableNameValid = variableNameValidator ?? (s => true);
             this.Name = name;
@@ -33,7 +33,7 @@ namespace Parsing
         /// <param name="v">Out.  The new Variable returned.  If the Variable could not be added, this value will be null.</param>
         /// <returns>Returns true if add was successful, false if it was not.</returns>
         public virtual bool TryAdd(string name, out Variable v)
-        {
+        {            
             if (!IsVariableNameValid(name))
             {
                 v = null;
@@ -51,6 +51,7 @@ namespace Parsing
                 return true;
             }            
         }
+        
 
         /// <summary>
         /// Tries to delete the given Variable, and returns whether the attempt was successful or not.  A variable can be deleted only 
@@ -90,7 +91,7 @@ namespace Parsing
             return true;
         }
 
-
+        bool IContext.Delete(IEvaluateable var) => throw new NotImplementedException();
 
 
         public IEvaluateable Evaluate() => throw new InvalidOperationException("A context cannot be evaluated, but it can be stored alongside things which can.");

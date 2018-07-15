@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static Parsing.Context;
+using static Parsing.Context.Function;
 
 namespace Parsing.Functions
 {
@@ -15,7 +16,7 @@ namespace Parsing.Functions
     /// example, addition could be written "add(a,b)", instead we use "a + b" with a special symbol 
     /// in between its two inputs.
     /// </summary>
-    internal abstract class Operator : DataContext.Function
+    internal abstract class Operator : Context.Function
     {
         protected internal Operator(params IEvaluateable[] inputs) : base(inputs) { }
 
@@ -57,7 +58,7 @@ namespace Parsing.Functions
         }
 
 
-        protected override IEvaluateable GetDerivative(DataContext.Variable v) => new Addition(Inputs.Select(i => Differentiate(i, v)).ToArray());
+        protected override IEvaluateable GetDerivative(Context.Variable v) => new Addition(Inputs.Select(i => Differentiate(i, v)).ToArray());
     }
 
     [Serializable]
@@ -84,7 +85,7 @@ namespace Parsing.Functions
         }
 
 
-        protected override IEvaluateable GetDerivative(DataContext.Variable v)
+        protected override IEvaluateable GetDerivative(Context.Variable v)
         {
             IEvaluateable f = Inputs[0], g = Inputs[1];
             IEvaluateable lhs_numerator = new Multiplication(Differentiate(f, v), g).GetSimplified();
@@ -122,7 +123,7 @@ namespace Parsing.Functions
 
 
         //protected override IEvaluatable ApplyChainRule() => GetDerivative();
-        protected override IEvaluateable GetDerivative(DataContext.Variable v)
+        protected override IEvaluateable GetDerivative(Context.Variable v)
         {
             List<IEvaluateable> inputs = Inputs.ToList();
             while (inputs.Count > 2)
@@ -321,7 +322,7 @@ namespace Parsing.Functions
         }
 
 
-        protected override IEvaluateable GetDerivative(DataContext.Variable v) => NonDifferentiableFunctionError();
+        protected override IEvaluateable GetDerivative(Context.Variable v) => NonDifferentiableFunctionError();
 
         protected override string Symbol => "&";
 
@@ -375,7 +376,7 @@ namespace Parsing.Functions
             {                
                 switch (Inputs[1])
                 {
-                    case Variable v: return v.Evaluate();
+                    case Variable v: return v.Value;
                     case Context sub: return sub.Evaluate();
                     default:
                         // The target was NOT parsed at compile time, evaluate it and see if a its evaluation can be returned.
@@ -393,8 +394,8 @@ namespace Parsing.Functions
             Context context = (Context)inputs[0];
             if (inputs[1] is String str)
             {
-                if (context.TryGet(str, out Variable dyn_var)) return dyn_var.Evaluate();
-                else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub.Evaluate();
+                if (context.TryGet(str, out Variable dyn_var)) return dyn_var.Value;
+                else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub.Value;
                 else return new EvaluationError("Unrecognized member of context \"" + context.Name + "\":  " + str);
             }
             else return InputTypeError(inputs, 1, new Type[] { typeof(Variable), typeof(Context) });
