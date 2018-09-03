@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parsing.Values
+namespace Parsing
 {
     public class Vector : IEvaluateable, IIndexable
     {
@@ -19,10 +19,15 @@ namespace Parsing.Values
         /// <summary>Returns whether this vector is homogeneous, or in  other words, whether all sub-members are the same rank.</summary>
         private readonly bool _IsHomogeneous;
 
-        
+        /// <summary>The items at this level of array.</summary>
         private readonly IEvaluateable[] _ThisLevel;
 
-
+        public Vector(IEnumerable<IEvaluateable> items)
+        {
+            _ThisLevel = items.ToArray();
+            _Rank = 1;
+            _IsHomogeneous = false;
+        }
         public Vector(Number n, params Number[] numbers)
         {
             _ThisLevel = new IEvaluateable[1 + numbers.Length];
@@ -78,7 +83,7 @@ namespace Parsing.Values
         }
 
 
-        IEvaluateable IIndexable.this[IEvaluateable index]
+        object IIndexable.this[IEvaluateable index]
         {
             get
             {

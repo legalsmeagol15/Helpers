@@ -9,42 +9,203 @@ using DataStructures;
 using Parsing;
 using Parsing.Functions;
 using static Parsing.Context;
+using System.Threading;
 
 namespace Parsing
 {
-    /// <summary>IEvaluteable objects can evaluate to another IEvaluatable value.</summary>
-    public interface IEvaluateable
-    {
-        IEvaluateable Evaluate();
-    }
 
-    
-    public interface IIndexable
-    {
-        IEvaluateable this[IEvaluateable index] { get; }
 
-        int MaxIndex { get; }
-        int MinIndex { get; }
-    }
 
-    public interface IEvaluateable<T> : IEvaluateable where T : IEvaluateable
-    {
-        new T Evaluate();
-    }
-
-    public class SyntaxException : Exception
-    {
-        public readonly string Entry;
-        public readonly int Position;
-        public SyntaxException(string message, string entry, int position) : base(message) { this.Entry = entry; this.Position = position; }
-        public SyntaxException(string message, string entry, int position, Exception inner) : base(message, inner) { this.Entry = entry; this.Position = position; }
-    }
 
     /// <summary>
-    /// Contains methods for returning objects which can be evaluated according to associated functions.
+    /// An object of this class will contain a newly-created <see cref="IEvaluateable"/> object created by parsing or some similar 
+    /// operation.  Creating an <see cref="IEvaluateable"/> through an <see cref="Expression"/> object is always a thread-safe operation.
+    /// <para/>
+    /// An <see cref="Expression"/> will contain all the necessary locking information to 
+    /// release locks on all referenced objects.  For every <see cref="IContext"/> where a <see cref="IVariable"/> is either referenced or 
+    /// added, the Expression will maintain a lock on that <see cref="IContext"/>.  The locks are released by calling the 
+    /// <see cref="Expression.Release"/> method, which will also return the content <see cref="IEvaluateable"/>.  Also, the locks will be 
+    /// released by garbage collection, but since this is an unreliable method it would be better to call <see cref="Expression.Release"/>
+    /// directly.
     /// </summary>
-    public static class Expression
+    // This method should NOT be serializable, because it is designed as an intermediary data holder that helps manage concurrency.
+    public class Expression : IDisposable
     {
+        private IEvaluateable _Contents;
+        private object _LockObject = null;
+        public static readonly IEvaluateable Null = new Null();
+
+        private Expression(IEvaluateable contents = null) { this._Contents = contents; }
+
+        public static Expression FromLaTeX(string latex, Context context = null) => throw new NotImplementedException();
+
+
+
+        /// <summary>
+        /// Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.
+        /// <para/>Strong guarantee:  there will be no changes to the state of the given context if an exception is thrown.  If an 
+        /// exception is thrown, all added variables will be deleted by calling their respective contexts' Delete method.
+        /// </summary>        /// 
+        /// <param name="str">The string to convert into an evaluatable object.</param>
+        /// <param name="functions">The allowed functions for this expression.</param>
+        /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
+        public static Expression FromString(string str, Context context = null, Function.Factory functions = null)
+        {
+            // Step #1 - check for edge conditions that will result in errors rather than throwing exceptions.
+            functions = functions ?? Function.Factory.StandardFactory;
+            ISet<Variable> terms = new HashSet<Variable>();
+            if (str == null)
+                return new Expression(new EvaluationError("Expression string cannot be null."));
+
+            // Step #2a - from here, we'll be parsing the string.  Prep for parsing.
+            Expression result = new Expression();
+            HashSet<Variable> addedVariables = new HashSet<Variable>();
+            HashSet<Context> addedContexts = new HashSet<Context>();
+            Context currentContext = context;
+
+            // Step #2b - split the inputs according to the Regex.
+            string[] rawTokens = _Regex.Split(str);
+            Debug.Assert(rawTokens.Length > 0);
+
+            // Step #2c - prep objects that will embody the nesting structure.
+            Stack<TokenList> stack = new Stack<TokenList>();
+            TokenList rootList = new TokenList("", 0);
+            stack.Push(rootList);
+
+            // Step #2d - if there is a context which can grab variables, lock on the Variable.LockObject.
+            if (context != null)
+                Monitor.Enter(result._LockObject = Variable.LockObject);
+
+            // Step #3 - Parse into clause-by-clause tree structure containing tokenized objects
+            try
+            {
+                int position = 0;
+                for (int i = 0; i < rawTokens.Length; i++)
+                {
+                    // Step #3a - skip whitespace
+                    string rawToken = rawTokens[i];
+                    position += rawToken.Length;
+                    if (rawToken.Length == 0 || rawToken == "" || string.IsNullOrWhiteSpace(rawToken)) continue;
+
+                    // Step #3b - nesting, literals, functions, and operators.
+                    switch (rawToken)
+                    {
+                        //Nesting?
+                        case "(":
+                        case "[":
+                        case "{":
+                            TokenList tl = new TokenList(rawToken, i);
+                            stack.Peek().AddLast(tl);
+                            stack.Push(tl);
+                            continue;
+                        case ")":
+                        case "]":
+                        case "}":
+                            stack.Pop().Close(rawToken, i);
+                            if (stack.Count == 0)
+                                return new Expression(new EvaluationError("Too many closing brackets.", 0, i));
+                            continue;
+
+                        //Sectioner?
+                        case ",": continue;
+                        case ";": continue;
+
+                        //Unary operator?
+                        case "-":
+                        case "!":
+                        case "~":
+                            if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator) stack.Peek().AddLast(Function.Factory.CreateNegation());
+                            else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
+                            continue;
+
+                        // Binary operator?
+                        case "+": stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
+                        case "*": stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
+                        case "/": stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
+                        case "^": stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
+                        case "|": stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
+                        case "&": stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
+                        case ":": stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
+                        case ".": stack.Peek().AddLast(Function.Factory.CreateRelation()); continue;
+
+                        //Literal?
+                        case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2: stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2))); continue;
+                        case string _ when decimal.TryParse(rawToken, out decimal m): stack.Peek().AddLast(new Number(m)); continue;
+                        case string _ when bool.TryParse(rawToken, out bool b): stack.Peek().AddLast(Boolean.FromBool(b)); continue;
+
+                        //Function?
+                        case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
+                    }
+
+                    // Step #3c - if there's no context, and we still don't know what the token is, then it's definitely a syntax error.
+                    if (context == null)
+                        throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, addedVariables);
+
+
+                }
+            }
+            catch (Exception ex)
+            {
+                // An exception means that changes cannot be made to the states of the variables and the contexts.  Unwind any changes 
+                // made to state, ie, remove added variables and contexts.  Then, release the editing lock.
+                foreach (Variable v in addedVariables) v.Context?.TryDelete(v);
+                foreach (Context ctxt in addedContexts) ctxt.Parent?.TryDelete(ctxt);
+
+                Monitor.Exit(result._LockObject);
+
+                if (!(ex is SyntaxException))
+                    // This should never happen and represents some sort of inheriting class's implementation error, because Expression's 
+                    // creation methods should be the only methods that throw SyntaxExceptions.
+                    throw new SyntaxException("Syntax error.", str, 0, addedVariables, ex);
+            }
+
+
+            IEvaluateable contents = rootList.Parse(functions);
+            if (contents is Clause clause) clause.Terms = terms;
+            while (contents is Clause c && c.Inputs.Count() == 1 && c.Inputs[0] is Clause) contents = c.Inputs[0];
+            return result;
+        }
+
+
+
+        public IEvaluateable Release()
+        {
+            Monitor.Exit(_LockObject);
+            _LockObject = null;
+            return this._Contents;
+        }
+
+        public void Cancel()
+        {
+            throw new NotImplementedException();
+        }
+
+
+        
+
+
+        private static string regExPattern = string.Format("({0}) | ({1}) | ({2}) | ({3}) | ({4}) | ({5}) | ({6}) | ({7})",
+               StringPattern,                          //0
+               LeftNestPattern,                        //1
+               RightNestPattern,                       //2
+               OperatorPattern,                        //3
+               WordPattern,                            //4
+               NumberPattern,                          //5
+               SpacePattern,                           //6
+               VariablePattern);                       //7
+        private const string StringPattern = "\\\"[^\\\"]+\\\"";
+        private const string LeftNestPattern = @"[([{]";
+        private const string RightNestPattern = @"[)\]}]";
+        private const string OperatorPattern = @"[+-/*&|^~!.]"; //@"\+\-*/&\|^~!\.;";
+        private const string WordPattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
+        private const string NumberPattern = @"(-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ) (?: [eE][\+-]?\d+)?"; //Includes support for scientific notation!
+        private const string SpacePattern = @"?=\s+";
+        private const string VariablePattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
+        private static Regex _Regex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
+
+
+
+
         /// <summary>
         /// A data structure that mirrors a Clause, but does not require that its contents be IEvaluatable.  This structure is designed to 
         /// function as an intermediary between a simple list of tokens and an actual IEvaluatable Clause, and contains a method Parse() 
@@ -63,7 +224,7 @@ namespace Parsing
 
 
             /// <exception cref="InvalidOperationException">Thrown for a mismatch.</exception>
-            public IEvaluateable Parse(Context.Function.Factory functions)
+            public IEvaluateable Parse(Function.Factory functions)
             {
                 // Step #1 - Watch for malformed nestings.
                 switch (Opener)
@@ -81,7 +242,7 @@ namespace Parsing
 
                 // The following ungodly heap is designed to sort nodes according to the priority levels of the Function objects they contain.
                 StableHeap<DynamicLinkedList<object>.Node> prioritized
-                    = new StableHeap<DynamicLinkedList<object>.Node>((a, b) => ((Context.Function)a.Contents).Priority.CompareTo(((Context.Function)b.Contents).Priority));
+                    = new StableHeap<DynamicLinkedList<object>.Node>((a, b) => ((Function)a.Contents).Priority.CompareTo(((Function)b.Contents).Priority));
 
                 DynamicLinkedList<object>.Node node = this.FirstNode;
                 while (node != null)
@@ -90,10 +251,10 @@ namespace Parsing
                     {
                         case TokenList tl: node.Contents = tl.Parse(functions); break;
                         case EvaluationError e: return e;
-                        case Context.Function f: prioritized.Add(node); break;
+                        case Function f: prioritized.Enqueue(node); break;
                         case Number n when node.Next != null:
                             if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
-                            if (node.Next.Contents is TokenList || node.Next.Contents is Context.Variable || node.Next.Contents is Context.Function || node.Next.Contents is Clause)
+                            if (node.Next.Contents is TokenList || node.Next.Contents is Variable || node.Next.Contents is Function || node.Next.Contents is Clause)
                                 node.InsertAfter(Function.Factory.CreateMultiplication());
                             break;
                     }
@@ -103,8 +264,8 @@ namespace Parsing
                 // Step #3 - construct a within-this-clause tree according to operator precedence.
                 while (prioritized.Count > 0)
                 {
-                    node = prioritized.Pop();
-                    Context.Function function = (Context.Function)node.Contents;
+                    node = prioritized.Dequeue();
+                    Function function = (Function)node.Contents;
                     function.ParseNode(node);
                     function.Terms = new HashSet<Variable>();
                     foreach (IEvaluateable input in function.Inputs)
@@ -143,176 +304,29 @@ namespace Parsing
             }
         }
 
+        #region IDisposable Support
 
-        public static IEvaluateable FromLaTeX(string latex, out ISet<Variable> dependees, Variable context = null)
+        // A disposed Expression must release all its held locks.
+
+        private bool disposedValue = false; // To detect redundant calls
+
+        protected virtual void Dispose(bool disposing)
         {
-            throw new NotImplementedException();
-        }
-
-
-        
-
-        /// <summary>Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.</summary>
-        /// <param name="str">The string to convert into an evaluatable object.</param>
-        /// <param name="functions">The allowed functions for this expression.</param>
-        /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>       
-
-        public static IEvaluateable FromString(string str, IContext context = null)
-        {
-            // Step #1 - setup
-            Function.Factory functions = (context == null) ? null : Function.Factory.StandardFactory;
-            ISet<Variable> terms = new HashSet<Variable>();
-            if (str == null) return new EvaluationError("Expression string cannot be null.");
-            string[] rawTokens = _Regex.Split(str);
-            Debug.Assert(rawTokens.Length > 0);
-            IContext obj = context;
-            Stack<TokenList> stack = new Stack<TokenList>();
-            TokenList rootList = new TokenList("", 0);
-            stack.Push(rootList);
-            HashSet<Variable> addedVariables = new HashSet<Variable>();
-
-            // Step #2 - Parse into clause-by-clause tree structure containing tokenized objects
-            int position = 0;
-            for (int i = 0; i < rawTokens.Length; i++)
+            if (!disposedValue)
             {
-                string rawToken = rawTokens[i];
-                position += rawToken.Length;
-                try
+                if (disposing)
                 {
-                    // Step #2a - skip whitespace                    
-                    if (rawToken.Length==0 || rawToken == "" || string.IsNullOrWhiteSpace(rawToken)) continue;
-
-                    // Step #2b - nesting, literals, functions, and operators.
-                    switch (rawToken)
-                    {
-                        case string _ when context != null && context.TryGet(rawToken, out IEvaluateable old_var):
-                            if (old_var is Variable v) { stack.Peek().AddLast(old_var); terms.Add(v); }
-                            continue;
-
-                        //Nesting?
-                        case "(":
-                        case "[":
-                        case "{": TokenList tl = new TokenList(rawToken, i); stack.Peek().AddLast(tl); stack.Push(tl); continue;
-                        case ")":
-                        case "]":
-                        case "}": stack.Pop().Close(rawToken, i); if (stack.Count == 0) return new EvaluationError("Too many closing brackets.", 0, i); continue;
-
-                        //Sectioner?
-                        case ",": continue;
-                        case ";": continue;
-
-                        //Unary operator?
-                        case "-":
-                        case "!":
-                        case "~":
-                            if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator) stack.Peek().AddLast(Function.Factory.CreateNegation());
-                            else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
-                            continue;
-
-                        // Binary operator?
-                        case "+": stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
-                        case "*": stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
-                        case "/": stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
-                        case "^": stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
-                        case "|": stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
-                        case "&": stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
-                        case ":": stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
-                        case ".": stack.Peek().AddLast(Function.Factory.CreateRelation()); continue;
-
-                        //Literal?
-                        case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2: stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2))); continue;
-                        case string _ when decimal.TryParse(rawToken, out decimal m): stack.Peek().AddLast(new Number(m)); continue;
-                        case string _ when bool.TryParse(rawToken, out bool b): stack.Peek().AddLast(Boolean.FromBool(b)); continue;
-
-                        //Function?
-                        case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
-                    }
-
-                    // Step #2c - sub-contexting and properties/variables
-                    if (obj != null)
-                    {
-                        
-
-                        // Does this context have a matching variable?
-                        if (obj.TryGet(rawToken, out IEvaluateable sub_val))
-                        {
-                            stack.Peek().AddLast(sub_val);
-                            if (sub_val is Variable v) terms.Add(v);
-                            obj = context;
-                            continue;
-                        }
-
-                        // Does this context have a matching sub-context?                        
-                        else if (obj.TryGet(rawToken, out IContext sub_obj))
-                        {
-                            stack.Peek().AddLast(obj);
-                            obj = sub_obj;
-                            continue;
-                        }
-
-                        // Can the variable be added to this sub-context?
-                        else if (obj is Context ctxt && ctxt.TryAdd(rawToken, out Variable new_var)) 
-                        {
-                            stack.Peek().AddLast(new_var);
-                            terms.Add(new_var); obj = context;
-                            addedVariables.Add(new_var);                            
-                            continue;
-                        }
-
-                        // Otherwise, snap back to the root context.
-                        else
-                        {
-                            obj = context;
-                            continue;
-                        }
-                    }
-
+                    Cancel();
                 }
-                catch (Exception ex)
-                {
-                    // Since an exception was caught but state might have changed by adding variables, unwind the expression creation by 
-                    // deleting all newly-added variables.
-                    foreach (Variable v in addedVariables) v.Context.Delete(v);
-                    
-                    // A sanity check in case a later implementation accidentally throws SyntaxExceptions.
-                    if (ex is SyntaxException)
-                        throw new InvalidOperationException("SyntaxExceptions can be built only in the expression tokenizer method (i.e., in the FromString method).");
-
-                    // Throw an exception that gives clues where the syntax error occurred.
-                    throw new SyntaxException(ex.Message, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, ex);
-                }
-                
-
-                // In all other cases, throw a syntax exception.
-                throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length);                
+                disposedValue = true;
             }
-
-            IEvaluateable result = rootList.Parse(functions);
-            if (result is Clause clause) clause.Terms = terms;
-            return result;
         }
 
+        // This code added to correctly implement the disposable pattern.
+        void IDisposable.Dispose() => Dispose(true);
+
+        #endregion
 
 
-
-
-        private static string regExPattern = string.Format("({0}) | ({1}) | ({2}) | ({3}) | ({4}) | ({5}) | ({6}) | ({7})",
-               StringPattern,                          //0
-               LeftNestPattern,                        //1
-               RightNestPattern,                       //2
-               OperatorPattern,                        //3
-               WordPattern,                            //4
-               NumberPattern,                          //5
-               SpacePattern,                           //6
-               VariablePattern);                       //7
-        private const string StringPattern = "\\\"[^\\\"]+\\\"";
-        private const string LeftNestPattern = @"[([{]";
-        private const string RightNestPattern = @"[)\]}]";
-        private const string OperatorPattern = @"[+-/*&|^~!.]"; //@"\+\-*/&\|^~!\.;";
-        private const string WordPattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
-        private const string NumberPattern = @"(-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ) (?: [eE][\+-]?\d+)?"; //Includes support for scientific notation!
-        private const string SpacePattern = @"?=\s+";
-        private const string VariablePattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
-        private static Regex _Regex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
     }
 }

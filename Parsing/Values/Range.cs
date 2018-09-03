@@ -15,7 +15,7 @@ namespace Parsing
 
         int IIndexable.MinIndex => throw new NotImplementedException();
 
-        IEvaluateable IIndexable.this[IEvaluateable index] => throw new NotImplementedException();
+        object IIndexable.this[IEvaluateable index] => throw new NotImplementedException();
 
         public Range(Number a, Number b) { this._From = a; this._To = b; }
 
@@ -31,7 +31,7 @@ namespace Parsing
                     if (idx > _To) return new EvaluationError("Index exceeds maximum range.");
                     return new Number(idx);
                 }
-                else if (index is Context.Variable v)
+                else if (index is Variable v)
                 {
                     throw new NotImplementedException("TODO:  implement indexing into spreadsheet variables.");
                 }

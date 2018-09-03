@@ -9,7 +9,7 @@ namespace Parsing.Functions
 {
 
     [Serializable]
-    internal sealed class Constant : Context.Function, IEvaluateable
+    internal sealed class Constant : Function, IEvaluateable
     {
         // Reflection will add the following constants to a standard factory.
         public static readonly Constant PI = new Constant("PI", Number.Pi);
@@ -29,7 +29,7 @@ namespace Parsing.Functions
             if (node.Next != null && node.Next.Contents is Clause c && c.Inputs.Length == 0) node.Next.Remove();
         }
 
-        protected override IEvaluateable GetDerivative(Context.Variable v) => Number.Zero;
+        protected override IEvaluateable GetDerivative(Variable v) => Number.Zero;
     }
 
 

@@ -10,110 +10,79 @@ namespace Parsing
     
     /// <summary>The context in which Variables live, and from which functions can be created.  The DataContext manages access to things I don't 
     /// want to expose on other objects:  Variable dependency graph</summary>
-    public partial class Context : IContext, IEvaluateable
+    public abstract class Context 
     {
-        /// <summary>The name of this context.</summary>
-        public string Name { get; protected set; }
-
-        /// <summary>The function which determines if a given variable name is valid.</summary>
-        public readonly Func<string, bool> IsVariableNameValid;
-
-        protected readonly Dictionary<string, Variable> Variables = new Dictionary<string, Variable>();
-        protected readonly Dictionary<string, Context> SubContexts = new Dictionary<string, Context>();
-
-        public Context(string name, Func<string, bool> variableNameValidator  = null)
-        {
-            IsVariableNameValid = variableNameValidator ?? (s => true);
-            this.Name = name;
-        }
-
-
-        /// <summary>Tries to add the described Variable to this context.</summary>
-        /// <param name="key">The Variable's name.</param>
-        /// <param name="v">Out.  The new Variable returned.  If the Variable could not be added, this value will be null.</param>
-        /// <returns>Returns true if add was successful, false if it was not.</returns>
-        public virtual bool TryAdd(string name, out Variable v)
-        {            
-            if (!IsVariableNameValid(name))
-            {
-                v = null;
-                return false;
-            }
-            else if (Variables.ContainsKey(name))
-            {
-                v = Variables[name];
-                return false;
-            }
-            else
-            {
-                v = new Variable(this, name);
-                Variables.Add(name, v);
-                return true;
-            }            
-        }
         
+        public readonly Context Parent;
+        public readonly string Name;
+        protected readonly Dictionary<string, Variable> Variables;
+        protected readonly Dictionary<string, Context> Subcontexts;
+
+        
+        protected Context(Context parent, string name)
+        {
+            this.Parent = parent;
+            this.Name = name;            
+        }
 
         /// <summary>
-        /// Tries to delete the given Variable, and returns whether the attempt was successful or not.  A variable can be deleted only 
-        /// if its contents are null, and nothing is listening to it.
+        /// Deletes the given <see cref="Variable"/> from this <see cref="Context"/>, if the <see cref="Variable"/> exists on this 
+        /// <see cref="Context"/> and has no listeners.
         /// </summary>
         public virtual bool TryDelete(Variable v)
         {
-            // Delete only occurs when a Variable's contents are set to null, and it has no listeners left.
-            if (v.Contents != null) return false;
-
-            // If Contents is null, there will be no Sources left either.
-            if (v._Listeners.Any()) return false;
-            Variables.Remove(v.Name);
+            if (!Variables.TryGetValue(v.Name, out Variable vExisting))
+                return false;
+            if (!ReferenceEquals(v, vExisting))
+                return false;
+            if (v.Listeners.Any())
+                return false;
+            v.Context = null;
+            v.Contents = null;
             return true;
         }
 
-        /// <summary>Tries to retrieve the indicated property variable.</summary>
-        /// <param name="key">The property variable's name.</param>
-        /// <param name="v">Out.  The property variable to be returned.  If no variable matched the given name, this will be null.</param>
-        /// <returns>Returns true if lookup was successful, false if it was not.</returns>
-        public virtual bool TryGet(string name, out Variable v)
+        /// <summary>
+        /// Deletes the given <see cref="Context"/> from this <see cref="Context"/>, if the sub-context (and all of its sub-contexts) has 
+        /// no listeners.
+        /// </summary>
+        public virtual bool TryDelete(Context sub_ctxt)
         {
-            if (!Variables.ContainsKey(name)) { v = null; return false; }
-            v = Variables[name];
+            if (!Subcontexts.TryGetValue(sub_ctxt.Name, out Context cExisting))
+                return false;
+            if (!ReferenceEquals(sub_ctxt, cExisting))
+                return false;
+            if (HasListeners(sub_ctxt))
+                return false;
+            return true;
+
+            bool HasListeners(Context ctxt)
+            {
+                if (ctxt.Variables.Values.Any(v => v.Listeners.Any())) return true;
+                if (ctxt.Subcontexts.Values.Any(s => HasListeners(s))) return true;
+                return false;
+            }
+        }
+
+        /// <summary>Default behavior is simply to fail to add a new sub-context.</summary>
+        public virtual bool TryAdd(string name, out Context sub_ctxt)        {            sub_ctxt = null;            return false;        }
+
+        /// <summary>
+        /// Default behavior is simply to add a new variable with the given name (and to fail if a variable with a matching name already 
+        /// exists).
+        /// </summary>
+        public virtual bool TryAdd(string name, out Variable new_var)
+        {
+            if (Variables.ContainsKey(name)) { new_var = null; return false; }
+            Variables.Add(name, new_var = new Variable(this, name));
             return true;
         }
 
+        public Variable this[string  varName] => Variables[varName];
+        
+        public bool TryGet(string name, out Context sub_obj) => Subcontexts.TryGetValue(name, out sub_obj);
 
-        /// <summary>Attempts to get the named object and store in the out reference.</summary>
-        /// <param name="name">The name of the object to retrieve.</param>
-        /// <param name="subContext">The object retrieved.  If lookup was unsuccessful, this reference will be null.</param>
-        /// <returns>Returns true if the object lookup was successful, or false if not.</returns>
-        public virtual bool TryGet(string name, out Context subContext)
-        {
-            if (!SubContexts.ContainsKey(name)) { subContext = null; return false; }
-            subContext = SubContexts[name];
-            return true;
-        }
-
-        bool IContext.Delete(IEvaluateable var) => throw new NotImplementedException();
-
-
-        public IEvaluateable Evaluate() => throw new InvalidOperationException("A context cannot be evaluated, but it can be stored alongside things which can.");
-
-
-
-        public bool TryGet(string key, out IContext sub)
-        {
-            bool result = TryGet(key, out Context s);
-            sub = s;
-            return result;
-        }
-
-        bool IContext.TryGet(string key, out IEvaluateable var)
-        {
-            bool result = TryGet(key, out Variable v);
-            var = v;
-            return result;
-        }
-
-        IEnumerator<IContext> IEnumerable<IContext>.GetEnumerator() => this.SubContexts.Values.GetEnumerator();
-
-        IEnumerator IEnumerable.GetEnumerator() => this.SubContexts.Values.GetEnumerator();
+        public bool TryGet(string name, out Variable sub_val) =>Variables.TryGetValue(name, out sub_val);
+        
     }
 }

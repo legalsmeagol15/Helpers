@@ -7,7 +7,7 @@ using System.Windows;
 
 namespace Mathematics.Cartesian
 {
-    public sealed class Line : AbstractShape
+    public sealed class Line : IAbstractShape
     {
         public static readonly Line Empty = new Line(double.NaN, double.NaN, double.NaN, double.NaN);
 
@@ -49,7 +49,7 @@ namespace Mathematics.Cartesian
             => Operations.GetDoIntersect(new System.Windows.Point(X0, Y0), new System.Windows.Point(X1, Y1), otherPointA, otherPointB);
 
 
-        public override Rect ToRect() => new Rect(new System.Windows.Point(X0, Y0), new System.Windows.Point(X1, Y1));
+        public Rect GetBounds() => new Rect(new System.Windows.Point(X0, Y0), new System.Windows.Point(X1, Y1));
     }
 
 

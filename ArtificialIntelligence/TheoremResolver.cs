@@ -40,7 +40,7 @@ namespace AI.TheoremProving
                 for (int j = 0; j < kb.Count; j++)
                 {
                     SentencePair sp = new SentencePair(contra[i], kb[j]);
-                    queue.Add(sp);                    
+                    queue.Enqueue(sp);                    
                 }
             }
             //Add inferences within the knowledge base alone.                
@@ -51,7 +51,7 @@ namespace AI.TheoremProving
                 for (int j = i + 1; j < kb.Count; j++)
                 {
                     SentencePair sp = new SentencePair(kb[i], kb[j]);
-                    queue.Add(sp);                    
+                    queue.Enqueue(sp);                    
                 }
             }
             kb[kb.Count - 1].ResetParent();
@@ -65,7 +65,7 @@ namespace AI.TheoremProving
             {
 
                 //Dequeue a pair and check if it resolves.
-                SentencePair pair = queue.Pop();
+                SentencePair pair = queue.Dequeue();
                 Sentence resolvent = pair.A | pair.B;
                 int resolvingPairs = resolvent.Resolve();
                 if (resolvingPairs != 1) continue;      //If it doesn't resolve at all, nothing more to learn so throw away the pair.  If it resolves twice or more, it's a 
@@ -94,7 +94,7 @@ namespace AI.TheoremProving
                     resolvent.Depth = newDepth;
                     resolvent.ParentA = pair.A;
                     resolvent.ParentB = pair.B;
-                    for (int i = 0; i < kb.Count; i++) queue.Add(new SentencePair(resolvent, kb[i]));
+                    for (int i = 0; i < kb.Count; i++) queue.Enqueue(new SentencePair(resolvent, kb[i]));
                     kb.Add(resolvent);
                 }               
 

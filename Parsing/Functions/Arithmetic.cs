@@ -87,4 +87,41 @@ namespace Parsing.Functions
         }
     }
 
+    internal sealed class Max : Function
+    {
+        internal Max() : base() { }
+        public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
+        {
+            if (inputs.Length != 2) return InputCountError(inputs, 2);
+            if (inputs[0] is Number a && inputs[1] is Number b) return new Number(Math.Max(a.Value, b.Value));
+            if (inputs[0] is Number) return InputTypeError(inputs, 1, typeof(Number));
+            return InputTypeError(inputs, 0, typeof(Number));
+        }
+    }
+    internal sealed class Min : Function
+    {
+        internal Min() : base() { }
+        public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
+        {
+            if (inputs.Length != 2) return InputCountError(inputs, 2);
+            if (inputs[0] is Number a && inputs[1] is Number b) return new Number(Math.Min(a.Value, b.Value));
+            if (inputs[0] is Number) return InputTypeError(inputs, 1, typeof(Number));
+            return InputTypeError(inputs, 0, typeof(Number));
+        }
+    }
+
+    internal sealed class Sqrt : Function
+    {
+        internal Sqrt() : base() { }
+        public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
+        {
+            if (inputs.Length != 1) return InputCountError(inputs, 1);
+            if (inputs[0] is Number n)
+            {
+                if (n.Value < 0) return new EvaluationError("Cannot take square root of a negative number.");
+                return new Number(Math.Sqrt((double)n.Value));
+            }
+            return InputTypeError(inputs, 0, typeof(Number));
+        }
+    }
 }

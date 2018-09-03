@@ -10,8 +10,8 @@ namespace Mathematics.Cartesian
     /// <summary>
     /// Embodies shapes in invariant class types.
     /// </summary>
-    public abstract class AbstractShape
+    public interface IAbstractShape
     {
-        public abstract Rect ToRect();
+        Rect GetBounds();
     }
 }

@@ -31,5 +31,7 @@ namespace Parsing
         }
 
         public override int GetHashCode() => Value.GetHashCode();
+
+        public override string ToString() => this.Value;
     }
 }

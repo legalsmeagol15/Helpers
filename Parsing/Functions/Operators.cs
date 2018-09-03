@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static Parsing.Context;
-using static Parsing.Context.Function;
+using static Parsing.Function;
 
 namespace Parsing.Functions
 {
@@ -16,7 +16,7 @@ namespace Parsing.Functions
     /// example, addition could be written "add(a,b)", instead we use "a + b" with a special symbol 
     /// in between its two inputs.
     /// </summary>
-    internal abstract class Operator : Context.Function
+    internal abstract class Operator : Function
     {
         protected internal Operator(params IEvaluateable[] inputs) : base(inputs) { }
 
@@ -57,8 +57,7 @@ namespace Parsing.Functions
             return new Number(m);
         }
 
-
-        protected override IEvaluateable GetDerivative(Context.Variable v) => new Addition(Inputs.Select(i => Differentiate(i, v)).ToArray());
+        
     }
 
     [Serializable]
@@ -84,16 +83,7 @@ namespace Parsing.Functions
             throw new NotImplementedException();
         }
 
-
-        protected override IEvaluateable GetDerivative(Context.Variable v)
-        {
-            IEvaluateable f = Inputs[0], g = Inputs[1];
-            IEvaluateable lhs_numerator = new Multiplication(Differentiate(f, v), g).GetSimplified();
-            IEvaluateable rhs_numerator = new Multiplication(f, Differentiate(g, v)).GetSimplified();
-            IEvaluateable numerator = new Subtraction(lhs_numerator, rhs_numerator).GetSimplified();
-            IEvaluateable denominator = new Exponentiation(g, new Number(2m)).GetSimplified();
-            return new Division(numerator, denominator);
-        }
+        
 
 
     }
@@ -121,20 +111,7 @@ namespace Parsing.Functions
             return b;
         }
 
-
-        //protected override IEvaluatable ApplyChainRule() => GetDerivative();
-        protected override IEvaluateable GetDerivative(Context.Variable v)
-        {
-            List<IEvaluateable> inputs = Inputs.ToList();
-            while (inputs.Count > 2)
-            {
-                throw new NotImplementedException();
-            }
-
-            IEvaluateable @base = inputs[0], exponent = inputs[1];
-            if (@base == v && exponent is Number n) return new Multiplication(n, new Exponentiation(v, n - 1));
-            else throw new NotImplementedException();
-        }
+        
     }
 
     [Serializable]
@@ -246,6 +223,9 @@ namespace Parsing.Functions
     internal sealed class EqualTo : Comparison
     {
         protected override string Symbol => "=";
+
+        protected internal override ParsingPriority Priority => ParsingPriority.Function;
+
         protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
         {
             if (a is Number nA && b is Number nB) return nA.Value == nB.Value;
@@ -260,6 +240,8 @@ namespace Parsing.Functions
     {
         protected override string Symbol => ">";
 
+        protected internal override ParsingPriority Priority => ParsingPriority.Function;
+
         protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
         {
             if (a is Number nA && b is Number nB) return nA > nB;
@@ -273,6 +255,8 @@ namespace Parsing.Functions
     {
         protected override string Symbol => ">";
 
+        protected internal override ParsingPriority Priority => ParsingPriority.Function;
+
         protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
         {
             if (a is Number nA && b is Number nB) return nA < nB;
@@ -284,6 +268,9 @@ namespace Parsing.Functions
     internal sealed class NotEqualTo : Comparison
     {
         protected override string Symbol => "!=";
+
+        protected internal override ParsingPriority Priority => ParsingPriority.Function;
+
         protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
         {
             if (a is Number nA && b is Number nB) return nA.Value != nB.Value;
@@ -322,7 +309,7 @@ namespace Parsing.Functions
         }
 
 
-        protected override IEvaluateable GetDerivative(Context.Variable v) => NonDifferentiableFunctionError();
+        
 
         protected override string Symbol => "&";
 
@@ -359,8 +346,6 @@ namespace Parsing.Functions
 
     #region Reference operators
 
-
-
     [Serializable]
     internal sealed class Relation : Operator
     {
@@ -369,22 +354,6 @@ namespace Parsing.Functions
         public override IEvaluateable Evaluate()
         {
             if (Inputs.Length != 2) return InputCountError(Inputs, new int[] { 2 });
-
-            // The parent context must always be determinable at compile time.  No exceptions.  If the target was parsed at "compile 
-            // time", ie, when the expression was created, return its evaluation.
-            if (Inputs[0] is Context context)
-            {                
-                switch (Inputs[1])
-                {
-                    case Variable v: return v.Value;
-                    case Context sub: return sub.Evaluate();
-                    default:
-                        // The target was NOT parsed at compile time, evaluate it and see if a its evaluation can be returned.
-                        return Evaluate(context, Inputs[1].Evaluate());
-                }
-            }
-
-
             return InputTypeError(Inputs, 0, new Type[] { typeof(Context) });
         }
 

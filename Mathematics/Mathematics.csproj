@@ -42,7 +42,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Cartesian\AbstractShape.cs" />
+    <Compile Include="Cartesian\IAbstractShape.cs" />
     <Compile Include="Cartesian\Line.cs" />
     <Compile Include="Cartesian\Point.cs" />
     <Compile Include="Functions\ICacheValue.cs" />

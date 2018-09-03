@@ -31,17 +31,17 @@ namespace UnitTests
             Assert.AreEqual(factory["PI"].Evaluate(), (decimal)Math.PI);
             Assert.AreEqual(factory["E"].Evaluate(), (decimal)Math.E);
 
-            IEvaluateable pi = Expression.FromString("PI", context);
+            IEvaluateable pi = Expression.FromString("PI", context).Release();
             Assert.AreEqual("PI", pi.ToString());
             Assert.AreEqual(pi.Evaluate(), (decimal)Math.PI);
-            pi = Expression.FromString("PI()", context);
+            pi = Expression.FromString("PI()", context).Release();
             Assert.AreEqual("PI", pi.ToString());
             Assert.AreEqual(pi.Evaluate(), (decimal)Math.PI);
 
-            IEvaluateable e = Expression.FromString("E", context);
+            IEvaluateable e = Expression.FromString("E", context).Release();
             Assert.AreEqual("E", e.ToString());
             Assert.AreEqual(e.Evaluate(), (decimal)Math.E);
-            e = Expression.FromString("E()", context);
+            e = Expression.FromString("E()", context).Release();
             Assert.AreEqual("E", e.ToString());
             Assert.AreEqual(e.Evaluate(), (decimal)Math.E);
             
@@ -59,11 +59,11 @@ namespace UnitTests
             Assert.IsTrue(dummyB.TryGet("varB", out varB));
             Assert.IsTrue(dummyC.TryGet("varC", out varC));
 
-            varA.Contents = Expression.FromString("10", null);
-            varB.Contents = Expression.FromString("5", null);
-            varC.Contents = Expression.FromString("2", null);
+            varA.Contents = Expression.FromString("10", null).Release();
+            varB.Contents = Expression.FromString("5", null).Release();
+            varC.Contents = Expression.FromString("2", null).Release();
             Assert.IsFalse(dummyB.TryGet("varA", out Variable _));
-            varB.SetContents("varA+9");  // This should have no reference to a.varA, even though b.varA now exists.
+            varB.Contents = Expression.FromString("varA + 9", varB.Context).Release(); // This should have no reference to a.varA, even though b.varA now exists.
             Assert.IsTrue(dummyB.TryGet("varA", out Variable _));
             Assert.AreEqual(varB.Evaluate(), 9);
 
@@ -73,7 +73,7 @@ namespace UnitTests
             Assert.IsTrue(dummyB.Equals(testContext));
             Assert.IsTrue(dummyB.TryGet("a", out testContext));
 
-            IEvaluateable exp = Expression.FromString("b.a.varA", dummyC);
+            IEvaluateable exp = Expression.FromString("b.a.varA", dummyC).Release();
             Assert.AreEqual(exp.Evaluate(), 10);
             
         }
@@ -104,31 +104,31 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Nesting()
         {
-            IEvaluateable e = Expression.FromString("2+1", null);
+            IEvaluateable e = Expression.FromString("2+1", null).Release();
             Assert.AreEqual("2 + 1", e.ToString());
             Assert.AreEqual(e.Evaluate(), 3);
 
-            e = Expression.FromString("3+(2+1)", null);
+            e = Expression.FromString("3+(2+1)", null).Release();
             Assert.AreEqual("3 + ( 2 + 1 )", e.ToString());
             Assert.AreEqual(e.Evaluate(), 6);
 
-            e = Expression.FromString("(3+2)+1",  null);
+            e = Expression.FromString("(3+2)+1",  null).Release();
             Assert.AreEqual("( 3 + 2 ) + 1", e.ToString());
             Assert.AreEqual(e.Evaluate(), 6);
 
-            e = Expression.FromString("(4+3)", null);
+            e = Expression.FromString("(4+3)", null).Release();
             Assert.AreEqual("( 4 + 3 )", e.ToString());
             Assert.AreEqual(e.Evaluate(), 7);
 
-            e = Expression.FromString("((4+3))",  null);
+            e = Expression.FromString("((4+3))",  null).Release();
             Assert.AreEqual("( ( 4 + 3 ) )", e.ToString());
             Assert.AreEqual(e.Evaluate(), 7);
 
-            e = Expression.FromString("((3+2))+1",  null);
+            e = Expression.FromString("((3+2))+1",  null).Release();
             Assert.AreEqual("( ( 3 + 2 ) ) + 1", e.ToString());
             Assert.AreEqual(e.Evaluate(), 6);
 
-            e = Expression.FromString("3+((2+1))", null);
+            e = Expression.FromString("3+((2+1))", null).Release();
             Assert.AreEqual("3 + ( ( 2 + 1 ) )", e.ToString());
             Assert.AreEqual(e.Evaluate(), 6);
         }
@@ -171,47 +171,47 @@ namespace UnitTests
         public void TestParsing_Operators()
         {
             // Addition
-            IEvaluateable e = Expression.FromString("5+4", null);
+            IEvaluateable e = Expression.FromString("5+4", null).Release();
             Assert.AreEqual(e.Evaluate(), 9m);
-            e = Expression.FromString("5+-4", null);
+            e = Expression.FromString("5+-4", null).Release();
             Assert.AreEqual(e.Evaluate(), 1);
-            e = Expression.FromString("-5+4", null);
+            e = Expression.FromString("-5+4", null).Release();
             Assert.AreEqual(e.Evaluate(), -1);
-            e = Expression.FromString("-5+-4", null);
+            e = Expression.FromString("-5+-4", null).Release();
             Assert.AreEqual(e.Evaluate(), -9);
 
             // Subtraction
-            e = Expression.FromString("5-4", null);
+            e = Expression.FromString("5-4", null).Release();
             Assert.AreEqual(e.Evaluate(), 1);
-            e = Expression.FromString("5--4", null);
+            e = Expression.FromString("5--4", null).Release();
             Assert.AreEqual(e.Evaluate(), 9);
-            e = Expression.FromString("-5-4", null);
+            e = Expression.FromString("-5-4", null).Release();
             Assert.AreEqual(e.Evaluate(), -9);
-            e = Expression.FromString("-5--4", null);
+            e = Expression.FromString("-5--4", null).Release();
             Assert.AreEqual(e.Evaluate(), -1);
 
             // Multiplication
-            e = Expression.FromString("5*4", null);
+            e = Expression.FromString("5*4", null).Release();
             Assert.AreEqual(e.Evaluate(), 20);
-            e = Expression.FromString("5*-4", null);
+            e = Expression.FromString("5*-4", null).Release();
             Assert.AreEqual(e.Evaluate(), -20);
-            e = Expression.FromString("-5*4",  null);
+            e = Expression.FromString("-5*4",  null).Release();
             Assert.AreEqual(e.Evaluate(), -20);
-            e = Expression.FromString("-5*-4",  null);
+            e = Expression.FromString("-5*-4",  null).Release();
             Assert.AreEqual(e.Evaluate(), 20);
 
             // Division
-            e = Expression.FromString("5/4", null);
+            e = Expression.FromString("5/4", null).Release();
             Assert.AreEqual(e.Evaluate(), 1.25);
-            e = Expression.FromString("5/-4", null);
+            e = Expression.FromString("5/-4", null).Release();
             Assert.AreEqual(e.Evaluate(), -1.25);
-            e = Expression.FromString("-5/4", null);
+            e = Expression.FromString("-5/4", null).Release();
             Assert.AreEqual(e.Evaluate(), -1.25);
-            e = Expression.FromString("-5/-4", null);
+            e = Expression.FromString("-5/-4", null).Release();
             Assert.AreEqual(e.Evaluate(), 1.25);
 
             // Exponentiation
-            e = Expression.FromString("2^4", null);
+            e = Expression.FromString("2^4", null).Release();
             Assert.AreEqual(e.Evaluate(), 16);
         }
 
@@ -219,9 +219,9 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Serialization()
         {
-            Context context = new Context("root");
+            Context context = new DummyContext("root");
             //IEvaluateable exp1 = Expression.FromString("3", context);
-            IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context);
+            IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context).Release();
 
 
             MemoryStream outStream = new MemoryStream();
@@ -261,7 +261,7 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Variables()
         {
-            Context context = new Context();
+            Context context = new DummyContext("method Test_Parsing_Variables");
             Variable a, b, c;
             Assert.IsTrue(context.TryAdd("a", out a));
             Assert.IsFalse(context.TryAdd("a", out Variable _));
@@ -282,7 +282,7 @@ namespace UnitTests
             context["c"].Contents = new Number(valC);
 
             // Do a simple evaluation of an expression containing a variable.
-            IEvaluateable exp = Expression.FromString("5a+3", context);
+            IEvaluateable exp = Expression.FromString("5a+3", context).Release();
             Assert.AreEqual(exp.Evaluate(), (5*valA + 3));
             Assert.AreEqual(exp.Evaluate(), 8);
             Assert.IsTrue(exp is Clause clause);
@@ -290,7 +290,7 @@ namespace UnitTests
            
 
             // Do a more-complex evaluation of an expression containing multiple variables.
-            exp = Expression.FromString("4a + 2b*(3c+4)", context);
+            exp = Expression.FromString("4a + 2b*(3c+4)", context).Release();
             Assert.AreEqual(exp.Evaluate(), (4 * valA) + ((2 * valB) * (3 * valC + 4)));
             Assert.AreEqual(exp.Evaluate(), 56);
            
@@ -302,7 +302,7 @@ namespace UnitTests
             
 
             // Change a variable's contents to another expression.
-            b.Contents = Expression.FromString("4+(2*3)", context);
+            b.Contents = Expression.FromString("4+(2*3)", context).Release();
             Assert.AreEqual(b.Evaluate(), valB = 10);
             Assert.AreEqual(exp.Evaluate(), 4 * valA + 2 * valB * (3 * valC + 4));
             Assert.AreEqual(exp.Evaluate(), 280);
@@ -310,7 +310,7 @@ namespace UnitTests
             
 
             // Change a variable's contents to an expression based on another variable.
-            b.Contents = Expression.FromString("4a-7", context);
+            b.Contents = Expression.FromString("4a-7", context).Release();
             Assert.AreEqual(exp.Evaluate(), 4 * valA + 2 * (valB = 4 * valA - 7) * (3 * valC + 4));
             Assert.AreEqual(exp.Evaluate(), 358);
             Assert.AreEqual(b.Evaluate(), valB);
@@ -327,7 +327,7 @@ namespace UnitTests
             // Now, create a circular dependency and test for an exception.
             try
             {
-                a.Contents = Expression.FromString("2b-14", context);
+                a.Contents = Expression.FromString("2b-14", context).Release();
                 
                 Assert.Fail();
             }
@@ -336,23 +336,23 @@ namespace UnitTests
                 // Make sure state wasn't actually changed.
                 Assert.AreEqual(exp.Evaluate(), compare);
                 Assert.AreEqual(exp.Evaluate(), -290);
-                Assert.AreEqual(cdex.V0, a);
-                Assert.AreEqual(cdex.V1, b);
+                Assert.AreEqual(cdex.Tested, a);
+                Assert.AreEqual(cdex.Dependee, b);
             }            
 
             // Test for exceptions from self-referencing circularity.
-            exp = Expression.FromString("d", context);
+            exp = Expression.FromString("d", context).Release();
             Assert.IsTrue(context.TryGet("d", out Variable d));
             Assert.AreEqual(d.Evaluate(), 0);
             try
             {
-                d.Contents = Expression.FromString("d", context);
+                d.Contents = Expression.FromString("d", context).Release();
                 Assert.Fail();
             } catch (CircularDependencyException cdex)
             {
                 Assert.AreEqual(d.Evaluate(), 0);
-                Assert.AreEqual(cdex.V0, d);
-                Assert.AreEqual(cdex.V1, d);
+                Assert.AreEqual(cdex.Tested, d);
+                Assert.AreEqual(cdex.Dependee, d);
             }
             
         }
@@ -365,7 +365,7 @@ namespace UnitTests
             private Context sub = null;
             private Variable var = null;
 
-            public DummyContext(string name, Context sub = null, string varName = null) : base(name)
+            public DummyContext(string name, Context sub = null, string varName = null) : base(null, name)
             {
                 this.sub = sub;
                 if (varName != null)
@@ -373,17 +373,7 @@ namespace UnitTests
                     if (!this.TryAdd(varName, out var)) throw new InvalidOperationException();
                 }
             }
-            public override bool TryGet(string name, out Context subContext)
-            {
-                if (name.Equals(this.sub.Name)) { subContext = this.sub; return true; }
-                subContext = null;
-                return false;
-            }
-
-            public override bool TryGet(string name, out Variable v)
-            {
-                return base.TryGet(name, out v);
-            }
+            
         }
     }
 }

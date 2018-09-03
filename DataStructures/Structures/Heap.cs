@@ -56,7 +56,7 @@ namespace DataStructures
             else
             {
                 table = new T[Math.Max(capacity, items.Count())];
-                foreach (T item in items) Add(item);
+                foreach (T item in items) Enqueue(item);
                 Count = items.Count();
             }            
         }
@@ -89,7 +89,7 @@ namespace DataStructures
             else
             {
                 table = new T[Math.Max(capacity, items.Count())];
-                foreach (T item in items) Add(item);
+                foreach (T item in items) Enqueue(item);
                 Count = items.Count();
             }            
         }
@@ -106,7 +106,7 @@ namespace DataStructures
         /// <summary>
         /// Adds the given item to the heap.
         /// </summary>        
-        public void Add(T item)
+        public void Enqueue(T item)
         {
             if (table.Length <= Count)
             {
@@ -121,7 +121,7 @@ namespace DataStructures
         /// <summary>
         /// Removes and returns the given item from the heap.
         /// </summary>
-        public T Pop()
+        public T Dequeue()
         {
             if (Count < 1) throw new InvalidOperationException("Empty heap.");
             T result = table[0];
@@ -247,7 +247,7 @@ namespace DataStructures
             else
             {
                 table = new Node[Math.Max(capacity, items.Count())];
-                foreach (T item in items) Add(item);
+                foreach (T item in items) Enqueue(item);
                 Count = items.Count();
             }
         }
@@ -280,7 +280,7 @@ namespace DataStructures
             else
             {
                 table = new Node[Math.Max(capacity, items.Count())];
-                foreach (T item in items) Add(item);
+                foreach (T item in items) Enqueue(item);
                 Count = items.Count();
             }
         }
@@ -297,7 +297,7 @@ namespace DataStructures
         /// <summary>
         /// Adds the given item to the heap.
         /// </summary>        
-        public void Add(T item)
+        public void Enqueue(T item)
         {
             if (table.Length <= Count)
             {
@@ -312,7 +312,7 @@ namespace DataStructures
         /// <summary>
         /// Removes and returns the given item from the heap.
         /// </summary>
-        public T Pop()
+        public T Dequeue()
         {
             if (Count < 1) throw new InvalidOperationException("Empty heap.");
             T result = table[0].Payload;

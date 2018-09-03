@@ -22,18 +22,18 @@ namespace UnitTests
         public void Test_QuadTree_Contents()
         {
             qt0.Add(new Rect(0, 0, 1, 1));
-            Assert.AreEqual(new Rect(0, 0, 1, 1), qt0.Extent);
+            Assert.AreEqual(new Rect(0, 0, 1, 1), qt0.Bounds);
 
-            qt0.Clear();
-            Assert.IsTrue(qt0.Extent.IsEmpty);
+            qt0.Clear();            
+            Assert.IsTrue(qt0.Bounds.IsEmpty);
 
             qt0.Add(new Rect(0, 0, 0.5, 0.5));
             qt0.Add(new Rect(0.5, 0.5, 0.5, 0.5));
-            Assert.AreEqual(new Rect(0, 0, 1, 1), qt0.Extent);
+            Assert.AreEqual(new Rect(0, 0, 1, 1), qt0.Bounds);
             qt0.Remove(new Rect(0.5, 0.5, 0.5, 0.5));
-            Assert.AreEqual(new Rect(0, 0, 0.5, 0.5), qt0.Extent);
+            Assert.AreEqual(new Rect(0, 0, 0.5, 0.5), qt0.Bounds);
             qt0.Remove(new Rect(0, 0, 0.5, 0.5));
-            Assert.IsTrue(qt0.Extent.IsEmpty);
+            Assert.IsTrue(qt0.Bounds.IsEmpty);
         }
 
 

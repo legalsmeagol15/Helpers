@@ -11,6 +11,71 @@ namespace Graphs
     /// </summary>
     public static class Traversals
     {
+        /// <summary>Performs a simple pathfind through breadth-first search.</summary>
+        /// <param name="start">The starting item.</param>
+        /// <param name="goal">The ending item.</param>
+        /// <param name="edges">The function that specifies the graph.</param>
+        /// <returns>Returns an <seealso cref="IList{T}"/>, specifying the steps in order from (and including) both the start and end items."</returns>
+        public static IEnumerable<T> Pathfind<T>(T start, T goal, Func<T, IEnumerable<T>> edges) where T : IComparable<T>
+            => Pathfind(start, goal, edges, (a, b) => 1.0d, (a) => 0.0d);
+
+        /// <summary>Performs an A* search using the given edge prioritizer.</summary>
+        /// <param name="start">The starting item.</param>
+        /// <param name="goal">The ending item.</param>
+        /// <param name="edges">The function that specifies the graph.</param>
+        /// /// <param name="itemPriority">The function that prioritizes nodes for evaluation.  Low values will be explored before high values.</param>
+        /// <param name="edgePriority">The function that prioritizes edges for exploration.  Low values will be explored before high values.  Only if item 
+        /// priority is identical is edge priority compared.</param>
+        /// <returns>Returns an <seealso cref="IList{T}"/>, specifying the steps in order from (and including) both the start and end 
+        /// items.  If no route exists, returns null.</returns>
+        public static IEnumerable<T> Pathfind<T>(T start, T goal, Func<T, IEnumerable<T>> edges, Func<T, T, double> edgePriority, Func<T, double> itemPriority)
+            where T : IComparable<T>
+        {
+            DataStructures.DynamicHeap<PathfindingNode<T>> queue = new DataStructures.DynamicHeap<PathfindingNode<T>>();
+            Dictionary<T, PathfindingNode<T>> nodes = new Dictionary<T, PathfindingNode<T>>();
+            queue.Enqueue(new PathfindingNode<T>(start, null, itemPriority(start)));
+            nodes.Add(start, queue.Peek());
+
+            while (queue.Count > 0)
+            {
+                PathfindingNode<T> focus = queue.Dequeue();
+                if (focus.Item.Equals(goal))  // Found it, guaranteed to be the optimal path.
+                {
+                    LinkedList<T> result = new LinkedList<T>();
+                    while (focus != null) { result.AddFirst(focus.Item); focus = focus.Prior; }
+                    return result;
+                }
+                foreach (T child in edges(focus.Item))
+                {
+                    if (nodes.TryGetValue(child, out PathfindingNode<T> childNode))
+                    {
+                        PathfindingNode<T> comparer = new PathfindingNode<T>(child, focus, itemPriority(child), edgePriority(focus.Item, child));
+                        if (childNode.CompareTo(comparer) >= 0) continue;
+                        childNode.Prior = comparer.Prior;
+                        childNode.ItemPriority = comparer.ItemPriority;
+                        childNode.EdgePriority = comparer.EdgePriority;
+                        queue.Update(childNode);
+                    }
+                    else
+                        queue.Enqueue(new PathfindingNode<T>(child, focus, itemPriority(child), edgePriority(focus.Item, child)));
+                }                
+            }
+            return null;
+        }
+        private class PathfindingNode<T> : IComparable<PathfindingNode<T>>
+        {
+            public readonly T Item;
+            public double EdgePriority { get; set; }
+            public double ItemPriority { get; set; }
+            public PathfindingNode<T> Prior { get; set; }
+            public PathfindingNode(T item, PathfindingNode<T> prior = null, double itemPriority = 0.0d, double edgePriority = 0.0d )
+            { this.Item = item; this.Prior = prior; this.ItemPriority = itemPriority; this.EdgePriority = edgePriority; }
+            public override int GetHashCode() => Item.GetHashCode();
+            public override bool Equals(object obj) => Item.Equals(obj);
+            public int CompareTo(PathfindingNode<T> other) 
+                => (ItemPriority == other.ItemPriority) ? EdgePriority.CompareTo(other.EdgePriority) : ItemPriority.CompareTo(other.ItemPriority);
+        }
+
 
         /// <summary>
         /// Performs a depth first traversal of the graph defined by the given item, with the neighbors of a vertex defined by the 

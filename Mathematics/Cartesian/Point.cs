@@ -7,11 +7,11 @@ using System.Windows;
 
 namespace Mathematics.Cartesian
 {
-    public class Point : AbstractShape
+    public class Point : IAbstractShape
     {
         public readonly double X, Y;
         public Point(double x, double y) { this.X = x; this.Y = y; }
 
-        public override Rect ToRect() => new Rect(X, Y, 0, 0);
+        public Rect GetBounds() => new Rect(X, Y, 0, 0);
     }
 }

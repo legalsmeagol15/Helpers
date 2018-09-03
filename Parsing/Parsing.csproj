@@ -40,11 +40,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Contexts\IContext.cs" />
+    <Compile Include="Exceptions.cs" />
+    <Compile Include="Interfaces.cs" />
     <Compile Include="Values\Boolean.cs" />
     <Compile Include="Clause.cs" />
     <Compile Include="Contexts\Context.cs" />
-    <Compile Include="Contexts\Sheet.cs" />
     <Compile Include="Values\EvaluationError.cs" />
     <Compile Include="Functions\Arithmetic.cs" />
     <Compile Include="Functions\Calculus.cs" />
@@ -55,6 +55,7 @@
     <Compile Include="Functions\Operators.cs" />
     <Compile Include="Functions\Trigonometry.cs" />
     <Compile Include="Values\Fraction.cs" />
+    <Compile Include="Values\Null.cs" />
     <Compile Include="Values\Number.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Values\Range.cs" />
