@@ -31,11 +31,13 @@ namespace Parsing
     // This method should NOT be serializable, because it is designed as an intermediary data holder that helps manage concurrency.
     public class Expression : IDisposable
     {
-        private IEvaluateable _Contents;
-        private object _LockObject = null;
+        internal IEvaluateable Contents;
+        private object _ChangeLock = null;
         public static readonly IEvaluateable Null = new Null();
+        private ISet<Variable> AddedVariables;
+        private ISet<Context> AddedContexts;
 
-        private Expression(IEvaluateable contents = null) { this._Contents = contents; }
+        private Expression(IEvaluateable contents = null) { this.Contents = contents; }
 
         public static Expression FromLaTeX(string latex, Context context = null) => throw new NotImplementedException();
 
@@ -59,8 +61,8 @@ namespace Parsing
 
             // Step #2a - from here, we'll be parsing the string.  Prep for parsing.
             Expression result = new Expression();
-            HashSet<Variable> addedVariables = new HashSet<Variable>();
-            HashSet<Context> addedContexts = new HashSet<Context>();
+            ISet<Variable> addedVariables = (result.AddedVariables = new HashSet<Variable>());
+            ISet<Context> addedContexts = (result.AddedContexts = new HashSet<Context>());
             Context currentContext = context;
 
             // Step #2b - split the inputs according to the Regex.
@@ -74,7 +76,8 @@ namespace Parsing
 
             // Step #2d - if there is a context which can grab variables, lock on the Variable.LockObject.
             if (context != null)
-                Monitor.Enter(result._LockObject = Variable.LockObject);
+                Monitor.Enter(result._ChangeLock = Variable.ModifyLock);
+            
 
             // Step #3 - Parse into clause-by-clause tree structure containing tokenized objects
             try
@@ -86,60 +89,103 @@ namespace Parsing
                     string rawToken = rawTokens[i];
                     position += rawToken.Length;
                     if (rawToken.Length == 0 || rawToken == "" || string.IsNullOrWhiteSpace(rawToken)) continue;
+                    
+                    // Step #3b - contexts and variables
+                    if (currentContext != null)
+                    {
+                        //A variable?
+                        Context c = currentContext;
+                        Variable v = null;
+                        while (c != null && !c.TryGet(rawToken, out v)) c = c.Parent;
+                        if (v != null) { stack.Peek().AddLast(v); terms.Add(v); currentContext = context; continue; }
 
-                    // Step #3b - nesting, literals, functions, and operators.
+                        //A sub-context?
+                        if (currentContext.TryGet(rawToken, out Context subCtxt))
+                        {
+                            if (currentContext != context && stack.Peek().Count > 0 && !(stack.Peek().Last is Relation))
+                                throw new SyntaxException("Designated context \"" + rawToken + "\" cannot follow a " + stack.Peek().Last.GetType().Name + ".", string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
+                            stack.Peek().AddLast(subCtxt);
+                            currentContext = subCtxt;
+                            continue;
+                        }
+
+                        if (rawToken == ".")
+                        {
+                            if (stack.Peek().Count==0 || !(stack.Peek().Last is Context))
+                                throw new SyntaxException("Relation operator must follow a Context: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
+                            stack.Peek().AddLast(Function.Factory.CreateRelation());
+                            continue;
+                        }
+                    }
+
+                    // Step #3c - context tracking is over.  Snap the currentContext back to the original context.
+                    currentContext = context;
+
+                    // Step #3d - nesting, literals, functions, and operators.
                     switch (rawToken)
                     {
                         //Nesting?
                         case "(":
                         case "[":
-                        case "{":
+                        case "{":                            
                             TokenList tl = new TokenList(rawToken, i);
                             stack.Peek().AddLast(tl);
                             stack.Push(tl);
                             continue;
                         case ")":
                         case "]":
-                        case "}":
+                        case "}":                            
                             stack.Pop().Close(rawToken, i);
                             if (stack.Count == 0)
-                                return new Expression(new EvaluationError("Too many closing brackets.", 0, i));
+                                throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
+
                             continue;
 
                         //Sectioner?
-                        case ",": continue;
-                        case ";": continue;
+                        case ",":  continue;
+                        case ";":  continue;                       
+
 
                         //Unary operator?
                         case "-":
                         case "!":
                         case "~":
-                            if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator) stack.Peek().AddLast(Function.Factory.CreateNegation());
+                            
+                            if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator)
+                                stack.Peek().AddLast(Function.Factory.CreateNegation());
                             else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
-                            continue;
+                            continue;                        
 
                         // Binary operator?
-                        case "+": stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
-                        case "*": stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
-                        case "/": stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
-                        case "^": stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
-                        case "|": stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
-                        case "&": stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
-                        case ":": stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
-                        case ".": stack.Peek().AddLast(Function.Factory.CreateRelation()); continue;
+                        case "+":  stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
+                        case "*":  stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
+                        case "/":  stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
+                        case "^":  stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
+                        case "|":  stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
+                        case "&":  stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
+                        case ":":  stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
+                        
+                        
 
                         //Literal?
-                        case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2: stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2))); continue;
-                        case string _ when decimal.TryParse(rawToken, out decimal m): stack.Peek().AddLast(new Number(m)); continue;
-                        case string _ when bool.TryParse(rawToken, out bool b): stack.Peek().AddLast(Boolean.FromBool(b)); continue;
+                        case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2:                            
+                            stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2)));
+                            continue;
+                        case string _ when decimal.TryParse(rawToken, out decimal m):                            
+                            stack.Peek().AddLast(new Number(m));
+                            continue;
+                        case string _ when bool.TryParse(rawToken, out bool b):                            
+                            stack.Peek().AddLast(Boolean.FromBool(b));
+                            continue;
 
                         //Function?
-                        case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f): stack.Peek().AddLast(f); continue;
+                        case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f):                            
+                            stack.Peek().AddLast(f);
+                            continue;
                     }
 
-                    // Step #3c - if there's no context, and we still don't know what the token is, then it's definitely a syntax error.
-                    if (context == null)
-                        throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, addedVariables);
+                    // Step #3e - we still don't know what the token is, so it's definitely a syntax error.
+                    throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
 
 
                 }
@@ -147,22 +193,18 @@ namespace Parsing
             catch (Exception ex)
             {
                 // An exception means that changes cannot be made to the states of the variables and the contexts.  Unwind any changes 
-                // made to state, ie, remove added variables and contexts.  Then, release the editing lock.
-                foreach (Variable v in addedVariables) v.Context?.TryDelete(v);
-                foreach (Context ctxt in addedContexts) ctxt.Parent?.TryDelete(ctxt);
-
-                Monitor.Exit(result._LockObject);
-
-                if (!(ex is SyntaxException))
-                    // This should never happen and represents some sort of inheriting class's implementation error, because Expression's 
-                    // creation methods should be the only methods that throw SyntaxExceptions.
-                    throw new SyntaxException("Syntax error.", str, 0, addedVariables, ex);
+                // made to state, ie, remove added variables and contexts.  Then, release the editing lock.  Finally, ensure the exception 
+                // make its way up the stack.                
+                result.Cancel();
+                if (ex is SyntaxException) throw;
+                throw new SyntaxException("Syntax error.", str, 0, currentContext, addedVariables, ex);
             }
 
 
-            IEvaluateable contents = rootList.Parse(functions);
+            IEvaluateable contents = rootList.Parse(functions);            
             if (contents is Clause clause) clause.Terms = terms;
-            while (contents is Clause c && c.Inputs.Count() == 1 && c.Inputs[0] is Clause) contents = c.Inputs[0];
+            //while (contents is Clause c && c.Inputs.Count() == 1 && c.Inputs[0] is Clause) contents = c.Inputs[0];
+            result.Contents = contents;           
             return result;
         }
 
@@ -170,14 +212,16 @@ namespace Parsing
 
         public IEvaluateable Release()
         {
-            Monitor.Exit(_LockObject);
-            _LockObject = null;
-            return this._Contents;
+            IEvaluateable ret = this.Contents;
+            if (_ChangeLock != null) { Monitor.Exit(_ChangeLock); _ChangeLock = null; }
+            return ret;
         }
 
         public void Cancel()
         {
-            throw new NotImplementedException();
+            foreach (Variable v in AddedVariables) v.Context.TryDelete(v);
+            foreach (Context c in AddedContexts) c.Parent.TryDelete(c);
+            if (_ChangeLock != null) { Monitor.Exit(_ChangeLock); _ChangeLock = null; }
         }
 
 
@@ -239,7 +283,6 @@ namespace Parsing
 
 
                 // Step #2 - evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
-
                 // The following ungodly heap is designed to sort nodes according to the priority levels of the Function objects they contain.
                 StableHeap<DynamicLinkedList<object>.Node> prioritized
                     = new StableHeap<DynamicLinkedList<object>.Node>((a, b) => ((Function)a.Contents).Priority.CompareTo(((Function)b.Contents).Priority));
@@ -268,11 +311,9 @@ namespace Parsing
                     Function function = (Function)node.Contents;
                     function.ParseNode(node);
                     function.Terms = new HashSet<Variable>();
-                    foreach (IEvaluateable input in function.Inputs)
-                    {
-                        if (input is Variable v) function.Terms.Add(v);
-                        else if (input is Clause sub_c) foreach (Variable sub_v in sub_c.Terms) function.Terms.Add(sub_v);
-                    }
+                    //foreach (IEvaluateable input in function.Inputs)                    
+                    //    foreach (Variable v in Variable.GetTermsOf(input)) function.Terms.Add(v);                        
+                    
                 }
 
                 // Step #4 - Return the fully-parsed clause.  If there's just one naked sub-clause in the parsed clause, return that with 

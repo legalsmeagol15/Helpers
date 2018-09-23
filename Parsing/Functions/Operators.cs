@@ -134,12 +134,7 @@ namespace Parsing.Functions
             return new Number(m);
         }
         protected override string Symbol => "*";
-        protected override IEvaluateable GetDerivative(Variable v)
-        {
-            if (Inputs.Length != 2) throw new NotImplementedException();
-            IEvaluateable f = Inputs[0], g = Inputs[1];
-            return new Addition(new Multiplication(Differentiate(f, v), g).GetSimplified(), new Multiplication(f, Differentiate(g, v)).GetSimplified());
-        }
+       
     }
 
     [Serializable]
@@ -351,37 +346,62 @@ namespace Parsing.Functions
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Relation;
 
+        private LinkedList<Context> _Chain = new LinkedList<Context>();
+        internal Variable Variable = null;
+
         public override IEvaluateable Evaluate()
         {
-            if (Inputs.Length != 2) return InputCountError(Inputs, new int[] { 2 });
-            return InputTypeError(Inputs, 0, new Type[] { typeof(Context) });
+            //if (Inputs.Length != 1) return InputCountError(Inputs, new int[] { 1 });
+            //if (!(Inputs[0] is Variable)) return InputTypeError(Inputs, 0, new Type[] { typeof(Context) });
+            return Variable.Evaluate();
         }
 
-        public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
-        {
-            // Only if the reference was not determined at compile time should this method be invoked.
-            Context context = (Context)inputs[0];
-            if (inputs[1] is String str)
-            {
-                if (context.TryGet(str, out Variable dyn_var)) return dyn_var.Value;
-                else if (context.TryGet(str, out Variable dyn_sub)) return dyn_sub.Value;
-                else return new EvaluationError("Unrecognized member of context \"" + context.Name + "\":  " + str);
-            }
-            else return InputTypeError(inputs, 1, new Type[] { typeof(Variable), typeof(Context) });
-        }
+        public override IEvaluateable Evaluate(params IEvaluateable[] inputs) => Variable.Evaluate();
 
         protected internal override void ParseNode(DynamicLinkedList<object>.Node node)
         {
-            // Relations parse backwards:  the leftmost relation in "a.b.c" should be at the top of the parse tree.
-            ParseNode(node, 1, 1);
-            if (Inputs[0] is Relation prior)
+            if (node.Previous == null)
+                throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
+            switch (node.Previous.Remove())
             {
-                Inputs[0] = prior.Inputs[1];
-                prior.Inputs[1] = this;
+                case Relation r:
+                    if (r.Variable != null)
+                        throw new InvalidOperationException("Cannot apply relation operator to " + typeof(Variable).Name + ".");
+                    foreach (Context ctxt in this._Chain) r._Chain.AddLast(ctxt);
+                    this._Chain = r._Chain;
+                    break;
+                case Context c:
+                    this._Chain.AddFirst(c); break;
+                default:
+                    throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
             }
+
+            if (node.Next == null)
+                throw new InvalidOperationException("Relation operator (.) must be followed by another "
+                            + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");
+            else if (this.Variable != null)
+                throw new InvalidOperationException("Relation operator (.) already refers to Variable " + this.Variable.Name + " in its chain.");
+            switch (node.Next.Remove())
+            {
+                case Relation r:
+                    foreach (Context ctxt in r._Chain)
+                        this._Chain.AddLast(ctxt);                    
+                    this.Variable = r.Variable; break;
+                case Context c:
+                    this._Chain.AddLast(c); break;
+                case Variable v:
+                    this.Variable = v; break;
+                default:
+                    throw new InvalidOperationException("Relation operator (.) must be followed by another "
+                        + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");
+            }
+
+            this.Inputs = new IEvaluateable[]{ this.Variable};
         }
 
         protected override string Symbol => ".";
+
+        public override string ToString() => string.Join(".", _Chain.Select(c => c.Name)) + "." + Variable.Name;
     }
 
     [Serializable]

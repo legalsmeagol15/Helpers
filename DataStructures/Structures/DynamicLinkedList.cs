@@ -14,7 +14,7 @@ namespace DataStructures
 
     /// <summary>
     /// A linked list that allows insertions and deletions mid-list.  Each such insertion or deletion is potentially an O(N) operation.
-    /// </summary>
+    /// <para/>
     [DebuggerDisplay("Count = {Count}")]    
     [DefaultMember("Item")]
     public class DynamicLinkedList<T> : IEnumerable<T>
@@ -62,6 +62,16 @@ namespace DataStructures
             }
             return _FirstNode;
         }
+        public Node AddFirst(Node node)
+        {
+            if (ReferenceEquals(this, node.List))
+                throw new InvalidOperationException("A list's nodes cannot be concatenated with the same list.");
+            this.Count += node.List.Count;
+            node.List.Count = this.Count;
+            throw new NotImplementedException();
+        }
+
+
         /// <summary>Adds a new item to the list at the tail position.</summary>
         public Node AddLast(T item)
         {

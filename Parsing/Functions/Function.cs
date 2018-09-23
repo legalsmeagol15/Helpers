@@ -95,9 +95,10 @@ namespace Parsing
             Exponentiation = 60000,
             Concatenation = 50000, And = 50000, Or = 50000,
             Negation = 40000,
-            Function = 30000, Relation = 30000,
-            Comma = 20000,
-            Semicolon = 10000
+            Function = 30000,
+            Relation = 20000,
+            Comma = 10000,
+            Semicolon = 00000
         }
 
         protected internal virtual ParsingPriority Priority => ParsingPriority.Function;
@@ -108,13 +109,14 @@ namespace Parsing
         protected internal virtual void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 0, 1);
 
         /// <summary>
-        /// Parses this node in its token list, with the indicate number of preceding and following tokens.  For example, parsing the 
+        /// Parses this node in its token list, with the indicated number of preceding and following tokens.  For example, parsing the 
         /// Sin function will be called with 0 preceding and 1 following, because no token relevant to the Sin function is expected 
         /// to precede it and only 1 token (the Sin function's contents) is expected to follow it.
         /// </summary>
         /// <param name="node"></param>
         /// <param name="preceding"></param>
         /// <param name="following"></param>
+        /// <exception cref="NullReferenceException">Thrown when a preceding or following input was expected, but was omitted.</exception>
         protected void ParseNode(DynamicLinkedList<object>.Node node, int preceding, int following)
         {
             IEvaluateable[] inputs = new IEvaluateable[preceding + following];
@@ -202,10 +204,11 @@ namespace Parsing
             #endregion
 
 
+            private static Factory _CachedStandardFactory;
             /// <summary>
             /// The standard function factory.
             /// </summary>
-            public static readonly Factory StandardFactory = GetStandardFactory();
+            public static readonly Factory StandardFactory = _CachedStandardFactory ?? (_CachedStandardFactory = GetStandardFactory());
 
 
 

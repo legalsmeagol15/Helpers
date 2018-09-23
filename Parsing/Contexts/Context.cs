@@ -10,19 +10,25 @@ namespace Parsing
     
     /// <summary>The context in which Variables live, and from which functions can be created.  The DataContext manages access to things I don't 
     /// want to expose on other objects:  Variable dependency graph</summary>
+    [Serializable]
     public abstract class Context 
     {
         
         public readonly Context Parent;
         public readonly string Name;
-        protected readonly Dictionary<string, Variable> Variables;
-        protected readonly Dictionary<string, Context> Subcontexts;
+        protected  Dictionary<string, Variable> Variables = null;
+        protected Dictionary<string, Context> Subcontexts = null;
+
+        [field:NonSerialized]
+        internal Function.Factory Functions;
 
         
-        protected Context(Context parent, string name)
+        protected Context(Context parent, string name, Function.Factory functions = null)
         {
             this.Parent = parent;
-            this.Name = name;            
+            this.Name = name;
+            Functions = functions ?? Function.Factory.StandardFactory;
+            
         }
 
         /// <summary>
@@ -79,10 +85,15 @@ namespace Parsing
         }
 
         public Variable this[string  varName] => Variables[varName];
-        
-        public bool TryGet(string name, out Context sub_obj) => Subcontexts.TryGetValue(name, out sub_obj);
 
-        public bool TryGet(string name, out Variable sub_val) =>Variables.TryGetValue(name, out sub_val);
-        
+        public bool TryGet(string name, out Context sub_obj)
+        {
+            if (Subcontexts == null) { sub_obj = null; return false; }
+            return Subcontexts.TryGetValue(name, out sub_obj);
+        }
+
+        public bool TryGet(string name, out Variable sub_val) => Variables.TryGetValue(name, out sub_val);
+
+        public override string ToString() => Name;
     }
 }

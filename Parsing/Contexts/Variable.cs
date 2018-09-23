@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Parsing.Functions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Parsing
@@ -18,11 +20,12 @@ namespace Parsing
     public class Variable : IEvaluateable
     {
         internal static readonly int SINGLE_THREAD_THRESHOLD = 5;
-        /// <summary>
-        /// Locks must always be ordered from source to listener.
-        /// </summary>
+
         [field: NonSerialized]
-        internal static readonly object LockObject = new object();
+        internal static readonly object ModifyLock = new object();
+
+        [field: NonSerialized]
+        internal readonly object UpdateLock = new object();
 
         internal ISet<Variable> Listeners = new HashSet<Variable>();
 
@@ -30,7 +33,39 @@ namespace Parsing
 
         public IEvaluateable Value;
 
-        public IEvaluateable Contents;
+        private IEvaluateable _Contents;
+        public string Contents
+        {
+            get => GetContents.ToString();
+            set => SetContents(Expression.FromString(value, Context, Context.Functions));
+        }
+        public IEvaluateable GetContents { get { lock (UpdateLock) return _Contents; } }
+        /// <summary>
+        /// Does circularity checking.
+        /// </summary>
+        /// <param name="exp"></param>
+        public void SetContents(Expression exp)
+        {
+            foreach (Variable term in GetTermsOf(exp.Contents))
+            {
+                if (term.ListensTo(this))
+                {
+                    exp.Cancel();
+                    throw new CircularDependencyException(exp.Contents, this, null);
+                }
+            }
+        
+            lock (UpdateLock)
+            {
+                foreach (Variable oldTerm in GetTermsOf(_Contents)) lock(oldTerm) oldTerm.Listeners.Remove(this);                
+                _Contents = exp.Contents;
+                foreach (Variable newTerm in GetTermsOf(_Contents)) lock (newTerm) newTerm.Listeners.Add(this);
+            }
+            exp.Release();
+
+            Update(out _);
+        }
+
 
         public Context Context;
 
@@ -40,94 +75,95 @@ namespace Parsing
 
         public Variable(Context context, string name) { Name = name; Context = context; }
 
-        
+
+
+        #region Variable dependency members
+        [System.Diagnostics.DebuggerStepThrough()]
+        public static IEnumerable<Variable> GetTermsOf(IEvaluateable evaluateable)
+        {
+            switch (evaluateable)
+            {
+                case Relation r: yield return r.Variable; yield break;
+                case Clause c:
+                    if (c.Terms == null) yield break;
+                    foreach (Variable term in c.Terms) yield return term; yield break;
+                case Variable v: yield return v; yield break;
+            }
+        }
+
+        public bool ListensTo(Variable source)
+        {
+            lock (ModifyLock)
+            {
+                if (this.Equals(source)) return true;
+                //if (source.Listeners.Contains(this)) return true;
+                return source.Listeners.Any(listener => listener.ListensTo(this));                
+            }
+                
+        }
+
+        #endregion
+
+
+
         #region Variable value members
 
-        public class ValueChangedEventArgs
+
+        public IEvaluateable Update(out ISet<Variable> changed)
         {
-            public readonly Variable Variable;
-            public readonly object Before;
-            public readonly object After;
-            public ValueChangedEventArgs(Variable variable, object before, object after) { this.Variable = variable; this.Before = before; this.After = after; }
-        }
-
-        public IEvaluateable Update(out IList<IList<Variable>> changes)
-        {
-
-            object processLock = new object();
-
-            // Variables must be updated in topological order, and the topo levels will function as groups of tasks which can be executed 
-            // safely in parallel.
-            lock (LockObject)
+            HashSet<Variable> changedVars = new HashSet<Variable>();
+            HashSet<Variable> ready = new HashSet<Variable>() { this };                   
+            
+            while (ready.Count > 0)
             {
-
-                Dictionary<Variable, Graphs.TopologicalSort<Variable>.Node> nodes
-                    = Graphs.TopologicalSort<Variable>.GetTopologicalGraph(this, v => v.Listeners);
-
-                HashSet<Graphs.TopologicalSort<Variable>.Node> queue
-                    = new HashSet<Graphs.TopologicalSort<Variable>.Node>();
-
-                changes = new List<IList<Variable>>();
-
-
-                queue.Add(nodes[this]);
-
-                while (true)
+                HashSet<Variable> next = new HashSet<Variable>();
+                List<Task> tasks = new List<Task>();
+                foreach (Variable v in ready)
                 {
-                    List<Variable> changedList = new List<Variable>();
-                    HashSet<Graphs.TopologicalSort<Variable>.Node> nextQueue
-                     = new HashSet<Graphs.TopologicalSort<Variable>.Node>();
-
-                    if (queue.Count > SINGLE_THREAD_THRESHOLD)
-                    {
-                        List<Task> tasks = new List<Task>();
-                        foreach (var focusNode in queue)
-                        {
-                            Task t = Task.Factory.StartNew(() => UpdateNodeVariable(focusNode, changedList, nextQueue));
-                            tasks.Add(t);
-                        }
-                        Task.WaitAll(tasks.ToArray());
-                    }
-                    else
-                        foreach (var focusNode in queue)
-                            UpdateNodeVariable(focusNode, changedList, nextQueue);
-
-                    if (changedList.Count > 0)
-                        changes.Add(changedList);
-                    if (nextQueue.Count == 0)
-                        break;
-                    queue = nextQueue;
+                    Task t = Task.Factory.StartNew(() => UpdateConcurrent(v, next));
+                    tasks.Add(t);
                 }
-
-                return Value;
-
-                void UpdateNodeVariable(Graphs.TopologicalSort<Variable>.Node node, List<Variable> list, HashSet<Graphs.TopologicalSort<Variable>.Node> nextQueue)
-                {
-                    IEvaluateable oldValue = node.Item.Value, newValue = node.Item.Contents.Evaluate();
-                    bool changed = !newValue.Equals(oldValue);
-                    if (changed)
-                    {
-                        node.Item.Value = newValue;
-                        lock (processLock)
-                        {
-                            list.Add(node.Item);
-                            foreach (var childNode in node.Children)
-                            {
-                                nextQueue.Add(childNode);
-                                --childNode.Inbound;
-                            }
-                        }
-
-                    }
-                    else
-                        foreach (var childNode in node.Children)
-                            lock (processLock)
-                                --childNode.Inbound;
-                }
+                Task.WaitAll(tasks.ToArray());
+                ready = next;
             }
 
+            changed = changedVars;
+            lock (this)
+                return Value;
 
+            void UpdateConcurrent(Variable v, ISet<Variable> next)
+            {
+                lock (v.UpdateLock)
+                {
+                    // If another var has made this var unready to update, skip it.
+                    if (v.Inbound != 0) return;
+
+                    // Signal every listener that it's not ready for update yet.
+                    foreach (Variable listener in v.Listeners)
+                        listener.Inbound++;
+
+                    // Update this var.
+                    IEvaluateable oldValue = v.Value, newValue = v._Contents.Evaluate();
+                    if (oldValue == null) { if (newValue == null) return; }
+                    else if (oldValue.Equals(newValue)) return;
+                    v.Value = newValue;
+
+                    // Add to the set of changed vars.
+                    lock (changedVars) changedVars.Add(v);
+
+                    // Signal to each listener that this var no longer prevents it from updating.
+                    foreach (Variable listener in v.Listeners)
+                        lock (listener)
+                            if (--listener.Inbound == 0)
+                                lock (next)
+                                    next.Add(listener);
+                }
+            }
         }
+
+        private int Inbound = 0;
+
+        public override string ToString() => Name;
 
 
 

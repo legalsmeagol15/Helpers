@@ -23,7 +23,7 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Constant_Functions()
         {
-            DummyContext context = new DummyContext("dummy");
+            DummyContext context = new DummyContext(null, "dummy ctxt");
 
             Function f1 = factory["PI"];
             Function f2 = factory["PI"];
@@ -50,32 +50,48 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Contexts()
         {
-            DummyContext dummyA = new DummyContext("a", null, "varA");
-            DummyContext dummyB = new DummyContext("b", dummyA, "varB");
-            DummyContext dummyC = new DummyContext("c", dummyB, "varC");
+            DummyContext dummyA = new DummyContext(null, "dummy_context_a");
+            Assert.IsTrue(dummyA.TryAdd("dummy_context_b", out Context dummyB));
+            Assert.IsTrue(dummyB.TryAdd("dummy_context_c", out Context dummyC));
+
 
             Variable varA, varB, varC;
-            Assert.IsTrue(dummyA.TryGet("varA", out varA));
-            Assert.IsTrue(dummyB.TryGet("varB", out varB));
-            Assert.IsTrue(dummyC.TryGet("varC", out varC));
+            Assert.IsTrue(dummyA.TryAdd("a", out varA));
+            Assert.IsTrue(dummyB.TryAdd("b", out varB));
+            Assert.IsTrue(dummyC.TryAdd("c", out varC));
 
-            varA.Contents = Expression.FromString("10", null).Release();
-            varB.Contents = Expression.FromString("5", null).Release();
-            varC.Contents = Expression.FromString("2", null).Release();
-            Assert.IsFalse(dummyB.TryGet("varA", out Variable _));
-            varB.Contents = Expression.FromString("varA + 9", varB.Context).Release(); // This should have no reference to a.varA, even though b.varA now exists.
-            Assert.IsTrue(dummyB.TryGet("varA", out Variable _));
-            Assert.AreEqual(varB.Evaluate(), 9);
+            Assert.IsTrue(dummyA.TryGet("a", out varA));
+            Assert.IsTrue(dummyB.TryGet("b", out varB));
+            Assert.IsTrue(dummyC.TryGet("c", out varC));
+
+            varA.Contents = "10";
+            varB.Contents = "5";
+            varC.Contents = "2";
+            Assert.IsFalse(dummyB.TryGet("a", out Variable testA));
+            Assert.IsNull(testA);
+            varB.Contents = "a + 9"; // Context "context-b" has no reference to "a", but the parent does.
+            Assert.IsFalse(dummyB.TryGet("a", out testA));
+            Assert.IsNull(testA);
+            Assert.AreEqual(varB.Evaluate(), 19);
 
 
-            Assert.IsTrue(dummyC.TryGet("b", out Context testContext));
+            Assert.IsTrue(dummyA.TryGet("dummy_context_b", out Context testContext));
             Assert.AreEqual(dummyB, testContext);
-            Assert.IsTrue(dummyB.Equals(testContext));
-            Assert.IsTrue(dummyB.TryGet("a", out testContext));
-
-            IEvaluateable exp = Expression.FromString("b.a.varA", dummyC).Release();
-            Assert.AreEqual(exp.Evaluate(), 10);
             
+            Assert.IsTrue(dummyB.TryGet("dummy_context_c", out testContext));
+            Assert.AreEqual(dummyC, testContext);
+
+            IEvaluateable exp = Expression.FromString("dummy_context_b.dummy_context_c.c", dummyA).Release();
+            Assert.AreEqual(exp.Evaluate(), 2);
+
+            exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.b", dummyA).Release();
+            Assert.AreEqual(exp.Evaluate(), 21);
+
+            // This will only work if variables are scoped for all subcontexts:
+            //                                                         vvv                                 vvv
+            exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.dummy_context_c.b", dummyA).Release();
+            Assert.AreEqual(exp.Evaluate(), 21);
+
         }
 
 
@@ -219,39 +235,24 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Serialization()
         {
-            Context context = new DummyContext("root");
+            Context context = new DummyContext(null, "root");
             //IEvaluateable exp1 = Expression.FromString("3", context);
+            Assert.IsTrue(context.TryAdd("a", out Variable aVar));
             IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context).Release();
 
 
             MemoryStream outStream = new MemoryStream();
             BinaryFormatter formatter = new BinaryFormatter();
-            formatter.Serialize(outStream, exp1);
+            formatter.Serialize(outStream, context);
             
 
             outStream.Seek(0, SeekOrigin.Begin);
             formatter = new BinaryFormatter();
-            IEvaluateable exp2 = (IEvaluateable)formatter.Deserialize(outStream);
-
-            // Ensure that the original and the deserialized expressions evaluate equally.
-            Assert.AreEqual(exp1.Evaluate(), exp2.Evaluate());
-            Assert.AreEqual(exp1.ToString(), exp2.ToString());
-
-            // Prove that the two expressions do not actually share members.
-            Function f1 = (Function)exp1, f2 = (Function)exp2;
-            int comparisons = 0;
-            foreach (Variable a1 in f1.Terms)
-            {
-                foreach (Variable a2 in f2.Terms)
-                {
-                    comparisons++;                    
-                    Assert.AreEqual("a", a1.Name);
-                    Assert.AreEqual("a", a2.Name);
-                    Assert.AreNotEqual(a1, a2);
-                    Assert.AreNotEqual(a1.Context, a2.Context);
-                }
-            }
-            Assert.AreEqual(1, comparisons);
+            DummyContext deser = (DummyContext)formatter.Deserialize(outStream);
+            
+            Assert.IsTrue(deser.TryGet("a", out Variable aPrime));
+            Assert.AreEqual(aVar.Name, aPrime.Name);
+            Assert.AreEqual(aVar.Evaluate(), aPrime.Evaluate());
 
 
 
@@ -261,7 +262,7 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Variables()
         {
-            Context context = new DummyContext("method Test_Parsing_Variables");
+            Context context = new DummyContext(null, "dummyContext Test_Parsing_Variables");
             Variable a, b, c;
             Assert.IsTrue(context.TryAdd("a", out a));
             Assert.IsFalse(context.TryAdd("a", out Variable _));
@@ -277,12 +278,14 @@ namespace UnitTests
             Assert.AreEqual(context["b"], b);
             Assert.AreEqual(context["c"], c);
             int valA = 1, valB = 2, valC = 3;
-            context["a"].Contents = new Number(valA);
-            context["b"].Contents = new Number(valB);
-            context["c"].Contents = new Number(valC);
+            context["a"].Contents = "" + valA;
+            context["b"].Contents = "" + valB;
+            context["c"].Contents = "" + valC;
 
             // Do a simple evaluation of an expression containing a variable.
             IEvaluateable exp = Expression.FromString("5a+3", context).Release();
+            a.Update(out ISet<Variable> changed);
+            Assert.AreEqual(0, changed.Count);
             Assert.AreEqual(exp.Evaluate(), (5*valA + 3));
             Assert.AreEqual(exp.Evaluate(), 8);
             Assert.IsTrue(exp is Clause clause);
@@ -291,44 +294,49 @@ namespace UnitTests
 
             // Do a more-complex evaluation of an expression containing multiple variables.
             exp = Expression.FromString("4a + 2b*(3c+4)", context).Release();
+            b.Update(out changed);
+            Assert.AreEqual(0, changed.Count);
+            c.Update(out changed);
+            Assert.AreEqual(0, changed.Count);
             Assert.AreEqual(exp.Evaluate(), (4 * valA) + ((2 * valB) * (3 * valC + 4)));
             Assert.AreEqual(exp.Evaluate(), 56);
-           
+
 
             // Change a variable's stored value, and test.
-            a.Contents = new Number(valA = 5);
+            valA = 5;
+            a.Contents = "" + new Number(valA);
             Assert.AreEqual(exp.Evaluate(), 4 * valA + 2 * valB * (3 * valC + 4));
             Assert.AreEqual(exp.Evaluate(), 72);
-            
+
 
             // Change a variable's contents to another expression.
-            b.Contents = Expression.FromString("4+(2*3)", context).Release();
+            b.Contents = "4+(2*3)";
             Assert.AreEqual(b.Evaluate(), valB = 10);
             Assert.AreEqual(exp.Evaluate(), 4 * valA + 2 * valB * (3 * valC + 4));
             Assert.AreEqual(exp.Evaluate(), 280);
-            
-            
+
+
 
             // Change a variable's contents to an expression based on another variable.
-            b.Contents = Expression.FromString("4a-7", context).Release();
+            b.Contents = "4a-7";            
             Assert.AreEqual(exp.Evaluate(), 4 * valA + 2 * (valB = 4 * valA - 7) * (3 * valC + 4));
             Assert.AreEqual(exp.Evaluate(), 358);
             Assert.AreEqual(b.Evaluate(), valB);
-            
+
 
             // Now, change the value of the 'a' and see if the change propogates up through the two expressions.
-            a.Contents = new Number(-1);
+            a.Contents = "-1";
             valA = -1;
             valB = 4 * valA - 7;
             int compare = 4 * valA + 2 * valB * (3 * valC + 4);
+            // If 'b' equals 334, the value assigned to 'a' did not propogate.
             Assert.AreEqual(exp.Evaluate(), compare);
             Assert.AreEqual(exp.Evaluate(),-290);
 
             // Now, create a circular dependency and test for an exception.
             try
             {
-                a.Contents = Expression.FromString("2b-14", context).Release();
-                
+                a.Contents = "2b-14";                
                 Assert.Fail();
             }
             catch(CircularDependencyException cdex)
@@ -337,22 +345,21 @@ namespace UnitTests
                 Assert.AreEqual(exp.Evaluate(), compare);
                 Assert.AreEqual(exp.Evaluate(), -290);
                 Assert.AreEqual(cdex.Tested, a);
-                Assert.AreEqual(cdex.Dependee, b);
-            }            
+               // Assert.AreEqual(cdex.Dependee, b);
+            }
 
             // Test for exceptions from self-referencing circularity.
-            exp = Expression.FromString("d", context).Release();
-            Assert.IsTrue(context.TryGet("d", out Variable d));
-            Assert.AreEqual(d.Evaluate(), 0);
+            Assert.IsTrue(context.TryAdd("d", out Variable d));
+            Assert.AreEqual(d.Evaluate(), null);
             try
             {
-                d.Contents = Expression.FromString("d", context).Release();
+                d.Contents = "d";
                 Assert.Fail();
             } catch (CircularDependencyException cdex)
             {
-                Assert.AreEqual(d.Evaluate(), 0);
+                Assert.AreEqual(d.Evaluate(), null);
                 Assert.AreEqual(cdex.Tested, d);
-                Assert.AreEqual(cdex.Dependee, d);
+                //Assert.AreEqual(cdex.Dependee, d);
             }
             
         }
@@ -360,20 +367,25 @@ namespace UnitTests
         /// <summary>
         /// Used to test context feature.
         /// </summary>
+        [Serializable]
         internal class DummyContext : Parsing.Context
         {
-            private Context sub = null;
-            private Variable var = null;
-
-            public DummyContext(string name, Context sub = null, string varName = null) : base(null, name)
-            {
-                this.sub = sub;
-                if (varName != null)
-                {
-                    if (!this.TryAdd(varName, out var)) throw new InvalidOperationException();
-                }
-            }
             
+
+            public DummyContext(Context parent, string name) : base(parent, name)
+            {
+                Variables = new Dictionary<string, Variable>();
+                Subcontexts = new Dictionary<string, Context>();
+            }
+
+            public override bool TryAdd(string name, out Context sub_ctxt)
+            {
+                if (!name.StartsWith("dummy")  || Subcontexts.ContainsKey(name) || Variables.ContainsKey(name)) {sub_ctxt = null; return false; }
+                sub_ctxt = new DummyContext(this, name);
+                Subcontexts.Add(name, sub_ctxt);
+                return true;                
+            }
+
         }
     }
 }
