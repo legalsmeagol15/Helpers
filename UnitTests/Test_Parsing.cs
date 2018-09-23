@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using static Parsing.Context;
+using System.Reflection;
 
 namespace UnitTests
 {
@@ -368,12 +369,9 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Variables_Updating()
         {
-
             // The spiral conch shell test.  This test is designed to fail at random times if there is a race condition or deadlock in the 
             // Variable.Update() method.
-
             int spiralVars = 15;
-
             DummyContext ctxt = new DummyContext(null, "dummy_context");
             Assert.IsTrue(ctxt.TryAdd("core", out Variable varCore));
             IList<Variable> vars = new List<Variable>() { varCore };
@@ -387,14 +385,16 @@ namespace UnitTests
                 vars.Add(newVar);
             }
             
-            varCore.Contents = "1";            
+            varCore.Contents = "1";                      
             for (int i = 1; i < vars.Count; i++)
-            {
-                Variable var = vars[i];
+            {                
+                Variable var = vars[i];                
+                int inbound = (int)var.GetType().GetField("Inbound", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(var);
+                Console.WriteLine(var.Name + " " + inbound);
+                Assert.AreEqual(inbound, 0);
                 int shouldEqual = 1 << (i-1);
                 Assert.AreEqual(var.Evaluate(), shouldEqual);
             }
-
 
         }
 

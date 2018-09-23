@@ -123,6 +123,7 @@ namespace Parsing
                     Task t = Task.Factory.StartNew(() => UpdateConcurrent(v, next));
                     tasks.Add(t);
                 }
+                
                 Task.WaitAll(tasks.ToArray());
                 ready = next;
             }
@@ -140,20 +141,20 @@ namespace Parsing
 
                     // Signal every listener that it's not ready for update yet.
                     foreach (Variable listener in v.Listeners)
-                        listener.Inbound++;
+                        lock (listener.UpdateLock)
+                            listener.Inbound++;
 
-                    // Update this var.
+                    // Update this var, but only if the new value would change.
                     IEvaluateable oldValue = v.Value, newValue = v._Contents.Evaluate();
-                    if (oldValue == null) { if (newValue == null) return; }
-                    else if (oldValue.Equals(newValue)) return;
-                    v.Value = newValue;
-
-                    // Add to the set of changed vars.
-                    lock (changedVars) changedVars.Add(v);
+                    if (oldValue != newValue || (oldValue != null && !oldValue.Equals(newValue))){
+                        v.Value = newValue;
+                        lock (changedVars)
+                            changedVars.Add(v);
+                    }
 
                     // Signal to each listener that this var no longer prevents it from updating.
                     foreach (Variable listener in v.Listeners)
-                        lock (listener)
+                        lock (listener.UpdateLock)
                             if (--listener.Inbound == 0)
                                 lock (next)
                                     next.Add(listener);
