@@ -3,6 +3,7 @@ using Parsing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using static Parsing.Context;
 
@@ -363,6 +364,40 @@ namespace UnitTests
             }
             
         }
+
+        [TestMethod]
+        public void TestParsing_Variables_Updating()
+        {
+
+            // The spiral conch shell test.  This test is designed to fail at random times if there is a race condition or deadlock in the 
+            // Variable.Update() method.
+
+            int spiralVars = 15;
+
+            DummyContext ctxt = new DummyContext(null, "dummy_context");
+            Assert.IsTrue(ctxt.TryAdd("core", out Variable varCore));
+            IList<Variable> vars = new List<Variable>() { varCore };
+            varCore.Contents = "0";
+            for (int i = 0; i < spiralVars; i++)
+            {
+                string varName = "var" + i.ToString("X5");
+                Assert.IsTrue(ctxt.TryAdd(varName, out Variable newVar));
+                string varContents = string.Join(" + ", vars.Select(v => v.Name));
+                newVar.Contents = varContents;
+                vars.Add(newVar);
+            }
+            
+            varCore.Contents = "1";            
+            for (int i = 1; i < vars.Count; i++)
+            {
+                Variable var = vars[i];
+                int shouldEqual = 1 << (i-1);
+                Assert.AreEqual(var.Evaluate(), shouldEqual);
+            }
+
+
+        }
+
 
         /// <summary>
         /// Used to test context feature.

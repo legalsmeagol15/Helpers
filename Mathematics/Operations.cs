@@ -126,6 +126,16 @@ namespace Mathematics
             return n;
         }
 
+        private static List<int> _Fibs = new List<int>() { 1, 1, 2, 3, 5, 8, 13, 21 };
+        public static int Fibonacci(int n)
+        {            
+            while (_Fibs.Count <= n)
+            {
+                int i = _Fibs.Count;
+                _Fibs.Add(_Fibs[i - 1] + _Fibs[i - 2]);
+            }
+            return _Fibs[n];
+        }
         
     }
 }
