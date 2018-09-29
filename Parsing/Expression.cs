@@ -85,45 +85,18 @@ namespace Parsing
                 int position = 0;
                 for (int i = 0; i < rawTokens.Length; i++)
                 {
-                    // Step #3a - skip whitespace
+                    // Step #3a - Set up the raw token.
                     string rawToken = rawTokens[i];
                     position += rawToken.Length;
-                    if (rawToken.Length == 0 || rawToken == "" || string.IsNullOrWhiteSpace(rawToken)) continue;
-                    
-                    // Step #3b - contexts and variables
-                    if (currentContext != null)
-                    {
-                        //A variable?
-                        Context c = currentContext;
-                        Variable v = null;
-                        while (c != null && !c.TryGet(rawToken, out v)) c = c.Parent;
-                        if (v != null) { stack.Peek().AddLast(v); terms.Add(v); currentContext = context; continue; }
 
-                        //A sub-context?
-                        if (currentContext.TryGet(rawToken, out Context subCtxt))
-                        {
-                            if (currentContext != context && stack.Peek().Count > 0 && !(stack.Peek().Last is Relation))
-                                throw new SyntaxException("Designated context \"" + rawToken + "\" cannot follow a " + stack.Peek().Last.GetType().Name + ".", string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
-                            stack.Peek().AddLast(subCtxt);
-                            currentContext = subCtxt;
-                            continue;
-                        }
-
-                        if (rawToken == ".")
-                        {
-                            if (stack.Peek().Count==0 || !(stack.Peek().Last is Context))
-                                throw new SyntaxException("Relation operator must follow a Context: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
-                            stack.Peek().AddLast(Function.Factory.CreateRelation());
-                            continue;
-                        }
-                    }
-
-                    // Step #3c - context tracking is over.  Snap the currentContext back to the original context.
-                    currentContext = context;
-
-                    // Step #3d - nesting, literals, functions, and operators.
+                    // Step #3b - nesting, literals, functions, and operators.
                     switch (rawToken)
                     {
+                        // Skip whitespace
+                        case "":
+                        case string _ when string.IsNullOrWhiteSpace(rawToken):
+                            continue;
+
                         //Nesting?
                         case "(":
                         case "[":
@@ -131,6 +104,7 @@ namespace Parsing
                             TokenList tl = new TokenList(rawToken, i);
                             stack.Peek().AddLast(tl);
                             stack.Push(tl);
+                            currentContext = context;
                             continue;
                         case ")":
                         case "]":
@@ -138,50 +112,86 @@ namespace Parsing
                             stack.Pop().Close(rawToken, i);
                             if (stack.Count == 0)
                                 throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
-
+                            currentContext = context;
                             continue;
 
                         //Sectioner?
-                        case ",":  continue;
-                        case ";":  continue;                       
+                        case ",": currentContext = context; continue;
+                        case ";": currentContext = context; continue;                       
 
 
                         //Unary operator?
                         case "-":
                         case "!":
-                        case "~":
-                            
+                        case "~":                            
                             if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator)
                                 stack.Peek().AddLast(Function.Factory.CreateNegation());
                             else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
+                            currentContext = context;
                             continue;                        
 
                         // Binary operator?
-                        case "+":  stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
-                        case "*":  stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
-                        case "/":  stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
-                        case "^":  stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
-                        case "|":  stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
-                        case "&":  stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
-                        case ":":  stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
+                        case "+":  stack.Peek().AddLast(Function.Factory.CreateAddition()); currentContext = context; continue;
+                        case "*":  stack.Peek().AddLast(Function.Factory.CreateMultiplication()); currentContext = context; continue;
+                        case "/":  stack.Peek().AddLast(Function.Factory.CreateDivision()); currentContext = context; continue;
+                        case "^":  stack.Peek().AddLast(Function.Factory.CreateExponentiation()); currentContext = context; continue;
+                        case "|":  stack.Peek().AddLast(Function.Factory.CreateOr()); currentContext = context; continue;
+                        case "&":  stack.Peek().AddLast(Function.Factory.CreateAnd()); currentContext = context; continue;
+                        case ":":  stack.Peek().AddLast(Function.Factory.CreateRange()); currentContext = context; continue;
                         
                         
 
-                        //Literal?
+                        // Literal?
                         case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2:                            
                             stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2)));
+                            currentContext = context;
                             continue;
                         case string _ when decimal.TryParse(rawToken, out decimal m):                            
                             stack.Peek().AddLast(new Number(m));
+                            currentContext = context;
                             continue;
                         case string _ when bool.TryParse(rawToken, out bool b):                            
                             stack.Peek().AddLast(Boolean.FromBool(b));
+                            currentContext = context;
                             continue;
 
-                        //Function?
+                        // Function?
                         case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f):                            
                             stack.Peek().AddLast(f);
+                            currentContext = context;
                             continue;
+
+                        // Context-dependent?
+                        case ".":
+                            if (stack.Peek().Count == 0 || !(stack.Peek().Last is Context))
+                                throw new SyntaxException("Relation operator must follow a Context: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
+                            currentContext = (Context)stack.Peek().Last;
+                            stack.Peek().AddLast(Function.Factory.CreateRelation());                            
+                            continue;
+                        case string _ when currentContext != null:
+
+                            //A variable?
+                            Variable v = null;
+                            Context varCtxt = currentContext;
+                            while (varCtxt != null && !varCtxt.TryGet(rawToken, out v)) varCtxt = varCtxt.Parent;
+                            if (v != null || currentContext.TryAdd(rawToken, out v))
+                            {
+                                stack.Peek().AddLast(v);
+                                terms.Add(v);
+                                currentContext = context;
+                                continue;
+                            }
+
+                            //A sub-context?
+                            if (currentContext.TryGet(rawToken, out Context subCtxt) || currentContext.TryAdd(rawToken, out subCtxt))
+                            {
+                                if (currentContext != context && stack.Peek().Count > 0 && !(stack.Peek().Last is Relation))
+                                    throw new SyntaxException("Designated context \"" + rawToken + "\" cannot follow a " + stack.Peek().Last.GetType().Name + ".", string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, currentContext, addedVariables);
+                                stack.Peek().AddLast(subCtxt);
+                                currentContext = subCtxt;
+                                continue;
+                            }
+                            break;
                     }
 
                     // Step #3e - we still don't know what the token is, so it's definitely a syntax error.
@@ -203,7 +213,8 @@ namespace Parsing
 
             IEvaluateable contents = rootList.Parse(functions);            
             if (contents is Clause clause) clause.Terms = terms;
-            //while (contents is Clause c && c.Inputs.Count() == 1 && c.Inputs[0] is Clause) contents = c.Inputs[0];
+            while (contents is Clause c && c.Inputs.Count() == 1 && c.IsNaked)
+                contents = c.Inputs[0];
             result.Contents = contents;           
             return result;
         }

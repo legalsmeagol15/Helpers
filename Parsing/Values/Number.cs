@@ -13,10 +13,18 @@ namespace Parsing
         public static readonly Number One = new Number(1m);
         public static readonly Number Pi = new Number((decimal)Math.PI);
         public static readonly Number E = new Number((decimal)Math.E);
+
+        /// <summary>
+        /// A unique value which functions as a 0 for most purposes, but for string concatenation (among other things) it can be tested 
+        /// against to return empty strings ("") or other null-like values.
+        /// </summary>
+        public static readonly Number Null = new Number(null);
         
 
         internal readonly decimal Value;
 
+        /// <summary>Used only to create the Number.Null</summary>
+        private Number(object nullCall) { this.Value = decimal.Zero; }
         public Number(decimal m) { this.Value = m; }
         public Number(double d) { this.Value = (decimal)d; }
         public Number(int i) { this.Value = (decimal)i; }
@@ -67,7 +75,7 @@ namespace Parsing
         public static bool operator !=(Number a, Number b) => a.Value != b.Value;
         public static bool operator !=(Number a, double d) => (double)a.Value != d;
         public static bool operator !=(Number a, decimal m) => a.Value != m;
-        public static bool operator !=(Number a, int i) => (int)a.Value != i;
+        public static bool operator !=(Number a, int i) => a.Value == (decimal)((int)a.Value) && (int)a.Value != i;
 
         public static bool operator >(Number a, Number b) => a.Value > b.Value;
         public static bool operator <(Number a, Number b) => a.Value < b.Value;

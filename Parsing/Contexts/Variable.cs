@@ -31,7 +31,7 @@ namespace Parsing
 
         public IEvaluateable Evaluate() => Value;
 
-        public IEvaluateable Value;
+        public IEvaluateable Value = Number.Null;
 
         private IEvaluateable _Contents;
         public string Contents
@@ -145,8 +145,8 @@ namespace Parsing
                             listener.Inbound++;
 
                     // Update this var, but only if the new value would change.
-                    IEvaluateable oldValue = v.Value, newValue = v._Contents.Evaluate();
-                    if (oldValue != newValue || (oldValue != null && !oldValue.Equals(newValue))){
+                    IEvaluateable oldValue = v.Value, newValue = v._Contents.Evaluate();                    
+                    if ((oldValue == null) ? (newValue != null) : !oldValue.Equals(newValue)){
                         v.Value = newValue;
                         lock (changedVars)
                             changedVars.Add(v);

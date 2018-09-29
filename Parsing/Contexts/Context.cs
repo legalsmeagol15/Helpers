@@ -74,14 +74,12 @@ namespace Parsing
         public virtual bool TryAdd(string name, out Context sub_ctxt)        {            sub_ctxt = null;            return false;        }
 
         /// <summary>
-        /// Default behavior is simply to add a new variable with the given name (and to fail if a variable with a matching name already 
-        /// exists).
+        /// Default behavior simply fails.
         /// </summary>
         public virtual bool TryAdd(string name, out Variable new_var)
         {
-            if (Variables.ContainsKey(name)) { new_var = null; return false; }
-            Variables.Add(name, new_var = new Variable(this, name));
-            return true;
+            new_var = null;
+            return false;            
         }
 
         public Variable this[string  varName] => Variables[varName];

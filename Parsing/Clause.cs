@@ -31,11 +31,12 @@ namespace Parsing
         public bool IsParenthetical => Opener == "(" && Closer == ")";
         public bool IsBracketed => Opener == "[" && Closer == "]";
         public bool IsBraced => Opener == "{" && Closer == "}";
+        public virtual bool IsNaked => Opener == "" && Closer == "";
 
         /// <summary>Call to evaluate this function or clause.</summary>
         public virtual IEvaluateable Evaluate() => (Inputs.Length == 1) ? Inputs[0].Evaluate() : this;
 
-        protected IEvaluateable[] GetEvaluatedInputs() => Inputs.Select(i => i.Evaluate()).ToArray();
+        protected IEvaluateable[] GetEvaluatedInputs() => Inputs.Select(i => i.Evaluate() ?? Number.Null).ToArray();
 
         
 

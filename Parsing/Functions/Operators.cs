@@ -24,6 +24,8 @@ namespace Parsing.Functions
 
         protected abstract string Symbol { get; }
 
+        public override bool IsNaked => false;
+
         public override string ToString() =>
             (Opener != "" ? Opener + " " : "") + string.Join(" " + Symbol + " ", (IEnumerable<IEvaluateable>)Inputs) + (Closer != "" ? " " + Closer : "");
     }
