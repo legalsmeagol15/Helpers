@@ -24,8 +24,8 @@ namespace Parsing
     /// An <see cref="Expression"/> will contain all the necessary locking information to 
     /// release locks on all referenced objects.  For every <see cref="IContext"/> where a <see cref="IVariable"/> is either referenced or 
     /// added, the Expression will maintain a lock on that <see cref="IContext"/>.  The locks are released by calling the 
-    /// <see cref="Expression.Release"/> method, which will also return the content <see cref="IEvaluateable"/>.  Also, the locks will be 
-    /// released by garbage collection, but since this is an unreliable method it would be better to call <see cref="Expression.Release"/>
+    /// <see cref="Expression.Commit"/> method, which will also return the content <see cref="IEvaluateable"/>.  Also, the locks will be 
+    /// released by garbage collection, but since this is an unreliable method it would be better to call <see cref="Expression.Commit"/>
     /// directly.
     /// </summary>
     // This method should NOT be serializable, because it is designed as an intermediary data holder that helps manage concurrency.
@@ -41,6 +41,7 @@ namespace Parsing
 
         public static Expression FromLaTeX(string latex, Context context = null) => throw new NotImplementedException();
 
+        
 
 
         /// <summary>
@@ -221,7 +222,7 @@ namespace Parsing
 
 
 
-        public IEvaluateable Release()
+        public IEvaluateable Commit()
         {
             IEvaluateable ret = this.Contents;
             if (_ChangeLock != null) { Monitor.Exit(_ChangeLock); _ChangeLock = null; }
@@ -251,7 +252,7 @@ namespace Parsing
         private const string StringPattern = "\\\"[^\\\"]+\\\"";
         private const string LeftNestPattern = @"[([{]";
         private const string RightNestPattern = @"[)\]}]";
-        private const string OperatorPattern = @"[+-/*&|^~!.]"; //@"\+\-*/&\|^~!\.;";
+        private const string OperatorPattern = @"[+-/*&|^~!\.]"; //@"\+\-*/&\|^~!\.;";
         private const string WordPattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
         private const string NumberPattern = @"(-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ) (?: [eE][\+-]?\d+)?"; //Includes support for scientific notation!
         private const string SpacePattern = @"?=\s+";

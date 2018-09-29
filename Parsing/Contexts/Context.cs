@@ -92,6 +92,16 @@ namespace Parsing
 
         public bool TryGet(string name, out Variable sub_val) => Variables.TryGetValue(name, out sub_val);
 
+        /// <summary>Forces the Variables of this <see cref="Context"/>, and those of all sub-contexts, to update their values.</summary>
+        public void Refresh()
+        {
+            foreach (Variable v in Variables.Values)
+                if (v.Listeners.Count == 0)
+                    v.Update(out ISet<Variable> _);
+            foreach (Context c in Subcontexts.Values)
+                c.Refresh();
+        }
+
         public override string ToString() => Name;
     }
 }

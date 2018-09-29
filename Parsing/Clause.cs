@@ -36,7 +36,7 @@ namespace Parsing
         /// <summary>Call to evaluate this function or clause.</summary>
         public virtual IEvaluateable Evaluate() => (Inputs.Length == 1) ? Inputs[0].Evaluate() : this;
 
-        protected IEvaluateable[] GetEvaluatedInputs() => Inputs.Select(i => i.Evaluate() ?? Number.Null).ToArray();
+        protected IEvaluateable[] GetEvaluatedInputs() => Inputs.Select(i => i.Evaluate() ?? Variable.Null).ToArray();
 
         
 

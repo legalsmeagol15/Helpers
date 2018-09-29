@@ -34,17 +34,17 @@ namespace UnitTests
             Assert.AreEqual(factory["PI"].Evaluate(), (decimal)Math.PI);
             Assert.AreEqual(factory["E"].Evaluate(), (decimal)Math.E);
 
-            IEvaluateable pi = Expression.FromString("PI", context).Release();
+            IEvaluateable pi = Expression.FromString("PI", context).Commit();
             Assert.AreEqual("PI", pi.ToString());
             Assert.AreEqual(pi.Evaluate(), (decimal)Math.PI);
-            pi = Expression.FromString("PI()", context).Release();
+            pi = Expression.FromString("PI()", context).Commit();
             Assert.AreEqual("PI", pi.ToString());
             Assert.AreEqual(pi.Evaluate(), (decimal)Math.PI);
 
-            IEvaluateable e = Expression.FromString("E", context).Release();
+            IEvaluateable e = Expression.FromString("E", context).Commit();
             Assert.AreEqual("E", e.ToString());
             Assert.AreEqual(e.Evaluate(), (decimal)Math.E);
-            e = Expression.FromString("E()", context).Release();
+            e = Expression.FromString("E()", context).Commit();
             Assert.AreEqual("E", e.ToString());
             Assert.AreEqual(e.Evaluate(), (decimal)Math.E);
 
@@ -84,15 +84,15 @@ namespace UnitTests
             Assert.IsTrue(dummyB.TryGet("dummy_context_c", out testContext));
             Assert.AreEqual(dummyC, testContext);
 
-            IEvaluateable exp = Expression.FromString("dummy_context_b.dummy_context_c.c", dummyA).Release();
+            IEvaluateable exp = Expression.FromString("dummy_context_b.dummy_context_c.c", dummyA).Commit();
             Assert.AreEqual(exp.Evaluate(), 2);
 
-            exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.b", dummyA).Release();
+            exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.b", dummyA).Commit();
             Assert.AreEqual(exp.Evaluate(), 21);
 
             // This will only work if variables are scoped for all subcontexts:
             //                                                         vvv                                 vvv
-            exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.dummy_context_c.b", dummyA).Release();
+            exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.dummy_context_c.b", dummyA).Commit();
             Assert.AreEqual(exp.Evaluate(), 21);
 
         }
@@ -123,31 +123,31 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Nesting()
         {
-            IEvaluateable e = Expression.FromString("2+1", null).Release();
+            IEvaluateable e = Expression.FromString("2+1", null).Commit();
             Assert.AreEqual("2 + 1", e.ToString());
             Assert.AreEqual(e.Evaluate(), 3);
 
-            e = Expression.FromString("3+(2+1)", null).Release();
+            e = Expression.FromString("3+(2+1)", null).Commit();
             Assert.AreEqual("3 + ( 2 + 1 )", e.ToString());
             Assert.AreEqual(e.Evaluate(), 6);
 
-            e = Expression.FromString("(3+2)+1", null).Release();
+            e = Expression.FromString("(3+2)+1", null).Commit();
             Assert.AreEqual("( 3 + 2 ) + 1", e.ToString());
             Assert.AreEqual(e.Evaluate(), 6);
 
-            e = Expression.FromString("(4+3)", null).Release();
+            e = Expression.FromString("(4+3)", null).Commit();
             Assert.AreEqual("( 4 + 3 )", e.ToString());
             Assert.AreEqual(e.Evaluate(), 7);
 
-            e = Expression.FromString("((4+3))", null).Release();
+            e = Expression.FromString("((4+3))", null).Commit();
             Assert.AreEqual("( ( 4 + 3 ) )", e.ToString());
             Assert.AreEqual(e.Evaluate(), 7);
 
-            e = Expression.FromString("((3+2))+1", null).Release();
+            e = Expression.FromString("((3+2))+1", null).Commit();
             Assert.AreEqual("( ( 3 + 2 ) ) + 1", e.ToString());
             Assert.AreEqual(e.Evaluate(), 6);
 
-            e = Expression.FromString("3+((2+1))", null).Release();
+            e = Expression.FromString("3+((2+1))", null).Commit();
             Assert.AreEqual("3 + ( ( 2 + 1 ) )", e.ToString());
             Assert.AreEqual(e.Evaluate(), 6);
         }
@@ -190,47 +190,47 @@ namespace UnitTests
         public void TestParsing_Operators()
         {
             // Addition
-            IEvaluateable e = Expression.FromString("5+4", null).Release();
+            IEvaluateable e = Expression.FromString("5+4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 9m);
-            e = Expression.FromString("5+-4", null).Release();
+            e = Expression.FromString("5+-4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 1);
-            e = Expression.FromString("-5+4", null).Release();
+            e = Expression.FromString("-5+4", null).Commit();
             Assert.AreEqual(e.Evaluate(), -1);
-            e = Expression.FromString("-5+-4", null).Release();
+            e = Expression.FromString("-5+-4", null).Commit();
             Assert.AreEqual(e.Evaluate(), -9);
 
             // Subtraction
-            e = Expression.FromString("5-4", null).Release();
+            e = Expression.FromString("5-4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 1);
-            e = Expression.FromString("5--4", null).Release();
+            e = Expression.FromString("5--4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 9);
-            e = Expression.FromString("-5-4", null).Release();
+            e = Expression.FromString("-5-4", null).Commit();
             Assert.AreEqual(e.Evaluate(), -9);
-            e = Expression.FromString("-5--4", null).Release();
+            e = Expression.FromString("-5--4", null).Commit();
             Assert.AreEqual(e.Evaluate(), -1);
 
             // Multiplication
-            e = Expression.FromString("5*4", null).Release();
+            e = Expression.FromString("5*4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 20);
-            e = Expression.FromString("5*-4", null).Release();
+            e = Expression.FromString("5*-4", null).Commit();
             Assert.AreEqual(e.Evaluate(), -20);
-            e = Expression.FromString("-5*4", null).Release();
+            e = Expression.FromString("-5*4", null).Commit();
             Assert.AreEqual(e.Evaluate(), -20);
-            e = Expression.FromString("-5*-4", null).Release();
+            e = Expression.FromString("-5*-4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 20);
 
             // Division
-            e = Expression.FromString("5/4", null).Release();
+            e = Expression.FromString("5/4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 1.25);
-            e = Expression.FromString("5/-4", null).Release();
+            e = Expression.FromString("5/-4", null).Commit();
             Assert.AreEqual(e.Evaluate(), -1.25);
-            e = Expression.FromString("-5/4", null).Release();
+            e = Expression.FromString("-5/4", null).Commit();
             Assert.AreEqual(e.Evaluate(), -1.25);
-            e = Expression.FromString("-5/-4", null).Release();
+            e = Expression.FromString("-5/-4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 1.25);
 
             // Exponentiation
-            e = Expression.FromString("2^4", null).Release();
+            e = Expression.FromString("2^4", null).Commit();
             Assert.AreEqual(e.Evaluate(), 16);
         }
 
@@ -241,7 +241,7 @@ namespace UnitTests
             Context context = new DummyContext(null, "root");
             //IEvaluateable exp1 = Expression.FromString("3", context);
             Assert.IsTrue(context.TryAdd("a", out Variable aVar));
-            IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context).Release();
+            IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context).Commit();
 
 
             MemoryStream outStream = new MemoryStream();
@@ -286,7 +286,7 @@ namespace UnitTests
             context["c"].Contents = "" + valC;
 
             // Do a simple evaluation of an expression containing a variable.
-            IEvaluateable exp = Expression.FromString("5a+3", context).Release();
+            IEvaluateable exp = Expression.FromString("5a+3", context).Commit();
             a.Update(out ISet<Variable> changed);
             Assert.AreEqual(0, changed.Count);
             Assert.AreEqual(exp.Evaluate(), (5 * valA + 3));
@@ -296,7 +296,7 @@ namespace UnitTests
 
 
             // Do a more-complex evaluation of an expression containing multiple variables.
-            exp = Expression.FromString("4a + 2b*(3c+4)", context).Release();
+            exp = Expression.FromString("4a + 2b*(3c+4)", context).Commit();
             b.Update(out changed);
             Assert.AreEqual(0, changed.Count);
             c.Update(out changed);
@@ -353,7 +353,7 @@ namespace UnitTests
 
             // Test for exceptions from self-referencing circularity.
             Assert.IsTrue(context.TryAdd("d", out Variable d));
-            Assert.AreEqual(d.Evaluate(), null);
+            Assert.AreEqual(d.Evaluate(), Variable.Null);
             try
             {
                 d.Contents = "d";
@@ -361,7 +361,7 @@ namespace UnitTests
             }
             catch (CircularDependencyException cdex)
             {
-                Assert.AreEqual(d.Evaluate(), null);
+                Assert.AreEqual(d.Evaluate(), Variable.Null);
                 Assert.AreEqual(cdex.Tested, d);
                 //Assert.AreEqual(cdex.Dependee, d);
             }
@@ -372,39 +372,52 @@ namespace UnitTests
         public void TestParsing_Variables_Updating()
         {
             // NOTE:  THESE TESTS ARE DESIGNED TO FAIL IN THE EVENT OF BAD CONCURRENCY (RACE CONDITIONS OR DEADLOCKS) IN THE VARIABLE 
-            // UPDATING ALGORITHM.
-            // They will also validate that the updating system is capable of doing 50-500 updates per millisecond, or hundreds of 
-            // thousands per second.
+            // UPDATING ALGORITHM.  They will also validate that the updating system is capable of doing 50-500 updates per millisecond, 
+            // thousands per second. Modify millisPerTest variable to change how long each test should run.
 
-            
+            int millisPerTest = 1000;  // 1000 ms = 1 second per test.
+
+            // Results for 10 minutes each (9/29/18):
+            // Line test performed 99160000 updates in 600034 ms, or 165.257302086215 per ms
+            // Ladder test performed 116012792 updates in 600000 ms, or 193.354653333333 per ms
+            // Spiral test performed 25777620 updates in 600033 ms, or 42.960337181455 per ms
+            // Pancake test performed 601510000 updates in 600006 ms, or 1002.50664160025 per ms
+            // Diamond test performed 421369780 updates in 600001 ms, or 702.281796197006 per ms
+
             System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
             stopwatch.Start();
             stopwatch.Stop();
             stopwatch.Reset();
-            DummyContext ctxt;
+            DummyContext ctxt;           
 
             // The line test.  This tests variable value propogation through a simple line.
             {
-                int lineVars = 10000;
+                int vars = 10000;
                 ctxt = new DummyContext(null, "dummy_context");
                 string name = "line" + 0.ToString("D5");
                 Assert.IsTrue(ctxt.TryAdd(name, out Variable startLine));
-                startLine.Contents = "1";
+                startLine.Contents = "-1";
                 Variable endLine = null;
-                for (int i = 1; i < lineVars; i++)
+                for (int i = 1; i <= vars; i++)
                 {
                     string newName = "line" + i.ToString("D5");
                     Assert.IsTrue(ctxt.TryAdd(newName, out endLine));
                     endLine.Contents = name;
                     name = newName;
                 }
-                Assert.AreEqual(endLine.Value, 1);
-                stopwatch.Reset();
-                stopwatch.Start();
+                Assert.AreEqual(endLine.Value, -1);
                 startLine.Contents = "2";
-                stopwatch.Stop();
                 Assert.AreEqual(endLine.Value, 2);
-                Console.WriteLine("Line test performed " + lineVars + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)lineVars / stopwatch.ElapsedMilliseconds) + " per ms");
+                long totalEdges = 0;
+                stopwatch.Restart();                
+                while (stopwatch.ElapsedMilliseconds < millisPerTest)
+                {
+                    startLine.Contents = "1";
+                    startLine.Contents = "2";
+                    totalEdges += (vars + vars);
+                }                
+                stopwatch.Stop();
+                Console.WriteLine("Line test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
             
@@ -421,6 +434,7 @@ namespace UnitTests
                 Assert.AreEqual(startA.Evaluate(), 0);
                 Assert.AreEqual(startB.Evaluate(), 0);
                 Variable endA = null, endB = null;
+                int edges = 0;
                 for (int i = 1; i < ladderVars; i++)
                 {
                     string oldNameA = newNameA, oldNameB = newNameB;
@@ -430,21 +444,29 @@ namespace UnitTests
                     Assert.IsTrue(ctxt.TryAdd(newNameB, out endB));
                     endA.Contents = oldNameA + " + " + oldNameB;
                     endB.Contents = oldNameB + " + " + oldNameA;
+                    edges += 4;
                 }
 
                 Assert.AreEqual(endA.Evaluate(), 0);
-                Assert.AreEqual(endB.Evaluate(), 0);
-                stopwatch.Restart();
-                startA.Contents = "1";
-                stopwatch.Stop();
+                Assert.AreEqual(endB.Evaluate(), 0);                
+                startA.Contents = "1";                
                 Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (ladderVars - 2)));
-                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (ladderVars - 2)));
-                stopwatch.Start();
+                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (ladderVars - 2)));                
                 startB.Contents = "1";
-                stopwatch.Stop();
                 Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (ladderVars - 1)));
                 Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (ladderVars - 1)));
-                Console.WriteLine("Ladder test performed " + (ladderVars * 4) + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)(ladderVars * 4) / stopwatch.ElapsedMilliseconds) + " per ms");
+
+                stopwatch.Restart();
+                long totalEdges = 0;
+                while (stopwatch.ElapsedMilliseconds < millisPerTest)
+                {
+                    startA.Contents = "0";
+                    startB.Contents = "0";
+                    startA.Contents = "1";
+                    startB.Contents = "1";
+                    totalEdges += (edges + edges);
+                }
+                Console.WriteLine("Ladder test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
             
@@ -455,6 +477,7 @@ namespace UnitTests
                 Assert.IsTrue(ctxt.TryAdd("core", out Variable varCore));
                 IList<Variable> vars = new List<Variable>() { varCore };
                 varCore.Contents = "0";
+                int edges = 0;
                 for (int i = 0; i < spiralVars; i++)
                 {
                     string varName = "spiral" + i.ToString("D5");
@@ -462,6 +485,7 @@ namespace UnitTests
                     string varContents = string.Join(" + ", vars.Select(v => v.Name));
                     newVar.Contents = varContents;
                     vars.Add(newVar);
+                    edges += vars.Count;
                 }
                 for (int i = 1; i < vars.Count; i++)
                 {
@@ -475,16 +499,24 @@ namespace UnitTests
                     Assert.AreEqual(var.Evaluate(), 0);
                 }
                 stopwatch.Restart();
-                varCore.Contents = "1";
-                stopwatch.Stop();
+                varCore.Contents = "1";                
                 for (int i = 1; i < vars.Count; i++)
                 {
                     Variable var = vars[i];
                     int shouldEqual = 1 << (i - 1);
                     Assert.AreEqual(var.Evaluate(), shouldEqual);
                 }
-                int spiralEdges = vars.Count * (vars.Count + 1) / 2;
-                Console.WriteLine("Spiral test performed " + spiralEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)spiralEdges / stopwatch.ElapsedMilliseconds) + " per ms");
+
+                stopwatch.Restart();
+                long totalEdges = 0;
+                while (stopwatch.ElapsedMilliseconds < millisPerTest)
+                {
+                    varCore.Contents = "0";
+                    varCore.Contents = "1";
+                    totalEdges += (edges + edges);
+                }
+                stopwatch.Stop();                
+                Console.WriteLine("Spiral test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
 
@@ -492,9 +524,8 @@ namespace UnitTests
             {
                 int pancakeVars = 2500;
                 ctxt = new DummyContext(null, "dummy_context");
-                Assert.IsTrue(ctxt.TryAdd("pancakeStart", out Variable pancakeStart));
-                int pancakeVal = 1;
-                pancakeStart.Contents = pancakeVal.ToString();
+                Assert.IsTrue(ctxt.TryAdd("pancakeStart", out Variable pancakeStart));                
+                pancakeStart.Contents = 1.ToString();
                 List<string> flatNames = new List<string>();
                 for (int i = 0; i < pancakeVars; i++)
                 {
@@ -512,15 +543,21 @@ namespace UnitTests
                 }
                 sb.Append(flatNames[flatNames.Count - 1]);
                 pancakeEnd.Contents = sb.ToString();
-                Assert.AreEqual(pancakeEnd.Evaluate(), pancakeVal * pancakeVars);
+                Assert.AreEqual(pancakeEnd.Evaluate(), 1 * pancakeVars);
+                pancakeStart.Contents = 2.ToString();
+                Assert.AreEqual(pancakeStart.Evaluate(), 2);
+                Assert.AreEqual(pancakeEnd.Evaluate(), 2 * pancakeVars);
+                int edges = pancakeVars * 2;
                 stopwatch.Restart();
-                pancakeVal = 2;
-                pancakeStart.Contents = pancakeVal.ToString();
-                stopwatch.Stop();
-                Assert.AreEqual(pancakeStart.Evaluate(), pancakeVal);
-                Assert.AreEqual(pancakeEnd.Evaluate(), pancakeVal * pancakeVars);
-                int pancakeEdges = pancakeVars * 2;
-                Console.WriteLine("Pancake test performed " + pancakeEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)pancakeEdges / stopwatch.ElapsedMilliseconds) + " per ms");
+                long totalEdges = 0;
+                while (stopwatch.ElapsedMilliseconds < millisPerTest)
+                {
+                    pancakeStart.Contents = "1";
+                    pancakeStart.Contents = "2";
+                    totalEdges += (edges + edges);
+                }
+                stopwatch.Stop();                
+                Console.WriteLine("Pancake test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
 
@@ -561,16 +598,22 @@ namespace UnitTests
                     Assert.IsTrue(ctxt.TryAdd("diamond" + (i++).ToString("D8"), out Variable v));
                     v.Contents = vLeft.Name + " - " + vRight.Name;
                     diamond.AddLast(v);
-                    edges += 2;
+                    //edges += 2;
                 }
-                Variable diamondEnd = diamond.First();
-                
+                edges += middle.Count;
+                Variable diamondEnd = diamond.First();                
+                Assert.AreEqual(diamondEnd.Evaluate(), 0);                
+                diamondStart.Contents = "2";                
                 Assert.AreEqual(diamondEnd.Evaluate(), 0);
                 stopwatch.Restart();
-                diamondStart.Contents = "2";
-                stopwatch.Stop();
-                Assert.AreEqual(diamondEnd.Evaluate(), 0);
-                Console.WriteLine("Diamond test performed " + edges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)edges / stopwatch.ElapsedMilliseconds) + " per ms");
+                long totalEdges = 0;
+                while (stopwatch.ElapsedMilliseconds < millisPerTest)
+                {
+                    diamondStart.Contents = "1";
+                    diamondStart.Contents = "2";
+                    totalEdges += (edges + edges);
+                }                         
+                Console.WriteLine("Diamond test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
 
 
             }

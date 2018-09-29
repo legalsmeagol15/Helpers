@@ -20,6 +20,8 @@ namespace Parsing
     public class Variable : IEvaluateable
     {
         internal static readonly int SINGLE_THREAD_THRESHOLD = 5;
+        public static readonly IEvaluateable N = new Clause("", "", new IEvaluateable[] { Number.Zero });
+        public static readonly Number Null = new Number(0m);
 
         [field: NonSerialized]
         internal static readonly object ModifyLock = new object();
@@ -31,7 +33,7 @@ namespace Parsing
 
         public IEvaluateable Evaluate() => Value;
 
-        public IEvaluateable Value = Number.Null;
+        public IEvaluateable Value = Null;
 
         private IEvaluateable _Contents;
         public string Contents
@@ -61,7 +63,7 @@ namespace Parsing
                 _Contents = exp.Contents;
                 foreach (Variable newTerm in GetTermsOf(_Contents)) lock (newTerm) newTerm.Listeners.Add(this);
             }
-            exp.Release();
+            exp.Commit();
 
             Update(out _);
         }
@@ -110,7 +112,7 @@ namespace Parsing
 
 
         public IEvaluateable Update(out ISet<Variable> changed)
-        {
+        {            
             HashSet<Variable> changedVars = new HashSet<Variable>();
             HashSet<Variable> ready = new HashSet<Variable>() { this };                   
             
