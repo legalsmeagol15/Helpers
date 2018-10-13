@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Graphs;
-using static Parsing.Context;
 
 namespace Parsing.Functions
 {

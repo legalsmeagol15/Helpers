@@ -54,46 +54,25 @@ namespace UnitTests
         public void TestParsing_Contexts()
         {
             DummyContext dummyA = new DummyContext(null, "dummy_context_a");
-            Assert.IsTrue(dummyA.TryAdd("dummy_context_b", out Context dummyB));
-            Assert.IsTrue(dummyB.TryAdd("dummy_context_c", out Context dummyC));
-
-
-            Variable varA, varB, varC;
-            Assert.IsTrue(dummyA.TryAdd("a", out varA));
-            Assert.IsTrue(dummyB.TryAdd("b", out varB));
-            Assert.IsTrue(dummyC.TryAdd("c", out varC));
-
-            Assert.IsTrue(dummyA.TryGet("a", out varA));
-            Assert.IsTrue(dummyB.TryGet("b", out varB));
-            Assert.IsTrue(dummyC.TryGet("c", out varC));
-
+            Variable varA = (Variable)Expression.FromString("a", dummyA).Commit();
+            Variable varB = (Variable) Expression.FromString("dummy_context_b.b", dummyA).Commit();
+            Variable varC = (Variable)Expression.FromString("dummy_context_b.dummy_context_c.c").Commit();
+            
             varA.Contents = "10";
             varB.Contents = "5";
             varC.Contents = "2";
-            Assert.IsFalse(dummyB.TryGet("a", out Variable testA));
-            Assert.IsNull(testA);
-            varB.Contents = "a + 9"; // Context "context-b" has no reference to "a", but the parent does.
-            Assert.IsFalse(dummyB.TryGet("a", out testA));
-            Assert.IsNull(testA);
-            Assert.AreEqual(varB.Evaluate(), 19);
-
-
-            Assert.IsTrue(dummyA.TryGet("dummy_context_b", out Context testContext));
-            Assert.AreEqual(dummyB, testContext);
-
-            Assert.IsTrue(dummyB.TryGet("dummy_context_c", out testContext));
-            Assert.AreEqual(dummyC, testContext);
+            
 
             IEvaluateable exp = Expression.FromString("dummy_context_b.dummy_context_c.c", dummyA).Commit();
-            Assert.AreEqual(exp.Evaluate(), 2);
+            Assert.AreEqual(exp, 2);
 
-            exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.b", dummyA).Commit();
+            exp = Expression.FromString("a + dummy_context_b.b + dummy_context_b.dummy_context_c.c", dummyA).Commit();
             Assert.AreEqual(exp.Evaluate(), 21);
 
             // This will only work if variables are scoped for all subcontexts:
             //                                                         vvv                                 vvv
             exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.dummy_context_c.b", dummyA).Commit();
-            Assert.AreEqual(exp.Evaluate(), 21);
+            Assert.AreEqual(exp.Evaluate(), 7);
 
         }
 
@@ -239,8 +218,8 @@ namespace UnitTests
         public void TestParsing_Serialization()
         {
             Context context = new DummyContext(null, "root");
-            //IEvaluateable exp1 = Expression.FromString("3", context);
-            Assert.IsTrue(context.TryAdd("a", out Variable aVar));
+            Variable aOrigin = (Variable)Expression.FromString("a", context).Commit();
+            aOrigin.Contents = "2";
             IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context).Commit();
 
 
@@ -253,11 +232,9 @@ namespace UnitTests
             formatter = new BinaryFormatter();
             DummyContext deser = (DummyContext)formatter.Deserialize(outStream);
 
-            Assert.IsTrue(deser.TryGet("a", out Variable aPrime));
-            Assert.AreEqual(aVar.Name, aPrime.Name);
-            Assert.AreEqual(aVar.Evaluate(), aPrime.Evaluate());
-
-
+            Variable aPrime = (Variable)Expression.FromString("a", deser).Commit();
+            Assert.AreEqual(aPrime.Name, "a");
+            Assert.AreEqual(aPrime.Evaluate(), 2);
 
         }
 
@@ -265,21 +242,23 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Variables()
         {
-            Context context = new DummyContext(null, "dummyContext Test_Parsing_Variables");
-            Variable a, b, c;
-            Assert.IsTrue(context.TryAdd("a", out a));
-            Assert.IsFalse(context.TryAdd("a", out Variable _));
-            Assert.IsTrue(context.TryAdd("b", out b));
-            Assert.IsTrue(context.TryAdd("c", out c));
-            Assert.IsTrue(context.TryGet("c", out Variable c2));
-            Assert.IsTrue(ReferenceEquals(c, c2));
+            Context context = new DummyContext(null, "dummyContext Test_Parsing_Variables");            
+            Variable varA = (Variable)Expression.FromString("a", context).Commit();
+            Variable varB = (Variable)Expression.FromString("b", context).Commit();
+            Variable varC = (Variable)Expression.FromString("c", context).Commit();
+            Variable varA2 = (Variable)Expression.FromString("a", context).Commit();
+            Variable varB2 = (Variable)Expression.FromString("b", context).Commit();
+            Variable varC2 = (Variable)Expression.FromString("c", context).Commit();
+            Assert.IsTrue(ReferenceEquals(varA, varA2));
+            Assert.IsTrue(ReferenceEquals(varB, varB2));
+            Assert.IsTrue(ReferenceEquals(varB, varB2));
 
-            Assert.AreEqual(a.Context, context);
-            Assert.AreEqual(b.Context, context);
-            Assert.AreEqual(c.Context, context);
-            Assert.AreEqual(context["a"], a);
-            Assert.AreEqual(context["b"], b);
-            Assert.AreEqual(context["c"], c);
+            Assert.AreEqual(varA.Context, context);
+            Assert.AreEqual(varB.Context, context);
+            Assert.AreEqual(varC.Context, context);
+            Assert.AreEqual(context["a"], varA);
+            Assert.AreEqual(context["b"], varB);
+            Assert.AreEqual(context["c"], varC);
             int valA = 1, valB = 2, valC = 3;
             context["a"].Contents = "" + valA;
             context["b"].Contents = "" + valB;
@@ -287,7 +266,7 @@ namespace UnitTests
 
             // Do a simple evaluation of an expression containing a variable.
             IEvaluateable exp = Expression.FromString("5a+3", context).Commit();
-            a.Update(out ISet<Variable> changed);
+            varA.Update(out ISet<Variable> changed);
             Assert.AreEqual(0, changed.Count);
             Assert.AreEqual(exp.Evaluate(), (5 * valA + 3));
             Assert.AreEqual(exp.Evaluate(), 8);
@@ -297,9 +276,9 @@ namespace UnitTests
 
             // Do a more-complex evaluation of an expression containing multiple variables.
             exp = Expression.FromString("4a + 2b*(3c+4)", context).Commit();
-            b.Update(out changed);
+            varB.Update(out changed);
             Assert.AreEqual(0, changed.Count);
-            c.Update(out changed);
+            varC.Update(out changed);
             Assert.AreEqual(0, changed.Count);
             Assert.AreEqual(exp.Evaluate(), (4 * valA) + ((2 * valB) * (3 * valC + 4)));
             Assert.AreEqual(exp.Evaluate(), 56);
@@ -307,28 +286,28 @@ namespace UnitTests
 
             // Change a variable's stored value, and test.
             valA = 5;
-            a.Contents = "" + new Number(valA);
+            varA.Contents = "" + new Number(valA);
             Assert.AreEqual(exp.Evaluate(), 4 * valA + 2 * valB * (3 * valC + 4));
             Assert.AreEqual(exp.Evaluate(), 72);
 
 
             // Change a variable's contents to another expression.
-            b.Contents = "4+(2*3)";
-            Assert.AreEqual(b.Evaluate(), valB = 10);
+            varB.Contents = "4+(2*3)";
+            Assert.AreEqual(varB.Evaluate(), valB = 10);
             Assert.AreEqual(exp.Evaluate(), 4 * valA + 2 * valB * (3 * valC + 4));
             Assert.AreEqual(exp.Evaluate(), 280);
 
 
 
             // Change a variable's contents to an expression based on another variable.
-            b.Contents = "4a-7";
+            varB.Contents = "4a-7";
             Assert.AreEqual(exp.Evaluate(), 4 * valA + 2 * (valB = 4 * valA - 7) * (3 * valC + 4));
             Assert.AreEqual(exp.Evaluate(), 358);
-            Assert.AreEqual(b.Evaluate(), valB);
+            Assert.AreEqual(varB.Evaluate(), valB);
 
 
             // Now, change the value of the 'a' and see if the change propogates up through the two expressions.
-            a.Contents = "-1";
+            varA.Contents = "-1";
             valA = -1;
             valB = 4 * valA - 7;
             int compare = 4 * valA + 2 * valB * (3 * valC + 4);
@@ -339,7 +318,7 @@ namespace UnitTests
             // Now, create a circular dependency and test for an exception.
             try
             {
-                a.Contents = "2b-14";
+                varA.Contents = "2b-14";
                 Assert.Fail();
             }
             catch (CircularDependencyException cdex)
@@ -347,22 +326,22 @@ namespace UnitTests
                 // Make sure state wasn't actually changed.
                 Assert.AreEqual(exp.Evaluate(), compare);
                 Assert.AreEqual(exp.Evaluate(), -290);
-                Assert.AreEqual(cdex.Tested, a);
+                Assert.AreEqual(cdex.Tested, varA);
                 // Assert.AreEqual(cdex.Dependee, b);
             }
 
             // Test for exceptions from self-referencing circularity.
-            Assert.IsTrue(context.TryAdd("d", out Variable d));
-            Assert.AreEqual(d.Evaluate(), Variable.Null);
+            Variable varD = (Variable)Expression.FromString("d", context).Commit();            
+            Assert.AreEqual(varD.Evaluate(), Variable.Null);
             try
             {
-                d.Contents = "d";
+                varD.Contents = "d";
                 Assert.Fail();
             }
             catch (CircularDependencyException cdex)
             {
-                Assert.AreEqual(d.Evaluate(), Variable.Null);
-                Assert.AreEqual(cdex.Tested, d);
+                Assert.AreEqual(varD.Evaluate(), Variable.Null);
+                Assert.AreEqual(cdex.Tested, varD);
                 //Assert.AreEqual(cdex.Dependee, d);
             }
 
@@ -395,13 +374,15 @@ namespace UnitTests
                 int vars = 10000;
                 ctxt = new DummyContext(null, "dummy_context");
                 string name = "line" + 0.ToString("D5");
-                Assert.IsTrue(ctxt.TryAdd(name, out Variable startLine));
+                Expression.FromString(name, ctxt);
+                Variable startLine = ctxt[name];                
                 startLine.Contents = "-1";
                 Variable endLine = null;
                 for (int i = 1; i <= vars; i++)
                 {
                     string newName = "line" + i.ToString("D5");
-                    Assert.IsTrue(ctxt.TryAdd(newName, out endLine));
+                    Expression.FromString(newName, ctxt);
+                    endLine = ctxt[newName];                    
                     endLine.Contents = name;
                     name = newName;
                 }
@@ -427,8 +408,8 @@ namespace UnitTests
                 ctxt = new DummyContext(null, "dummy_context");
                 string newNameA = "ladderA" + 0.ToString("D5");
                 string newNameB = "ladderB" + 0.ToString("D5");
-                Assert.IsTrue(ctxt.TryAdd(newNameA, out Variable startA));
-                Assert.IsTrue(ctxt.TryAdd(newNameB, out Variable startB));
+                Variable startA = (Variable)Expression.FromString(newNameA, ctxt).Commit();
+                Variable startB = (Variable)Expression.FromString(newNameB, ctxt).Commit();
                 startA.Contents = "0";
                 startB.Contents = "0";
                 Assert.AreEqual(startA.Evaluate(), 0);
@@ -440,8 +421,8 @@ namespace UnitTests
                     string oldNameA = newNameA, oldNameB = newNameB;
                     newNameA = "ladderA" + i.ToString("D5");
                     newNameB = "ladderB" + i.ToString("D5");
-                    Assert.IsTrue(ctxt.TryAdd(newNameA, out endA));
-                    Assert.IsTrue(ctxt.TryAdd(newNameB, out endB));
+                    endA = (Variable)Expression.FromString(newNameA, ctxt).Commit();
+                    endB = (Variable)Expression.FromString(newNameB, ctxt).Commit();
                     endA.Contents = oldNameA + " + " + oldNameB;
                     endB.Contents = oldNameB + " + " + oldNameA;
                     edges += 4;
@@ -474,14 +455,14 @@ namespace UnitTests
             {
                 int spiralVars = 30;
                 ctxt = new DummyContext(null, "dummy_context");
-                Assert.IsTrue(ctxt.TryAdd("core", out Variable varCore));
+                Variable varCore = (Variable)Expression.FromString("core", ctxt).Commit();                
                 IList<Variable> vars = new List<Variable>() { varCore };
                 varCore.Contents = "0";
                 int edges = 0;
                 for (int i = 0; i < spiralVars; i++)
                 {
                     string varName = "spiral" + i.ToString("D5");
-                    Assert.IsTrue(ctxt.TryAdd(varName, out Variable newVar));
+                    Variable newVar = (Variable)Expression.FromString(varName, ctxt).Commit();                    
                     string varContents = string.Join(" + ", vars.Select(v => v.Name));
                     newVar.Contents = varContents;
                     vars.Add(newVar);
@@ -524,17 +505,17 @@ namespace UnitTests
             {
                 int pancakeVars = 2500;
                 ctxt = new DummyContext(null, "dummy_context");
-                Assert.IsTrue(ctxt.TryAdd("pancakeStart", out Variable pancakeStart));                
+                Variable pancakeStart = (Variable)Expression.FromString("pancakeStart", ctxt).Commit();                
                 pancakeStart.Contents = 1.ToString();
                 List<string> flatNames = new List<string>();
                 for (int i = 0; i < pancakeVars; i++)
                 {
-                    Assert.IsTrue(ctxt.TryAdd("pancake" + i.ToString("D5"), out Variable newVar));
+                    Variable newVar = (Variable)Expression.FromString("pancake" + i.ToString("D5"), ctxt).Commit();                    
                     flatNames.Add(newVar.Name);
                     newVar.Contents = "pancakeStart";
                     Assert.AreEqual(newVar.Evaluate(), 1);
                 }
-                Assert.IsTrue(ctxt.TryAdd("pancakeEnd", out Variable pancakeEnd));
+                Variable pancakeEnd = (Variable)Expression.FromString("pancakeEnd", ctxt).Commit();                
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < flatNames.Count - 1; i++)
                 {
@@ -571,7 +552,7 @@ namespace UnitTests
                 long edges = 0;
                 for (i = 0; i < diamondWidth; i++)
                 {
-                    Assert.IsTrue(ctxt.TryAdd("diamond" + (i).ToString("D8"), out Variable v));                    
+                    Variable v = (Variable)Expression.FromString("diamond" + i.ToString("D8")).Commit();
                     middle.Add(v);
                 }
                 LinkedList<Variable> diamond = new LinkedList<Variable>(middle);
@@ -580,8 +561,8 @@ namespace UnitTests
                     Variable vLeft = diamond.First();
                     diamond.RemoveFirst();
                     Variable vRight = diamond.First();
-                    diamond.RemoveFirst();                    
-                    Assert.IsTrue(ctxt.TryAdd("diamond" + (i++).ToString("D8"), out Variable v));
+                    diamond.RemoveFirst();
+                    Variable v = (Variable)Expression.FromString("diamond" + (i++).ToString("D8")).Commit();                    
                     vLeft.Contents = v.Name;
                     vRight.Contents = v.Name;
                     diamond.AddLast(v);
@@ -595,7 +576,7 @@ namespace UnitTests
                     diamond.RemoveFirst();
                     Variable vRight = diamond.First();
                     diamond.RemoveFirst();
-                    Assert.IsTrue(ctxt.TryAdd("diamond" + (i++).ToString("D8"), out Variable v));
+                    Variable v = (Variable)Expression.FromString("diamond" + (i++).ToString("D8")).Commit();                    
                     v.Contents = vLeft.Name + " - " + vRight.Name;
                     diamond.AddLast(v);
                     //edges += 2;
@@ -628,29 +609,32 @@ namespace UnitTests
         {
 
 
-            public DummyContext(Context parent, string name) : base(parent, name)
+            public DummyContext(Context parent, string name) : base(parent, name, null) { }
+
+            protected override bool TryCreateContext(string name, out Context sub_ctxt)
             {
-                Variables = new Dictionary<string, Variable>();
-                Subcontexts = new Dictionary<string, Context>();
+                name = name.ToLower();
+                if (name.StartsWith("dummy_context_"))
+                {
+                    sub_ctxt = new DummyContext(this, name);
+                    return true;
+                }
+                sub_ctxt = null;
+                return false;
             }
 
-            public override bool TryAdd(string name, out Context sub_ctxt)
+            protected override bool TryCreateVariable(string name, out Variable v)
             {
-                if (!name.StartsWith("dummy") || Subcontexts.ContainsKey(name) || Variables.ContainsKey(name)) { sub_ctxt = null; return false; }
-                sub_ctxt = new DummyContext(this, name);
-                Subcontexts.Add(name, sub_ctxt);
+                name = name.ToLower();                
+                v = new Variable(this, name);
                 return true;
             }
 
-            public override bool TryAdd(string name, out Variable new_var)
+            protected override bool TryCreateVariableContext(string name, out Variable v)
             {
-                if (name.ToLower().Contains("context")) { new_var = null; return false; }
-                if (this.Variables.ContainsKey(name)) { new_var = null; return false; }
-                new_var = new Variable(this, name);
-                Variables.Add(name, new_var);
-                return true;
+                v = null;
+                return false;
             }
-
         }
     }
 }

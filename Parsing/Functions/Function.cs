@@ -18,11 +18,11 @@ namespace Parsing
     [Serializable]
     public abstract class Function : Clause
     {
-        public static Function.Factory Functions = Function.Factory.StandardFactory;
+        //public static Function.Factory Functions = Function.Factory.StandardFactory;
 
 
-        protected internal VariableDomain Domain { get; private set; }
-        protected internal VariableDomain CoDomain { get; private set; }
+        //protected internal VariableDomain Domain { get; private set; }
+        //protected internal VariableDomain CoDomain { get; private set; }
 
         public virtual string Name => this.GetType().Name;
 
@@ -311,13 +311,11 @@ namespace Parsing
 
         #endregion
 
-        [Serializable]
-        protected internal class VariableDomain
-        {
-
-        }
+        
 
     }
+
+    
 
 
 

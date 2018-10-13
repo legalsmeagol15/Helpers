@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Parsing.Context;
 using static Parsing.Function;
 
 namespace Parsing.Functions
@@ -389,10 +388,18 @@ namespace Parsing.Functions
                     foreach (Context ctxt in r._Chain)
                         this._Chain.AddLast(ctxt);                    
                     this.Variable = r.Variable; break;
+                case Variable v:
+                    // If this is the end of the relation, we've found the Variable.  Example:  line.length
+                    if (node.Next == null || !(node.Next.Contents is Relation))
+                        this.Variable = v;
+                    // Otherwise, the Variable is functioning as a Context.  Example: line.point0.x
+                    else if (v.Context != null)
+                        this._Chain.AddLast(v.Context);
+                    else
+                        throw new InvalidOperationException(string.Format("Relation operator (.) points to a %s as a %s, but the %s has no %s.", typeof(Variable).Name, typeof(Context).Name, typeof(Variable).Name, typeof(Context).Name));
+                    break;
                 case Context c:
                     this._Chain.AddLast(c); break;
-                case Variable v:
-                    this.Variable = v; break;
                 default:
                     throw new InvalidOperationException("Relation operator (.) must be followed by another "
                         + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");

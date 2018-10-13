@@ -11,15 +11,13 @@ namespace Parsing
     {
         public readonly string Entry;
         public readonly int Position;
-        public readonly IEnumerable<Variable> AddedVariables;
-        public readonly Context LastContext;
-        internal SyntaxException(string message, string entry, int position, Context lastContext, IEnumerable<Variable> addedVariables) : this(message, entry, position, lastContext,addedVariables, null) { }
-        internal SyntaxException(string message, string entry, int position, Context lastContext, IEnumerable<Variable> addedVariables, Exception inner) : base(message, inner)
+        public readonly string Context;
+        internal SyntaxException(string message, string entry, int position, string context) : this(message, entry, position, context,null) { }
+        internal SyntaxException(string message, string entry, int position, string context, Exception inner) : base(message, inner)
         {
             this.Entry = entry;
             this.Position = position;
-            this.LastContext = lastContext;
-            this.AddedVariables = addedVariables;
+            this.Context = context;            
         }
     }
 
