@@ -30,6 +30,17 @@ namespace Parsing
 
         public string Name { get; }
 
+        public Variable Declare(string name)
+        {
+            lock (Variable.ModifyLock)
+            {
+                if (Variables.ContainsKey(name)) throw new DuplicateVariableException(this, Variables[name], name);
+                Variable v = new Variable(this, name);
+                Variables.Add(name, v);
+                return v;
+            }
+        }
+
         internal bool TryAddAsContext(string name, out Context c, out Variable v)
         {
             if (Variables.TryGetValue(name, out Variable _) || Subcontexts.TryGetValue(name, out Context _)) { c = null; v = null; return false; }
@@ -66,6 +77,18 @@ namespace Parsing
             Subcontexts.Add(name, sub_ctxt);
             return true;
         }
+
+        /// <summary>Returns whether the given child is a descendant of (or identical to) the given parent.</summary>        
+        public static bool IsDescendant(Context parent, Context child)
+        {
+            while (child != null)
+            {
+                if (child.Equals(parent)) return true;
+                child = child.Parent;
+            }
+            return false;
+        }
+
         protected abstract bool TryCreateContext(string name, out Context sub_ctxt);
 
         internal bool  TryCreateFunction(string rawToken, out Function f) => Functions.TryCreateFunction(rawToken, out f);
@@ -90,80 +113,21 @@ namespace Parsing
         internal bool TryGet(string name, out Variable v) => Variables.TryGetValue(name, out v);
 
         internal bool TryGet(string name, out Context sub_ctxt) => Subcontexts.TryGetValue(name, out sub_ctxt);
+
+        public class DuplicateVariableException : Exception
+        {
+            public readonly Context Context;
+            public readonly Variable Existing;
+            public readonly string Name;
+            public DuplicateVariableException(Context context, Variable existing, string name)
+                : base("Duplicate variable name: \"" + name + "\".")
+            {
+                this.Context = context;
+                this.Existing = existing;
+                this.Name = name;
+            }
+        }
     }
 
     
-    //    /// <summary>
-    //    /// Deletes the given <see cref="Variable"/> from this <see cref="Context"/>, if the <see cref="Variable"/> exists on this 
-    //    /// <see cref="Context"/> and has no listeners.
-    //    /// </summary>
-    //    public virtual bool TryDelete(Variable v)
-    //    {
-    //        if (!Variables.TryGetValue(v.Name, out Variable vExisting))
-    //            return false;
-    //        if (!ReferenceEquals(v, vExisting))
-    //            return false;
-    //        if (v.Listeners.Any())
-    //            return false;
-    //        v.Context = null;
-    //        v.Contents = null;
-    //        return true;
-    //    }
-
-    //    /// <summary>
-    //    /// Deletes the given <see cref="Context"/> from this <see cref="Context"/>, if the sub-context (and all of its sub-contexts) has 
-    //    /// no listeners.
-    //    /// </summary>
-    //    public virtual bool TryDelete(Context sub_ctxt)
-    //    {
-    //        if (!Subcontexts.TryGetValue(sub_ctxt.Name, out Context cExisting))
-    //            return false;
-    //        if (!ReferenceEquals(sub_ctxt, cExisting))
-    //            return false;
-    //        if (HasListeners(sub_ctxt))
-    //            return false;
-    //        return true;
-
-    //        bool HasListeners(Context ctxt)
-    //        {
-    //            if (ctxt.Variables.Values.Any(v => v.Listeners.Any())) return true;
-    //            if (ctxt.Subcontexts.Values.Any(s => HasListeners(s))) return true;
-    //            return false;
-    //        }
-    //    }
-
-    //    /// <summary>Default behavior is simply to fail to add a new sub-context.</summary>
-    //    public virtual bool TryAdd(string name, out Context sub_ctxt)        {            sub_ctxt = null;            return false;        }
-
-    //    /// <summary>
-    //    /// Default behavior simply fails.
-    //    /// </summary>
-    //    public virtual bool TryAdd(string name, out Variable new_var)
-    //    {
-    //        new_var = null;
-    //        return false;            
-    //    }
-
-    //    public Variable this[string  varName] => Variables[varName];
-
-    //    public bool TryGet(string name, out Context sub_obj)
-    //    {
-    //        if (Subcontexts == null) { sub_obj = null; return false; }
-    //        return Subcontexts.TryGetValue(name, out sub_obj);
-    //    }
-
-    //    public bool TryGet(string name, out Variable sub_val) => Variables.TryGetValue(name, out sub_val);
-
-    //    /// <summary>Forces the Variables of this <see cref="Context"/>, and those of all sub-contexts, to update their values.</summary>
-    //    public void Refresh()
-    //    {
-    //        foreach (Variable v in Variables.Values)
-    //            if (v.Listeners.Count == 0)
-    //                v.Update(out ISet<Variable> _);
-    //        foreach (Context c in Subcontexts.Values)
-    //            c.Refresh();
-    //    }
-
-    //    public override string ToString() => Name;
-    //}
 }

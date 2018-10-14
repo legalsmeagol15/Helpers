@@ -7,11 +7,10 @@ using System.Threading.Tasks;
 
 namespace Parsing
 {
-
+    
     [Serializable]
     public class Clause : IEvaluateable
     {
-
         internal string Opener;
         internal string Closer;
         public ISet<Variable> Terms { get; internal set; }

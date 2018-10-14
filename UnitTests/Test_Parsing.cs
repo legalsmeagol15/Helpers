@@ -242,13 +242,23 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Variables()
         {
-            Context context = new DummyContext(null, "dummyContext Test_Parsing_Variables");            
-            Variable varA = (Variable)Expression.FromString("a", context).Commit();
-            Variable varB = (Variable)Expression.FromString("b", context).Commit();
-            Variable varC = (Variable)Expression.FromString("c", context).Commit();
-            Variable varA2 = (Variable)Expression.FromString("a", context).Commit();
-            Variable varB2 = (Variable)Expression.FromString("b", context).Commit();
-            Variable varC2 = (Variable)Expression.FromString("c", context).Commit();
+            Context context = new DummyContext(null, "dummyContext Test_Parsing_Variables");
+            Variable varA = context.Declare("a");
+            Variable varB = context.Declare("b");
+            Variable varC = context.Declare("c");
+            Variable varA2 = context["a"];
+            Variable varB2 = context["b"];
+            Variable varC2 = context["c"];
+            try
+            {
+                context.Declare("a");
+                Assert.Fail();
+            } catch (DuplicateVariableException dvex)
+            {
+                Assert.AreEqual(dvex.Context, context);
+                Assert.AreEqual(dvex.Existing, context["a"]);
+                Assert.AreEqual(dvex.Name, "a");
+            }
             Assert.IsTrue(ReferenceEquals(varA, varA2));
             Assert.IsTrue(ReferenceEquals(varB, varB2));
             Assert.IsTrue(ReferenceEquals(varB, varB2));
@@ -331,7 +341,7 @@ namespace UnitTests
             }
 
             // Test for exceptions from self-referencing circularity.
-            Variable varD = (Variable)Expression.FromString("d", context).Commit();            
+            Variable varD = context.Declare("d");
             Assert.AreEqual(varD.Evaluate(), Variable.Null);
             try
             {
@@ -408,8 +418,8 @@ namespace UnitTests
                 ctxt = new DummyContext(null, "dummy_context");
                 string newNameA = "ladderA" + 0.ToString("D5");
                 string newNameB = "ladderB" + 0.ToString("D5");
-                Variable startA = (Variable)Expression.FromString(newNameA, ctxt).Commit();
-                Variable startB = (Variable)Expression.FromString(newNameB, ctxt).Commit();
+                Variable startA = ctxt.Declare(newNameA);
+                Variable startB = ctxt.Declare(newNameB);
                 startA.Contents = "0";
                 startB.Contents = "0";
                 Assert.AreEqual(startA.Evaluate(), 0);
@@ -421,8 +431,8 @@ namespace UnitTests
                     string oldNameA = newNameA, oldNameB = newNameB;
                     newNameA = "ladderA" + i.ToString("D5");
                     newNameB = "ladderB" + i.ToString("D5");
-                    endA = (Variable)Expression.FromString(newNameA, ctxt).Commit();
-                    endB = (Variable)Expression.FromString(newNameB, ctxt).Commit();
+                    endA = ctxt.Declare(newNameA);
+                    endB = ctxt.Declare(newNameB);
                     endA.Contents = oldNameA + " + " + oldNameB;
                     endB.Contents = oldNameB + " + " + oldNameA;
                     edges += 4;
@@ -455,14 +465,14 @@ namespace UnitTests
             {
                 int spiralVars = 30;
                 ctxt = new DummyContext(null, "dummy_context");
-                Variable varCore = (Variable)Expression.FromString("core", ctxt).Commit();                
+                Variable varCore = ctxt.Declare("core");
                 IList<Variable> vars = new List<Variable>() { varCore };
                 varCore.Contents = "0";
                 int edges = 0;
                 for (int i = 0; i < spiralVars; i++)
                 {
                     string varName = "spiral" + i.ToString("D5");
-                    Variable newVar = (Variable)Expression.FromString(varName, ctxt).Commit();                    
+                    Variable newVar = ctxt.Declare(varName);
                     string varContents = string.Join(" + ", vars.Select(v => v.Name));
                     newVar.Contents = varContents;
                     vars.Add(newVar);
@@ -505,17 +515,17 @@ namespace UnitTests
             {
                 int pancakeVars = 2500;
                 ctxt = new DummyContext(null, "dummy_context");
-                Variable pancakeStart = (Variable)Expression.FromString("pancakeStart", ctxt).Commit();                
+                Variable pancakeStart = ctxt.Declare("pancakeStart");
                 pancakeStart.Contents = 1.ToString();
                 List<string> flatNames = new List<string>();
                 for (int i = 0; i < pancakeVars; i++)
                 {
-                    Variable newVar = (Variable)Expression.FromString("pancake" + i.ToString("D5"), ctxt).Commit();                    
+                    Variable newVar = ctxt.Declare("pancake" + i.ToString("D5"));
                     flatNames.Add(newVar.Name);
                     newVar.Contents = "pancakeStart";
                     Assert.AreEqual(newVar.Evaluate(), 1);
                 }
-                Variable pancakeEnd = (Variable)Expression.FromString("pancakeEnd", ctxt).Commit();                
+                Variable pancakeEnd = ctxt.Declare("pancakeEnd");
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < flatNames.Count - 1; i++)
                 {
@@ -552,7 +562,7 @@ namespace UnitTests
                 long edges = 0;
                 for (i = 0; i < diamondWidth; i++)
                 {
-                    Variable v = (Variable)Expression.FromString("diamond" + i.ToString("D8")).Commit();
+                    Variable v = ctxt.Declare("diamond" + i.ToString("D8"));
                     middle.Add(v);
                 }
                 LinkedList<Variable> diamond = new LinkedList<Variable>(middle);
@@ -562,7 +572,7 @@ namespace UnitTests
                     diamond.RemoveFirst();
                     Variable vRight = diamond.First();
                     diamond.RemoveFirst();
-                    Variable v = (Variable)Expression.FromString("diamond" + (i++).ToString("D8")).Commit();                    
+                    Variable v = ctxt.Declare("diamond" + (i++).ToString("D8"));
                     vLeft.Contents = v.Name;
                     vRight.Contents = v.Name;
                     diamond.AddLast(v);
@@ -576,7 +586,7 @@ namespace UnitTests
                     diamond.RemoveFirst();
                     Variable vRight = diamond.First();
                     diamond.RemoveFirst();
-                    Variable v = (Variable)Expression.FromString("diamond" + (i++).ToString("D8")).Commit();                    
+                    Variable v = ctxt.Declare("diamond" + (i++).ToString("D8"));
                     v.Contents = vLeft.Name + " - " + vRight.Name;
                     diamond.AddLast(v);
                     //edges += 2;

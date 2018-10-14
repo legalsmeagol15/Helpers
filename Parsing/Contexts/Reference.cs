@@ -10,66 +10,81 @@ namespace Parsing
     public sealed class Reference : IEvaluateable, IEnumerable<Context>
     {
         private readonly List<Context> _ContextStack = new List<Context>();
-        public Variable Variable { get; private set; }
 
-        private Reference() { }
+        public IEvaluateable Head { get; private set; } = null;
 
-        internal static Reference FromTokens(IEnumerable<string> tokens, Context root, out IEnumerable<Context> addedContexts, out IEnumerable<Variable> addedVariables)
+        public bool IsVariable => Head is Variable;
+        public bool IsFunction => Head is Function;
+
+        private Reference(List<Context> stack, IEvaluateable head) { this._ContextStack = stack; this.Head = head; }
+
+        public static bool TryCreate(IEnumerable<string> tokens, Context root, out Reference reference, ISet<Context> addedContexts, ISet<Variable> addedVariables)
         {
+            reference = null;
             Context ctxt = root;
-            Reference r = new Reference();
-            List<Context> tempAddedCtxt = new List<Context>();
-            List<Variable> tempAddedVars = new List<Variable>();
+            List<Context> tempStack = new List<Context>();
+            IEvaluateable head = null;
 
-            try
+            foreach (string token in tokens)
             {
-                foreach (string token in tokens)
-                {                    
-                    // r.Variable should not be null until the last token.
-                    if (r.Variable != null)
-                        throw new InvalidOperationException("Reference to non-contextual variable " + r.Variable.Name + " as a sub-context of context " + ctxt.Name + ".");
+                // r.Variable should not be null until the last token.
+                if (head != null) return false;
 
-                    // Add this context to the stack.
-                    r._ContextStack.Add(ctxt);
+                // Add this context to the stack.
+                tempStack.Add(ctxt);
 
-                    // Try getting an existing context.
-                    if (ctxt.TryGet(token, out ctxt)) continue;
+                // Might be a context-specific function.
+                if (ctxt.TryCreateFunction(token, out Function f)) head = f;
 
-                    // Try ending the loop with an existing variable.
-                    else if (ctxt.TryGet(token, out Variable var)) r.Variable = var;
+                // Try getting an existing context.
+                else if (ctxt.TryGet(token, out Context c)) ctxt = c;
 
-                    // Try creating a vanilla context (one that does not also function as a variable).
-                    else if (ctxt.TryAddContext(token, out ctxt)) tempAddedCtxt.Add(ctxt);
+                // Try ending the loop with an existing variable.
+                else if (ctxt.TryGet(token, out Variable var)) head = var;
 
-                    // Try creating a dual context/variable
-                    else if (ctxt.TryAddAsContext(token, out ctxt, out Variable newVar)) { tempAddedCtxt.Add(ctxt); tempAddedVars.Add(newVar); }
+                // Try creating a vanilla context (one that does not also function as a variable).
+                else if (ctxt.TryAddContext(token, out c)) addedContexts.Add(ctxt = c);
 
-                    // Try creating a loop-ending variable.
-                    else if (ctxt.TryAddWithinContext(token, out newVar)) r.Variable = var;
+                // Try creating a dual context/variable
+                else if (ctxt.TryAddAsContext(token, out c, out Variable newVar)) { addedContexts.Add(ctxt = c); addedVariables.Add(newVar); }
 
-                    // In all other cases, the next reference could not be reached either as a context or as a variable.
-                    else throw new InvalidOperationException("Reference string could not proceed to the next token \"" + token + "\".");
-                }
-            }
-            catch
-            {
-                foreach (Variable v in tempAddedVars) if (v.Context != null) v.Context.TryDelete(v);
-                foreach (Context c in tempAddedCtxt) if (c.Parent != null) c.Parent.TryDelete(c);
-                throw;
+                // Try creating a loop-ending variable.
+                else if (ctxt.TryAddWithinContext(token, out newVar)) head = var;
+
+
+
+                // In all other cases, the next reference could not be reached either as a context or as a variable.
+                else return false;
             }
 
-            addedContexts = tempAddedCtxt;
-            addedVariables = tempAddedVars;
-            return r;
+            reference = new Reference(tempStack, head);
+            return true;
         }
 
-        public IEvaluateable Evaluate() => Variable.Evaluate();
 
-        public IEnumerator<Context> GetEnumerator()
-        {
-            return ((IEnumerable<Context>)_ContextStack).GetEnumerator();
-        }
+        public IEvaluateable Evaluate() => Head.Evaluate();
+
+
+        public IEnumerator<Context> GetEnumerator() => _ContextStack.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => _ContextStack.GetEnumerator();
+
+
+
+        public override string ToString() => (Head == null) ? ToString(_ContextStack[0]) : Head.ToString();
+
+        public string ToString(Context perspective)
+        {
+            perspective = _ContextStack.LastOrDefault(c => Context.IsDescendant(c, perspective));
+            if (perspective == null) return ToString(_ContextStack[0]);
+            int idx = _ContextStack.IndexOf(perspective);
+            if (idx < 0) return ToString(_ContextStack[0]);
+            return string.Join(".", _ContextStack.Skip(_ContextStack.IndexOf(perspective)).Select(c => c.Name))
+                   + ((Head is Variable v) ? v.Name : (Head is Function f) ? f.Name : "");
+        }
+
+        public override bool Equals(object obj) => (Head == null) ? obj == null : Head.Equals(obj);
+
+        public override int GetHashCode() => Head.GetHashCode();
     }
 }

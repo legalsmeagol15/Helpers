@@ -112,10 +112,7 @@ namespace Parsing
         /// Parses this node in its token list, with the indicated number of preceding and following tokens.  For example, parsing the 
         /// Sin function will be called with 0 preceding and 1 following, because no token relevant to the Sin function is expected 
         /// to precede it and only 1 token (the Sin function's contents) is expected to follow it.
-        /// </summary>
-        /// <param name="node"></param>
-        /// <param name="preceding"></param>
-        /// <param name="following"></param>
+        /// </summary>     
         /// <exception cref="NullReferenceException">Thrown when a preceding or following input was expected, but was omitted.</exception>
         protected void ParseNode(DynamicLinkedList<object>.Node node, int preceding, int following)
         {

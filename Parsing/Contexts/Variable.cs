@@ -127,12 +127,14 @@ namespace Parsing
         public static IEnumerable<Variable> GetTermsOf(IEvaluateable evaluateable)
         {
             switch (evaluateable)
-            {
-                case Relation r: yield return r.Variable; yield break;
+            {   
+                case Reference r:
+                    if (r.Head is Variable v) yield return v;
+                    yield break;
                 case Clause c:
                     if (c.Terms == null) yield break;
-                    foreach (Variable term in c.Terms) yield return term; yield break;
-                case Variable v: yield return v; yield break;
+                    foreach (Variable term in c.Terms) yield return term;
+                    yield break;                
             }
         }
 
