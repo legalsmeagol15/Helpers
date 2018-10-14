@@ -17,6 +17,149 @@ namespace UnitTests
     {
         private Function.Factory factory;
 
+        #region Topologies
+
+        public static Context CreateDiamondTopology(int width, out long edges, out Variable start, out Variable end)
+        {
+            Context ctxt = new DummyContext(null, "dummy_context");
+
+            List<Variable> middle = new List<Variable>();
+            int i;
+            edges = 0;
+            for (i = 0; i < width; i++)
+            {
+                Variable v = ctxt.Declare("diamond" + i.ToString("D8"));
+                middle.Add(v);
+            }
+            LinkedList<Variable> diamond = new LinkedList<Variable>(middle);
+            while (diamond.Count > 1)  // The left side of the diamong.
+            {
+                Variable vLeft = diamond.First();
+                diamond.RemoveFirst();
+                Variable vRight = diamond.First();
+                diamond.RemoveFirst();
+                Variable v = ctxt.Declare("diamond" + (i++).ToString("D8"));
+                vLeft.Contents = v.Name;
+                vRight.Contents = v.Name;
+                diamond.AddLast(v);
+                edges += 2;
+            }
+            start = diamond.First();
+            diamond = new LinkedList<Variable>(middle);
+            while (diamond.Count > 1)  // The right side of the diamond.
+            {
+                Variable vLeft = diamond.First();
+                diamond.RemoveFirst();
+                Variable vRight = diamond.First();
+                diamond.RemoveFirst();
+                Variable v = ctxt.Declare("diamond" + (i++).ToString("D8"));
+                v.Contents = vLeft.Name + " - " + vRight.Name;
+                diamond.AddLast(v);
+                //edges += 2;
+            }
+
+            edges += middle.Count;
+            end = diamond.First();
+
+            return ctxt;
+        }
+
+        public static Context CreateLadderTopology(int vars, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB)
+        {
+            DummyContext ctxt = new DummyContext(null, "dummy_context");
+            string newNameA = "ladderA" + 0.ToString("D5");
+            string newNameB = "ladderB" + 0.ToString("D5");
+            startA = ctxt.Declare(newNameA);
+            startB = ctxt.Declare(newNameB);
+            startA.Contents = "0";
+            startB.Contents = "0";
+            Assert.AreEqual(startA.Evaluate(), 0);
+            Assert.AreEqual(startB.Evaluate(), 0);
+            endA = null;
+            endB = null;
+            edges = 0;
+            for (int i = 1; i < vars; i++)
+            {
+                string oldNameA = newNameA, oldNameB = newNameB;
+                newNameA = "ladderA" + i.ToString("D5");
+                newNameB = "ladderB" + i.ToString("D5");
+                endA = ctxt.Declare(newNameA);
+                endB = ctxt.Declare(newNameB);
+                endA.Contents = oldNameA + " + " + oldNameB;
+                endB.Contents = oldNameB + " + " + oldNameA;
+                edges += 4;
+            }
+            return ctxt;
+        }
+
+        public static Context CreateLineTopology(int vars, out long edges, out Variable start, out Variable end)
+        {
+            DummyContext ctxt = new DummyContext(null, "dummy_context");
+            string name = "line" + 0.ToString("D5");
+            Expression.FromString(name, ctxt);
+            start = ctxt[name];
+            start.Contents = "-1";
+            end = null;
+            edges = 0;
+            for (int i = 1; i <= vars; i++)
+            {
+                edges++;
+                string newName = "line" + i.ToString("D5");
+                Expression.FromString(newName, ctxt);
+                end = ctxt[newName];
+                end.Contents = name;
+                name = newName;
+            }
+            return ctxt;
+        }
+
+        public static Context CreatePancakeTopology(int pancakeVars, out long edges, out Variable pancakeStart, out Variable pancakeEnd)
+        {
+            Context ctxt = new DummyContext(null, "dummy_context");
+            pancakeStart = ctxt.Declare("pancakeStart");
+            edges = 0;
+            List<string> flatNames = new List<string>();
+            for (int i = 0; i < pancakeVars; i++)
+            {
+                Variable newVar = ctxt.Declare("pancake" + i.ToString("D5"));
+                flatNames.Add(newVar.Name);
+                newVar.Contents = "pancakeStart";
+            }
+            pancakeEnd = ctxt.Declare("pancakeEnd");
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < flatNames.Count - 1; i++)
+            {
+                sb.Append(flatNames[i]);
+                sb.Append(" + ");
+                edges += flatNames.Count;
+            }
+            sb.Append(flatNames[flatNames.Count - 1]);
+            pancakeEnd.Contents = sb.ToString();
+
+            return ctxt;
+        }
+
+        public static Context CreateSpiralTopology(int spiralVars, out long edges, out Variable varCore, out List<Variable> vars)
+        {
+            //int spiralVars = 30;
+            DummyContext ctxt = new DummyContext(null, "dummy_context");
+            varCore = ctxt.Declare("core");
+            vars = new List<Variable>() { varCore };
+            varCore.Contents = "0";
+            edges = 0;
+            for (int i = 0; i < spiralVars; i++)
+            {
+                string varName = "spiral" + i.ToString("D5");
+                Variable newVar = ctxt.Declare(varName);
+                string varContents = string.Join(" + ", vars.Select(v => v.Name));
+                newVar.Contents = varContents;
+                vars.Add(newVar);
+                edges += vars.Count;
+            }
+            return ctxt;
+        }
+        #endregion
+
         [TestInitialize]
         public void TestParsing__Initialize()
         {
@@ -57,7 +200,10 @@ namespace UnitTests
             DummyContext dummyA = new DummyContext(null, "dummy_context_a");
             Variable varA = dummyA.Declare("a");
             Variable varB = ((Reference)(Expression.FromString("dummy_context_b.b", dummyA).Commit())).Variable;
-            Variable varC = ((Reference)(Expression.FromString("dummy_context_b.dummy_context_c.c").Commit())).Variable;
+            Context dummyB = dummyA.Subcontexts["dummy_context_b"];
+            Variable varC = ((Reference)(Expression.FromString("dummy_context_b.dummy_context_c.c", dummyA).Commit())).Variable;
+            Context dummyC = dummyB.Subcontexts["dummy_context_c"];
+            Expression.FromString("dummy_context_c", dummyB).Commit();
 
             varA.Contents = "10";
             varB.Contents = "5";
@@ -65,14 +211,15 @@ namespace UnitTests
 
 
             IEvaluateable exp = Expression.FromString("dummy_context_b.dummy_context_c.c", dummyA).Commit();
-            Assert.AreEqual(exp, 2);
+            Assert.AreEqual(exp.Evaluate(), 2);
 
             exp = Expression.FromString("a + dummy_context_b.b + dummy_context_b.dummy_context_c.c", dummyA).Commit();
-            Assert.AreEqual(exp.Evaluate(), 21);
+            Assert.AreEqual(exp.Evaluate(), 17);
 
             // This will only work if variables are scoped for all subcontexts:
             //                                                         vvv                                 vvv
             exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.dummy_context_c.b", dummyA).Commit();
+            // If the result is 2, it means that a new variable b was created and returned.
             Assert.AreEqual(exp.Evaluate(), 7);
 
         }
@@ -279,7 +426,7 @@ namespace UnitTests
                 {
                     if (!split[0].Equals(str)) Assert.Fail("Failed to reject string \"" + str + "\"");
                     return false;
-                }                    
+                }
                 if (split.Length != 3) Assert.Fail("Incorrect split length (" + split.Length + ")");
                 if (split[0] != "") Assert.Fail("First split from " + str + " was not \"\"");
                 if (split[1] != str) Assert.Fail("First split was \"" + split[1] + "\", which was not expected \"" + str + "\"");
@@ -289,17 +436,17 @@ namespace UnitTests
             bool Matches(Regex pattern, string str, params string[] expected)
             {
                 string[] split = pattern.Split(str);
-                if (split.Length != (expected.Length*2)+1)
-                    Assert.Fail("Split length (" + split.Length + ") was different from expected length (" + ((expected.Length*2)+1) + ").");
+                if (split.Length != (expected.Length * 2) + 1)
+                    Assert.Fail("Split length (" + split.Length + ") was different from expected length (" + ((expected.Length * 2) + 1) + ").");
 
-                for (int i = 0; i < (split.Length)-1; i += 2)
+                for (int i = 0; i < (split.Length) - 1; i += 2)
                 {
                     if (split[i] != "") Assert.Fail("Split #" + i + " from \"" + str + "\" was not \"\"");
                     if (split[i + 1] != expected[i / 2])
-                        Assert.Fail("Split #" + (i+1) + " was \"" + split[i+1] + "\", expected was \"" + expected[i/2] + "\"");
+                        Assert.Fail("Split #" + (i + 1) + " was \"" + split[i + 1] + "\", expected was \"" + expected[i / 2] + "\"");
                 }
                 if (split[split.Length - 1] != "")
-                    Assert.Fail("Split #" + (split.Length - 1) + " (last split) from \"" + str + "\" was \""+split[split.Length-1]+"\", not \"\"");
+                    Assert.Fail("Split #" + (split.Length - 1) + " (last split) from \"" + str + "\" was \"" + split[split.Length - 1] + "\", not \"\"");
                 return true;
             }
 
@@ -451,6 +598,79 @@ namespace UnitTests
         }
 
         [TestMethod]
+        public void TestParsing_Validate_Topologies()
+        {
+            // Diamond topology
+            {
+                Context ctxt = CreateDiamondTopology(1024, out long edges, out Variable start, out Variable end);
+                Assert.AreEqual(end.Evaluate(), 0);
+                start.Contents = "2";
+                Assert.AreEqual(start.Evaluate(), 2);
+                Assert.AreEqual(end.Evaluate(), 0);
+            }
+
+            // Ladder topology
+            {
+                int vars = 50;
+                Context ctxt = CreateLadderTopology(vars, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB);
+                Assert.AreEqual(endA.Evaluate(), 0);
+                Assert.AreEqual(endB.Evaluate(), 0);
+                startA.Contents = "1";
+                Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (vars - 2)));
+                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (vars - 2)));
+                startB.Contents = "1";
+                Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (vars - 1)));
+                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (vars - 1)));
+            }
+
+            // Line topology
+            {
+                Context ctxt = CreateLineTopology(10000, out long edges, out Variable startLine, out Variable endLine);
+                startLine.Contents = "-1";
+                Assert.AreEqual(endLine.Value, -1);
+                startLine.Contents = "2";
+                Assert.AreEqual(endLine.Value, 2);
+            }
+
+            // Pancake topology
+            {
+                int vars = 2500;
+                Context ctxt = CreatePancakeTopology(vars, out long edges, out Variable pancakeStart, out Variable pancakeEnd);
+                pancakeStart.Contents = 1.ToString();
+                Assert.AreEqual(pancakeEnd.Evaluate(), 1 * vars);
+                pancakeStart.Contents = 2.ToString();
+                Assert.AreEqual(pancakeStart.Evaluate(), 2);
+                Assert.AreEqual(pancakeEnd.Evaluate(), 2 * vars);
+            }
+
+            // Spiral topology
+            {
+                Context ctxt = CreateSpiralTopology(30, out long edges, out Variable varCore, out List<Variable> vars);
+                varCore.Contents = "1";
+                for (int i = 1; i < vars.Count; i++)
+                {
+                    Variable var = vars[i];
+                    int shouldEqual = 1 << (i - 1);
+                    Assert.AreEqual(var.Evaluate(), shouldEqual);
+                }
+                int val = 1;
+                for (int i = 1; i < vars.Count; i++)
+                {
+                    // Name, inbound, listening structure, and unchanged value checked here.
+                    Variable var = vars[i];
+                    int inbound = (int)var.GetType().GetField("UnresolvedInbound", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(var);
+                    Assert.AreEqual(inbound, 0);
+                    Assert.AreEqual(var.Name, "spiral" + (i - 1).ToString("D5"));
+                    for (int j = 0; j < i; j++)
+                        Assert.IsTrue(var.ListensTo(vars[j]));
+                    Assert.IsTrue(var.ListensTo(varCore));
+                    Assert.AreEqual(var.Evaluate(), val << (i - 1), var.Name);
+
+                }
+            }
+        }
+
+        [TestMethod]
         public void TestParsing_Variables_Updating()
         {
             // NOTE:  THESE TESTS ARE DESIGNED TO FAIL IN THE EVENT OF BAD CONCURRENCY (RACE CONDITIONS OR DEADLOCKS) IN THE VARIABLE 
@@ -470,75 +690,26 @@ namespace UnitTests
             stopwatch.Start();
             stopwatch.Stop();
             stopwatch.Reset();
-            DummyContext ctxt;
+            Context ctxt;
 
-            // The line test.  This tests variable value propogation through a simple line.
+            // The diamond test.  Goes exponentially wide before going exponentially narrow again.
             {
-                int vars = 10000;
-                ctxt = new DummyContext(null, "dummy_context");
-                string name = "line" + 0.ToString("D5");
-                Expression.FromString(name, ctxt);
-                Variable startLine = ctxt[name];
-                startLine.Contents = "-1";
-                Variable endLine = null;
-                for (int i = 1; i <= vars; i++)
-                {
-                    string newName = "line" + i.ToString("D5");
-                    Expression.FromString(newName, ctxt);
-                    endLine = ctxt[newName];
-                    endLine.Contents = name;
-                    name = newName;
-                }
-                Assert.AreEqual(endLine.Value, -1);
-                startLine.Contents = "2";
-                Assert.AreEqual(endLine.Value, 2);
-                long totalEdges = 0;
+                ctxt = CreateDiamondTopology(1024, out long edges, out Variable diamondStart, out Variable diamondEnd);
+
                 stopwatch.Restart();
+                long totalEdges = 0;
                 while (stopwatch.ElapsedMilliseconds < millisPerTest)
                 {
-                    startLine.Contents = "1";
-                    startLine.Contents = "2";
-                    totalEdges += (vars + vars);
+                    diamondStart.Contents = "1";
+                    diamondStart.Contents = "2";
+                    totalEdges += (edges + edges);
                 }
-                stopwatch.Stop();
-                Console.WriteLine("Line test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
+                Console.WriteLine("Diamond test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
-
 
             // The ladder test.  This tests variable operational updating at depth.
             {
-                int ladderVars = 50;
-                ctxt = new DummyContext(null, "dummy_context");
-                string newNameA = "ladderA" + 0.ToString("D5");
-                string newNameB = "ladderB" + 0.ToString("D5");
-                Variable startA = ctxt.Declare(newNameA);
-                Variable startB = ctxt.Declare(newNameB);
-                startA.Contents = "0";
-                startB.Contents = "0";
-                Assert.AreEqual(startA.Evaluate(), 0);
-                Assert.AreEqual(startB.Evaluate(), 0);
-                Variable endA = null, endB = null;
-                int edges = 0;
-                for (int i = 1; i < ladderVars; i++)
-                {
-                    string oldNameA = newNameA, oldNameB = newNameB;
-                    newNameA = "ladderA" + i.ToString("D5");
-                    newNameB = "ladderB" + i.ToString("D5");
-                    endA = ctxt.Declare(newNameA);
-                    endB = ctxt.Declare(newNameB);
-                    endA.Contents = oldNameA + " + " + oldNameB;
-                    endB.Contents = oldNameB + " + " + oldNameA;
-                    edges += 4;
-                }
-
-                Assert.AreEqual(endA.Evaluate(), 0);
-                Assert.AreEqual(endB.Evaluate(), 0);
-                startA.Contents = "1";
-                Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (ladderVars - 2)));
-                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (ladderVars - 2)));
-                startB.Contents = "1";
-                Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (ladderVars - 1)));
-                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (ladderVars - 1)));
+                ctxt = CreateLadderTopology(50, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB);
 
                 stopwatch.Restart();
                 long totalEdges = 0;
@@ -550,88 +721,31 @@ namespace UnitTests
                     startB.Contents = "1";
                     totalEdges += (edges + edges);
                 }
+                stopwatch.Stop();
                 Console.WriteLine("Ladder test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
-
-            // The spiral conch shell test.  This tests a balance of deep vs wide dependency structure.
+            // The line test.  This tests variable value propogation through a simple line.
             {
-                int spiralVars = 30;
-                ctxt = new DummyContext(null, "dummy_context");
-                Variable varCore = ctxt.Declare("core");
-                IList<Variable> vars = new List<Variable>() { varCore };
-                varCore.Contents = "0";
-                int edges = 0;
-                for (int i = 0; i < spiralVars; i++)
-                {
-                    string varName = "spiral" + i.ToString("D5");
-                    Variable newVar = ctxt.Declare(varName);
-                    string varContents = string.Join(" + ", vars.Select(v => v.Name));
-                    newVar.Contents = varContents;
-                    vars.Add(newVar);
-                    edges += vars.Count;
-                }
-                for (int i = 1; i < vars.Count; i++)
-                {
-                    // Name, inbound, listening structure, and unchanged value checked here.
-                    Variable var = vars[i];
-                    int inbound = (int)var.GetType().GetField("Inbound", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(var);
-                    Assert.AreEqual(inbound, 0);
-                    Assert.AreEqual(var.Name, "spiral" + (i - 1).ToString("D5"));
-                    for (int j = 0; j < i; j++)
-                        Assert.IsTrue(var.ListensTo(vars[j]));
-                    Assert.AreEqual(var.Evaluate(), 0);
-                }
-                stopwatch.Restart();
-                varCore.Contents = "1";
-                for (int i = 1; i < vars.Count; i++)
-                {
-                    Variable var = vars[i];
-                    int shouldEqual = 1 << (i - 1);
-                    Assert.AreEqual(var.Evaluate(), shouldEqual);
-                }
+                ctxt = CreateLineTopology(10000, out long edges, out Variable startLine, out Variable endLine);
 
-                stopwatch.Restart();
                 long totalEdges = 0;
+                stopwatch.Restart();
                 while (stopwatch.ElapsedMilliseconds < millisPerTest)
                 {
-                    varCore.Contents = "0";
-                    varCore.Contents = "1";
+                    startLine.Contents = "1";
+                    startLine.Contents = "2";
                     totalEdges += (edges + edges);
                 }
                 stopwatch.Stop();
-                Console.WriteLine("Spiral test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
+                Console.WriteLine("Line test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
-
 
             // The pancake test immediately goes wide before updating a single variable again.
             {
-                int pancakeVars = 2500;
-                ctxt = new DummyContext(null, "dummy_context");
-                Variable pancakeStart = ctxt.Declare("pancakeStart");
-                pancakeStart.Contents = 1.ToString();
-                List<string> flatNames = new List<string>();
-                for (int i = 0; i < pancakeVars; i++)
-                {
-                    Variable newVar = ctxt.Declare("pancake" + i.ToString("D5"));
-                    flatNames.Add(newVar.Name);
-                    newVar.Contents = "pancakeStart";
-                    Assert.AreEqual(newVar.Evaluate(), 1);
-                }
-                Variable pancakeEnd = ctxt.Declare("pancakeEnd");
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < flatNames.Count - 1; i++)
-                {
-                    sb.Append(flatNames[i]);
-                    sb.Append(" + ");
-                }
-                sb.Append(flatNames[flatNames.Count - 1]);
-                pancakeEnd.Contents = sb.ToString();
-                Assert.AreEqual(pancakeEnd.Evaluate(), 1 * pancakeVars);
-                pancakeStart.Contents = 2.ToString();
-                Assert.AreEqual(pancakeStart.Evaluate(), 2);
-                Assert.AreEqual(pancakeEnd.Evaluate(), 2 * pancakeVars);
-                int edges = pancakeVars * 2;
+                int vars = 2500;
+                CreatePancakeTopology(vars, out long edges, out Variable pancakeStart, out Variable pancakeEnd);
+
                 stopwatch.Restart();
                 long totalEdges = 0;
                 while (stopwatch.ElapsedMilliseconds < millisPerTest)
@@ -644,62 +758,21 @@ namespace UnitTests
                 Console.WriteLine("Pancake test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
-
-            // The diamond test.  Goes exponentially wide before going exponentially narrow again.
+            // The spiral conch shell test.  This tests a balance of deep vs wide dependency structure.
             {
-                int diamondWidth = 1024;               // Must be a multiple of 2 
-                ctxt = new DummyContext(null, "dummy_context");
+                int variables = 30;
+                ctxt = CreateSpiralTopology(variables, out long edges, out Variable varCore, out List<Variable> vars);
 
-                List<Variable> middle = new List<Variable>();
-                int i;
-                long edges = 0;
-                for (i = 0; i < diamondWidth; i++)
-                {
-                    Variable v = ctxt.Declare("diamond" + i.ToString("D8"));
-                    middle.Add(v);
-                }
-                LinkedList<Variable> diamond = new LinkedList<Variable>(middle);
-                while (diamond.Count > 1)  // The left side of the diamong.
-                {
-                    Variable vLeft = diamond.First();
-                    diamond.RemoveFirst();
-                    Variable vRight = diamond.First();
-                    diamond.RemoveFirst();
-                    Variable v = ctxt.Declare("diamond" + (i++).ToString("D8"));
-                    vLeft.Contents = v.Name;
-                    vRight.Contents = v.Name;
-                    diamond.AddLast(v);
-                    edges += 2;
-                }
-                Variable diamondStart = diamond.First();
-                diamond = new LinkedList<Variable>(middle);
-                while (diamond.Count > 1)  // The right side of the diamond.
-                {
-                    Variable vLeft = diamond.First();
-                    diamond.RemoveFirst();
-                    Variable vRight = diamond.First();
-                    diamond.RemoveFirst();
-                    Variable v = ctxt.Declare("diamond" + (i++).ToString("D8"));
-                    v.Contents = vLeft.Name + " - " + vRight.Name;
-                    diamond.AddLast(v);
-                    //edges += 2;
-                }
-                edges += middle.Count;
-                Variable diamondEnd = diamond.First();
-                Assert.AreEqual(diamondEnd.Evaluate(), 0);
-                diamondStart.Contents = "2";
-                Assert.AreEqual(diamondEnd.Evaluate(), 0);
                 stopwatch.Restart();
                 long totalEdges = 0;
                 while (stopwatch.ElapsedMilliseconds < millisPerTest)
                 {
-                    diamondStart.Contents = "1";
-                    diamondStart.Contents = "2";
+                    varCore.Contents = "0";
+                    varCore.Contents = "1";
                     totalEdges += (edges + edges);
                 }
-                Console.WriteLine("Diamond test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
-
-
+                stopwatch.Stop();
+                Console.WriteLine("Spiral test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
         }
 

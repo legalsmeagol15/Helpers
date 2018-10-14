@@ -12,36 +12,41 @@ namespace Parsing
     [Serializable]
     public abstract class Context 
     {
-        internal Dictionary<string, Variable> Variables;
-        internal Dictionary<string, Context> Subcontexts;
+        internal Dictionary<string, Variable> InternalVariables;
+        internal Dictionary<string, Context> InternalSubcontexts;
         
         public Context(Context parent, string name)
         {
             this.Parent = parent;
             this.Name = name;            
-            this.Variables = new Dictionary<string, Variable>();
-            this.Subcontexts = new Dictionary<string, Context>();
+            this.InternalVariables = new Dictionary<string, Variable>();
+            this.InternalSubcontexts = new Dictionary<string, Context>();
+            this.Subcontexts = new SubcontextDictionary(this);            
         }
-        public Variable this[string varName] => Variables[varName];
+        public Variable this[string varName] => InternalVariables[varName];
+
+        /// <summary>Returns the indicated subcontext.  Call like this:  <para/><code>context.Subcontext["contextName"]</code></summary>
+        public readonly SubcontextDictionary Subcontexts; // Don't publicly expose the real Subcontexts dictionary.
 
         public Context Parent { get; }
 
         public string Name { get; }
 
-        public Variable Declare(string name)
+        public Variable Declare(string name, string contents = "")
         {
             lock (Variable.ModifyLock)
             {
-                if (Variables.ContainsKey(name)) throw new DuplicateVariableException(this, Variables[name], name);
+                if (InternalVariables.ContainsKey(name)) throw new DuplicateVariableException(this, InternalVariables[name], name);
                 Variable v = new Variable(this, name);
-                Variables.Add(name, v);
+                if (contents != "") v.Contents = contents;
+                InternalVariables.Add(name, v);
                 return v;
             }
         }
 
         internal bool TryAddAsContext(string name, out Context c, out Variable v)
         {
-            if (Variables.TryGetValue(name, out Variable _) || Subcontexts.TryGetValue(name, out Context _)) { c = null; v = null; return false; }
+            if (InternalVariables.TryGetValue(name, out Variable _) || InternalSubcontexts.TryGetValue(name, out Context _)) { c = null; v = null; return false; }
             if (!TryCreateVariableContext(name, out v)) { c = null; return false; }
             if (v == null)
                 throw new InvalidOperationException(string.Format("Returned %s cannot be null.", typeof(Variable).Name));
@@ -49,30 +54,30 @@ namespace Parsing
                 throw new InvalidOperationException(string.Format("To create a %s which also functions as a %s, the %s Context property cannot be null.", typeof(Variable).Name, typeof(Context).Name, typeof(Variable).Name));
             if (v.Name != v.Context.Name)
                 throw new InvalidOperationException(string.Format("To create a %s which also functions as a %s, the %s.Name must equal the %s.Name cannot be null.", typeof(Variable).Name, typeof(Context).Name, typeof(Variable).Name, typeof(Context).Name) );
-            Variables.Add(name, v);
-            Subcontexts.Add(name, c = v.Context);
+            InternalVariables.Add(name, v);
+            InternalSubcontexts.Add(name, c = v.Context);
             return true;
         }
         protected abstract bool TryCreateVariableContext(string name, out Variable v);
 
         internal bool TryAddWithinContext(string name, out Variable v)
         {
-            if (Variables.TryGetValue(name, out v)) return false;
+            if (InternalVariables.TryGetValue(name, out v)) return false;
             if (!TryCreateVariable(name, out v)) return false;
             if (v == null)
                 throw new InvalidOperationException(string.Format("Returned %s cannot be null.", typeof(Variable).Name));
-            Variables.Add(name, v);
+            InternalVariables.Add(name, v);
             return true;
         }
         protected abstract bool TryCreateVariable(string name, out Variable v);
 
         internal bool TryAddContext(string name, out Context sub_ctxt)
         {
-            if (Subcontexts.TryGetValue(name, out sub_ctxt)) return false;
+            if (InternalSubcontexts.TryGetValue(name, out sub_ctxt)) return false;
             if (!TryCreateContext(name, out sub_ctxt)) return false;
             if (sub_ctxt == null)
                 throw new InvalidOperationException(string.Format("Returned %s cannot be null.", typeof(Context).Name));
-            Subcontexts.Add(name, sub_ctxt);
+            InternalSubcontexts.Add(name, sub_ctxt);
             return true;
         }
 
@@ -93,7 +98,7 @@ namespace Parsing
 
         internal bool TryDelete(Variable v)
         {
-            if (!Variables.TryGetValue(v.Name, out Variable vExisting))
+            if (!InternalVariables.TryGetValue(v.Name, out Variable vExisting))
                 return false;
             if (!ReferenceEquals(v, vExisting))
                 return false;      
@@ -108,9 +113,9 @@ namespace Parsing
         }
 
 
-        internal bool TryGet(string name, out Variable v) => Variables.TryGetValue(name, out v);
+        internal bool TryGet(string name, out Variable v) => InternalVariables.TryGetValue(name, out v);
 
-        internal bool TryGet(string name, out Context sub_ctxt) => Subcontexts.TryGetValue(name, out sub_ctxt);
+        internal bool TryGet(string name, out Context sub_ctxt) => InternalSubcontexts.TryGetValue(name, out sub_ctxt);
 
         public class DuplicateVariableException : Exception
         {
@@ -124,6 +129,20 @@ namespace Parsing
                 this.Existing = existing;
                 this.Name = name;
             }
+        }
+
+        /// <summary>The dictionary of subcontexts within a context, keyed by context name.  Subcontexts can be get, but not set.</summary>
+        [Serializable]
+        public class SubcontextDictionary : IEnumerable<Context>
+        {
+            private readonly Context _Context;
+            public SubcontextDictionary(Context context) { this._Context = context; }
+
+            public Context this[string key] { get => _Context.InternalSubcontexts[key]; }
+
+            public IEnumerator<Context> GetEnumerator() => _Context.InternalSubcontexts.Values.GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
     }
 

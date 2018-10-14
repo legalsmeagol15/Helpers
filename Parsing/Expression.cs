@@ -31,7 +31,7 @@ namespace Parsing
     public class Expression : IDisposable
     {
         internal IEvaluateable Contents;
-        private object _ChangeLock = null;
+        internal object ChangeLock = null;
         public static readonly IEvaluateable Null = new Null();
         private ISet<Variable> AddedVariables;
         private ISet<Context> AddedContexts;
@@ -76,7 +76,7 @@ namespace Parsing
 
             // Step #2d - if there is a context which can grab variables, lock on the Variable.LockObject.
             if (context != null)
-                Monitor.Enter(result._ChangeLock = Variable.ModifyLock);
+                Monitor.Enter(result.ChangeLock = Variable.ModifyLock);
             
 
             // Step #3 - Parse into clause-by-clause tree structure containing tokenized objects
@@ -189,7 +189,7 @@ namespace Parsing
         public IEvaluateable Commit()
         {
             IEvaluateable ret = this.Contents;
-            if (_ChangeLock != null) { Monitor.Exit(_ChangeLock); _ChangeLock = null; }
+            if (ChangeLock != null) { Monitor.Exit(ChangeLock); ChangeLock = null; }
             return ret;
         }
 
@@ -197,7 +197,7 @@ namespace Parsing
         {
             foreach (Variable v in AddedVariables) v.Context.TryDelete(v);
             foreach (Context c in AddedContexts) c.Parent.TryDelete(c);
-            if (_ChangeLock != null) { Monitor.Exit(_ChangeLock); _ChangeLock = null; }
+            if (ChangeLock != null) { Monitor.Exit(ChangeLock); ChangeLock = null; }
         }
 
 

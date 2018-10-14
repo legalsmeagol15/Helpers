@@ -19,7 +19,7 @@ namespace Parsing
     [Serializable]
     public class Variable : IEvaluateable
     {
-        
+
         internal static readonly int SINGLE_THREAD_THRESHOLD = 5;
         public static readonly IEvaluateable N = new Clause("", "", new IEvaluateable[] { Number.Zero });
         public static readonly Number Null = new Number(0m);
@@ -45,51 +45,52 @@ namespace Parsing
             get => GetContents.ToString();
             set => SetContents(Expression.FromString(value, Context));
         }
-        public IEvaluateable GetContents { get { lock (ModifyLock)lock (UpdateLock) return _Contents; } }
+        public IEvaluateable GetContents { get { lock (ModifyLock) lock (UpdateLock) return _Contents; } }
 
         /// <summary>Does circularity checking.</summary>        
         public void SetContents(Expression exp)
         {
+            if (exp.ChangeLock == null) throw new InvalidOperationException("Cannot set contents to a cancelled expression.");
+
             if (GetTermsOf(exp.Contents).Any(term => term.ListensTo(this)))
             {
                 exp.Cancel();
                 throw new CircularDependencyException(exp.Contents, this, null);
             }
-            
-            lock (ModifyLock)
+
+            // ModifyLock is already locked by the Expression.
+            lock (UpdateLock)
             {
-                lock (UpdateLock)
+                // Delete this variable as a listener of the old sources
+                List<Variable> oldSources = GetTermsOf(_Contents).ToList();
+                foreach (Variable oldSource in oldSources)
+                    oldSource.Listeners.Remove(this);
+
+                // Change the contents.
+                _Contents = exp.Contents;
+                AllowDeletion = (_Contents == null || _Contents is Null);
+
+                // Enroll this variable as a listener of the new sources.
+                HashSet<Variable> newSources = new HashSet<Variable>(GetTermsOf(_Contents));
+                foreach (Variable newTerm in newSources)
+                    lock (newTerm)
+                        newTerm.Listeners.Add(this);
+
+                // Find out if something is left orphan (nobody listening to it), and try to delete it.  If it can be deleted, try to 
+                // delete containing contexts.
+                foreach (Variable oldSource in oldSources.Except(newSources))
                 {
-                    // Delete this variable as a listener of the old sources
-                    List<Variable> oldSources = GetTermsOf(_Contents).ToList();
-                    foreach (Variable oldSource in oldSources)
-                        oldSource.Listeners.Remove(this);
-
-                    // Change the contents.
-                    _Contents = exp.Contents;
-                    AllowDeletion = (_Contents == null || _Contents is Null);
-
-                    // Enroll this variable as a listener of the new sources.
-                    HashSet<Variable> newSources = new HashSet<Variable>(GetTermsOf(_Contents));
-                    foreach (Variable newTerm in newSources)
-                        lock (newTerm)
-                            newTerm.Listeners.Add(this);
-
-                    // Find out if something is left orphan (nobody listening to it), and try to delete it.  If it can be deleted, try to 
-                    // delete containing contexts.
-                    foreach (Variable oldSource in oldSources.Except(newSources))
-                    {
-                        List<Variable> orphanSources = new List<Variable>();
-                        if (!IdentifyOrphans(oldSource, orphanSources, new HashSet<Variable>()))
-                            continue;
-                        foreach (Variable orphan in orphanSources.Where(o => o.Context != null))
-                            orphan.Context.TryDelete(orphan);
-                    }
-                }                
+                    List<Variable> orphanSources = new List<Variable>();
+                    if (!IdentifyOrphans(oldSource, orphanSources, new HashSet<Variable>()))
+                        continue;
+                    foreach (Variable orphan in orphanSources.Where(o => o.Context != null))
+                        orphan.Context.TryDelete(orphan);
+                }
             }
+
             exp.Commit();
 
-            Update(out _);           
+            Update(out _);
         }
 
         // Identifies a component of orphans which will allow themselves to be deleted.  This occurs in the situation of a variable 
@@ -119,7 +120,7 @@ namespace Parsing
 
 
         public Variable(Context context, string name) { Name = name; Context = context; }
-        
+
 
         #region Variable dependency members
 
@@ -127,14 +128,14 @@ namespace Parsing
         public static IEnumerable<Variable> GetTermsOf(IEvaluateable evaluateable)
         {
             switch (evaluateable)
-            {   
+            {
                 case Reference r:
                     if (r.Head is Variable v) yield return v;
                     yield break;
                 case Clause c:
                     if (c.Terms == null) yield break;
                     foreach (Variable term in c.Terms) yield return term;
-                    yield break;                
+                    yield break;
             }
         }
 
@@ -158,10 +159,10 @@ namespace Parsing
                 if (this.Equals(source)) return true;
                 //if (source.Listeners.Contains(this)) return true;
                 return source.Listeners.Any(listener => listener.ListensTo(this));
-            }            
+            }
         }
-        
-        
+
+
 
         #endregion
 
@@ -198,12 +199,12 @@ namespace Parsing
                 lock (v.UpdateLock)
                 {
                     // If another var has made this var unready to update, skip it.
-                    if (v.Inbound != 0) return;
+                    if (v.UnresolvedInbound != 0) return;
 
                     // Signal every listener that it's not ready for update yet.
                     foreach (Variable listener in v.Listeners)
                         lock (listener.UpdateLock)
-                            listener.Inbound++;
+                            listener.UnresolvedInbound++;
 
                     // Update this var, but only if the new value would change.
                     IEvaluateable oldValue = v.Value, newValue = v._Contents.Evaluate();
@@ -217,14 +218,14 @@ namespace Parsing
                     // Signal to each listener that this var no longer prevents it from updating.
                     foreach (Variable listener in v.Listeners)
                         lock (listener.UpdateLock)
-                            if (--listener.Inbound == 0)
+                            if (--listener.UnresolvedInbound == 0)
                                 lock (next)
                                     next.Add(listener);
                 }
             }
         }
 
-        private int Inbound = 0;
+        private int UnresolvedInbound = 0;
 
         public override string ToString() => Name;
 
@@ -232,7 +233,7 @@ namespace Parsing
 
         #endregion
 
-        
+
     }
 
 }

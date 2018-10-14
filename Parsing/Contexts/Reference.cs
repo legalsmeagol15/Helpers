@@ -49,7 +49,7 @@ namespace Parsing
                 else if (ctxt.TryAddAsContext(token, out c, out Variable newVar)) { addedContexts.Add(ctxt = c); addedVariables.Add(newVar); }
 
                 // Try creating a loop-ending variable.
-                else if (ctxt.TryAddWithinContext(token, out newVar)) head = var;
+                else if (ctxt.TryAddWithinContext(token, out newVar)) head = newVar;
 
 
 
