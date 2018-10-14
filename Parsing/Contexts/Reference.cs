@@ -13,8 +13,8 @@ namespace Parsing
 
         public IEvaluateable Head { get; private set; } = null;
 
-        public bool IsVariable => Head is Variable;
-        public bool IsFunction => Head is Function;
+        public Variable Variable => Head as Variable;
+        public Function Function => Head as Function;
 
         private Reference(List<Context> stack, IEvaluateable head) { this._ContextStack = stack; this.Head = head; }
 

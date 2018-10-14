@@ -14,13 +14,11 @@ namespace Parsing
     {
         internal Dictionary<string, Variable> Variables;
         internal Dictionary<string, Context> Subcontexts;
-        internal Function.Factory Functions;
-
-        public Context(Context parent, string name, Function.Factory functions)
+        
+        public Context(Context parent, string name)
         {
             this.Parent = parent;
-            this.Name = name;
-            this.Functions = (parent == null) ? (functions ?? Function.Factory.StandardFactory) : parent.Functions;
+            this.Name = name;            
             this.Variables = new Dictionary<string, Variable>();
             this.Subcontexts = new Dictionary<string, Context>();
         }
@@ -91,7 +89,7 @@ namespace Parsing
 
         protected abstract bool TryCreateContext(string name, out Context sub_ctxt);
 
-        internal bool  TryCreateFunction(string rawToken, out Function f) => Functions.TryCreateFunction(rawToken, out f);
+        protected internal virtual bool  TryCreateFunction(string rawToken, out Function f) { f = null; return false; }
 
         internal bool TryDelete(Variable v)
         {

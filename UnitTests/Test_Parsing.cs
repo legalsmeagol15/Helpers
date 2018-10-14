@@ -8,6 +8,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using static Parsing.Context;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace UnitTests
 {
@@ -54,14 +55,14 @@ namespace UnitTests
         public void TestParsing_Contexts()
         {
             DummyContext dummyA = new DummyContext(null, "dummy_context_a");
-            Variable varA = (Variable)Expression.FromString("a", dummyA).Commit();
-            Variable varB = (Variable) Expression.FromString("dummy_context_b.b", dummyA).Commit();
-            Variable varC = (Variable)Expression.FromString("dummy_context_b.dummy_context_c.c").Commit();
-            
+            Variable varA = dummyA.Declare("a");
+            Variable varB = ((Reference)(Expression.FromString("dummy_context_b.b", dummyA).Commit())).Variable;
+            Variable varC = ((Reference)(Expression.FromString("dummy_context_b.dummy_context_c.c").Commit())).Variable;
+
             varA.Contents = "10";
             varB.Contents = "5";
             varC.Contents = "2";
-            
+
 
             IEvaluateable exp = Expression.FromString("dummy_context_b.dummy_context_c.c", dummyA).Commit();
             Assert.AreEqual(exp, 2);
@@ -215,10 +216,101 @@ namespace UnitTests
 
 
         [TestMethod]
+        public void TestParsing_Regex()
+        {
+            /// private const string StringPattern = "(?<stringPattern>\".*\")";
+            /// private const string OpenerPattern = @"(?<openerPattern>[\(\[{])";
+            /// private const string CloserPattern = @"(?<closerPattern>[\)\]}])";
+            /// private const string OperPattern = @"(?<operPattern>[+-/*&|^~!])";
+            /// private const string VarPattern = @"(?<varPattern> \$? [a-zA-Z_][\w_]* (?:\.[a-zA-Z_][\w_]*)*)";
+            /// private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
+            /// private const string SpacePattern = @"(?<spacePattern>\s+)";
+            /// private static Regex _Regex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
+            /// private static string regExPattern = string.Format("({0}) | ({1}) | ({2}) | ({3}) | ({4}) | ({5}) | ({6})",
+            /// StringPattern,        //0
+            /// OpenerPattern,        //1
+            /// CloserPattern,        //2
+            /// OperPattern,          //3
+            /// VarPattern,           //4
+            /// NumPattern,           //5
+            /// SpacePattern);        //6
+
+            string StringPattern = (string)typeof(Expression).GetField("StringPattern", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy).GetRawConstantValue();
+            string OpenerPattern = (string)typeof(Expression).GetField("OpenerPattern", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy).GetRawConstantValue();
+            string CloserPattern = (string)typeof(Expression).GetField("CloserPattern", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy).GetRawConstantValue();
+            string OperPattern = (string)typeof(Expression).GetField("OperPattern", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy).GetRawConstantValue();
+            string VarPattern = (string)typeof(Expression).GetField("VarPattern", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy).GetRawConstantValue();
+            string NumPattern = (string)typeof(Expression).GetField("NumPattern", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy).GetRawConstantValue();
+            string SpacePattern = (string)typeof(Expression).GetField("SpacePattern", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy).GetRawConstantValue();
+
+            string overallPattern = (string)typeof(Expression).GetField("regExPattern", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy).GetValue(null);
+
+            // When the split length is 1 and the only part of the split equals the original string, it means that part of the RegEx doesn't apply
+
+            Regex regex;
+            regex = new Regex(StringPattern, RegexOptions.IgnorePatternWhitespace);
+            Assert.IsFalse(Applies(regex, "a"));
+
+            regex = new Regex(OpenerPattern, RegexOptions.IgnorePatternWhitespace);
+            Assert.IsFalse(Applies(regex, "a"));
+
+            regex = new Regex(CloserPattern, RegexOptions.IgnorePatternWhitespace);
+            Assert.IsFalse(Applies(regex, "a"));
+
+            regex = new Regex(OperPattern, RegexOptions.IgnorePatternWhitespace);
+            Assert.IsFalse(Applies(regex, "a"));
+
+            regex = new Regex(VarPattern, RegexOptions.IgnorePatternWhitespace);
+            Assert.IsTrue(Applies(regex, "a"));
+
+            regex = new Regex(SpacePattern, RegexOptions.IgnorePatternWhitespace);
+            Assert.IsFalse(Applies(regex, "a"));
+
+            regex = new Regex(overallPattern, RegexOptions.IgnorePatternWhitespace);
+            Console.WriteLine(overallPattern);
+            Assert.IsTrue(Matches(regex, "(5a+3)", "(", "5", "a", "+", "3", ")"));
+
+
+
+            bool Applies(Regex pattern, string str)
+            {
+                string[] split = pattern.Split(str);
+                if (split.Length == 1)
+                {
+                    if (!split[0].Equals(str)) Assert.Fail("Failed to reject string \"" + str + "\"");
+                    return false;
+                }                    
+                if (split.Length != 3) Assert.Fail("Incorrect split length (" + split.Length + ")");
+                if (split[0] != "") Assert.Fail("First split from " + str + " was not \"\"");
+                if (split[1] != str) Assert.Fail("First split was \"" + split[1] + "\", which was not expected \"" + str + "\"");
+                if (split[2] != "") Assert.Fail("First split from " + str + " was not \"\"");
+                return true;
+            }
+            bool Matches(Regex pattern, string str, params string[] expected)
+            {
+                string[] split = pattern.Split(str);
+                if (split.Length != (expected.Length*2)+1)
+                    Assert.Fail("Split length (" + split.Length + ") was different from expected length (" + ((expected.Length*2)+1) + ").");
+
+                for (int i = 0; i < (split.Length)-1; i += 2)
+                {
+                    if (split[i] != "") Assert.Fail("Split #" + i + " from \"" + str + "\" was not \"\"");
+                    if (split[i + 1] != expected[i / 2])
+                        Assert.Fail("Split #" + (i+1) + " was \"" + split[i+1] + "\", expected was \"" + expected[i/2] + "\"");
+                }
+                if (split[split.Length - 1] != "")
+                    Assert.Fail("Split #" + (split.Length - 1) + " (last split) from \"" + str + "\" was \""+split[split.Length-1]+"\", not \"\"");
+                return true;
+            }
+
+        }
+
+
+        [TestMethod]
         public void TestParsing_Serialization()
         {
             Context context = new DummyContext(null, "root");
-            Variable aOrigin = (Variable)Expression.FromString("a", context).Commit();
+            Variable aOrigin = context.Declare("a");
             aOrigin.Contents = "2";
             IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context).Commit();
 
@@ -232,7 +324,7 @@ namespace UnitTests
             formatter = new BinaryFormatter();
             DummyContext deser = (DummyContext)formatter.Deserialize(outStream);
 
-            Variable aPrime = (Variable)Expression.FromString("a", deser).Commit();
+            Variable aPrime = deser["a"];
             Assert.AreEqual(aPrime.Name, "a");
             Assert.AreEqual(aPrime.Evaluate(), 2);
 
@@ -253,7 +345,8 @@ namespace UnitTests
             {
                 context.Declare("a");
                 Assert.Fail();
-            } catch (DuplicateVariableException dvex)
+            }
+            catch (DuplicateVariableException dvex)
             {
                 Assert.AreEqual(dvex.Context, context);
                 Assert.AreEqual(dvex.Existing, context["a"]);
@@ -377,7 +470,7 @@ namespace UnitTests
             stopwatch.Start();
             stopwatch.Stop();
             stopwatch.Reset();
-            DummyContext ctxt;           
+            DummyContext ctxt;
 
             // The line test.  This tests variable value propogation through a simple line.
             {
@@ -385,14 +478,14 @@ namespace UnitTests
                 ctxt = new DummyContext(null, "dummy_context");
                 string name = "line" + 0.ToString("D5");
                 Expression.FromString(name, ctxt);
-                Variable startLine = ctxt[name];                
+                Variable startLine = ctxt[name];
                 startLine.Contents = "-1";
                 Variable endLine = null;
                 for (int i = 1; i <= vars; i++)
                 {
                     string newName = "line" + i.ToString("D5");
                     Expression.FromString(newName, ctxt);
-                    endLine = ctxt[newName];                    
+                    endLine = ctxt[newName];
                     endLine.Contents = name;
                     name = newName;
                 }
@@ -400,18 +493,18 @@ namespace UnitTests
                 startLine.Contents = "2";
                 Assert.AreEqual(endLine.Value, 2);
                 long totalEdges = 0;
-                stopwatch.Restart();                
+                stopwatch.Restart();
                 while (stopwatch.ElapsedMilliseconds < millisPerTest)
                 {
                     startLine.Contents = "1";
                     startLine.Contents = "2";
                     totalEdges += (vars + vars);
-                }                
+                }
                 stopwatch.Stop();
                 Console.WriteLine("Line test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
-            
+
             // The ladder test.  This tests variable operational updating at depth.
             {
                 int ladderVars = 50;
@@ -439,10 +532,10 @@ namespace UnitTests
                 }
 
                 Assert.AreEqual(endA.Evaluate(), 0);
-                Assert.AreEqual(endB.Evaluate(), 0);                
-                startA.Contents = "1";                
+                Assert.AreEqual(endB.Evaluate(), 0);
+                startA.Contents = "1";
                 Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (ladderVars - 2)));
-                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (ladderVars - 2)));                
+                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (ladderVars - 2)));
                 startB.Contents = "1";
                 Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (ladderVars - 1)));
                 Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (ladderVars - 1)));
@@ -460,7 +553,7 @@ namespace UnitTests
                 Console.WriteLine("Ladder test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
-            
+
             // The spiral conch shell test.  This tests a balance of deep vs wide dependency structure.
             {
                 int spiralVars = 30;
@@ -490,7 +583,7 @@ namespace UnitTests
                     Assert.AreEqual(var.Evaluate(), 0);
                 }
                 stopwatch.Restart();
-                varCore.Contents = "1";                
+                varCore.Contents = "1";
                 for (int i = 1; i < vars.Count; i++)
                 {
                     Variable var = vars[i];
@@ -506,7 +599,7 @@ namespace UnitTests
                     varCore.Contents = "1";
                     totalEdges += (edges + edges);
                 }
-                stopwatch.Stop();                
+                stopwatch.Stop();
                 Console.WriteLine("Spiral test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
@@ -547,7 +640,7 @@ namespace UnitTests
                     pancakeStart.Contents = "2";
                     totalEdges += (edges + edges);
                 }
-                stopwatch.Stop();                
+                stopwatch.Stop();
                 Console.WriteLine("Pancake test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
             }
 
@@ -556,7 +649,7 @@ namespace UnitTests
             {
                 int diamondWidth = 1024;               // Must be a multiple of 2 
                 ctxt = new DummyContext(null, "dummy_context");
-                
+
                 List<Variable> middle = new List<Variable>();
                 int i;
                 long edges = 0;
@@ -592,9 +685,9 @@ namespace UnitTests
                     //edges += 2;
                 }
                 edges += middle.Count;
-                Variable diamondEnd = diamond.First();                
-                Assert.AreEqual(diamondEnd.Evaluate(), 0);                
-                diamondStart.Contents = "2";                
+                Variable diamondEnd = diamond.First();
+                Assert.AreEqual(diamondEnd.Evaluate(), 0);
+                diamondStart.Contents = "2";
                 Assert.AreEqual(diamondEnd.Evaluate(), 0);
                 stopwatch.Restart();
                 long totalEdges = 0;
@@ -603,7 +696,7 @@ namespace UnitTests
                     diamondStart.Contents = "1";
                     diamondStart.Contents = "2";
                     totalEdges += (edges + edges);
-                }                         
+                }
                 Console.WriteLine("Diamond test performed " + totalEdges + " updates in " + stopwatch.ElapsedMilliseconds + " ms, or " + ((double)totalEdges / stopwatch.ElapsedMilliseconds) + " per ms");
 
 
@@ -619,7 +712,7 @@ namespace UnitTests
         {
 
 
-            public DummyContext(Context parent, string name) : base(parent, name, null) { }
+            public DummyContext(Context parent, string name) : base(parent, name) { }
 
             protected override bool TryCreateContext(string name, out Context sub_ctxt)
             {
@@ -635,7 +728,7 @@ namespace UnitTests
 
             protected override bool TryCreateVariable(string name, out Variable v)
             {
-                name = name.ToLower();                
+                name = name.ToLower();
                 v = new Variable(this, name);
                 return true;
             }

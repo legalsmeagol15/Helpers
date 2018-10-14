@@ -41,7 +41,7 @@ namespace Parsing
         public static Expression FromLaTeX(string latex, Context context = null) => throw new NotImplementedException();
 
 
-        
+
 
         /// <summary>
         /// Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.
@@ -51,8 +51,10 @@ namespace Parsing
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        public static Expression FromString(string str, Context context = null)
+        public static Expression FromString(string str, Context context = null, Function.Factory functions = null)
         {
+            functions = functions ?? Function.Factory.StandardFactory;
+
             // Step #1 - check for edge conditions that will result in errors rather than throwing exceptions.            
             //ISet<Variable> terms = new HashSet<Variable>();
             if (str == null)
@@ -146,6 +148,11 @@ namespace Parsing
                             stack.Peek().AddLast(Boolean.FromBool(b));
                             continue;
 
+                        // A function from the supplied dictionary?
+                        case string _ when functions.TryCreateFunction(rawToken, out Function f):
+                            stack.Peek().AddLast(f);
+                            continue;
+
                         // Context-specific?
                         case string _ when context != null && Reference.TryCreate(rawToken.Split('.'), context, out Reference r, addedContexts, addedVariables):
                             //if (r.Head is Variable v) terms.Add(v);
@@ -194,28 +201,27 @@ namespace Parsing
         }
 
 
+
+
+
         
-
-
-        private static string regExPattern = string.Format("({0}) | ({1}) | ({2}) | ({3}) | ({4}) | ({5}) | ({6}) | ({7})",
-               StringPattern,                          //0
-               LeftNestPattern,                        //1
-               RightNestPattern,                       //2
-               OperatorPattern,                        //3
-               WordPattern,                            //4
-               NumberPattern,                          //5
-               SpacePattern,                           //6
-               VariablePattern);                       //7
-        private const string StringPattern = "\\\"[^\\\"]+\\\"";
-        private const string LeftNestPattern = @"[([{]";
-        private const string RightNestPattern = @"[)\]}]";
-        private const string OperatorPattern = @"[+-/*&|^~!]"; //@"\+\-*/&\|^~!\.;";
-        private const string WordPattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
-        private const string NumberPattern = @"(-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ) (?: [eE][\+-]?\d+)?"; //Includes support for scientific notation!
-        private const string SpacePattern = @"?=\s+";
-        private const string VariablePattern = @"[a-zA-Z_](?: [a-zA-Z_]|\d)*";
+               
+        private const string StringPattern = "(?<stringPattern>\".*\")";
+        private const string OpenerPattern = @"(?<openerPattern>[\(\[{])";
+        private const string CloserPattern = @"(?<closerPattern>[\)\]}])";
+        private const string OperPattern = @"(?<operPattern>[+-/*&|^~!])";
+        private const string VarPattern = @"(?<varPattern> \$? [a-zA-Z_][\w_]* (?:\.[a-zA-Z_][\w_]*)*)";
+        private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
+        private const string SpacePattern = @"(?<spacePattern>\s+)";                
+        private static string regExPattern = string.Format("{0} | {1} | {2} | {3} | {4} | {5} | {6}",
+               StringPattern,        //0
+               OpenerPattern,        //1
+               CloserPattern,        //2
+               OperPattern,          //3
+               VarPattern,           //4
+               NumPattern,           //5
+               SpacePattern);        //6
         private static Regex _Regex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
-
 
 
 
