@@ -218,9 +218,8 @@ namespace UnitTests
 
             // This will only work if variables are scoped for all subcontexts:
             //                                                         vvv                                 vvv
-            exp = Expression.FromString("dummy_context_b.dummy_context_c.c + dummy_context_b.dummy_context_c.b", dummyA).Commit();
-            // If the result is 2, it means that a new variable b was created and returned.
-            Assert.AreEqual(exp.Evaluate(), 7);
+            exp = Expression.FromString("c + b", dummyC).Commit();
+            Assert.AreEqual(exp.Evaluate(), 7, "If it equals 2, it means that variable getting isn't looking at super-contexts.");
 
         }
 

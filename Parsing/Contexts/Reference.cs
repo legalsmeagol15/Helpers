@@ -34,22 +34,35 @@ namespace Parsing
                 tempStack.Add(ctxt);
 
                 // Might be a context-specific function.
-                if (ctxt.TryCreateFunction(token, out Function f)) head = f;
+                if (ctxt.TryCreateFunction(token, out Function f)) { head = f; continue; }
 
                 // Try getting an existing context.
-                else if (ctxt.TryGet(token, out Context c)) ctxt = c;
+                if (ctxt.TryGet(token, out Context c)) { ctxt = c; continue; }
 
                 // Try ending the loop with an existing variable.
-                else if (ctxt.TryGet(token, out Variable var)) head = var;
+                if (ctxt.TryGet(token, out Variable var)) { head = var; continue; }
+
+                if (tempStack.Count == 1)
+                {
+                    Context parent = ctxt.Parent;
+                    while (parent != null && head == null)
+                        if (parent.TryGet(token, out var)) head = var;
+                    if (head != null) continue;
+                }
 
                 // Try creating a vanilla context (one that does not also function as a variable).
-                else if (ctxt.TryAddContext(token, out c)) addedContexts.Add(ctxt = c);
+                if (ctxt.TryAddContext(token, out c)) { addedContexts.Add(ctxt = c); continue; }
 
                 // Try creating a dual context/variable
-                else if (ctxt.TryAddAsContext(token, out c, out Variable newVar)) { addedContexts.Add(ctxt = c); addedVariables.Add(newVar); }
+                if (ctxt.TryAddAsContext(token, out c, out Variable newVar))
+                {
+                    addedContexts.Add(ctxt = c);
+                    addedVariables.Add(newVar);
+                    continue;
+                }
 
                 // Try creating a loop-ending variable.
-                else if (ctxt.TryAddWithinContext(token, out newVar)) head = newVar;
+                if (ctxt.TryAddWithinContext(token, out newVar)) { head = newVar; continue; }
 
 
 
