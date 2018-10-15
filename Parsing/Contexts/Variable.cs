@@ -5,52 +5,48 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 
 namespace Parsing
 {
-
-
-
     /// <summary>
-    /// Variables have a name and cache the values of their contents.  They participate a dependency system associated with their Context.
-    /// <para/>
-    /// A <see cref="Variable"/> is a <see cref="Context"/> that has an associated <see cref="Value"/> and updates <see cref="Listeners"/>.
+    /// Variables have a name and cache the values of their contents.  They participate a dependency system associated with their Context.    
     /// </summary>
     [Serializable]
     public class Variable : IEvaluateable
-    {
-
-        internal static readonly int SINGLE_THREAD_THRESHOLD = 5;
-        public static readonly IEvaluateable N = new Clause("", "", new IEvaluateable[] { Number.Zero });
+    {        
         public static readonly Number Null = new Number(0m);
-        public bool AllowDeletion { get; set; } = true;
 
         [field: NonSerialized]
         internal static readonly object ModifyLock = new object();
 
-        [field: NonSerialized]
-        internal readonly object UpdateLock = new object();
+        public Context Context { get; internal set; }
 
-        public Action UpdateCallback;
+        public string Name { get; private set; }
 
-        internal ISet<Variable> Listeners = new HashSet<Variable>();
+        public Expression.DeletionStatus DeletionStatus { get; internal set; } = Expression.DeletionStatus.NO_DELETION;
 
-        public IEvaluateable Evaluate() => Value;
 
-        public IEvaluateable Value = Null;
+
+        public Variable(Context context, string name) { Name = name; Context = context; }
+
+
+
+
+        #region Variable contents members
 
         private IEvaluateable _Contents;
         public string Contents
         {
-            get => GetContents.ToString();
+            get { lock (ModifyLock) lock (UpdateLock) return _Contents.ToString(); }
             set => SetContents(Expression.FromString(value, Context));
         }
-        public IEvaluateable GetContents { get { lock (ModifyLock) lock (UpdateLock) return _Contents; } }
 
         /// <summary>Does circularity checking.</summary>        
-        public void SetContents(Expression exp)
+        public string SetContents(Expression exp)
         {
-            if (exp.ChangeLock == null) throw new InvalidOperationException("Cannot set contents to a cancelled expression.");
+            if (exp.ChangeLock == null && exp.Context != null)
+                throw new InvalidOperationException("Cannot set contents to a cancelled expression.");
 
             if (GetTermsOf(exp.Contents).Any(term => term.ListensTo(this)))
             {
@@ -58,6 +54,7 @@ namespace Parsing
                 throw new CircularDependencyException(exp.Contents, this, null);
             }
 
+            string asString;
             // ModifyLock is already locked by the Expression.
             lock (UpdateLock)
             {
@@ -68,12 +65,13 @@ namespace Parsing
 
                 // Change the contents.
                 _Contents = exp.Contents;
-                AllowDeletion = (_Contents == null || _Contents is Null);
+                asString = _Contents.ToString();
+                DeletionStatus = (_Contents == null || _Contents is Null) ? Expression.DeletionStatus.ALLOW_DELETION : Expression.DeletionStatus.NO_DELETION;
 
                 // Enroll this variable as a listener of the new sources.
                 HashSet<Variable> newSources = new HashSet<Variable>(GetTermsOf(_Contents));
                 foreach (Variable newTerm in newSources)
-                    lock (newTerm)
+                    lock (newTerm.UpdateLock)
                         newTerm.Listeners.Add(this);
 
                 // Find out if something is left orphan (nobody listening to it), and try to delete it.  If it can be deleted, try to 
@@ -90,8 +88,17 @@ namespace Parsing
 
             exp.Commit();
 
-            Update(out _);
+            Update(out IDictionary<Variable, VariableChangedEventArgs> changed);
+            foreach (VariableChangedEventArgs vArgs in changed.Values)
+                vArgs.Variable.OnChanged(vArgs);
+
+            return asString;
         }
+        #endregion
+
+
+
+        #region Variable dependency members
 
         // Identifies a component of orphans which will allow themselves to be deleted.  This occurs in the situation of a variable 
         // like a line's length, which listens to x0,y0 and x1,y1.  If some external variable A listens to length, and some variable 
@@ -102,7 +109,7 @@ namespace Parsing
         {
             // Finding a listener which will NOT allow delete means that anything that variable listeners to cannot be deleted
             // either.
-            if (!focus.AllowDeletion)
+            if (focus.DeletionStatus == Expression.DeletionStatus.NO_DELETION)
                 return false;
             orphans.Add(focus);
             foreach (Variable listener in focus.Listeners)
@@ -113,16 +120,7 @@ namespace Parsing
         }
 
 
-        public Context Context;
-
-
-        public string Name;
-
-
-        public Variable(Context context, string name) { Name = name; Context = context; }
-
-
-        #region Variable dependency members
+        internal ISet<Variable> Listeners = new HashSet<Variable>();
 
         [System.Diagnostics.DebuggerStepThrough()]
         public static IEnumerable<Variable> GetTermsOf(IEvaluateable evaluateable)
@@ -157,7 +155,6 @@ namespace Parsing
             lock (ModifyLock)
             {
                 if (this.Equals(source)) return true;
-                //if (source.Listeners.Contains(this)) return true;
                 return source.Listeners.Any(listener => listener.ListensTo(this));
             }
         }
@@ -170,10 +167,26 @@ namespace Parsing
 
         #region Variable value members
 
+        [field: NonSerialized]
+        internal readonly object UpdateLock = new object();
 
-        public IEvaluateable Update(out ISet<Variable> changed)
+        public IEvaluateable Evaluate() => Value;
+
+        public IEvaluateable Value = Null;
+
+        private void OnChanged(VariableChangedEventArgs e) => Changed?.Invoke(this, e);
+        public event VariableChangedHandler Changed;
+        public delegate void VariableChangedHandler(object sender, VariableChangedEventArgs e);
+        public class VariableChangedEventArgs : EventArgs
         {
-            HashSet<Variable> changedVars = new HashSet<Variable>();
+            public readonly Variable Variable;
+            public readonly IEvaluateable Before, After;
+            public VariableChangedEventArgs(Variable v, IEvaluateable before, IEvaluateable after) { this.Variable = v; this.Before = before; this.After = after; }
+        }
+
+        public IEvaluateable Update(out IDictionary<Variable, VariableChangedEventArgs> changed)
+        {
+            Dictionary<Variable, VariableChangedEventArgs> changedVars = new Dictionary<Variable, VariableChangedEventArgs>();
             HashSet<Variable> ready = new HashSet<Variable>() { this };
 
             while (ready.Count > 0)
@@ -191,7 +204,7 @@ namespace Parsing
             }
 
             changed = changedVars;
-            lock (this)
+            lock (UpdateLock)
                 return Value;
 
             void UpdateConcurrent(Variable v, ISet<Variable> next)
@@ -212,7 +225,12 @@ namespace Parsing
                     {
                         v.Value = newValue;
                         lock (changedVars)
-                            changedVars.Add(v);
+                        {
+                            if (changedVars.TryGetValue(v, out VariableChangedEventArgs arg))
+                                changedVars[v] = new VariableChangedEventArgs(v, arg.Before, newValue);
+                            else
+                                changedVars[v] = new VariableChangedEventArgs(v, oldValue, newValue);
+                        }
                     }
 
                     // Signal to each listener that this var no longer prevents it from updating.
@@ -227,11 +245,15 @@ namespace Parsing
 
         private int UnresolvedInbound = 0;
 
-        public override string ToString() => Name;
+
+
 
 
 
         #endregion
+
+
+        public override string ToString() => Name;
 
 
     }

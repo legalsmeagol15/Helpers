@@ -9,14 +9,14 @@ using static Parsing.Context;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Collections;
 
 namespace UnitTests
 {
     [TestClass]
     public class Test_Parsing
     {
-        private Function.Factory factory;
-
+        
         #region Topologies
 
         public static Context CreateDiamondTopology(int width, out long edges, out Variable start, out Variable end)
@@ -158,19 +158,90 @@ namespace UnitTests
             }
             return ctxt;
         }
+
+        [TestMethod]
+        public void TestParsing_Validate_Topologies()
+        {
+            // Diamond topology
+            {
+                Context ctxt = CreateDiamondTopology(1024, out long edges, out Variable start, out Variable end);
+                Assert.AreEqual(end.Evaluate(), 0);
+                start.Contents = "2";
+                Assert.AreEqual(start.Evaluate(), 2);
+                Assert.AreEqual(end.Evaluate(), 0);
+            }
+
+            // Ladder topology
+            {
+                int vars = 50;
+                Context ctxt = CreateLadderTopology(vars, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB);
+                Assert.AreEqual(endA.Evaluate(), 0);
+                Assert.AreEqual(endB.Evaluate(), 0);
+                startA.Contents = "1";
+                Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (vars - 2)));
+                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (vars - 2)));
+                startB.Contents = "1";
+                Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (vars - 1)));
+                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (vars - 1)));
+            }
+
+            // Line topology
+            {
+                Context ctxt = CreateLineTopology(10000, out long edges, out Variable startLine, out Variable endLine);
+                startLine.Contents = "-1";
+                Assert.AreEqual(endLine.Value, -1);
+                startLine.Contents = "2";
+                Assert.AreEqual(endLine.Value, 2);
+            }
+
+            // Pancake topology
+            {
+                int vars = 2500;
+                Context ctxt = CreatePancakeTopology(vars, out long edges, out Variable pancakeStart, out Variable pancakeEnd);
+                pancakeStart.Contents = 1.ToString();
+                Assert.AreEqual(pancakeEnd.Evaluate(), 1 * vars);
+                pancakeStart.Contents = 2.ToString();
+                Assert.AreEqual(pancakeStart.Evaluate(), 2);
+                Assert.AreEqual(pancakeEnd.Evaluate(), 2 * vars);
+            }
+
+            // Spiral topology
+            {
+                Context ctxt = CreateSpiralTopology(30, out long edges, out Variable varCore, out List<Variable> vars);
+                varCore.Contents = "1";
+                for (int i = 1; i < vars.Count; i++)
+                {
+                    Variable var = vars[i];
+                    int shouldEqual = 1 << (i - 1);
+                    Assert.AreEqual(var.Evaluate(), shouldEqual);
+                }
+                int val = 1;
+                for (int i = 1; i < vars.Count; i++)
+                {
+                    // Name, inbound, listening structure, and unchanged value checked here.
+                    Variable var = vars[i];
+                    int inbound = (int)var.GetType().GetField("UnresolvedInbound", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(var);
+                    Assert.AreEqual(inbound, 0);
+                    Assert.AreEqual(var.Name, "spiral" + (i - 1).ToString("D5"));
+                    for (int j = 0; j < i; j++)
+                        Assert.IsTrue(var.ListensTo(vars[j]));
+                    Assert.IsTrue(var.ListensTo(varCore));
+                    Assert.AreEqual(var.Evaluate(), val << (i - 1), var.Name);
+
+                }
+            }
+        }
+
+
         #endregion
 
-        [TestInitialize]
-        public void TestParsing__Initialize()
-        {
-            factory = Function.Factory.StandardFactory;
-        }
 
 
         [TestMethod]
         public void TestParsing_Constant_Functions()
         {
             DummyContext context = new DummyContext(null, "dummy ctxt");
+            Function.Factory factory = Function.Factory.StandardFactory;
 
             Function f1 = factory["PI"];
             Function f2 = factory["PI"];
@@ -193,6 +264,7 @@ namespace UnitTests
             Assert.AreEqual(e.Evaluate(), (decimal)Math.E);
 
         }
+
 
         [TestMethod]
         public void TestParsing_Contexts()
@@ -227,6 +299,8 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Function_Factory()
         {
+            Function.Factory factory = Function.Factory.StandardFactory;
+
             Assert.IsTrue(factory.Contains("Addition"));
             Assert.IsTrue(factory.Contains("Subtraction"));
             Assert.IsTrue(factory.Contains("Multiplication"));
@@ -244,8 +318,7 @@ namespace UnitTests
 
         }
 
-
-
+        
         [TestMethod]
         public void TestParsing_Nesting()
         {
@@ -278,11 +351,12 @@ namespace UnitTests
             Assert.AreEqual(e.Evaluate(), 6);
         }
 
-
-
+        
         [TestMethod]
         public void TestParsing_Number_Equalities()
         {
+            Function.Factory factory = Function.Factory.StandardFactory;
+
             Function adder = factory["Addition"];
             // Test that functions are correctly doing calculations.
             Assert.IsTrue(adder.Evaluate(Number.One, Number.One).Equals(2m));
@@ -515,7 +589,7 @@ namespace UnitTests
 
             // Do a simple evaluation of an expression containing a variable.
             IEvaluateable exp = Expression.FromString("5a+3", context).Commit();
-            varA.Update(out ISet<Variable> changed);
+            varA.Update(out IDictionary<Variable, Variable.VariableChangedEventArgs> changed);
             Assert.AreEqual(0, changed.Count);
             Assert.AreEqual(exp.Evaluate(), (5 * valA + 3));
             Assert.AreEqual(exp.Evaluate(), 8);
@@ -597,77 +671,65 @@ namespace UnitTests
         }
 
         [TestMethod]
-        public void TestParsing_Validate_Topologies()
+        public void TestParsing_Variables_Deleting()
         {
-            // Diamond topology
+            // Create a variable that is independent of everything else.
+            Context root = new DummyContext(null, "root_context");
+            Variable varA = root.Declare("a", "5+3");
+            Assert.AreEqual(varA.Value, 8);
+            Variable nonexistingEmpty = null;
+            try
             {
-                Context ctxt = CreateDiamondTopology(1024, out long edges, out Variable start, out Variable end);
-                Assert.AreEqual(end.Evaluate(), 0);
-                start.Contents = "2";
-                Assert.AreEqual(start.Evaluate(), 2);
-                Assert.AreEqual(end.Evaluate(), 0);
+                nonexistingEmpty = root["empty"];
+                Assert.Fail();
             }
+            catch (KeyNotFoundException) { }
+            Assert.IsNull(nonexistingEmpty);
+            Assert.AreEqual(Expression.DeletionStatus.NO_DELETION, varA.DeletionStatus);
 
-            // Ladder topology
-            {
-                int vars = 50;
-                Context ctxt = CreateLadderTopology(vars, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB);
-                Assert.AreEqual(endA.Evaluate(), 0);
-                Assert.AreEqual(endB.Evaluate(), 0);
-                startA.Contents = "1";
-                Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (vars - 2)));
-                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (vars - 2)));
-                startB.Contents = "1";
-                Assert.AreEqual(endA.Evaluate(), Math.Pow(2, (vars - 1)));
-                Assert.AreEqual(endB.Evaluate(), Math.Pow(2, (vars - 1)));
-            }
+            // Create the variable which will eventually be deleted, and have 'a' point at it.
+            Variable varTBD = root.Declare("subcontext.tbd");
+            Context subctxt = root.Subcontexts["subcontext"];
+            varA.Contents = "subcontext.tbd + 4";
+            Assert.AreEqual(varA.Value, 4);
+            Variable varTBDPrime = subctxt["tbd"];
+            Assert.AreEqual(varTBD, varTBDPrime);
+            varTBDPrime = null;
+            Assert.AreEqual(Expression.DeletionStatus.ALLOW_DELETION, varTBD.DeletionStatus);
 
-            // Line topology
-            {
-                Context ctxt = CreateLineTopology(10000, out long edges, out Variable startLine, out Variable endLine);
-                startLine.Contents = "-1";
-                Assert.AreEqual(endLine.Value, -1);
-                startLine.Contents = "2";
-                Assert.AreEqual(endLine.Value, 2);
-            }
+            // Create a weak reference to varTBD and to subctxt and assure that they work just as well as the standard strong 
+            // reference.
+            WeakReference<Variable> weakVar = new WeakReference<Variable>(varTBD);            
+            Assert.IsTrue(weakVar.TryGetTarget(out Variable weakVarTemp));
+            Assert.AreEqual(weakVarTemp, varTBD);
+            weakVarTemp = null;
+            WeakReference<Context> weakCtxt = new WeakReference<Context>(subctxt);
+            Assert.IsTrue(weakCtxt.TryGetTarget(out Context weakCtxtTemp));
+            Assert.AreEqual(weakCtxtTemp, subctxt);
+            weakCtxtTemp = null;
 
-            // Pancake topology
-            {
-                int vars = 2500;
-                Context ctxt = CreatePancakeTopology(vars, out long edges, out Variable pancakeStart, out Variable pancakeEnd);
-                pancakeStart.Contents = 1.ToString();
-                Assert.AreEqual(pancakeEnd.Evaluate(), 1 * vars);
-                pancakeStart.Contents = 2.ToString();
-                Assert.AreEqual(pancakeStart.Evaluate(), 2);
-                Assert.AreEqual(pancakeEnd.Evaluate(), 2 * vars);
-            }
+            // Get 'a' to point at something else.  Since nothing is now listening to 'tbd', it should automatically 
+            // delete itself.  Since there's nothing left in subctxt, it should also automatically delete itself.
+            varA.Contents = "9-2";
+            Assert.AreEqual(varA.Value, 7);
+            Assert.AreEqual(Expression.DeletionStatus.DELETED, varTBD.DeletionStatus);
+            Assert.AreEqual(Expression.DeletionStatus.DELETED, subctxt.DeletionStatus);
+            Assert.IsFalse(subctxt.Variables.Contains("tbd"));
+            Assert.IsFalse(root.Subcontexts.Contains("subcontext"));
 
-            // Spiral topology
-            {
-                Context ctxt = CreateSpiralTopology(30, out long edges, out Variable varCore, out List<Variable> vars);
-                varCore.Contents = "1";
-                for (int i = 1; i < vars.Count; i++)
-                {
-                    Variable var = vars[i];
-                    int shouldEqual = 1 << (i - 1);
-                    Assert.AreEqual(var.Evaluate(), shouldEqual);
-                }
-                int val = 1;
-                for (int i = 1; i < vars.Count; i++)
-                {
-                    // Name, inbound, listening structure, and unchanged value checked here.
-                    Variable var = vars[i];
-                    int inbound = (int)var.GetType().GetField("UnresolvedInbound", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(var);
-                    Assert.AreEqual(inbound, 0);
-                    Assert.AreEqual(var.Name, "spiral" + (i - 1).ToString("D5"));
-                    for (int j = 0; j < i; j++)
-                        Assert.IsTrue(var.ListensTo(vars[j]));
-                    Assert.IsTrue(var.ListensTo(varCore));
-                    Assert.AreEqual(var.Evaluate(), val << (i - 1), var.Name);
+            // Null the strong reference to varTBD.  This should mean there are NO strong references left, so it should be 
+            // collected by the garbage collector.
+            varTBD = null;
+            GC.Collect();
+            Assert.IsFalse(weakVar.TryGetTarget(out _));
 
-                }
-            }
+            // Null the strong reference to subctxt.  This should mean there are NO strong references left, so it should be 
+            // collected by the garbage collector.
+            subctxt = null;
+            GC.Collect();
+            Assert.IsFalse(weakCtxt.TryGetTarget(out _));            
         }
+
 
         [TestMethod]
         public void TestParsing_Variables_Updating()
@@ -789,7 +851,7 @@ namespace UnitTests
             protected override bool TryCreateContext(string name, out Context sub_ctxt)
             {
                 name = name.ToLower();
-                if (name.StartsWith("dummy_context_"))
+                if (name.Contains("context"))
                 {
                     sub_ctxt = new DummyContext(this, name);
                     return true;

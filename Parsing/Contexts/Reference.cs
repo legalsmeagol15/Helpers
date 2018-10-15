@@ -42,13 +42,8 @@ namespace Parsing
                 // Try ending the loop with an existing variable.
                 if (ctxt.TryGet(token, out Variable var)) { head = var; continue; }
 
-                if (tempStack.Count == 1)
-                {
-                    Context parent = ctxt.Parent;
-                    while (parent != null && head == null)
-                        if (parent.TryGet(token, out var)) head = var;
-                    if (head != null) continue;
-                }
+                // If there hasn't been any context references, check if the variable belongs to an ancestor.
+                if (tempStack.Count == 1 && ctxt.TryGetAncestor(token, out var)) { head = var; continue; }                
 
                 // Try creating a vanilla context (one that does not also function as a variable).
                 if (ctxt.TryAddContext(token, out c)) { addedContexts.Add(ctxt = c); continue; }
@@ -57,12 +52,13 @@ namespace Parsing
                 if (ctxt.TryAddAsContext(token, out c, out Variable newVar))
                 {
                     addedContexts.Add(ctxt = c);
+                    head = newVar;
                     addedVariables.Add(newVar);
                     continue;
                 }
 
                 // Try creating a loop-ending variable.
-                if (ctxt.TryAddWithinContext(token, out newVar)) { head = newVar; continue; }
+                if (ctxt.TryAddWithinContext(token, out newVar)) { head = newVar;  addedVariables.Add(newVar); continue; }
 
 
 

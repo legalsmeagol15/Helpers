@@ -30,13 +30,17 @@ namespace Parsing
     // This method should NOT be serializable, because it is designed as an intermediary data holder that helps manage concurrency.
     public class Expression : IDisposable
     {
+
+        public enum DeletionStatus { NO_DELETION = 0, DELETED = 1, ALLOW_DELETION = 2 }
+
         internal IEvaluateable Contents;
         internal object ChangeLock = null;
         public static readonly IEvaluateable Null = new Null();
-        private ISet<Variable> AddedVariables;
-        private ISet<Context> AddedContexts;
+        internal ISet<Variable> AddedVariables;
+        internal ISet<Context> AddedContexts;
+        public readonly Context Context;
 
-        private Expression(IEvaluateable contents = null) { this.Contents = contents; }
+        private Expression(Context context, IEvaluateable contents = null) { this.Context = context; this.Contents = contents; }
 
         public static Expression FromLaTeX(string latex, Context context = null) => throw new NotImplementedException();
 
@@ -47,7 +51,8 @@ namespace Parsing
         /// Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.
         /// <para/>Strong guarantee:  there will be no changes to the state of the given context if an exception is thrown.  If an 
         /// exception is thrown, all added variables will be deleted by calling their respective contexts' Delete method.
-        /// </summary>        /// 
+        /// </summary>        
+        /// <exception cref="SyntaxException">Thrown if the given string cannot be converted into a valid IEvaluateable.</exception>
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
@@ -57,13 +62,14 @@ namespace Parsing
 
             // Step #1 - check for edge conditions that will result in errors rather than throwing exceptions.            
             //ISet<Variable> terms = new HashSet<Variable>();
-            if (str == null)
-                return new Expression(new EvaluationError("Expression string cannot be null."));
+            if (str == null || str=="")
+                return new Expression(context, Expression.Null);
+            
 
             // Step #2a - from here, we'll be parsing the string.  Prep for parsing.
-            Expression result = new Expression();
+            Expression result = new Expression(context);
             ISet<Variable> addedVariables = (result.AddedVariables = new HashSet<Variable>());
-            ISet<Context> addedContexts = (result.AddedContexts = new HashSet<Context>());            
+            ISet<Context> addedContexts = (result.AddedContexts = new HashSet<Context>());
 
             // Step #2b - split the inputs according to the Regex.
             string[] rawTokens = _Regex.Split(str);
@@ -77,11 +83,11 @@ namespace Parsing
             // Step #2d - if there is a context which can grab variables, lock on the Variable.LockObject.
             if (context != null)
                 Monitor.Enter(result.ChangeLock = Variable.ModifyLock);
-            
+
 
             // Step #3 - Parse into clause-by-clause tree structure containing tokenized objects
             try
-            {
+            {                
                 int position = 0;
                 for (int i = 0; i < rawTokens.Length; i++)
                 {
@@ -104,7 +110,7 @@ namespace Parsing
                         case "{":
                             TokenList tl = new TokenList(rawToken, i);
                             stack.Peek().AddLast(tl);
-                            stack.Push(tl);                            
+                            stack.Push(tl);
                             continue;
                         case ")":
                         case "]":
@@ -125,13 +131,13 @@ namespace Parsing
                         case "~":
                             if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator)
                                 stack.Peek().AddLast(Function.Factory.CreateNegation());
-                            else stack.Peek().AddLast(Function.Factory.CreateSubtraction());                            
+                            else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
                             continue;
 
                         // Binary operator?
                         case "+": stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
                         case "*": stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
-                        case "/": stack.Peek().AddLast(Function.Factory.CreateDivision());  continue;
+                        case "/": stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
                         case "^": stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
                         case "|": stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
                         case "&": stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
@@ -155,12 +161,13 @@ namespace Parsing
 
                         // Context-specific?
                         case string _ when context != null && Reference.TryCreate(rawToken.Split('.'), context, out Reference r, addedContexts, addedVariables):
-                            //if (r.Head is Variable v) terms.Add(v);
+                            foreach (Variable v in addedVariables) result.AddedVariables.Add(v);
+                            foreach (Context c in addedContexts) result.AddedContexts.Add(c);
                             stack.Peek().AddLast(r);
                             continue;
 
                         // If we still don't know what the token is, it's definitely a syntax error.
-                        default:                            
+                        default:
                             throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, context.Name);
                     }
                 }
@@ -171,16 +178,15 @@ namespace Parsing
                 // made to state, ie, remove added variables and contexts.  Then, release the editing lock.  Finally, ensure the exception 
                 // make its way up the stack.                
                 result.Cancel();
+
                 if (ex is SyntaxException) throw;
                 throw new SyntaxException("Syntax error.", str, 0, context.Name, ex);
             }
 
 
-            IEvaluateable contents = rootList.Parse();            
-            //if (contents is Clause clause) clause.Terms = terms;
-            while (contents is Clause c && c.Inputs.Count() == 1 && c.IsNaked)
-                contents = c.Inputs[0];
-            result.Contents = contents;           
+            IEvaluateable contents = rootList.Parse();
+
+            result.Contents = contents;
             return result;
         }
 
@@ -204,15 +210,15 @@ namespace Parsing
 
 
 
-        
-               
+
+
         private const string StringPattern = "(?<stringPattern>\".*\")";
         private const string OpenerPattern = @"(?<openerPattern>[\(\[{])";
         private const string CloserPattern = @"(?<closerPattern>[\)\]}])";
         private const string OperPattern = @"(?<operPattern>[+-/*&|^~!])";
         private const string VarPattern = @"(?<varPattern> \$? [a-zA-Z_][\w_]* (?:\.[a-zA-Z_][\w_]*)*)";
         private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
-        private const string SpacePattern = @"(?<spacePattern>\s+)";                
+        private const string SpacePattern = @"(?<spacePattern>\s+)";
         private static string regExPattern = string.Format("{0} | {1} | {2} | {3} | {4} | {5} | {6}",
                StringPattern,        //0
                OpenerPattern,        //1
@@ -251,8 +257,8 @@ namespace Parsing
                     case "": if (Closer != "") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;
                     case "(": if (Closer != ")") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;
                     case "[": if (Closer != "]") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;
-                    case "{": if (Closer != "}") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;                                  
-                    default: throw new Exception("Unrecognized brackets: " + Opener + " vs. " + Closer); 
+                    case "{": if (Closer != "}") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;
+                    default: throw new Exception("Unrecognized brackets: " + Opener + " vs. " + Closer);
                 }
 
 
@@ -269,7 +275,7 @@ namespace Parsing
                         case TokenList tl: node.Contents = tl.Parse(); break;
                         case EvaluationError e: return e;
                         case Reference r when r.Head is Function:
-                        case Function f: prioritized.Enqueue(node); break;                        
+                        case Function f: prioritized.Enqueue(node); break;
                         case Number n when node.Next != null:
                             if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
                             if (node.Next.Contents is TokenList || node.Next.Contents is Reference || node.Next.Contents is Function || node.Next.Contents is Clause)
@@ -285,16 +291,23 @@ namespace Parsing
                     node = prioritized.Dequeue();
                     Function function = (node.Contents is Function f) ? f : (Function)((Reference)node.Contents).Head;
                     function.ParseNode(node);
-                    function.Terms = new HashSet<Variable>(function.Inputs.SelectMany(input => Variable.GetTermsOf(input)));                    
+                    function.Terms = new HashSet<Variable>(function.Inputs.SelectMany(input => Variable.GetTermsOf(input)));
                 }
 
                 // Step #4 - Return the fully-parsed clause.  If there's just one naked sub-clause in the parsed clause, return that with 
-                // this clause's opener/closer.
-                if (this.Count == 1 )
+                // this clause's opener/closer.                
+
+                // No need to return a chain of naked single-input clauses
+                if (Opener == "" && Closer == "")
                 {
-                    if (this.First is Clause c && Opener == "" && Closer == "" ) return (IEvaluateable)this.First;                    
+                    IEvaluateable result = (IEvaluateable)this.First;
+                    while ((result is Clause nakedC) && (nakedC.Inputs.Count() == 1) && (nakedC.IsNaked))
+                        result = nakedC.Inputs[0];
+                    return result;
                 }
-                return new Clause(Opener, Closer, this.Select(item => (IEvaluateable) item).ToArray());                
+
+                // In all other cases, just make a containing clause of the content.
+                return new Clause(Opener, Closer, this.Select(item => (IEvaluateable)item).ToArray());
             }
         }
 
