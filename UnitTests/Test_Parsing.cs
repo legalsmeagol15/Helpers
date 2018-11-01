@@ -5,11 +5,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
-using static Parsing.Context;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Collections;
+using Parsing.Contexts;
 
 namespace UnitTests
 {
@@ -19,16 +19,16 @@ namespace UnitTests
         
         #region Topologies
 
-        public static Context CreateDiamondTopology(int width, out long edges, out Variable start, out Variable end)
+        public static IContext CreateDiamondTopology(int width, out long edges, out Variable start, out Variable end)
         {
-            Context ctxt = new DummyContext(null, "dummy_context");
+            IContext ctxt = new DummyContext(null, "dummy_context");
 
             List<Variable> middle = new List<Variable>();
             int i;
             edges = 0;
             for (i = 0; i < width; i++)
             {
-                Variable v = ctxt.Declare("diamond" + i.ToString("D8"));
+                Variable v = Variable.Declare(ctxt, "diamond" + i.ToString("D8"));
                 middle.Add(v);
             }
             LinkedList<Variable> diamond = new LinkedList<Variable>(middle);
@@ -38,7 +38,7 @@ namespace UnitTests
                 diamond.RemoveFirst();
                 Variable vRight = diamond.First();
                 diamond.RemoveFirst();
-                Variable v = ctxt.Declare("diamond" + (i++).ToString("D8"));
+                Variable v = Variable.Declare(ctxt, "diamond" + (i++).ToString("D8"));
                 vLeft.Contents = v.Name;
                 vRight.Contents = v.Name;
                 diamond.AddLast(v);
@@ -52,7 +52,7 @@ namespace UnitTests
                 diamond.RemoveFirst();
                 Variable vRight = diamond.First();
                 diamond.RemoveFirst();
-                Variable v = ctxt.Declare("diamond" + (i++).ToString("D8"));
+                Variable v = Variable.Declare( ctxt, "diamond" + (i++).ToString("D8"));
                 v.Contents = vLeft.Name + " - " + vRight.Name;
                 diamond.AddLast(v);
                 //edges += 2;
@@ -64,13 +64,13 @@ namespace UnitTests
             return ctxt;
         }
 
-        public static Context CreateLadderTopology(int vars, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB)
+        public static IContext CreateLadderTopology(int vars, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB)
         {
             DummyContext ctxt = new DummyContext(null, "dummy_context");
             string newNameA = "ladderA" + 0.ToString("D5");
             string newNameB = "ladderB" + 0.ToString("D5");
-            startA = ctxt.Declare(newNameA);
-            startB = ctxt.Declare(newNameB);
+            startA = Variable.Declare(ctxt,newNameA);
+            startB = Variable.Declare(ctxt, newNameB);
             startA.Contents = "0";
             startB.Contents = "0";
             Assert.AreEqual(startA.Evaluate(), 0);
@@ -83,8 +83,8 @@ namespace UnitTests
                 string oldNameA = newNameA, oldNameB = newNameB;
                 newNameA = "ladderA" + i.ToString("D5");
                 newNameB = "ladderB" + i.ToString("D5");
-                endA = ctxt.Declare(newNameA);
-                endB = ctxt.Declare(newNameB);
+                endA = Variable.Declare(ctxt, newNameA);
+                endB = Variable.Declare(ctxt, newNameB);
                 endA.Contents = oldNameA + " + " + oldNameB;
                 endB.Contents = oldNameB + " + " + oldNameA;
                 edges += 4;
@@ -92,7 +92,7 @@ namespace UnitTests
             return ctxt;
         }
 
-        public static Context CreateLineTopology(int vars, out long edges, out Variable start, out Variable end)
+        public static IContext CreateLineTopology(int vars, out long edges, out Variable start, out Variable end)
         {
             DummyContext ctxt = new DummyContext(null, "dummy_context");
             string name = "line" + 0.ToString("D5");
@@ -113,19 +113,19 @@ namespace UnitTests
             return ctxt;
         }
 
-        public static Context CreatePancakeTopology(int pancakeVars, out long edges, out Variable pancakeStart, out Variable pancakeEnd)
+        public static IContext CreatePancakeTopology(int pancakeVars, out long edges, out Variable pancakeStart, out Variable pancakeEnd)
         {
-            Context ctxt = new DummyContext(null, "dummy_context");
-            pancakeStart = ctxt.Declare("pancakeStart");
+            IContext ctxt = new DummyContext(null, "dummy_context");
+            pancakeStart = Variable.Declare(ctxt, "pancakeStart");
             edges = 0;
             List<string> flatNames = new List<string>();
             for (int i = 0; i < pancakeVars; i++)
             {
-                Variable newVar = ctxt.Declare("pancake" + i.ToString("D5"));
+                Variable newVar = Variable.Declare(ctxt, "pancake" + i.ToString("D5"));
                 flatNames.Add(newVar.Name);
                 newVar.Contents = "pancakeStart";
             }
-            pancakeEnd = ctxt.Declare("pancakeEnd");
+            pancakeEnd = Variable.Declare(ctxt, "pancakeEnd");
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < flatNames.Count - 1; i++)
             {
@@ -139,18 +139,18 @@ namespace UnitTests
             return ctxt;
         }
 
-        public static Context CreateSpiralTopology(int spiralVars, out long edges, out Variable varCore, out List<Variable> vars)
+        public static IContext CreateSpiralTopology(int spiralVars, out long edges, out Variable varCore, out List<Variable> vars)
         {
             //int spiralVars = 30;
             DummyContext ctxt = new DummyContext(null, "dummy_context");
-            varCore = ctxt.Declare("core");
+            varCore = Variable.Declare(ctxt, "core");
             vars = new List<Variable>() { varCore };
             varCore.Contents = "0";
             edges = 0;
             for (int i = 0; i < spiralVars; i++)
             {
                 string varName = "spiral" + i.ToString("D5");
-                Variable newVar = ctxt.Declare(varName);
+                Variable newVar = Variable.Declare(ctxt, varName);
                 string varContents = string.Join(" + ", vars.Select(v => v.Name));
                 newVar.Contents = varContents;
                 vars.Add(newVar);
@@ -164,7 +164,7 @@ namespace UnitTests
         {
             // Diamond topology
             {
-                Context ctxt = CreateDiamondTopology(1024, out long edges, out Variable start, out Variable end);
+                IContext ctxt = CreateDiamondTopology(1024, out long edges, out Variable start, out Variable end);
                 Assert.AreEqual(end.Evaluate(), 0);
                 start.Contents = "2";
                 Assert.AreEqual(start.Evaluate(), 2);
@@ -174,7 +174,7 @@ namespace UnitTests
             // Ladder topology
             {
                 int vars = 50;
-                Context ctxt = CreateLadderTopology(vars, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB);
+                IContext ctxt = CreateLadderTopology(vars, out long edges, out Variable startA, out Variable startB, out Variable endA, out Variable endB);
                 Assert.AreEqual(endA.Evaluate(), 0);
                 Assert.AreEqual(endB.Evaluate(), 0);
                 startA.Contents = "1";
@@ -187,7 +187,7 @@ namespace UnitTests
 
             // Line topology
             {
-                Context ctxt = CreateLineTopology(10000, out long edges, out Variable startLine, out Variable endLine);
+                IContext ctxt = CreateLineTopology(10000, out long edges, out Variable startLine, out Variable endLine);
                 startLine.Contents = "-1";
                 Assert.AreEqual(endLine.Value, -1);
                 startLine.Contents = "2";
@@ -197,7 +197,7 @@ namespace UnitTests
             // Pancake topology
             {
                 int vars = 2500;
-                Context ctxt = CreatePancakeTopology(vars, out long edges, out Variable pancakeStart, out Variable pancakeEnd);
+                IContext ctxt = CreatePancakeTopology(vars, out long edges, out Variable pancakeStart, out Variable pancakeEnd);
                 pancakeStart.Contents = 1.ToString();
                 Assert.AreEqual(pancakeEnd.Evaluate(), 1 * vars);
                 pancakeStart.Contents = 2.ToString();
@@ -207,7 +207,7 @@ namespace UnitTests
 
             // Spiral topology
             {
-                Context ctxt = CreateSpiralTopology(30, out long edges, out Variable varCore, out List<Variable> vars);
+                IContext ctxt = CreateSpiralTopology(30, out long edges, out Variable varCore, out List<Variable> vars);
                 varCore.Contents = "1";
                 for (int i = 1; i < vars.Count; i++)
                 {
@@ -270,11 +270,11 @@ namespace UnitTests
         public void TestParsing_Contexts()
         {
             DummyContext dummyA = new DummyContext(null, "dummy_context_a");
-            Variable varA = dummyA.Declare("a");
+            Variable varA = Variable.Declare(dummyA, "a");
             Variable varB = ((Reference)(Expression.FromString("dummy_context_b.b", dummyA).Commit())).Variable;
-            Context dummyB = dummyA.Subcontexts["dummy_context_b"];
+            IContext dummyB = ((DummyContext)dummyA).Subcontexts["dummy_context_b"];
             Variable varC = ((Reference)(Expression.FromString("dummy_context_b.dummy_context_c.c", dummyA).Commit())).Variable;
-            Context dummyC = dummyB.Subcontexts["dummy_context_c"];
+            IContext dummyC = ((DummyContext)dummyB).Subcontexts["dummy_context_c"];
             Expression.FromString("dummy_context_c", dummyB).Commit();
 
             varA.Contents = "10";
@@ -529,8 +529,8 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Serialization()
         {
-            Context context = new DummyContext(null, "root");
-            Variable aOrigin = context.Declare("a");
+            IContext context = new DummyContext(null, "root");
+            Variable aOrigin = Variable.Declare(context, "a");
             aOrigin.Contents = "2";
             IEvaluateable exp1 = Expression.FromString("3 + 5 * a ^ 2 / 4 - -1", context).Commit();
 
@@ -554,23 +554,23 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Variables()
         {
-            Context context = new DummyContext(null, "dummyContext Test_Parsing_Variables");
-            Variable varA = context.Declare("a");
-            Variable varB = context.Declare("b");
-            Variable varC = context.Declare("c");
+            IContext context = new DummyContext(null, "dummyContext Test_Parsing_Variables");
+            Variable varA = Variable.Declare(context, "a");
+            Variable varB = Variable.Declare(context, "b");
+            Variable varC = Variable.Declare(context, "c");
             Variable varA2 = context["a"];
             Variable varB2 = context["b"];
             Variable varC2 = context["c"];
             try
             {
-                context.Declare("a");
+                Variable.Declare(context,"a");
                 Assert.Fail();
             }
             catch (DuplicateVariableException dvex)
             {
-                Assert.AreEqual(dvex.Context, context);
-                Assert.AreEqual(dvex.Existing, context["a"]);
-                Assert.AreEqual(dvex.Name, "a");
+                Assert.AreEqual(dvex.ContextName, context.Name);
+                Assert.AreEqual(dvex.VariableName, context["a"].Name);
+                Assert.AreEqual(dvex.VariableName, "a");
             }
             Assert.IsTrue(ReferenceEquals(varA, varA2));
             Assert.IsTrue(ReferenceEquals(varB, varB2));
@@ -654,7 +654,7 @@ namespace UnitTests
             }
 
             // Test for exceptions from self-referencing circularity.
-            Variable varD = context.Declare("d");
+            Variable varD = Variable.Declare(context, "d");
             Assert.AreEqual(varD.Evaluate(), Variable.Null);
             try
             {
@@ -674,8 +674,8 @@ namespace UnitTests
         public void TestParsing_Variables_Deleting()
         {
             // Create a variable that is independent of everything else.
-            Context root = new DummyContext(null, "root_context");
-            Variable varA = root.Declare("a", "5+3");
+            DummyContext root = new DummyContext(null, "root_context");
+            Variable varA = Variable.Declare(root, "a", "5+3");
             Assert.AreEqual(varA.Value, 8);
             Variable nonexistingEmpty = null;
             try
@@ -688,8 +688,8 @@ namespace UnitTests
             Assert.AreEqual(Expression.DeletionStatus.NO_DELETION, varA.DeletionStatus);
 
             // Create the variable which will eventually be deleted, and have 'a' point at it.
-            Variable varTBD = root.Declare("subcontext.tbd");
-            Context subctxt = root.Subcontexts["subcontext"];
+            Variable varTBD = Variable.Declare(root,"subcontext.tbd");
+            DummyContext subctxt = (DummyContext)root.Subcontexts["subcontext"];
             varA.Contents = "subcontext.tbd + 4";
             Assert.AreEqual(varA.Value, 4);
             Variable varTBDPrime = subctxt["tbd"];
@@ -703,8 +703,8 @@ namespace UnitTests
             Assert.IsTrue(weakVar.TryGetTarget(out Variable weakVarTemp));
             Assert.AreEqual(weakVarTemp, varTBD);
             weakVarTemp = null;
-            WeakReference<Context> weakCtxt = new WeakReference<Context>(subctxt);
-            Assert.IsTrue(weakCtxt.TryGetTarget(out Context weakCtxtTemp));
+            WeakReference<IContext> weakCtxt = new WeakReference<IContext>(subctxt);
+            Assert.IsTrue(weakCtxt.TryGetTarget(out IContext weakCtxtTemp));
             Assert.AreEqual(weakCtxtTemp, subctxt);
             weakCtxtTemp = null;
 
@@ -751,7 +751,7 @@ namespace UnitTests
             stopwatch.Start();
             stopwatch.Stop();
             stopwatch.Reset();
-            Context ctxt;
+            IContext ctxt;
 
             // The diamond test.  Goes exponentially wide before going exponentially narrow again.
             {
@@ -842,13 +842,13 @@ namespace UnitTests
         /// Used to test context feature.
         /// </summary>
         [Serializable]
-        internal class DummyContext : Parsing.Context
+        internal class DummyContext : Parsing.Contexts.BasicContext
         {
 
 
-            public DummyContext(Context parent, string name) : base(parent, name) { }
+            public DummyContext(IContext parent, string name) : base(parent, name) { }
 
-            protected override bool TryCreateContext(string name, out Context sub_ctxt)
+            protected override bool TryCreateSubcontext(string name, out IContext sub_ctxt)
             {
                 name = name.ToLower();
                 if (name.Contains("context"))
@@ -859,19 +859,14 @@ namespace UnitTests
                 sub_ctxt = null;
                 return false;
             }
+            
 
             protected override bool TryCreateVariable(string name, out Variable v)
             {
                 name = name.ToLower();
                 v = new Variable(this, name);
                 return true;
-            }
-
-            protected override bool TryCreateVariableContext(string name, out Variable v)
-            {
-                v = null;
-                return false;
-            }
+            }            
         }
     }
 }

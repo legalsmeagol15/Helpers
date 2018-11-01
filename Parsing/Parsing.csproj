@@ -41,7 +41,16 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Contexts\BasicContext.cs" />
+    <Compile Include="Contexts\ContextDictionary.cs" />
+    <Compile Include="Contexts\ContextNotFoundException.cs" />
+    <Compile Include="Contexts\DuplicateContextException.cs" />
+    <Compile Include="Contexts\DuplicateVariableException.cs" />
+    <Compile Include="Contexts\IContext.cs" />
     <Compile Include="Contexts\Reference.cs" />
+    <Compile Include="Contexts\SoftContext.cs" />
+    <Compile Include="Contexts\VariableDictionary.cs" />
+    <Compile Include="Contexts\VariableNotFoundException.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="Interfaces.cs" />
     <Compile Include="Values\Boolean.cs" />

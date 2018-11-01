@@ -4,62 +4,98 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Parsing.Contexts;
 
 namespace Parsing
 {
-    public sealed class Reference : IEvaluateable, IEnumerable<Context>
+    public sealed class Reference : IEvaluateable, IEnumerable<IContext>
     {
-        private readonly List<Context> _ContextStack = new List<Context>();
+        private readonly List<IContext> _ContextStack;
 
         public IEvaluateable Head { get; private set; } = null;
 
         public Variable Variable => Head as Variable;
         public Function Function => Head as Function;
 
-        private Reference(List<Context> stack, IEvaluateable head) { this._ContextStack = stack; this.Head = head; }
+        private Reference(List<IContext> stack, IEvaluateable head) { this._ContextStack = stack; this.Head = head; }
 
-        public static bool TryCreate(IEnumerable<string> tokens, Context root, out Reference reference, ISet<Context> addedContexts, ISet<Variable> addedVariables)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tokens"></param>
+        /// <param name="root"></param>
+        /// <param name="reference"></param>
+        /// <param name="addedContexts"></param>
+        /// <param name="addedVariables"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException">Thrown when a function appears in the middle of the token list.</exception>
+        /// <exception cref="ArgumentNullException">Thrown when the <seealso cref="IContext"/> <paramref name="root"/> is null.</exception>
+        public static bool TryCreate(IEnumerable<string> tokens, IContext root, out Reference reference, ISet<IContext> addedContexts, ISet<Variable> addedVariables)
         {
+            if (root == null)
+                throw new ArgumentNullException("Root cannot be null.");
+
             reference = null;
-            Context ctxt = root;
-            List<Context> tempStack = new List<Context>();
+            IContext ctxt = root;
+            List<IContext> tempStack = new List<IContext>();
             IEvaluateable head = null;
 
             foreach (string token in tokens)
             {
-                // r.Variable should not be null until the last token.
-                if (head != null) return false;
+                if (ctxt == null)
+                    return false;
 
                 // Add this context to the stack.
                 tempStack.Add(ctxt);
 
                 // Might be a context-specific function.
-                if (ctxt.TryCreateFunction(token, out Function f)) { head = f; continue; }
-
-                // Try getting an existing context.
-                if (ctxt.TryGet(token, out Context c)) { ctxt = c; continue; }
-
-                // Try ending the loop with an existing variable.
-                if (ctxt.TryGet(token, out Variable var)) { head = var; continue; }
-
-                // If there hasn't been any context references, check if the variable belongs to an ancestor.
-                if (tempStack.Count == 1 && ctxt.TryGetAncestor(token, out var)) { head = var; continue; }                
-
-                // Try creating a vanilla context (one that does not also function as a variable).
-                if (ctxt.TryAddContext(token, out c)) { addedContexts.Add(ctxt = c); continue; }
-
-                // Try creating a dual context/variable
-                if (ctxt.TryAddAsContext(token, out c, out Variable newVar))
+                if (ctxt.TryCreateFunction(token, out Function f))
                 {
-                    addedContexts.Add(ctxt = c);
-                    head = newVar;
-                    addedVariables.Add(newVar);
+                    head = f;
+                    ctxt = null;
                     continue;
                 }
 
-                // Try creating a loop-ending variable.
-                if (ctxt.TryAddWithinContext(token, out newVar)) { head = newVar;  addedVariables.Add(newVar); continue; }
+                // Try getting an existing context.
+                if (ctxt.TryGet(token, out IContext c))
+                {
+                    // This context might also be a Variable
+                    if (c is Variable v || ctxt.TryGet(token, out v))                    
+                        head = v;                                            
+                    ctxt = c;
+                    continue;
+                }
 
+                // Try ending the loop with an existing variable.
+                if (ctxt.TryGet(token, out Variable var))
+                {
+                    head = var;
+                    ctxt = null;
+                    continue;
+                }
+
+                // Try creating a new sub-context, which may or may not be a Variable as well.
+                if (ctxt.TryAdd(token, out c))
+                {
+                    addedContexts.Add(c);
+                    // This new context might also be a Variable
+                    if (c is Variable v || ctxt.TryGet(token, out v))
+                    {
+                        head = v;
+                        addedVariables.Add(v);
+                    }
+                    ctxt = c;                    
+                    continue;
+                }
+
+                // Finally, try adding a simple variable.
+                if (ctxt.TryAdd(token, out var))
+                {
+                    head = var;
+                    addedVariables.Add(var);
+                    ctxt = null;
+                    continue;
+                }
 
 
                 // In all other cases, the next reference could not be reached either as a context or as a variable.
@@ -74,7 +110,7 @@ namespace Parsing
         public IEvaluateable Evaluate() => Head.Evaluate();
 
 
-        public IEnumerator<Context> GetEnumerator() => _ContextStack.GetEnumerator();
+        public IEnumerator<IContext> GetEnumerator() => _ContextStack.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => _ContextStack.GetEnumerator();
 
@@ -82,7 +118,7 @@ namespace Parsing
 
         public override string ToString() => (Head == null) ? ToString(_ContextStack[0]) : Head.ToString();
 
-        public string ToString(Context perspective)
+        public string ToString(IContext perspective)
         {
             perspective = _ContextStack.LastOrDefault(c => Context.IsDescendant(c, perspective));
             if (perspective == null) return ToString(_ContextStack[0]);

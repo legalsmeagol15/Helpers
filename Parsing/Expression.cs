@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using DataStructures;
 using Parsing;
+using Parsing.Contexts;
 using Parsing.Functions;
 using System.Threading;
 
@@ -37,12 +38,12 @@ namespace Parsing
         internal object ChangeLock = null;
         public static readonly IEvaluateable Null = new Null();
         internal ISet<Variable> AddedVariables;
-        internal ISet<Context> AddedContexts;
-        public readonly Context Context;
+        internal ISet<IContext> AddedContexts;
+        public readonly IContext Context;
 
-        private Expression(Context context, IEvaluateable contents = null) { this.Context = context; this.Contents = contents; }
+        private Expression(IContext context, IEvaluateable contents = null) { this.Context = context; this.Contents = contents; }
 
-        public static Expression FromLaTeX(string latex, Context context = null) => throw new NotImplementedException();
+        public static Expression FromLaTeX(string latex, IContext context = null) => throw new NotImplementedException();
 
 
 
@@ -56,7 +57,7 @@ namespace Parsing
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        public static Expression FromString(string str, Context context = null, Function.Factory functions = null)
+        public static Expression FromString(string str, IContext context = null, Function.Factory functions = null)
         {
             functions = functions ?? Function.Factory.StandardFactory;
 
@@ -69,7 +70,7 @@ namespace Parsing
             // Step #2a - from here, we'll be parsing the string.  Prep for parsing.
             Expression result = new Expression(context);
             ISet<Variable> addedVariables = (result.AddedVariables = new HashSet<Variable>());
-            ISet<Context> addedContexts = (result.AddedContexts = new HashSet<Context>());
+            ISet<IContext> addedContexts = (result.AddedContexts = new HashSet<IContext>());
 
             // Step #2b - split the inputs according to the Regex.
             string[] rawTokens = _Regex.Split(str);
@@ -83,7 +84,6 @@ namespace Parsing
             // Step #2d - if there is a context which can grab variables, lock on the Variable.LockObject.
             if (context != null)
                 Monitor.Enter(result.ChangeLock = Variable.ModifyLock);
-
 
             // Step #3 - Parse into clause-by-clause tree structure containing tokenized objects
             try
@@ -160,10 +160,10 @@ namespace Parsing
                             continue;
 
                         // Context-specific?
-                        case string _ when context != null && Reference.TryCreate(rawToken.Split('.'), context, out Reference r, addedContexts, addedVariables):
-                            foreach (Variable v in addedVariables) result.AddedVariables.Add(v);
-                            foreach (Context c in addedContexts) result.AddedContexts.Add(c);
-                            stack.Peek().AddLast(r);
+                        case string _ when context != null && Reference.TryCreate(rawToken.Split('.'), context, out Reference rel, addedContexts, addedVariables):
+                            result.AddedVariables.UnionWith(addedVariables);
+                            result.AddedContexts.UnionWith(addedContexts);
+                            stack.Peek().AddLast(rel);
                             continue;
 
                         // If we still don't know what the token is, it's definitely a syntax error.
@@ -202,7 +202,7 @@ namespace Parsing
         public void Cancel()
         {
             foreach (Variable v in AddedVariables) v.Context.TryDelete(v);
-            foreach (Context c in AddedContexts) c.Parent.TryDelete(c);
+            foreach (IContext c in AddedContexts) c.Parent.TryDelete(c);
             if (ChangeLock != null) { Monitor.Exit(ChangeLock); ChangeLock = null; }
         }
 
