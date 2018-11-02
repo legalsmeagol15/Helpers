@@ -5,13 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Parsing.Contexts
-{
-    public enum SearchPolicies
-    {
-        ANCESTORS_VARIABLES = 1,
-        ANCESTORS_CONTEXTS = 2
-    }
-    
+{    
 
     /// <summary>
     /// The basic context allowing for addition and retrieval of variables and sub-contexts by name.
@@ -23,8 +17,7 @@ namespace Parsing.Contexts
     [Serializable]
     public abstract class BasicContext : IContext
     {
-        public SearchPolicies SearchPolicy = SearchPolicies.ANCESTORS_VARIABLES;
-
+        
         public IContext Parent { get; }
 
         public string Name { get; }
@@ -60,30 +53,16 @@ namespace Parsing.Contexts
         bool IContext.TryGet(string name, out IContext ctxt)
         {
             if (InternalSubcontexts.TryGetValue(name, out ctxt)) return true;
-            if ((SearchPolicy & SearchPolicies.ANCESTORS_CONTEXTS) != 0)
-            {
-                IContext focus = this.Parent;
-                while (focus != null)
-                {
-                    if (focus.TryGet(name, out ctxt)) return true;
-                    focus = focus.Parent;
-                }
-            }
-            return false;             
+            if (Parent != null)
+                return Parent.TryGet(name, out ctxt);
+            return false;
         }
 
         bool IContext.TryGet(string name, out Variable v)
         {
             if (InternalVariables.TryGetValue(name, out v)) return true;
-            if ((SearchPolicy & SearchPolicies.ANCESTORS_VARIABLES) != 0)
-            {
-                IContext focus = this.Parent;
-                while (focus != null)
-                {
-                    if (focus.TryGet(name, out v)) return true;
-                    focus = focus.Parent;
-                }
-            }
+            if (Parent != null)
+                return Parent.TryGet(name, out v);
             return false;
         }
 

@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
+using DataStructures;
 
 namespace Parsing
 {
@@ -23,9 +24,6 @@ namespace Parsing
 
         public IContext Context { get; internal set; }
 
-        public string Name { get; private set; }
-
-        public Expression.DeletionStatus DeletionStatus { get; internal set; } = Expression.DeletionStatus.NO_DELETION;
 
 
 
@@ -106,9 +104,9 @@ namespace Parsing
 
             exp.Commit();
 
-            Update(out IDictionary<Variable, VariableChangedEventArgs> changed);
-            foreach (VariableChangedEventArgs vArgs in changed.Values)
-                vArgs.Variable.OnChanged(vArgs);
+            Update(out IDictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>> changed);
+            foreach (ChangedEventArgs<Variable, IEvaluateable> vArgs in changed.Values)
+                vArgs.Object.OnValueChanged(vArgs);
 
             return Value;
         }
@@ -155,35 +153,66 @@ namespace Parsing
 
 
 
+        #region Variable name members
+
+        private string _Name;
+        public string Name { get => _Name; private set { string oldName = _Name; _Name = value; OnNameChanged(oldName, _Name); } }
+        private void OnNameChanged(string oldName, string newName)
+        {
+            if (oldName != newName)
+                NameChanged?.Invoke(this, new ChangedEventArgs<Variable, string>(this, oldName, newName));
+        }
+        public delegate void NameChangedHandler(object sender, ChangedEventArgs<Variable, string> e);
+        public event NameChangedHandler NameChanged;
+
+        #endregion
+
+
+
+
+        #region Variable deletion status members
+
+        private Expression.DeletionStatus _DeletionStatus = Expression.DeletionStatus.ALLOW_DELETION;
+        public Expression.DeletionStatus DeletionStatus
+        {
+            get => _DeletionStatus;
+            internal set
+            {
+                Expression.DeletionStatus oldStatus = _DeletionStatus;
+                _DeletionStatus = value;
+                OnDeletionStatusChanged(oldStatus, _DeletionStatus);
+            }
+        }
+
+        private void OnDeletionStatusChanged(Expression.DeletionStatus oldStatus, Expression.DeletionStatus newStatus)
+        {
+            if (oldStatus != newStatus)
+                DeletionStatusChanged?.Invoke(this, new ChangedEventArgs<Variable, Expression.DeletionStatus>(this, oldStatus, newStatus));
+        }
+        public delegate void DeletionStatusChangedHandler(object sender, ChangedEventArgs<Variable, Expression.DeletionStatus> e);
+        public event DeletionStatusChangedHandler DeletionStatusChanged;
+
+        #endregion
+
+        
+
+
         #region Variable value members
 
         [field: NonSerialized]
         internal readonly object UpdateLock = new object();
 
         public IEvaluateable Evaluate() => Value;
-
         public IEvaluateable Value = Null;
 
-        private void OnChanged(VariableChangedEventArgs e) => Changed?.Invoke(this, e);
-        public event VariableChangedHandler Changed;
-        public delegate void VariableChangedHandler(object sender, VariableChangedEventArgs e);
-        public enum ChangeType { Value, DeletionStatus }
-        public class VariableChangedEventArgs : EventArgs
-        {            
-            public readonly Variable Variable;
-            public readonly IEvaluateable Before, After;
-            public VariableChangedEventArgs(Variable v, IEvaluateable before, IEvaluateable after)
-            {
-                this.Variable = v;              
-                this.Before = before;
-                this.After = after;
-            }
-            
-        }
-
-        public IEvaluateable Update(out IDictionary<Variable, VariableChangedEventArgs> changed)
+        private void OnValueChanged(ChangedEventArgs<Variable, IEvaluateable> e) => ValueChanged?.Invoke(this, e);
+        public event ValueChangedHandler ValueChanged;
+        public delegate void ValueChangedHandler(object sender, ChangedEventArgs<Variable, IEvaluateable> e);        
+        
+        public IEvaluateable Update(out IDictionary<Variable, ChangedEventArgs<Variable,  IEvaluateable>> changed)
         {
-            Dictionary<Variable, VariableChangedEventArgs> changedVars = new Dictionary<Variable, VariableChangedEventArgs>();
+            Dictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>> changedVars 
+                = new Dictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>>();
             HashSet<Variable> ready = new HashSet<Variable>() { this };
 
             while (ready.Count > 0)
@@ -223,10 +252,10 @@ namespace Parsing
                         v.Value = newValue;
                         lock (changedVars)
                         {
-                            if (changedVars.TryGetValue(v, out VariableChangedEventArgs arg))
-                                changedVars[v] = new VariableChangedEventArgs(v, arg.Before, newValue);
+                            if (changedVars.TryGetValue(v, out ChangedEventArgs < Variable, IEvaluateable > arg))
+                                changedVars[v] = new ChangedEventArgs<Variable, IEvaluateable>(v, arg.Before, newValue);
                             else
-                                changedVars[v] = new VariableChangedEventArgs(v, oldValue, newValue);
+                                changedVars[v] = new ChangedEventArgs<Variable, IEvaluateable>(v, oldValue, newValue);
                         }
                     }
 
@@ -248,6 +277,7 @@ namespace Parsing
 
 
         #endregion
+
 
 
         public override string ToString() => Name;

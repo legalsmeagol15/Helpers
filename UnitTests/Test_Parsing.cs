@@ -589,7 +589,7 @@ namespace UnitTests
 
             // Do a simple evaluation of an expression containing a variable.
             IEvaluateable exp = Expression.FromString("5a+3", context).Commit();
-            varA.Update(out IDictionary<Variable, Variable.VariableChangedEventArgs> changed);
+            varA.Update(out IDictionary<Variable, DataStructures.ChangedEventArgs<Variable, IEvaluateable>> changed);
             Assert.AreEqual(0, changed.Count);
             Assert.AreEqual(exp.Evaluate(), (5 * valA + 3));
             Assert.AreEqual(exp.Evaluate(), 8);

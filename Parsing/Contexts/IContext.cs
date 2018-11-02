@@ -13,7 +13,7 @@ namespace Parsing.Contexts
         IContext Parent { get; }
 
         Expression.DeletionStatus DeletionStatus { get; set; }
-
+        
         Variable this[string name] { get; }
         bool TryGet(string name, out IContext ctxt);
         bool TryGet(string name, out Variable v);        
