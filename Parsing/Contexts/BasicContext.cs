@@ -6,6 +6,13 @@ using System.Threading.Tasks;
 
 namespace Parsing.Contexts
 {
+    public enum SearchPolicies
+    {
+        ANCESTORS_VARIABLES = 1,
+        ANCESTORS_CONTEXTS = 2
+    }
+    
+
     /// <summary>
     /// The basic context allowing for addition and retrieval of variables and sub-contexts by name.
     /// <para/>The <see cref="BasicContext"/> is backed by O(1) dictionaries for variable and sub-context operations.  The user 
@@ -13,8 +20,10 @@ namespace Parsing.Contexts
     /// created.  Note that this <seealso cref="IContext"/> class is heavy-weight, so if the desire is for a more lightweight 
     /// implementation, the user should implement IContext directly.
     /// </summary>
+    [Serializable]
     public abstract class BasicContext : IContext
     {
+        public SearchPolicies SearchPolicy = SearchPolicies.ANCESTORS_VARIABLES;
 
         public IContext Parent { get; }
 
@@ -48,14 +57,42 @@ namespace Parsing.Contexts
 
         Variable IContext.this[string name] => InternalVariables[name];
 
-        bool IContext.TryGet(string name, out IContext ctxt) => InternalSubcontexts.TryGetValue(name, out ctxt);
+        bool IContext.TryGet(string name, out IContext ctxt)
+        {
+            if (InternalSubcontexts.TryGetValue(name, out ctxt)) return true;
+            if ((SearchPolicy & SearchPolicies.ANCESTORS_CONTEXTS) != 0)
+            {
+                IContext focus = this.Parent;
+                while (focus != null)
+                {
+                    if (focus.TryGet(name, out ctxt)) return true;
+                    focus = focus.Parent;
+                }
+            }
+            return false;             
+        }
 
-        bool IContext.TryGet(string name, out Variable v) => InternalVariables.TryGetValue(name, out v);
+        bool IContext.TryGet(string name, out Variable v)
+        {
+            if (InternalVariables.TryGetValue(name, out v)) return true;
+            if ((SearchPolicy & SearchPolicies.ANCESTORS_VARIABLES) != 0)
+            {
+                IContext focus = this.Parent;
+                while (focus != null)
+                {
+                    if (focus.TryGet(name, out v)) return true;
+                    focus = focus.Parent;
+                }
+            }
+            return false;
+        }
 
         bool IContext.TryAdd(string name, out Variable variable)
         {
             if (InternalVariables.ContainsKey(name)) { variable = null; return false; }
-            return TryCreateVariable(name, out variable);            
+            if (!TryCreateVariable(name, out variable)) return false;
+            InternalVariables.Add(name, variable);
+            return true;
         }
 
         protected abstract bool TryCreateVariable(string name, out Variable v);
@@ -63,7 +100,9 @@ namespace Parsing.Contexts
         bool IContext.TryAdd(string name, out IContext context)
         {
             if (InternalSubcontexts.ContainsKey(name)) { context = null; return false; }
-            return TryCreateSubcontext(name, out context);            
+            if (!TryCreateSubcontext(name, out context)) return false;
+            InternalSubcontexts.Add(name, context);
+            return true;
         }
         protected abstract bool TryCreateSubcontext(string name, out IContext c);
 

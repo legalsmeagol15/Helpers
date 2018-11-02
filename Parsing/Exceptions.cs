@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Parsing.Contexts;
 
 namespace Parsing
 {
@@ -34,8 +35,8 @@ namespace Parsing
 
     public class ContextTraversalException : Exception
     {
-        public readonly Context Revisited;
-        public ContextTraversalException(Context revisited) : base("Context traversal exception.") { this.Revisited = revisited; }
+        public readonly IContext Revisited;
+        public ContextTraversalException(IContext revisited) : base("Context traversal exception.") { this.Revisited = revisited; }
     }
 
 

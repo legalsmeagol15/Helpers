@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static Parsing.Function;
+using Parsing.Contexts;
 
 namespace Parsing.Functions
 {
@@ -347,7 +348,7 @@ namespace Parsing.Functions
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Relation;
 
-        private LinkedList<Context> _Chain = new LinkedList<Context>();
+        private LinkedList<IContext> _Chain = new LinkedList<IContext>();
         internal Variable Variable = null;
 
         public override IEvaluateable Evaluate()
@@ -368,10 +369,10 @@ namespace Parsing.Functions
                 case Relation r:
                     if (r.Variable != null)
                         throw new InvalidOperationException("Cannot apply relation operator to " + typeof(Variable).Name + ".");
-                    foreach (Context ctxt in this._Chain) r._Chain.AddLast(ctxt);
+                    foreach (IContext ctxt in this._Chain) r._Chain.AddLast(ctxt);
                     this._Chain = r._Chain;
                     break;
-                case Context c:
+                case IContext c:
                     this._Chain.AddFirst(c); break;
                 default:
                     throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
@@ -385,7 +386,7 @@ namespace Parsing.Functions
             switch (node.Next.Remove())
             {
                 case Relation r:
-                    foreach (Context ctxt in r._Chain)
+                    foreach (IContext ctxt in r._Chain)
                         this._Chain.AddLast(ctxt);                    
                     this.Variable = r.Variable; break;
                 case Variable v:
@@ -398,7 +399,7 @@ namespace Parsing.Functions
                     else
                         throw new InvalidOperationException(string.Format("Relation operator (.) points to a %s as a %s, but the %s has no %s.", typeof(Variable).Name, typeof(Context).Name, typeof(Variable).Name, typeof(Context).Name));
                     break;
-                case Context c:
+                case IContext c:
                     this._Chain.AddLast(c); break;
                 default:
                     throw new InvalidOperationException("Relation operator (.) must be followed by another "
