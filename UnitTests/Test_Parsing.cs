@@ -673,61 +673,68 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Variables_Deleting()
         {
-            // Create a variable that is independent of everything else.
-            DummyContext root = new DummyContext(null, "root_context");
-            Variable varA = Variable.Declare(root, "a", "5+3");
-            Assert.AreEqual(varA.Value, 8);
-            Variable nonexistingEmpty = null;
-            try
+
+            // TEST THE BASIC CONTEXT
+            // Variables which are not pointed to should NOT be deleted from this context.
             {
-                nonexistingEmpty = root["empty"];
-                Assert.Fail();
+                // Create a variable that is independent of everything else.
+                DummyContext root = new DummyContext(null, "root_context");
+                Variable varA = Variable.Declare(root, "a", "5+3", Expression.DeletionStatus.NO_DELETION);
+                Assert.AreEqual(varA.Value, 8);
+                Variable nonexistingEmpty = null;
+                try
+                {
+                    nonexistingEmpty = root["empty"];
+                    Assert.Fail();
+                }
+                catch (KeyNotFoundException) { }
+                Assert.IsNull(nonexistingEmpty);
+                Assert.AreEqual(Expression.DeletionStatus.NO_DELETION, varA.DeletionStatus);
+
+                // Create the variable which will eventually be deleted, and have 'a' point at it.
+                Variable varTBD = Variable.Declare(root, "subcontext.tbd");
+                DummyContext subctxt = (DummyContext)root.Subcontexts["subcontext"];
+                varA.Contents = "subcontext.tbd + 4";
+                Assert.AreEqual(varA.Value, 4);
+                Variable varTBDPrime = subctxt["tbd"];
+                Assert.AreEqual(varTBD, varTBDPrime);
+                varTBDPrime = null;
+                Assert.AreEqual(Expression.DeletionStatus.ALLOW_DELETION, varTBD.DeletionStatus);
+
+                // Create a weak reference to varTBD and to subctxt and assure that they work just as well as the standard strong 
+                // reference.
+                WeakReference<Variable> weakVar = new WeakReference<Variable>(varTBD);
+                Assert.IsTrue(weakVar.TryGetTarget(out Variable weakVarTemp));
+                Assert.AreEqual(weakVarTemp, varTBD);
+                weakVarTemp = null;
+                WeakReference<IContext> weakCtxt = new WeakReference<IContext>(subctxt);
+                Assert.IsTrue(weakCtxt.TryGetTarget(out IContext weakCtxtTemp));
+                Assert.AreEqual(weakCtxtTemp, subctxt);
+                weakCtxtTemp = null;
+
+                // Get 'a' to point at something else.  Since nothing is now listening to 'tbd', it should automatically 
+                // delete itself.  Since there's nothing left in subctxt, it should also automatically delete itself.
+                varA.Contents = "9-2";
+                Assert.AreEqual(varA.Value, 7);
+                GC.Collect();
+                Assert.AreEqual(Expression.DeletionStatus.ALLOW_DELETION, varTBD.DeletionStatus);
+                Assert.AreEqual(Expression.DeletionStatus.ALLOW_DELETION, subctxt.DeletionStatus);
+                Assert.IsTrue(subctxt.Variables.Contains("tbd"));
+                Assert.IsTrue(root.Subcontexts.Contains("subcontext"));
             }
-            catch (KeyNotFoundException) { }
-            Assert.IsNull(nonexistingEmpty);
-            Assert.AreEqual(Expression.DeletionStatus.NO_DELETION, varA.DeletionStatus);
 
-            // Create the variable which will eventually be deleted, and have 'a' point at it.
-            Variable varTBD = Variable.Declare(root,"subcontext.tbd");
-            DummyContext subctxt = (DummyContext)root.Subcontexts["subcontext"];
-            varA.Contents = "subcontext.tbd + 4";
-            Assert.AreEqual(varA.Value, 4);
-            Variable varTBDPrime = subctxt["tbd"];
-            Assert.AreEqual(varTBD, varTBDPrime);
-            varTBDPrime = null;
-            Assert.AreEqual(Expression.DeletionStatus.ALLOW_DELETION, varTBD.DeletionStatus);
 
-            // Create a weak reference to varTBD and to subctxt and assure that they work just as well as the standard strong 
-            // reference.
-            WeakReference<Variable> weakVar = new WeakReference<Variable>(varTBD);            
-            Assert.IsTrue(weakVar.TryGetTarget(out Variable weakVarTemp));
-            Assert.AreEqual(weakVarTemp, varTBD);
-            weakVarTemp = null;
-            WeakReference<IContext> weakCtxt = new WeakReference<IContext>(subctxt);
-            Assert.IsTrue(weakCtxt.TryGetTarget(out IContext weakCtxtTemp));
-            Assert.AreEqual(weakCtxtTemp, subctxt);
-            weakCtxtTemp = null;
-
-            // Get 'a' to point at something else.  Since nothing is now listening to 'tbd', it should automatically 
-            // delete itself.  Since there's nothing left in subctxt, it should also automatically delete itself.
-            varA.Contents = "9-2";
-            Assert.AreEqual(varA.Value, 7);
-            Assert.AreEqual(Expression.DeletionStatus.DELETED, varTBD.DeletionStatus);
-            Assert.AreEqual(Expression.DeletionStatus.DELETED, subctxt.DeletionStatus);
-            Assert.IsFalse(subctxt.Variables.Contains("tbd"));
-            Assert.IsFalse(root.Subcontexts.Contains("subcontext"));
-
-            // Null the strong reference to varTBD.  This should mean there are NO strong references left, so it should be 
-            // collected by the garbage collector.
-            varTBD = null;
-            GC.Collect();
-            Assert.IsFalse(weakVar.TryGetTarget(out _));
-
-            // Null the strong reference to subctxt.  This should mean there are NO strong references left, so it should be 
-            // collected by the garbage collector.
-            subctxt = null;
-            GC.Collect();
-            Assert.IsFalse(weakCtxt.TryGetTarget(out _));            
+            // TEST THE SOFT CONTEXT
+            // Variables which are not pointed to SHOULD be deleted from this context.
+            {
+                DummySoftContext root = new DummySoftContext(null, "dummy");
+                Variable tbd = Variable.Declare(root, "tbd", "0", Expression.DeletionStatus.ALLOW_DELETION);
+                Assert.IsTrue(root.Variables.Contains("tbd"));
+                tbd = null;
+                GC.Collect();
+                Assert.IsFalse(root.Variables.Contains("tbd"));
+            }
+                    
         }
 
 
@@ -868,5 +875,29 @@ namespace UnitTests
                 return true;
             }            
         }
+
+
+        internal class DummySoftContext : SoftContext
+        {
+            public DummySoftContext(IContext parent, string name) : base(parent, name) { }
+
+            protected override bool TryCreateSubcontext(string name, out IContext subcontext)
+            {
+                if (name.Contains("context"))
+                {
+                    subcontext = new DummySoftContext(this, name);
+                    return true;
+                }
+                subcontext = null;
+                return false;
+            }
+
+            protected override bool TryCreateVariable(string name, out Variable v)
+            {
+                v = new Variable(this, name);
+                return true;
+            }
+        }
+
     }
 }

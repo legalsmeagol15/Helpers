@@ -283,7 +283,7 @@ namespace Parsing
         public override string ToString() => Name;
 
 
-        public static Variable Declare(IContext ctxt, string name, string contents = "")
+        public static Variable Declare(IContext ctxt, string name, string contents = "", Expression.DeletionStatus deletion = Expression.DeletionStatus.ALLOW_DELETION)
         {
             Expression exp = Expression.FromString(name, ctxt);
             Reference r = exp.Contents as Reference;
@@ -305,7 +305,7 @@ namespace Parsing
             exp.Commit();
             if (contents != "")
                 r.Variable.Contents = contents;
-            r.Variable.DeletionStatus = Expression.DeletionStatus.ALLOW_DELETION;            
+            r.Variable.DeletionStatus = deletion;            
             return r.Variable;
         }
 

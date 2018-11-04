@@ -21,7 +21,7 @@ namespace Parsing.Contexts
         public Variable this[string name] => _Context[name];
 
         public IEnumerator<Variable> GetEnumerator() => _Context.GetVariables.GetEnumerator();
-        
+
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

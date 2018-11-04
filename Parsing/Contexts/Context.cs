@@ -21,7 +21,7 @@ namespace Parsing.Contexts
             }
             return false;
         }
-        
+
     }
 
 

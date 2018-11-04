@@ -28,6 +28,6 @@ namespace Parsing.Contexts
         public IEnumerator<IContext> GetEnumerator() => _Context.GetContexts.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-        
+
     }
 }

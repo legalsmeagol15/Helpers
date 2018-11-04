@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -106,5 +107,8 @@ namespace Parsing.Contexts
         }
 
         bool IContext.TryCreateFunction(string token, out Function f) { f = null; return false; }
+
+
+
     }
 }

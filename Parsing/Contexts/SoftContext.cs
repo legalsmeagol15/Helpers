@@ -8,18 +8,31 @@ namespace Parsing.Contexts
 {
     public abstract class SoftContext : IContext
     {
-        private readonly Dictionary<string, WeakReference<Variable>> _WeakVariables 
+        private readonly Dictionary<string, WeakReference<Variable>> _WeakVariables
             = new Dictionary<string, WeakReference<Variable>>();
-        private readonly Dictionary<string, WeakReference<IContext>> _WeakContexts 
+        private readonly Dictionary<string, WeakReference<IContext>> _WeakContexts
             = new Dictionary<string, WeakReference<IContext>>();
 
         /// <summary>
-        /// A Variable's deletion status can be changed (an IContext's cannot).
+        /// A Variable's deletion status can be changed.
         /// </summary>
         private readonly HashSet<Variable> _HardVariables = new HashSet<Variable>();
 
         private readonly HashSet<IContext> _HardContexts = new HashSet<IContext>();
-        
+
+        /// <summary>Returns the indicated subcontext.  Call like this:  <para/><code>context.Subcontexts["contextName"]</code></summary>
+        public readonly ContextDictionary Subcontexts;
+        /// <summary>Returns the indicated variable.  Call like this:  <para/><code>context.Variables["variableName"]</code></summary>
+        public readonly VariableDictionary Variables;
+
+        protected SoftContext(IContext parent, string name)
+        {
+            this.Parent = parent;
+            this.Name = name;
+            this.Subcontexts = new ContextDictionary(this);
+            this.Variables = new VariableDictionary(this);
+        }
+
 
         Variable IContext.this[string name] => throw new NotImplementedException();
 
@@ -61,18 +74,18 @@ namespace Parsing.Contexts
             variable.DeletionStatusChanged += OnDeletionStatusChanged;
             return true;
         }
-        
+
 
         protected abstract bool TryCreateVariable(string name, out Variable v);
 
         bool IContext.TryAdd(string name, out IContext context)
         {
             if (_WeakContexts.TryGetValue(name, out WeakReference<IContext> wr)
-                && wr.TryGetTarget(out context) 
+                && wr.TryGetTarget(out context)
                 && context.DeletionStatus != Expression.DeletionStatus.DELETED) return false;
             if (!TryCreateSubcontext(name, out context)) return false;
             if (context.DeletionStatus == Expression.DeletionStatus.DELETED) return false;
-            wr = new WeakReference<IContext>(context);            
+            wr = new WeakReference<IContext>(context);
             _WeakContexts[name] = wr;
             if (context.DeletionStatus == Expression.DeletionStatus.NO_DELETION)
                 _HardContexts.Add(context);
@@ -111,7 +124,7 @@ namespace Parsing.Contexts
         private bool TryGet(string name, out IContext ctxt)
         {
             if (_WeakContexts.TryGetValue(name, out WeakReference<IContext> wr)
-                && wr.TryGetTarget(out ctxt) 
+                && wr.TryGetTarget(out ctxt)
                 && ctxt.DeletionStatus != Expression.DeletionStatus.DELETED)
                 return true;
             if (Parent != null)
@@ -124,7 +137,7 @@ namespace Parsing.Contexts
         private bool TryGet(string name, out Variable v)
         {
             if (_WeakVariables.TryGetValue(name, out WeakReference<Variable> wr)
-                && wr.TryGetTarget(out v) 
+                && wr.TryGetTarget(out v)
                 && v.DeletionStatus != Expression.DeletionStatus.DELETED)
                 return true;
             if (Parent != null)
@@ -133,7 +146,7 @@ namespace Parsing.Contexts
             return false;
         }
         bool IContext.TryGet(string name, out Variable v) => TryGet(name, out v);
-        
+
 
         /// <summary>
         /// A variables deletion status can change (an IContext's cannot, at least not meaningfully).
