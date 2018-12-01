@@ -41,21 +41,15 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Contexts\BasicContext.cs" />
-    <Compile Include="Contexts\ContextDictionary.cs" />
-    <Compile Include="Contexts\ContextNotFoundException.cs" />
-    <Compile Include="Contexts\DuplicateContextException.cs" />
-    <Compile Include="Contexts\DuplicateVariableException.cs" />
-    <Compile Include="Contexts\IContext.cs" />
-    <Compile Include="Contexts\Reference.cs" />
-    <Compile Include="Contexts\SoftContext.cs" />
-    <Compile Include="Contexts\VariableDictionary.cs" />
-    <Compile Include="Contexts\VariableNotFoundException.cs" />
+    <Compile Include="Dependency\Context.cs" />
+    <Compile Include="Dependency\Manager.cs" />
+    <Compile Include="Reference.cs" />
+    <Compile Include="Dependency\Attributes.cs" />
+    <Compile Include="Dependency\Profiles.cs" />
     <Compile Include="Exceptions.cs" />
     <Compile Include="Interfaces.cs" />
     <Compile Include="Values\Boolean.cs" />
     <Compile Include="Clause.cs" />
-    <Compile Include="Contexts\Context.cs" />
     <Compile Include="Values\EvaluationError.cs" />
     <Compile Include="Functions\Arithmetic.cs" />
     <Compile Include="Functions\Calculus.cs" />
@@ -72,7 +66,7 @@
     <Compile Include="Values\Range.cs" />
     <Compile Include="Values\String.cs" />
     <Compile Include="Unit.cs" />
-    <Compile Include="Contexts\Variable.cs" />
+    <Compile Include="Dependency\Variable.cs" />
     <Compile Include="Values\Vector.cs" />
   </ItemGroup>
   <ItemGroup>

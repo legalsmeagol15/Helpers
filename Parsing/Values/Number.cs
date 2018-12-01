@@ -87,7 +87,6 @@ namespace Parsing
 
         public override int GetHashCode() => Value.GetHashCode();
         public override string ToString() => Value.ToString();
-        public double ToDouble() => (double)Value;
-        public int ToInt() => (int)Value;
+        
     }
 }

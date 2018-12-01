@@ -4,9 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parsing.Contexts
+namespace DataStructures.Undo
 {
-    class VariableNotFoundException : Exception
+    public interface IUndoable
     {
+        void Undo();
+        void Redo();
     }
+
+    
 }

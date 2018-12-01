@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Parsing.Dependency;
 
 namespace Parsing
 {
@@ -201,11 +202,9 @@ namespace Parsing
             #endregion
 
 
-            private static Factory _CachedStandardFactory;
-            /// <summary>
-            /// The standard function factory.
-            /// </summary>
-            public static readonly Factory StandardFactory = _CachedStandardFactory ?? (_CachedStandardFactory = GetStandardFactory());
+            private static readonly Lazy<Factory> _LazyFactory = new Lazy<Factory>(() => GetStandardFactory());            
+            /// <summary>The standard function factory.</summary>
+            public static Factory StandardFactory => _LazyFactory.Value;
 
 
 

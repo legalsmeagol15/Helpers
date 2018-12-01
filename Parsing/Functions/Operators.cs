@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Parsing.Function;
 using Parsing.Contexts;
+using Parsing.Dependency;
 
 namespace Parsing.Functions
 {
@@ -348,7 +349,7 @@ namespace Parsing.Functions
     {
         protected internal override ParsingPriority Priority => ParsingPriority.Relation;
 
-        private LinkedList<IContext> _Chain = new LinkedList<IContext>();
+        private LinkedList<Context> _Chain = new LinkedList<Context>();
         internal Variable Variable = null;
 
         public override IEvaluateable Evaluate()
@@ -369,10 +370,10 @@ namespace Parsing.Functions
                 case Relation r:
                     if (r.Variable != null)
                         throw new InvalidOperationException("Cannot apply relation operator to " + typeof(Variable).Name + ".");
-                    foreach (IContext ctxt in this._Chain) r._Chain.AddLast(ctxt);
+                    foreach (Context ctxt in this._Chain) r._Chain.AddLast(ctxt);
                     this._Chain = r._Chain;
                     break;
-                case IContext c:
+                case Context c:
                     this._Chain.AddFirst(c); break;
                 default:
                     throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
@@ -386,7 +387,7 @@ namespace Parsing.Functions
             switch (node.Next.Remove())
             {
                 case Relation r:
-                    foreach (IContext ctxt in r._Chain)
+                    foreach (Context ctxt in r._Chain)
                         this._Chain.AddLast(ctxt);                    
                     this.Variable = r.Variable; break;
                 case Variable v:
@@ -394,12 +395,12 @@ namespace Parsing.Functions
                     if (node.Next == null || !(node.Next.Contents is Relation))
                         this.Variable = v;
                     // Otherwise, the Variable is functioning as a Context.  Example: line.point0.x
-                    else if (v.Context != null)
-                        this._Chain.AddLast(v.Context);
+                    else if (v.Parent != null)
+                        this._Chain.AddLast(v.Parent);
                     else
                         throw new InvalidOperationException(string.Format("Relation operator (.) points to a %s as a %s, but the %s has no %s.", typeof(Variable).Name, typeof(Context).Name, typeof(Variable).Name, typeof(Context).Name));
                     break;
-                case IContext c:
+                case Context c:
                     this._Chain.AddLast(c); break;
                 default:
                     throw new InvalidOperationException("Relation operator (.) must be followed by another "

@@ -3,18 +3,44 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Parsing.Contexts;
+using Parsing.Dependency;
 
 namespace Parsing
 {
+
+    public class ReferenceTooShortException : Exception
+    {
+        public readonly Reference Reference;
+        public ReferenceTooShortException(Reference reference)
+            : base("A reference must point to a " + typeof(Variable).Name + " or " + typeof(Function).Name
+                  + ".  The reference \"" + reference.ToString() + "\" does not.")
+        { this.Reference = reference; }
+    }
+
+    public class ReferenceTooLongException : Exception
+    {
+        public readonly Reference Reference;
+        public ReferenceTooLongException(Reference reference)
+            : base("A reference must conclude with a " + typeof(Variable).Name + " or " + typeof(Function).Name
+                  + ".  The reference \"" + reference.ToString() + "\" does not end with a valid reference.")
+        { this.Reference = reference; }
+    }
+
+    public class ReferenceUnmatchedException : Exception
+    {
+        public readonly Reference Reference;
+        public ReferenceUnmatchedException(Reference reference)
+            : base("No valid referenced matches \"" + reference.ToString() + "\".")
+        { this.Reference = reference; }
+    }
 
     public class SyntaxException : Exception
     {
         public readonly string Entry;
         public readonly int Position;
-        public readonly string Context;
-        internal SyntaxException(string message, string entry, int position, string context) : this(message, entry, position, context,null) { }
-        internal SyntaxException(string message, string entry, int position, string context, Exception inner) : base(message, inner)
+        public readonly object Context;
+        internal SyntaxException(string message, string entry, int position, object context) : this(message, entry, position, context,null) { }
+        internal SyntaxException(string message, string entry, int position, object context, Exception inner) : base(message, inner)
         {
             this.Entry = entry;
             this.Position = position;
@@ -33,30 +59,19 @@ namespace Parsing
         }
     }
 
-    public class ContextTraversalException : Exception
+    public class ContextInvalidException : Exception
     {
-        public readonly IContext Revisited;
-        public ContextTraversalException(IContext revisited) : base("Context traversal exception.") { this.Revisited = revisited; }
+        public readonly Context Context;
+        public ContextInvalidException(Context context, string message = null) : base(message ?? "Context traversal exception.") { this.Context = context; }
     }
 
 
-    /// <summary>
-    /// Thrown when a Variable, in the course of pruning itself from its sources and listeners, manages to end up referenced by one 
-    /// of its listeners even after attempting to remove itself.  Note that this exception may indicate that this Variable's lists of 
-    /// sources and listeners may be partially prune, i.e., corrupted.  Accordingly, it is basically used for validation.
-    /// </summary>
-    public class PrunedVariableException : Exception
-    {
-        public readonly Variable Pruned, Variable;
-        public PrunedVariableException(Variable pruned, Variable variable)
-            : this(pruned, variable, "A pruned variable " + pruned.Name + " has been referenced in Variable " + variable.Name + ".")
-        { }
-        public PrunedVariableException(Variable pruned, Variable variable, string message)
-            : base(message)
-        {
-            this.Pruned = pruned;
-            this.Variable = variable;
-        }
 
+    public sealed class DependencyAttributeException : Exception
+    {
+        public DependencyAttributeException(string message) : base(message) { }
+
+        public DependencyAttributeException(string message, Exception innerException) : base(message, innerException) { }
     }
+
 }

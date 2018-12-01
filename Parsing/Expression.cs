@@ -1,52 +1,29 @@
-﻿using System;
+﻿using DataStructures;
+using Parsing;
+using Parsing.Dependency;
+using Parsing.Functions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Diagnostics;
-using DataStructures;
-using Parsing;
-using Parsing.Contexts;
-using Parsing.Functions;
 using System.Threading;
 
 namespace Parsing
 {
 
 
-
-
-    /// <summary>
-    /// An object of this class will contain a newly-created <see cref="IEvaluateable"/> object created by parsing or some similar 
-    /// operation.  Creating an <see cref="IEvaluateable"/> through an <see cref="Expression"/> object is always a thread-safe operation.
-    /// <para/>
-    /// An <see cref="Expression"/> will contain all the necessary locking information to 
-    /// release locks on all referenced objects.  For every <see cref="Context"/> where a <see cref="IVariable"/> is either referenced or 
-    /// added, the Expression will maintain a lock on that <see cref="Context"/>.  The locks are released by calling the 
-    /// <see cref="Expression.Commit"/> method, which will also return the content <see cref="IEvaluateable"/>.  Also, the locks will be 
-    /// released by garbage collection, but since this is an unreliable method it would be better to call <see cref="Expression.Commit"/>
-    /// directly.
-    /// </summary>
-    // This method should NOT be serializable, because it is designed as an intermediary data holder that helps manage concurrency.
-    public class Expression : IDisposable
+    
+    public static class Expression 
     {
+        public static IEvaluateable FromString(string str, Context context, Function.Factory functions) => FromStringInternal(str, context, functions);
 
-        public enum DeletionStatus { NO_DELETION = 0, DELETED = 1, ALLOW_DELETION = 2 }
+        public static IEvaluateable FromString(string str, Context context) => FromStringInternal(str, context, context.Functions);
 
-        internal IEvaluateable Contents;
-        internal object ChangeLock = null;
-        public static readonly IEvaluateable Null = new Null();
-        internal ISet<Variable> AddedVariables;
-        internal ISet<IContext> AddedContexts;
-        public readonly IContext Context;
-
-        private Expression(IContext context, IEvaluateable contents = null) { this.Context = context; this.Contents = contents; }
-
-        public static Expression FromLaTeX(string latex, IContext context = null) => throw new NotImplementedException();
-
-
-
+        public static IEvaluateable FromString(string str) => FromStringInternal(str, null, null);
+       
 
         /// <summary>
         /// Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.
@@ -57,22 +34,13 @@ namespace Parsing
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        public static Expression FromString(string str, IContext context = null, Function.Factory functions = null)
-        {
-            functions = functions ?? Function.Factory.StandardFactory;
-
+        internal static IEvaluateable FromStringInternal(string str, Context context, Function.Factory functions)
+        {            
             // Step #1 - check for edge conditions that will result in errors rather than throwing exceptions.            
-            //ISet<Variable> terms = new HashSet<Variable>();
-            if (str == null || str=="")
-                return new Expression(context, Expression.Null);
-            
+            //ISet<Variable> terms = new HashSet<Variable>();            
+            if (str == null || str == "") return null;
 
-            // Step #2a - from here, we'll be parsing the string.  Prep for parsing.
-            Expression result = new Expression(context);
-            ISet<Variable> addedVariables = (result.AddedVariables = new HashSet<Variable>());
-            ISet<IContext> addedContexts = (result.AddedContexts = new HashSet<IContext>());
-
-            // Step #2b - split the inputs according to the Regex.
+            // Step #2a - from here, we'll be parsing the string.  Prep for parsing.            
             string[] rawTokens = _Regex.Split(str);
             Debug.Assert(rawTokens.Length > 0);
 
@@ -80,16 +48,14 @@ namespace Parsing
             Stack<TokenList> stack = new Stack<TokenList>();
             TokenList rootList = new TokenList("", 0);
             stack.Push(rootList);
-
-            // Step #2d - if there is a context which can grab variables, lock on the Variable.LockObject.
-            if (context != null)
-                Monitor.Enter(result.ChangeLock = Variable.ModifyLock);
+            List<Reference> newReferences = new List<Reference>();
 
             // Step #3 - Parse into clause-by-clause tree structure containing tokenized objects
+            int i = 0;
             try
             {                
                 int position = 0;
-                for (int i = 0; i < rawTokens.Length; i++)
+                for (i = 0; i < rawTokens.Length; i++)
                 {
                     // Step #3a - Set up the raw token.
                     string rawToken = rawTokens[i];
@@ -117,7 +83,7 @@ namespace Parsing
                         case "}":
                             stack.Pop().Close(rawToken, i);
                             if (stack.Count == 0)
-                                throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, context.Name);
+                                throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, context);
                             continue;
 
                         //Sectioner?
@@ -155,62 +121,33 @@ namespace Parsing
                             continue;
 
                         // A function from the supplied dictionary?
-                        case string _ when functions.TryCreateFunction(rawToken, out Function f):
+                        case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f):
                             stack.Peek().AddLast(f);
                             continue;
 
                         // Context-specific?
-                        case string _ when context != null && Reference.TryCreate(rawToken.Split('.'), context, out Reference rel, addedContexts, addedVariables):
-                            result.AddedVariables.UnionWith(addedVariables);
-                            result.AddedContexts.UnionWith(addedContexts);
+                        case string _ when context != null && Reference.TryCreate( context, rawToken.Split('.'), out Reference rel):                            
                             stack.Peek().AddLast(rel);
                             continue;
 
                         // If we still don't know what the token is, it's definitely a syntax error.
                         default:
-                            throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, context.Name);
+                            throw new SyntaxException("Invalid token: " + rawToken,
+                             string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length,
+                                context);
                     }
                 }
             }
             catch (Exception ex)
             {
-                // An exception means that changes cannot be made to the states of the variables and the contexts.  Unwind any changes 
-                // made to state, ie, remove added variables and contexts.  Then, release the editing lock.  Finally, ensure the exception 
-                // make its way up the stack.                
-                result.Cancel();
-
-                if (ex is SyntaxException) throw;
-                throw new SyntaxException("Syntax error.", str, 0, context.Name, ex);
+                if (ex is SyntaxException) throw ex;
+                throw new SyntaxException("Syntax error", string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, context, ex);                
             }
-
-
+            
             IEvaluateable contents = rootList.Parse();
-
-            result.Contents = contents;
-            return result;
+            return contents;
         }
-
-
-
-        public IEvaluateable Commit()
-        {
-            IEvaluateable ret = this.Contents;
-            if (ChangeLock != null) { Monitor.Exit(ChangeLock); ChangeLock = null; }
-            return ret;
-        }
-
-        public void Cancel()
-        {
-            foreach (Variable v in AddedVariables) v.Context.TryDelete(v);
-            foreach (IContext c in AddedContexts) c.Parent.TryDelete(c);
-            if (ChangeLock != null) { Monitor.Exit(ChangeLock); ChangeLock = null; }
-        }
-
-
-
-
-
-
+                
 
         private const string StringPattern = "(?<stringPattern>\".*\")";
         private const string OpenerPattern = @"(?<openerPattern>[\(\[{])";
@@ -274,7 +211,7 @@ namespace Parsing
                     {
                         case TokenList tl: node.Contents = tl.Parse(); break;
                         case EvaluationError e: return e;
-                        case Reference r when r.Head is Function:
+                        case Reference r when r.Function != null:
                         case Function f: prioritized.Enqueue(node); break;
                         case Number n when node.Next != null:
                             if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
@@ -289,7 +226,7 @@ namespace Parsing
                 while (prioritized.Count > 0)
                 {
                     node = prioritized.Dequeue();
-                    Function function = (node.Contents is Function f) ? f : (Function)((Reference)node.Contents).Head;
+                    Function function = (node.Contents is Function f) ? f : ((Reference)node.Contents).Function;
                     function.ParseNode(node);
                     function.Terms = new HashSet<Variable>(function.Inputs.SelectMany(input => Variable.GetTermsOf(input)));
                 }
@@ -310,30 +247,7 @@ namespace Parsing
                 return new Clause(Opener, Closer, this.Select(item => (IEvaluateable)item).ToArray());
             }
         }
-
-        #region IDisposable Support
-
-        // A disposed Expression must release all its held locks.
-
-        private bool disposedValue = false; // To detect redundant calls
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    Cancel();
-                }
-                disposedValue = true;
-            }
-        }
-
-        // This code added to correctly implement the disposable pattern.
-        void IDisposable.Dispose() => Dispose(true);
-
-        #endregion
-
+        
 
     }
 }

@@ -69,6 +69,11 @@
     <Compile Include="Threading\RedoWorker.cs" />
     <Compile Include="Trees\QuadTree.cs" />
     <Compile Include="Trees\QuadTreeZ.cs" />
+    <Compile Include="Undo\IUndoable.cs" />
+    <Compile Include="Undo\IUndoStack.cs" />
+    <Compile Include="Undo\Undoable.cs" />
+    <Compile Include="Undo\UndoableGroup.cs" />
+    <Compile Include="Undo\UndoStack.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Serialization\" />
