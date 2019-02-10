@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Parsing.Dependency;
 
-namespace Parsing.Functions
+namespace Dependency
 {
     [Serializable]
     internal sealed class Abs : Function

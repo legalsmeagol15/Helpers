@@ -61,6 +61,7 @@
     <Compile Include="Structures\SkipList.cs" />
     <Compile Include="Structures\TupleDictionary.cs" />
     <Compile Include="Threading\ThreadSafeHashSet.cs" />
+    <Compile Include="TransparentWeakReference.cs" />
     <Compile Include="Trees\HashedHeap.cs" />
     <Compile Include="Trees\MinMaxHeap.cs" />
     <Compile Include="Structures\HashList.cs" />

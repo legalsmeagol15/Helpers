@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Parsing.Dependency;
+//using Parsing.Dependency;
 
-namespace Parsing
+namespace Dependency
 {
 
     public class ReferenceTooShortException : Exception
@@ -51,20 +51,23 @@ namespace Parsing
 
     public class CircularDependencyException : Exception
     {
-        public readonly Variable Tested, Dependee;
+        /// <summary>
+        /// The listener or dependent that currently exists in the dependency system.
+        /// </summary>
+        public readonly Variable ExistingListener;
+
+        /// <summary>
+        /// The source or dependee that currently exists in the dependency system.
+        /// </summary>
+        public readonly Variable ExistingSource;
         IEvaluateable Contents;
-        public CircularDependencyException(IEvaluateable contents, Variable tested, Variable dependee) : base("A circular dependency exists.")
+        public CircularDependencyException(IEvaluateable contents, Variable listener, Variable source)
+            : base("A circular dependency exists:  \"" + listener.Aliases.FirstOrDefault() + "\" already listens to source \"" + source.Aliases.FirstOrDefault() + "\".")
         {
-            this.Contents = contents; this.Tested = tested; this.Dependee = dependee;
+            this.Contents = contents; this.ExistingListener = listener; this.ExistingSource = source;
         }
     }
-
-    public class ContextInvalidException : Exception
-    {
-        public readonly Context Context;
-        public ContextInvalidException(Context context, string message = null) : base(message ?? "Context traversal exception.") { this.Context = context; }
-    }
-
+    
 
 
     public sealed class DependencyAttributeException : Exception

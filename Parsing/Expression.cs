@@ -1,7 +1,4 @@
 ﻿using DataStructures;
-using Parsing;
-using Parsing.Dependency;
-using Parsing.Functions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,18 +8,21 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Threading;
 
-namespace Parsing
+namespace Dependency
 {
 
 
     
     public static class Expression 
     {
-        public static IEvaluateable FromString(string str, Context context, Function.Factory functions) => FromStringInternal(str, context, functions);
+        public static IEvaluateable FromString(string str, IContext context, Function.Factory functions) 
+            => FromStringInternal(str, context, functions);
 
-        public static IEvaluateable FromString(string str, Context context) => FromStringInternal(str, context, context.Functions);
+        public static IEvaluateable FromString(string str, IContext context)
+            => FromStringInternal(str, context, (context == null) ? null : Function.Factory.StandardFactory);
 
-        public static IEvaluateable FromString(string str) => FromStringInternal(str, null, null);
+        public static IEvaluateable FromString(string str) 
+            => FromStringInternal(str, null, null);
        
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace Parsing
         /// <param name="str">The string to convert into an evaluatable object.</param>
         /// <param name="functions">The allowed functions for this expression.</param>
         /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        internal static IEvaluateable FromStringInternal(string str, Context context, Function.Factory functions)
+        internal static IEvaluateable FromStringInternal(string str, IContext context, Function.Factory functions)
         {            
             // Step #1 - check for edge conditions that will result in errors rather than throwing exceptions.            
             //ISet<Variable> terms = new HashSet<Variable>();            

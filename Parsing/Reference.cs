@@ -4,10 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Parsing.Dependency;
 using System.Threading;
 
-namespace Parsing
+namespace Dependency
 {
     public sealed class Reference : IEvaluateable, IEnumerable<object>
     {
@@ -49,18 +48,18 @@ namespace Parsing
                     if (tokens.Any()) throw new ReferenceTooLongException(r);
                     return r;
                 }
-                else if (context.TryGetSubcontext(name, out Context subcontext))
+                else if (context.TryGet(name, out Context subcontext))
                 {
                     r.Subcontexts.Add(subcontext);
                     return CreateInternal(subcontext);
                 }
-                else if (context.TryGetVariable(name, out Variable variable))
+                else if (context.TryGet(name, out Variable variable))
                 {
                     r.Variable = variable;
                     if (tokens.Any()) throw new ReferenceTooLongException(r);
                     return r;
                 }
-                else if (context.TryAddSubcontext(name, out subcontext))
+                else if (context.Add(name, out subcontext))
                 {
                     if (context.TryAddVariable(name, out variable))
                     {

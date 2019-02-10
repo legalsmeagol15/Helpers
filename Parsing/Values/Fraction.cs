@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parsing.Values
+namespace Dependency.Values
 {
     public struct Fraction : IEvaluateable
     {

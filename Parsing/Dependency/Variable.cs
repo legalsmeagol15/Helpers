@@ -8,62 +8,50 @@ using System.Threading.Tasks;
 using System.Windows.Threading;
 using DataStructures;
 
-namespace Parsing.Dependency
+namespace Dependency
 {
     public enum ErrorState
     {
-        NONE = 0
+        NONE = 0, SYNTAX_ERROR = 1, CIRCULAR_REFERENCE = 2, TYPE_ERROR = 4
     }
 
     public enum TypeGuarantee
-    {        
+    {
         NUMBER = 1,
         MATRIX = 2,
         STRING = 4,
         ANY = NUMBER | MATRIX | STRING
     }
-
-    /// <summary>
-    /// Variables have a name and cache the values of their contents.  They participate a dependency system associated with their Context.    
-    /// </summary>
-    [Serializable]
-    public class Variable 
+    
+    
+    public sealed class Variable 
     {
         [NonSerialized]
-        public static readonly IEvaluateable Null = new Number(0m);
-
-        //[NonSerialized]
-        //internal readonly object ChangeLock = new object();
-
+        internal static readonly object DependencyLock = new object();
         [NonSerialized]
-        internal readonly object ValueLock = new object();
+        internal readonly object UpdateLock = new object();
 
-        public Context Parent { get; internal set; }
-
-        /// <summary>The object that has a reference to this variable.</summary>
-        internal readonly Context Context;
-
-        internal Variable(Context parentCtxt) { this.Parent = parentCtxt; }
+        public readonly IContext Parent;
 
         public ErrorState Error { get; internal set; } = ErrorState.NONE;
 
-        public TypeGuarantee Type { get; private set; } = TypeGuarantee.ANY;
+        public Variable(string contents, IContext parent = null)
+        {
+            this.Parent = parent;
+            
+        }
 
 
-        #region Variable contents members
 
-        private IEvaluateable _Contents;
+
+        #region "Variable contents members"
+
+        private IEvaluateable _Contents = Null.Instance;
         public string Contents
         {
             get => _Contents.ToString();
             set => SetContents(value);
         }
-
-        public void SetNull()
-        {
-            throw new NotImplementedException();
-        }
-
 
         public IEvaluateable SetContents(string str)
         {
@@ -72,47 +60,59 @@ namespace Parsing.Dependency
                 IEvaluateable exp = Expression.FromStringInternal(str, this.Parent, Function.Factory.StandardFactory);
                 return SetContents(exp);
             }
-            catch (SyntaxException synEx)
+            catch (SyntaxException)
             {
-                throw new NotImplementedException("Must remove all new references.");
+                this.Error |= ErrorState.SYNTAX_ERROR;
             }
+            return Value;
         }
 
-
-
-        internal IEvaluateable SetContents(IEvaluateable iev)
+        public IEvaluateable SetContents(IEvaluateable iev)
         {
-            lock (this.ValueLock)
+            try
             {
-                foreach (Variable v in GetTermsOf(iev))
-                {
-                    if (Monitor.IsEntered(v.ValueLock))
-                        throw new InvalidOperationException("This thread cannot have any locks on the new evaluateable.");
-                    if (v.ListensTo(this))
-                        throw new CircularDependencyException(iev, v, this);
-                }
-                foreach (Variable v in GetTermsOf(iev))
-                    Monitor.Enter(v.ValueLock);
+                return SetContentsInternal(iev);
+            }
+            catch (CircularDependencyException)
+            {
+                this.Error |= ErrorState.CIRCULAR_REFERENCE;
+            }
+            return Value;
+        }
+
+        private IEvaluateable SetContentsInternal(IEvaluateable iev)
+        {
+            lock (DependencyLock)
+            {
                 IEnumerable<Variable> newSources = GetTermsOf(iev);
-                foreach (Variable oldSrc in this.InternalListeners.Except(newSources))
-                {
-                    lock (oldSrc.ValueLock)
-                        if (!oldSrc.InternalListeners.Remove(this))
+                foreach (Variable newSrc in newSources)
+                    lock (newSrc)
+                        if (newSrc.ListensTo(this) && !ReferenceEquals(newSrc, this))
+                            throw new CircularDependencyException(iev, newSrc, this);
+
+                IEnumerable<Variable> oldSources = GetTermsOf(_Contents).Except(newSources);
+                foreach (Variable oldSrc in oldSources)
+                    lock (oldSrc.UpdateLock)
+                        if (!oldSrc.RemoveListener(this))
                             throw new Exception("Possible dependency corruption."); // TODO:  clean this when validated.
+
+                foreach (Variable newSrc in newSources)
+                    lock (newSrc.UpdateLock)
+                        newSrc.AddListener(this);
+
+                IEvaluateable oldContents, newContents;
+                lock (UpdateLock)
+                {
+                    oldContents = this._Contents;
+                    newContents = (this._Contents = iev ?? Null.Instance);
                 }
-                foreach (Variable v in GetTermsOf(iev))
-                    lock (v.ValueLock)
-                        v.InternalListeners.Add(this);
-                IEvaluateable oldContents = this._Contents;
-                this._Contents = iev;
-                OnContentsChanged(oldContents, this._Contents);
+                OnContentsChanged(oldContents, newContents);
             }
             IEvaluateable oldValue = this.Value;
             this.Value = this.UpdateValue(out IDictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>> changes);
             OnValueChanged(changes);
             return iev;
         }
-
 
         public event ContentsChangedEventHandler ContentsChanged;
         public delegate void ContentsChangedEventHandler(Object sender, ChangedEventArgs<Variable, IEvaluateable> e);
@@ -126,13 +126,24 @@ namespace Parsing.Dependency
 
 
 
-        #region Variable dependency members
+
+        #region "Variable dependency members"
 
 
         /// <summary>
         /// This MUST be a set.  Otherwise, we'll end up with a variable appearing multiple times in the list.
-        /// </summary>
-        internal ISet<Variable> InternalListeners = new HashSet<Variable>();
+        /// </summary>       
+        private HashSet<Variable> _Listeners = new HashSet<Variable>();
+        internal bool AddListener(Variable v) => _Listeners.Add(v);
+        internal bool RemoveListener(Variable v)
+        {
+            if (_Listeners.Remove(v))
+            {
+                if (_Listeners.Count == 0) Release();
+                return true;
+            }
+            return false;
+        }
 
         [System.Diagnostics.DebuggerStepThrough()]
         internal static IEnumerable<Reference> GetReferencesOf(IEvaluateable evaluateable)
@@ -154,50 +165,38 @@ namespace Parsing.Dependency
             switch (evaluateable)
             {
                 case Reference r:
-                    if (r.Variable != null) yield return r.Variable;                    
+                    if (r.Variable != null) yield return r.Variable;
                     break;
                 case Clause c:
                     foreach (IEvaluateable iev in c.Inputs)
                         foreach (Variable var in GetTermsOf(iev)) yield return var;
-                    break;                
+                    break;
             }
         }
-        
+
 
         public bool ListensTo(Variable source)
         {
-            lock (source.ValueLock)
+            lock (DependencyLock)
             {
                 if (this.Equals(source)) return true;
-                return source.InternalListeners.Any(listener => listener.ListensTo(this));
+                return source._Listeners.Any(listener => listener.ListensTo(this));
             }
         }
         
         #endregion
 
 
-        
-        
-                
 
 
-        #region Variable value members
-        
+        #region "Variable value members"
 
-        public virtual IEvaluateable Evaluate() => Value;
-        public IEvaluateable Value { get; private set; } = Null;
+        public IEvaluateable Value { get; private set; } = Null.Instance;
 
-        private void OnValueChanged(IDictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>> changes)
+
+        public IEvaluateable UpdateValue(out IDictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>> changed)
         {
-            foreach (ChangedEventArgs<Variable, IEvaluateable> change in changes.Values) OnValueChanged(change);
-        }
-        private void OnValueChanged(ChangedEventArgs<Variable, IEvaluateable> e) => ValueChanged?.Invoke(this, e);
-        public event ValueChangedHandler ValueChanged;
-        public delegate void ValueChangedHandler(object sender, ChangedEventArgs<Variable, IEvaluateable> e);        
-        
-        public IEvaluateable UpdateValue(out IDictionary<Variable, ChangedEventArgs<Variable,  IEvaluateable>> changed)
-        {
-            Dictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>> changedVars 
+            Dictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>> changedVars
                 = new Dictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>>();
             HashSet<Variable> ready = new HashSet<Variable>() { this };
 
@@ -216,12 +215,12 @@ namespace Parsing.Dependency
             }
 
             changed = changedVars;
-            lock (ValueLock)
+            lock (DependencyLock)
                 return Value;
 
             void UpdateConcurrent(Variable v, ISet<Variable> next)
             {
-                lock (v.ValueLock)
+                lock (v.UpdateLock)
                 {
                     // If another var has made this var unready to update, skip it.
                     if (v.UnresolvedInbound != 0) return;
@@ -229,8 +228,8 @@ namespace Parsing.Dependency
                     if (v.Error != ErrorState.NONE) return;
 
                     // Signal every listener that it's not ready for update yet.
-                    foreach (Variable listener in v.InternalListeners)
-                        lock (listener.ValueLock)
+                    foreach (Variable listener in v._Listeners)
+                        lock (listener.UpdateLock)
                             listener.UnresolvedInbound++;
 
                     // Update this var, but only if the new value would change.
@@ -240,7 +239,7 @@ namespace Parsing.Dependency
                         v.Value = newValue;
                         lock (changedVars)
                         {
-                            if (changedVars.TryGetValue(v, out ChangedEventArgs < Variable, IEvaluateable > arg))
+                            if (changedVars.TryGetValue(v, out ChangedEventArgs<Variable, IEvaluateable> arg))
                                 changedVars[v] = new ChangedEventArgs<Variable, IEvaluateable>(v, arg.Before, newValue);
                             else
                                 changedVars[v] = new ChangedEventArgs<Variable, IEvaluateable>(v, oldValue, newValue);
@@ -248,8 +247,8 @@ namespace Parsing.Dependency
                     }
 
                     // Signal to each listener that this var no longer prevents it from updating.
-                    foreach (Variable listener in v.InternalListeners)
-                        lock (listener.ValueLock)
+                    foreach (Variable listener in v._Listeners)
+                        lock (listener.UpdateLock)
                             if (--listener.UnresolvedInbound == 0)
                                 lock (next)
                                     next.Add(listener);
@@ -259,27 +258,23 @@ namespace Parsing.Dependency
 
         private int UnresolvedInbound = 0;
 
-        
-
+        private void OnValueChanged(IDictionary<Variable, ChangedEventArgs<Variable, IEvaluateable>> changes)
+        {
+            foreach (ChangedEventArgs<Variable, IEvaluateable> change in changes.Values) OnValueChanged(change);
+        }
+        private void OnValueChanged(ChangedEventArgs<Variable, IEvaluateable> e) => ValueChanged?.Invoke(this, e);
+        public event ValueChangedHandler ValueChanged;
+        public delegate void ValueChangedHandler(object sender, ChangedEventArgs<Variable, IEvaluateable> e);
 
         #endregion
 
 
 
-
-        public bool Release()
-        {
-            if (InternalListeners.Any()) return false;
-            if (Parent == null || Context == null) return true;
-            throw new NotImplementedException();          
-            
-        }
-
         public override string ToString() => Value.ToString();
-
-
-        
-
     }
+    
+    
+
+    
 
 }

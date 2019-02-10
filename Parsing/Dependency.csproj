@@ -42,7 +42,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Dependency\Context.cs" />
-    <Compile Include="Dependency\Manager.cs" />
     <Compile Include="Reference.cs" />
     <Compile Include="Dependency\Attributes.cs" />
     <Compile Include="Dependency\Profiles.cs" />

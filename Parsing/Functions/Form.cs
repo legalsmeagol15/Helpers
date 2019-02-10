@@ -4,15 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parsing.Functions
+namespace Dependency
 {
     [Serializable]
     internal sealed class Simplify : Function
     {
-        protected override IEvaluateable GetDerivative(Variable v)
-        {
-            throw new NotImplementedException();
-        }
+        //protected override IEvaluateable GetDerivative(Variable v)
+        //{
+        //    throw new NotImplementedException();
+        //}
 
         public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {

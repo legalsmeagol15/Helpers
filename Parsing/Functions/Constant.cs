@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parsing.Functions
+namespace Dependency
 {
 
     [Serializable]
@@ -29,7 +29,7 @@ namespace Parsing.Functions
             if (node.Next != null && node.Next.Contents is Clause c && c.Inputs.Length == 0) node.Next.Remove();
         }
 
-        protected override IEvaluateable GetDerivative(Variable v) => Number.Zero;
+        //protected override IEvaluateable GetDerivative(Variable v) => Number.Zero;
     }
 
 

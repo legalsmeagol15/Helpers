@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Parsing.Dependency;
 
-namespace Parsing
+namespace Dependency
 {
 
     /// <summary>
@@ -195,7 +195,7 @@ namespace Parsing
             internal static Functions.Exponentiation CreateExponentiation() => new Functions.Exponentiation();
             internal static Functions.And CreateAnd() => new Functions.And();
             internal static Functions.Or CreateOr() => new Functions.Or();
-            internal static Functions.Relation CreateRelation() => new Functions.Relation();
+            //internal static Functions.Relation CreateRelation() => new Functions.Relation();
             internal static Functions.Span CreateRange() => new Functions.Span();
             internal static Functions.Negation CreateNegation() => new Functions.Negation();
 

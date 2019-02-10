@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parsing
+namespace Dependency
 {
 
     /// <summary>IEvaluteable objects can evaluate to another IEvaluatable value.</summary>

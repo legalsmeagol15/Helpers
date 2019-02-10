@@ -5,14 +5,14 @@ using System.Text;
 using System.Threading.Tasks;
 using Graphs;
 
-namespace Parsing.Functions
+namespace Dependency
 {
     [Serializable]
     internal sealed class Derivative : Function
     {
         //public readonly DataContext.Variable Variable;
         
-        protected override IEvaluateable GetDerivative(Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
+        //protected override IEvaluateable GetDerivative(Variable v) => Function.Differentiate(Evaluate(Inputs.ToArray()), v);
 
         public override IEvaluateable Evaluate()
         {

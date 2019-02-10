@@ -65,6 +65,7 @@
     <Compile Include="Test_Heap.cs" />
     <Compile Include="Test_Parsing.cs" />
     <Compile Include="Test_IntervalSet.cs" />
+    <Compile Include="Test_Dependency.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Helpers\DataStructures\DataStructures.csproj">
@@ -79,9 +80,9 @@
       <Project>{dc7c8e96-6f24-48df-a32f-2dc12b1d315b}</Project>
       <Name>Mathematics</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Parsing\Parsing.csproj">
+    <ProjectReference Include="..\Parsing\Dependency.csproj">
       <Project>{bf4a81f3-fc3d-434a-9cc2-16fb12ec0e03}</Project>
-      <Name>Parsing</Name>
+      <Name>Dependency</Name>
     </ProjectReference>
   </ItemGroup>
   <Choose>

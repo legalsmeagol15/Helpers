@@ -42,27 +42,41 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArgumentParsing\Options.cs" />
+    <Compile Include="ArtificialIntelligence\ConstraintResolver.cs" />
+    <Compile Include="ArtificialIntelligence\Logical\CNF.cs" />
+    <Compile Include="ArtificialIntelligence\Logical\Resolution.cs" />
+    <Compile Include="ArtificialIntelligence\Search.cs" />
+    <Compile Include="ArtificialIntelligence\TheoremResolver.cs" />
     <Compile Include="DataStructures\Interfaces\IEdge.cs" />
     <Compile Include="DataStructures\Interfaces\IPriorityQueue.cs" />
     <Compile Include="DataStructures\Interfaces\IVertex.cs" />
-    <Compile Include="DataStructures\Sets\CompositeKeyDictionary.cs" />
-    <Compile Include="DataStructures\Sets\DependencyGraph.cs" />
+    <Compile Include="DataStructures\Lists.cs" />
+    <Compile Include="DataStructures\Maps\CompositeKeyDictionary.cs" />
+    <Compile Include="DataStructures\Trees\DependencyGraph.cs" />
     <Compile Include="DataStructures\Sets\DisjointSet.cs" />
-    <Compile Include="DataStructures\Sets\DurationList.cs" />
-    <Compile Include="DataStructures\Sets\DynamicLinkedList.cs" />
+    <Compile Include="DataStructures\Lists\DurationList.cs" />
+    <Compile Include="DataStructures\Trees\DynamicHeap.cs" />
+    <Compile Include="DataStructures\Lists\DynamicLinkedList.cs" />
     <Compile Include="DataStructures\Sets\Extensions.cs" />
-    <Compile Include="DataStructures\Sets\HashCollection.cs" />
-    <Compile Include="DataStructures\Sets\HashList.cs" />
-    <Compile Include="DataStructures\Sets\HashStack.cs" />
-    <Compile Include="DataStructures\Sets\Heap.cs" />
-    <Compile Include="DataStructures\Sets\ModularList.cs" />
-    <Compile Include="DataStructures\Sets\SkipList.cs" />
+    <Compile Include="DataStructures\Hybrid\HashCollection.cs" />
+    <Compile Include="DataStructures\Hybrid\HashList.cs" />
+    <Compile Include="DataStructures\Hybrid\HashStack.cs" />
+    <Compile Include="DataStructures\Trees\Heap.cs" />
+    <Compile Include="DataStructures\Hybrid\IndexingQueue.cs" />
+    <Compile Include="DataStructures\Sets\IntervalSet.cs" />
+    <Compile Include="DataStructures\Lists\ModularList.cs" />
+    <Compile Include="DataStructures\Lists\SkipList.cs" />
+    <Compile Include="DataStructures\Maps\TupleDictionary.cs" />
     <Compile Include="DataStructures\Threading\PipelineWorker.cs" />
     <Compile Include="DataStructures\Threading\RedoWorker.cs" />
-    <Compile Include="DataStructures\Trees\DynamicHeap.cs" />
-    <Compile Include="DataStructures\Trees\DynamicMinMaxHeap.cs" />
     <Compile Include="DataStructures\Trees\QuadTree.cs" />
     <Compile Include="DataStructures\Trees\QuadTreeZ.cs" />
+    <Compile Include="Undo\IUndoable.cs" />
+    <Compile Include="Undo\IUndoStack.cs" />
+    <Compile Include="Undo\Undoable.cs" />
+    <Compile Include="Undo\UndoableGroup.cs" />
+    <Compile Include="Undo\UndoStack.cs" />
     <Compile Include="Graphs\Heuristic.cs" />
     <Compile Include="Graphs\IEdge.cs" />
     <Compile Include="Graphs\IVertex.cs" />
@@ -100,9 +114,7 @@
     <Compile Include="Mathematics\Sorting.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="DataStructures\Serialization\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

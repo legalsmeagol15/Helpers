@@ -4,13 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Parsing.Functions
+namespace Dependency
 {
     [Serializable]
     internal sealed class Sin : Function
     {
         internal Sin(params IEvaluateable[] inputs) : base(inputs) { }
-        protected override IEvaluateable GetDerivative(Variable v) => ApplyChainRule(v, new Cos(Inputs), Inputs[0]);
+        //protected override IEvaluateable GetDerivative(Variable v) => ApplyChainRule(v, new Cos(Inputs), Inputs[0]);
         public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
             if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
@@ -24,7 +24,7 @@ namespace Parsing.Functions
     {
         internal Cos(params IEvaluateable[] inputs) : base(inputs) { }
 
-        protected override IEvaluateable GetDerivative(Variable v) => ApplyChainRule(v, new Negation(new Sin(Inputs)), Inputs[0]);
+        //protected override IEvaluateable GetDerivative(Variable v) => ApplyChainRule(v, new Negation(new Sin(Inputs)), Inputs[0]);
 
         public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {
@@ -42,7 +42,7 @@ namespace Parsing.Functions
     {
         internal Tan(params IEvaluateable[] inputs) : base(inputs) { }
 
-        protected override IEvaluateable GetDerivative(Variable v) => throw new NotImplementedException("Derivative of TAN is SEC^2");
+        //protected override IEvaluateable GetDerivative(Variable v) => throw new NotImplementedException("Derivative of TAN is SEC^2");
 
         public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
         {

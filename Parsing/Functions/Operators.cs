@@ -5,11 +5,10 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Parsing.Function;
-using Parsing.Contexts;
+using static Dependency.Function;
 using Parsing.Dependency;
 
-namespace Parsing.Functions
+namespace Dependency
 {
     [Serializable]
     /// <summary>
@@ -198,7 +197,7 @@ namespace Parsing.Functions
     #region Comparison operators
 
     [Serializable]
-    internal abstract class Comparison : Function, IEvaluateable<Boolean>
+    internal abstract class Comparison : Function, IEvaluateable
     {
         protected abstract string Symbol { get; }
 
@@ -210,7 +209,7 @@ namespace Parsing.Functions
 
         protected abstract Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b);
 
-        Boolean IEvaluateable<Boolean>.Evaluate() => (Boolean)Evaluate(GetEvaluatedInputs());
+        //Boolean IEvaluateable<Boolean>.Evaluate() => (Boolean)Evaluate(GetEvaluatedInputs());
 
         IEvaluateable IEvaluateable.Evaluate() => Evaluate(GetEvaluatedInputs());
 
@@ -344,76 +343,76 @@ namespace Parsing.Functions
 
     #region Reference operators
 
-    [Serializable]
-    internal sealed class Relation : Operator
-    {
-        protected internal override ParsingPriority Priority => ParsingPriority.Relation;
+    //[Serializable]
+    //internal sealed class Relation : Operator
+    //{
+    //    protected internal override ParsingPriority Priority => ParsingPriority.Relation;
 
-        private LinkedList<Context> _Chain = new LinkedList<Context>();
-        internal Variable Variable = null;
+    //    private LinkedList<Context> _Chain = new LinkedList<Context>();
+    //    internal Variable Variable = null;
 
-        public override IEvaluateable Evaluate()
-        {
-            //if (Inputs.Length != 1) return InputCountError(Inputs, new int[] { 1 });
-            //if (!(Inputs[0] is Variable)) return InputTypeError(Inputs, 0, new Type[] { typeof(Context) });
-            return Variable.Evaluate();
-        }
+    //    public override IEvaluateable Evaluate()
+    //    {
+    //        //if (Inputs.Length != 1) return InputCountError(Inputs, new int[] { 1 });
+    //        //if (!(Inputs[0] is Variable)) return InputTypeError(Inputs, 0, new Type[] { typeof(Context) });
+    //        return Variable.Evaluate();
+    //    }
 
-        public override IEvaluateable Evaluate(params IEvaluateable[] inputs) => Variable.Evaluate();
+    //    public override IEvaluateable Evaluate(params IEvaluateable[] inputs) => Variable.Evaluate();
 
-        protected internal override void ParseNode(DynamicLinkedList<object>.Node node)
-        {
-            if (node.Previous == null)
-                throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
-            switch (node.Previous.Remove())
-            {
-                case Relation r:
-                    if (r.Variable != null)
-                        throw new InvalidOperationException("Cannot apply relation operator to " + typeof(Variable).Name + ".");
-                    foreach (Context ctxt in this._Chain) r._Chain.AddLast(ctxt);
-                    this._Chain = r._Chain;
-                    break;
-                case Context c:
-                    this._Chain.AddFirst(c); break;
-                default:
-                    throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
-            }
+    //    protected internal override void ParseNode(DynamicLinkedList<object>.Node node)
+    //    {
+    //        if (node.Previous == null)
+    //            throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
+    //        switch (node.Previous.Remove())
+    //        {
+    //            case Relation r:
+    //                if (r.Variable != null)
+    //                    throw new InvalidOperationException("Cannot apply relation operator to " + typeof(Variable).Name + ".");
+    //                foreach (Context ctxt in this._Chain) r._Chain.AddLast(ctxt);
+    //                this._Chain = r._Chain;
+    //                break;
+    //            case Context c:
+    //                this._Chain.AddFirst(c); break;
+    //            default:
+    //                throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
+    //        }
 
-            if (node.Next == null)
-                throw new InvalidOperationException("Relation operator (.) must be followed by another "
-                            + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");
-            else if (this.Variable != null)
-                throw new InvalidOperationException("Relation operator (.) already refers to Variable " + this.Variable.Name + " in its chain.");
-            switch (node.Next.Remove())
-            {
-                case Relation r:
-                    foreach (Context ctxt in r._Chain)
-                        this._Chain.AddLast(ctxt);                    
-                    this.Variable = r.Variable; break;
-                case Variable v:
-                    // If this is the end of the relation, we've found the Variable.  Example:  line.length
-                    if (node.Next == null || !(node.Next.Contents is Relation))
-                        this.Variable = v;
-                    // Otherwise, the Variable is functioning as a Context.  Example: line.point0.x
-                    else if (v.Parent != null)
-                        this._Chain.AddLast(v.Parent);
-                    else
-                        throw new InvalidOperationException(string.Format("Relation operator (.) points to a %s as a %s, but the %s has no %s.", typeof(Variable).Name, typeof(Context).Name, typeof(Variable).Name, typeof(Context).Name));
-                    break;
-                case Context c:
-                    this._Chain.AddLast(c); break;
-                default:
-                    throw new InvalidOperationException("Relation operator (.) must be followed by another "
-                        + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");
-            }
+    //        if (node.Next == null)
+    //            throw new InvalidOperationException("Relation operator (.) must be followed by another "
+    //                        + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");
+    //        else if (this.Variable != null)
+    //            throw new InvalidOperationException("Relation operator (.) already refers to Variable " + this.Variable.Aliases.FirstOrDefault() + " in its chain.");
+    //        switch (node.Next.Remove())
+    //        {
+    //            case Relation r:
+    //                foreach (Context ctxt in r._Chain)
+    //                    this._Chain.AddLast(ctxt);                    
+    //                this.Variable = r.Variable; break;
+    //            case Variable v:
+    //                // If this is the end of the relation, we've found the Variable.  Example:  line.length
+    //                if (node.Next == null || !(node.Next.Contents is Relation))
+    //                    this.Variable = v;
+    //                // Otherwise, the Variable is functioning as a Context.  Example: line.point0.x
+    //                else if (v.Parent != null)
+    //                    this._Chain.AddLast(v.Parent);
+    //                else
+    //                    throw new InvalidOperationException(string.Format("Relation operator (.) points to a %s as a %s, but the %s has no %s.", typeof(Variable).Name, typeof(Context).Name, typeof(Variable).Name, typeof(Context).Name));
+    //                break;
+    //            case Context c:
+    //                this._Chain.AddLast(c); break;
+    //            default:
+    //                throw new InvalidOperationException("Relation operator (.) must be followed by another "
+    //                    + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");
+    //        }
 
-            this.Inputs = new IEvaluateable[]{ this.Variable};
-        }
+    //        this.Inputs = new IEvaluateable[]{ this.Variable};
+    //    }
 
-        protected override string Symbol => ".";
+    //    protected override string Symbol => ".";
 
-        public override string ToString() => string.Join(".", _Chain.Select(c => c.Name)) + "." + Variable.Name;
-    }
+    //    public override string ToString() => string.Join(".", _Chain.Select(c => c.Aliases.FirstOrDefault())) + "." + Variable.Aliases.FirstOrDefault();
+    //}
 
     [Serializable]
     internal sealed class Span : Operator
