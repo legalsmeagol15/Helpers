@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static DataStructures.ConvenienceMethods;
 
 namespace DataStructures
 {
@@ -20,459 +21,515 @@ namespace DataStructures
         public static bool GreaterThanOrEqualTo<T>(this T a, T b) where T : IComparable<T> => a.CompareTo(b) >= 0;
         /// <summary>Convenience method to improve readability.</summary>
         public static bool GreaterThan<T>(this T a, T b) where T : IComparable<T> => a.CompareTo(b) > 0;
+
+        internal static IInterval<T>[] AsArray<T>(this IInterval<T> interval) => new IInterval<T>[] { interval };
+        internal static IInterval<T>[] AsArray<T>(params IInterval<T>[] intervals) => intervals;
+        
+    }
+
+    public interface IIntervalSet<T>
+    {
+        bool Includes(T item);
+
+       
+    }
+    public interface IInterval<T>
+    {
+        bool Brackets(T item);
+
+        bool Contains(T item);
+
+        IInterval<T> And(IInterval<T> other);
+
+        IInterval<T>[] Or(IInterval<T> other);
+
+        IInterval<T>[] Not();
     }
 
 
-    /// <summary>A set that uses inflection to determine inclusion.</summary>
-    /// <typeparam name="T"></typeparam>
-    public class IntervalSet<T>  where T : IComparable<T>
+    public sealed class ContinuousIntervalSet<T> : IIntervalSet<T> where T : IComparable<T>
     {
-        // Each set must be immutable
-
-        private Interval[] _Intervals;
-
-        /// <summary>Returns whether this <see cref="IntervalSet{T}"/> is an empty set.</summary>
-        public bool IsEmpty { get => _Intervals.Length == 0; }
-
-        /// <summary>Returns whether this <see cref="IntervalSet{T}"/> is the universal set for type T.</summary>
-        public bool IsUniversal { get => _Intervals.Length == 1 && _Intervals[0].IsUniversal; }
-
-        /// <summary>Create a new <see cref="IntervalSet{T}"/> with the singleton as the first interval.</summary>
-        public IntervalSet(T singleton) : this(new Interval(false, singleton, true, singleton, true, false)) { }
-        /// <summary>Create a new <see cref="IntervalSet{T}"/> with the indicated first included interval.</summary>
-        public IntervalSet(T start, T end) : this(new Interval(false, start, true, end, true, false)) { }
-        /// <summary>Create a new <see cref="IntervalSet{T}"/> with the indicated first included interval.</summary>
-        public IntervalSet(T start, bool includeStart, T end, bool includeEnd) : this(new Interval(false, start, includeStart, end, includeEnd, false)) { }
-        /// <summary>
-        /// Create a new <see cref="IntervalSet{T}"/> with the indicated first included interval, specifying both 
-        /// positive and negative infinity.
-        /// </summary>
-        public IntervalSet(bool negativeInfinite, T start, bool includeStart, T end, bool includeEnd, bool positiveInfinite) : this(new Interval(negativeInfinite, start, includeStart, end, includeEnd, positiveInfinite)) { }
-        
-        protected IntervalSet(params Interval[] intervals) { this._Intervals = intervals.ToArray(); }
-
-
-
-        /// <summary>Replace to determine whether two items are consecutive.</summary>
-        protected static Func<T, T, bool> AreConsecutive = (a, b) => false;
-        
-               
-        
-
-
-        /// <summary>Returns the inflection values of this <see cref="IntervalSet{T}"/>, in order from min to max.</summary>
-        public IEnumerable<T> GetInflections()
+        protected static class Interval
         {
-            if (IsEmpty) yield break;
-            Interval interval = _Intervals[0];
-            if (!interval.Start.EqualTo(MinValue) || !interval.IncludeStart) // negative-universal means omit the first Start
-                yield return interval.Start;
-            if (_Intervals.Length == 1)
+            
+            public static readonly IInterval<T> Universal = new Infinite(default(T), true, Infinite.Direction.Universal);
+            public static readonly IInterval<T> Empty = new Infinite(default(T), false, Infinite.Direction.Empty);
+            public static IInterval<T> AsPositiveInfinite(T head, bool includeHead =true ) => new Infinite(head, includeHead, Infinite.Direction.Positive);
+            public static IInterval<T> AsNegativeInfinite(T head, bool includeHead = true) => new Infinite(head, includeHead, Infinite.Direction.Negative);
+            public static IInterval<T> AsSingleton(T item) => new Singleton(item);
+            public static IInterval<T> FromTo(T start, T end) => FromTo(start, true, end, true);
+            public static IInterval<T> FromTo(T start, bool includeStart, T end, bool includeEnd)
             {
-                if (!interval.End.EqualTo(MaxValue) || !interval.IncludeEnd) // if positive-universal, there's no End inflection
-                    yield return interval.End;
-                yield break;
-            }
-            yield return interval.End;
-            for (int i = 1; i < _Intervals.Length-1; i++)
-            {
-                interval = _Intervals[i];
-                yield return interval.Start;
-                yield return interval.End;
-            }
-            interval = _Intervals[_Intervals.Length - 1];
-            yield return interval.Start;
-            if (!interval.End.EqualTo(MaxValue) || !interval.IncludeEnd)
-                yield return interval.End;
-        }
-
-
-
-        #region Interval comparison members
-
-
-        /// <summary>
-        /// Inverts the given interval and returns a 1- or 2-item array.  The 2-item array will be returned if the 
-        /// removal splits the interval.  If nothing would be left of the original interval, a 1-item array containing 
-        /// the <seealso cref="Interval.Empty"/> interval is returned.  Otherwise, the 1-item array will contain the 
-        /// remainder of the original interval.
-        /// </summary>
-        protected Interval[] Invert(Interval i)
-        {
-            Interval start, end;
-            if (i.Start.EqualTo(MinValue))
-                start = i.IncludeStart ? Interval.Empty : CreateInterval(MinValue);
-            else
-                start = CreateInterval(MinValue, true, i.Start, !i.IncludeStart);
-
-            if (i.End.EqualTo(MaxValue))
-                end = i.IncludeEnd ? Interval.Empty : CreateInterval(MaxValue);
-            else
-                end = CreateInterval(MaxValue, true, i.End, !i.IncludeEnd);
-
-            if (start.IsEmpty) return new Interval[] { end };
-            if (end.IsEmpty) return new Interval[] { start };
-            Interval union = Union(start, end);
-            return union.IsEmpty ? new Interval[] { start, end } : new Interval[] { union };
-        }
-        /// <summary>
-        /// Returns the set result of a v b.  If the two cannot be combined contiguously, returns 
-        /// <see cref="Interval.Empty"/>.  Note that this is not perfectly kosher with set theory, but it is necessary 
-        /// to allow implementation flexibility.
-        /// </summary>
-        protected Interval Union(Interval a, Interval b)
-        {
-            if (a.IsEmpty) return b; // Rules out 'a' having null anywhere.
-            if (b.IsEmpty) return a; // Rules out 'b' having null anywhere.
-
-            if (b.Start.LessThan(a.Start)) return Union(b, a); // If 'b' started first, flip 'em around and try it that way.
-
-            if (a.End.LessThan(b.Start)) // 'a' entirely precedes 'b'.
-            {
-                if (!AreConsecutive(a.End, b.Start)) return Interval.Empty;
-                if (!a.IncludeEnd || !b.IncludeStart) return Interval.Empty;
-                return CreateInterval(a.Start, a.IncludeStart, b.End, b.IncludeEnd);
-            }
-            if (a.End.EqualTo(b.Start)) // 'a' overlaps only at its end
-            {
-                if (a.IncludeEnd || b.IncludeStart)
-                    return CreateInterval(a.Start, a.IncludeStart, b.End, b.IncludeEnd);
-                return Interval.Empty;
-            }
-
-            // From here there is some significant overlap of 'a' on 'b'.
-            int c = a.End.CompareTo(b.End);
-            if (a.Start.EqualTo(b.Start)) // 'a' and 'b' start at the same spot.  How do they end?
-            {
-                if (c < 0) return CreateInterval(a.Start,
-                                                 a.IncludeStart && b.IncludeStart,
-                                                 a.End,
-                                                 a.IncludeEnd);
-                else if (c == 0) return CreateInterval(a.Start,
-                                                       a.IncludeStart && b.IncludeStart,
-                                                       a.End,
-                                                       a.IncludeEnd && b.IncludeEnd);
-                else return CreateInterval(a.Start,
-                                           a.IncludeStart && b.IncludeStart,
-                                           b.End,
-                                           b.IncludeEnd);
-            }
-            // Otherwise, 'a' starts before 'b', and ends somewhere in 'b' or beyond 'b'
-            if (c > 0) return b;
-            else if (c == 0) return CreateInterval(b.Start, b.IncludeStart, a.End, a.IncludeEnd && b.IncludeEnd);
-            else return CreateInterval(b.Start, b.IncludeStart, a.End, a.IncludeEnd);
-        }
-
-        /// <summary>Returns the set result of a ^ b.</summary>
-        protected Interval Intersection(Interval a, Interval b)
-        {
-            if (a.IsEmpty) return Interval.Empty;
-            if (b.IsEmpty) return Interval.Empty;
-
-            if (b.Start.LessThan(a.Start)) return Union(b, a); // If 'b' started first, flip 'em around and try it that way.
-
-            if (a.End.LessThan(b.Start)) return Interval.Empty;
-            if (a.End.EqualTo(b.Start)) // 'a' overlaps only at its end
-            {
-                if (a.IncludeEnd && b.IncludeStart) return CreateInterval(a.End);
-                return Interval.Empty;
-            }
-
-            // From here there is some significant overlap of 'a' on 'b'.
-            int c = a.End.CompareTo(b.End);
-            if (a.Start.EqualTo(b.Start)) // 'a' and 'b' start at the same spot.  How do they end?
-            {
-                if (c < 0) return CreateInterval(b.IncludeStart ? b.Start : a.Start,
-                                               a.IncludeStart || b.IncludeStart,
-                                               a.End,
-                                               a.IncludeEnd);
-                else if (c == 0) return CreateInterval(b.IncludeStart ? b.Start : a.Start,
-                                                     a.IncludeStart || b.IncludeStart,
-                                                     b.IncludeEnd ? b.End : a.End,
-                                                     a.IncludeEnd || b.IncludeEnd);
-                else return CreateInterval(b.IncludeStart ? b.Start : a.Start,
-                                         a.IncludeStart || b.IncludeStart,
-                                         a.End,
-                                         a.IncludeEnd);
-            }
-            // Otherwise, 'a' starts before 'b', and ends somewhere in 'b' or beyond 'b'
-            if (c > 0) return a;
-            else if (c == 0) return CreateInterval(a.Start, a.IncludeStart, b.IncludeEnd ? b.End : a.End, b.IncludeEnd || a.IncludeEnd);
-            else return CreateInterval(a.Start, a.IncludeStart, b.End, b.IncludeEnd);
-        }
-
-        /// <summary>Returns the set result of a - b</summary>
-        protected Interval[] Except(Interval a, Interval b)
-        {
-            Interval[] b_inv = Invert(b);
-            Interval split0 = Intersection(a, b_inv[0]);
-            Interval split1 = Intersection(a, b_inv[1]);
-            if (split0.IsEmpty) return new Interval[] { split1 };
-            if (split1.IsEmpty) return new Interval[] { split0 };
-            return new Interval[] { split0, split1 };
-
-            //if (a.IsEmpty) return new Interval[]{ Interval.Empty};
-            //if (b.IsEmpty) return new Interval[] { a };
-
-            //if (b.Start.LessThan(a.Start))
-            //{
-            //    if (b.End.LessThan(a.Start))
-            //        return new Interval[] { a };
-            //    else if (b.End.EqualTo(a.Start))
-            //        return new Interval[] { CreateInterval(a.Start, a.IncludeStart && !b.IncludeEnd, a.End, a.IncludeEnd) };
-            //    else if (b.End.GreaterThan(a.End))
-            //        return new Interval[] { Interval.Empty };
-            //    else if (b.End.EqualTo(a.End))
-            //    {
-            //        if (a.IncludeEnd && !b.IncludeEnd) return new Interval[] { CreateInterval(a.End) };
-            //        return new Interval[] { Interval.Empty };
-            //    }
-            //    else
-            //        return new Interval[] { CreateInterval(b.End, !b.IncludeEnd, a.End, a.IncludeEnd) };
-            //}
-            //if (b.Start.EqualTo(a.Start))
-            //{
-            //    Interval start = (a.IncludeStart && !b.IncludeStart) ? CreateInterval(a.Start) : Interval.Empty;
-            //    if (b.End.GreaterThan(a.End)) return new Interval[] { start };
-            //    else if (b.End.EqualTo(a.End))
-            //    {
-            //        if (a.IncludeEnd && !b.IncludeEnd)
-            //        {
-            //            Interval end = CreateInterval(a.End);
-            //            if (start.IsEmpty) return new Interval[] {end};
-            //            Interval union = Union(start, end);
-            //            return union.IsEmpty ? new Interval[] { start, end } : new Interval[] { union };                        
-            //        }
-            //        return new Interval[] { start };
-            //    }
-            //    else // remove.End is less than orig.end.
-            //    {
-            //        Interval end = CreateInterval(b.End, !b.IncludeEnd, a.End, a.IncludeEnd);
-            //        if (start.IsEmpty) return new Interval[] { end };
-            //        Interval union = Union(start, end);
-            //        return union.IsEmpty ? new Interval[] { start, end } : new Interval[] { union };
-            //    }
-            //}
-            //else // remove.Start is greater than orig.start.
-            //{
-            //    if (a.End.LessThan(b.Start))
-            //        return new Interval[] { a };
-            //    else if (a.End.EqualTo(b.Start))
-            //        return new Interval[] { CreateInterval(a.Start, a.IncludeStart, a.End, a.IncludeEnd && !b.IncludeStart) };
-            //    else if (b.Start.GreaterThan(a.End))
-            //        return new Interval[] { a };
-            //    else if (b.Start.EqualTo(a.End))
-            //        return new Interval[] { CreateInterval(a.Start, a.IncludeStart, a.End, !b.IncludeEnd && a.IncludeEnd) };
-            //    else if (b.End.GreaterThan(a.End))
-            //        return new Interval[] { CreateInterval(a.Start, a.IncludeStart, b.Start, !b.IncludeStart) };
-            //    else if (b.End.EqualTo(a.End)) // Split the original, leaving a singleton at the end?
-            //    {
-            //        Interval start = CreateInterval(a.Start, a.IncludeStart, b.Start, !b.IncludeStart);
-            //        if (!a.IncludeEnd || b.IncludeEnd) return new Interval[] { start };
-            //        Interval end = CreateInterval(a.End);
-            //        if (start.IsEmpty) return new Interval[] { end };
-            //        Interval union = Union(start, end);
-            //        return union.IsEmpty ? new Interval[] { start, end } : new Interval[] { union };
-            //    }
-            //    else // the removal splits the original, leaving non-singletons at either end.
-            //    {
-            //        Interval start = CreateInterval(a.Start, a.IncludeStart, b.Start, !b.IncludeStart);
-            //        Interval end = CreateInterval(b.End, !b.IncludeStart, a.End, a.IncludeStart);
-            //        if (start.IsEmpty) return new Interval[] { end };
-            //        Interval union = Union(start, end);
-            //        return union.IsEmpty ? new Interval[] { start, end } : new Interval[] { union };
-            //    }
-            //}            
-        }
-        
-
-
-        /// <summary>
-        /// A simple struct representing the start of an interval, the end of an interval (the space between being 
-        /// included), and whether to also include the start and end.
-        /// </summary>
-        protected struct Interval
-        {
-            /// <summary>Creates an <see cref="Interval"/> from a singleton value.</summary>
-            public static Interval FromSingleton(T singleton) 
-                => FromTo(false, singleton, true, singleton, true, false);
-            /// <summary>Creates an <see cref="Interval"/> as a non-infinite range.</summary>
-            public static Interval FromTo(T start, bool includeStart, T end, bool includeEnd)
-                => FromTo(false, start, includeStart, end, includeEnd, false);
-            /// <summary>Creates an <see cref="Interval"/> as a potentially infinite range.</summary>
-            public static Interval FromTo(bool negativeInfinite, T start, bool includeStart, T end, bool includeEnd, bool positiveInfinite)
-            {
-                // Watch out for null-related exceptions where the interval cannot be safely simplified.
-                if ((start == null) ^ (end == null))
-                    throw new ArgumentNullException("Both or neither 'start' and 'end' must be null.");
-                // If start-end are null, all the includes must be false and the interval will be empty.  Otherwise, cannot be simplified.
-                else if (start == null)
+                int c = start.CompareTo(end);
+                if (c > 0)
+                    throw new ArgumentException("Parameters 'start' and 'end' are inverted.");
+                else if (c == 0)
                 {
-                    if (includeStart || includeEnd || negativeInfinite || positiveInfinite)
-                        throw new ArgumentException("If 'start' and 'end' are null, this must be an empty interval.");
-                    return Interval.Empty;
+                    if (!includeStart || !includeEnd)
+                        throw new ArgumentException("For singletons, both 'start' and 'end' must be included.");
+                    return AsSingleton(start);
                 }
-                // Watch out for a reversed interval.  If nothing is infinite, we can safely infer that the reverse was intended.
-                else if (start.GreaterThan(end))
+                else
+                    return Interval.FromTo(start, includeStart, end, includeEnd);
+            }
+
+
+            #region Interval AND operations
+
+            internal static IInterval<T> And(Singleton a, Singleton b) => (a.Item.CompareTo(b.Item) == 0) ? a : Interval.Empty;
+            internal static IInterval<T> And(Singleton singleton, Infinite inf)
+            {
+                if (inf.IsUniversal) return singleton;
+                if (inf.IsEmpty) return Interval.Empty;
+                int c = singleton.Item.CompareTo(inf.Head);
+                if (c == 0)
+                    return inf.IncludeHead ? singleton : Interval.Empty;
+                return ((c < 0) && (inf.Tail == Infinite.Direction.Negative)) ? singleton : Interval.Empty;
+            }
+            internal static IInterval<T> And(Singleton singleton, Limited ltd)
+            {
+                int c = singleton.Item.CompareTo(ltd.Start);
+                if (c < 0) return Interval.Empty;
+                if (c == 0) return ltd.IncludeStart ? singleton : Interval.Empty;
+                c = singleton.Item.CompareTo(ltd.End);
+                if (c > 0) return Interval.Empty;
+                if (c == 0) return ltd.IncludeEnd ? singleton : Interval.Empty;
+                return singleton;
+            }
+
+            internal static IInterval<T> And(Infinite inf, Singleton singleton) => And(singleton, inf);
+            internal static IInterval<T> And(Infinite a, Infinite b)
+            {
+                if (a.IsUniversal) return b;
+                if (b.IsUniversal) return a;
+                if (a.IsEmpty || b.IsEmpty) return Interval.Empty;
+
+                int c = a.Head.CompareTo(b.Head);
+                if (c == 0)
                 {
-                    if (negativeInfinite || positiveInfinite)
-                        throw new ArgumentException("Interval cannot be safely reversed if either tail is infinite.");
-                    return FromTo(false, end, includeEnd, start, includeStart, false);
-                }
-                // A singleton?  Both start and end must be included.
-                else if (start.EqualTo(end))
-                {
-                    if (includeStart ^ includeEnd)
-                        throw new ArgumentException("With a singleton, both 'start' and 'end' must be included.");
-                    if (!includeStart) return Interval.Empty;
-                }
-                // A singleton masquerading as consecutive start-end?
-                else if (AreConsecutive(start, end))
-                {
-                    if (!negativeInfinite && !includeStart)
+                    if (a.Tail != b.Tail)
                     {
-                        if (includeEnd || positiveInfinite) return new Interval(false, end, includeEnd, end, includeEnd, positiveInfinite);
-                        else return Interval.Empty;
-                    }
-                    else if (!positiveInfinite && !includeEnd)
-                    {
-                        if (includeStart || negativeInfinite) return new Interval(negativeInfinite, start, includeStart, start, includeStart, false);
+                        if (a.IncludeHead && b.IncludeHead) return AsSingleton(a.Head);
                         return Interval.Empty;
                     }
+                    return new Infinite(a.Head, a.IncludeHead && b.IncludeHead, a.Tail);
                 }
-                // A tailed singleton?
-                else if (negativeInfinite && includeStart && includeEnd) return new Interval(true, end, true, end, true, positiveInfinite);
-                else if (positiveInfinite && includeStart && includeEnd) return new Interval(negativeInfinite, start, true, start, true, true);
-                // Universal?
-                if (negativeInfinite && includeStart && includeEnd && positiveInfinite) return Interval.Universal;
-                
-                // Finally, it must be a simple range as requested.
-                return new Interval(negativeInfinite, start, includeStart, end, includeEnd, positiveInfinite);
-            }
-
-            /// <summary>Where the interval starts.</summary>
-            public readonly T Start;
-            /// <summary>Where the interval ends.</summary>
-            public readonly T End;
-            /// <summary>include the start?</summary>
-            public readonly bool IncludeStart;
-            /// <summary>include the end?</summary>
-            public readonly bool IncludeEnd;
-            /// <summary>Infinite to negative infinity?</summary>
-            public readonly bool IsInfiniteNegative;
-            /// <summary>Infinite to positive infinity?</summary>
-            public readonly bool IsInfinitePositive;
-            private Interval(bool negativeInfinite, T start, bool includeStart, T end, bool includeEnd, bool positiveInfinite)
-            {
-                this.Start = start;
-                this.End = end;
-                this.IncludeStart = includeStart;
-                this.IncludeEnd = includeEnd;
-                this.IsInfiniteNegative = negativeInfinite;
-                this.IsInfinitePositive = positiveInfinite;
-            }
-
-            /// <summary>Returns whether the item is included in this <see cref="Interval"/>.</summary>
-            public bool Includes(T item)
-            {
-                int c_start = Start.CompareTo(item);
-                if (c_start == 0) return IncludeStart;
-                if (c_start > 0) return IsInfiniteNegative;
-
-                int c_end = item.CompareTo(End);
-                if (c_end == 0) return IncludeEnd;
-                if (c_end > 0) return IsInfinitePositive;
-
-                if (c_start < 0 && c_end < 0) return true;
-
-                throw new Exception("This should be impossible - an interval cannot be set up with its End before its Start.");
-            }
-
-            /// <summary>A static <see cref="Interval"/> representing an empty interval.</summary>
-            public static readonly Interval Empty = new Interval(false, default(T), false, default(T), false, false);
-            /// <summary>A static <see cref="Interval"/> representing a universal set.</summary>
-            public static readonly Interval Universal = new Interval(true, default(T), true, default(T), true, true);
-
-            /// <summary>Returns whether this <see cref="Interval"/> represents an empty set.</summary>
-            public bool IsEmpty { get => !IsInfiniteNegative 
-                                         && !IsInfinitePositive 
-                                         && !IncludeStart
-                                         && !IncludeEnd
-                                         && (Start == null ? End == null : Start.EqualTo(End)); }
-            /// <summary>Returns whether this <see cref="Interval"/> represents a singleton.</summary>
-            public bool IsSingleton { get => !IsInfiniteNegative
-                                         && !IsInfinitePositive
-                                         && IncludeStart
-                                         && IncludeEnd
-                                         && (Start == null ? false : (Start.EqualTo(End) )); }
-            /// <summary>Returns whether this <see cref="Interval"/> represents a universal set in itself.</summary>
-            public bool  IsUniversal { get => IsInfiniteNegative && IsInfinitePositive && IncludeStart && IncludeEnd; }
-            private Interval[] Simplified(Interval a, Interval b)
-            {
-
-            }
-            public static Interval[] Intersection (Interval a, Interval b)
-            {
-                if (a.IsEmpty) return new Interval[] { Interval.Empty };
-                else if (b.IsEmpty) return new Interval[] { Interval.Empty };
-                else if (a.IsUniversal) return new Interval[] { b };
-                else if (b.IsUniversal) return new Interval[] { a };
-            }
-            public static Interval[] Union(Interval a, Interval b)
-            {
-                if (a.IsEmpty) return new Interval[] { b };
-                else if (b.IsEmpty) return new Interval[] { a };
-                else if (a.IsUniversal) return new Interval[] { Interval.Universal };
-                else if (b.IsUniversal) return new Interval[] { Interval.Universal };
-                else if (b.Start.LessThan(a.Start)) return Union(b, a);
-                else if (a.End.LessThan(b.Start))
+                if (c < 0)
                 {
-                    if (!AreConsecutive(a.End, b.Start) || !a.IncludeEnd || !b.IncludeStart)
+                    if (a.Tail == Infinite.Direction.Positive)
                     {
-                        if (a.IsInfinitePositive) return new Interval[] { a };
-                        else if (b.IsInfiniteNegative) return new Interval[] { b };
-                        return new Interval[] 
-
+                        if (b.Tail == Infinite.Direction.Negative)
+                            return Interval.FromTo(a.Head, a.IncludeHead, b.Head, b.IncludeHead);
+                        return b;
                     }
-
+                    else if (b.Tail == Infinite.Direction.Negative) return a;
+                    return Interval.Empty;
                 }
-                else if (a.End.Equals(b.Start))
+                else
                 {
-                    if (a.IncludeEnd || b.IncludeStart)
-                        return new Interval[] { new Interval(a.IsInfiniteNegative, a.Start, a.IncludeStart, b.End, b.IncludeEnd, b.IsInfinitePositive) };
-                    if (a.IsInfinitePositive)
-                        return new Interval[] { new Interval(a.IsInfiniteNegative, a.Start, a.IncludeStart, a.End, a.IncludeEnd || b.IncludeStart, true) };
-                    if (b.IsInfiniteNegative)
-                        return new Interval[] { new Interval(true, b.Start, b.IncludeStart || a.IncludeEnd, b.End, b.IncludeEnd, b.IsInfinitePositive) };
-                    return new Interval[] { a, b };
+                    if (a.Tail == Infinite.Direction.Positive)
+                    {
+                        if (b.Tail == Infinite.Direction.Positive) return b;
+                        return Interval.Empty;
+                    }
+                    else if (b.Tail == Infinite.Direction.Positive)
+                        return Interval.FromTo(b.Head, b.IncludeHead, a.Head, a.IncludeHead);
+                    return Interval.Empty;
                 }
-                T[] inflections = new T[] { a.Start, a.End, b.Start, b.End };
-                Array.Sort(inflections);
-                
+
             }
+            internal static IInterval<T> And(Infinite inf, Limited ltd)
+            {
+                if (inf.IsUniversal) return ltd;
+                if (inf.IsEmpty) return Interval.Empty;
+                int c = inf.Head.CompareTo(ltd.Start);
+                if (c < 0)
+                {
+                    if (inf.Tail == Infinite.Direction.Negative) return Interval.Empty;
+                    return ltd;
+                }
+                else if (c == 0)
+                    return Interval.FromTo(inf.Head, inf.IncludeHead && ltd.IncludeStart, ltd.End, ltd.IncludeEnd);
+                else if ((c = inf.Head.CompareTo(ltd.End)) > 0)
+                {
+                    if (inf.Tail == Infinite.Direction.Positive) return Interval.Empty;
+                    return ltd;
+                }
+                else if (c == 0)
+                    return Interval.FromTo(ltd.Start, ltd.IncludeStart, inf.Head, inf.IncludeHead && ltd.IncludeEnd);
+                else if (inf.Tail == Infinite.Direction.Positive)
+                    return Interval.FromTo(inf.Head, inf.IncludeHead, ltd.End, ltd.IncludeEnd);
+                else
+                    return Interval.FromTo(ltd.Start, ltd.IncludeStart, inf.Head, inf.IncludeHead);
+
+            }
+
+            internal static IInterval<T> And(Limited ltd, Singleton singleton) => And(singleton, ltd);
+            internal static IInterval<T> And(Limited ltd, Infinite inf) => And(inf, ltd);
+            internal static IInterval<T> And(Limited a, Limited b)
+            {
+                int c;
+                if ((c = a.Start.CompareTo(b.Start)) > 0) return And(b, a);
+                else if ((c = a.End.CompareTo(b.Start)) < 0) return Interval.Empty;
+                else if (c == 0) return (a.IncludeEnd && b.IncludeStart) ? AsSingleton(a.End) : Interval.Empty;
+                else if ((c = a.Start.CompareTo(b.Start)) == 0) return (a.End.CompareTo(b.End) <= 0) ? a : b;
+                else if ((c = a.End.CompareTo(b.End)) < 0) return Interval.FromTo(b.Start, b.IncludeStart, a.End, a.IncludeEnd);
+                else if (c == 0) return Interval.FromTo(b.Start, b.IncludeStart, a.End, a.IncludeEnd && b.IncludeEnd);
+                else return b;
+            }
+
+            #endregion
+
+
+
+            #region Interval OR operations
+
+            internal static IInterval<T>[] Or(Singleton a, Singleton b) => (a.Item.CompareTo(b.Item) == 0) ? a.AsArray() : AsArray(a, b);
+            internal static IInterval<T>[] Or(Singleton singleton, Infinite inf)
+            {
+                if (inf.IsUniversal) return Universal.AsArray();
+                if (inf.IsEmpty) return singleton.AsArray();
+                int c = singleton.Item.CompareTo(inf.Head);
+                if (c < 0)
+                {
+                    if (inf.Tail == Infinite.Direction.Negative) return inf.AsArray();
+                    return AsArray(singleton, inf);
+                }
+                else if (c > 0)
+                {
+                    if (inf.Tail == Infinite.Direction.Positive) return inf.AsArray();
+                    return AsArray(inf, singleton);
+                }
+                return new Infinite(singleton.Item, true, inf.Tail).AsArray();
+
+            }
+            internal static IInterval<T>[] Or(Singleton singleton, Limited ltd)
+            {
+                int c;
+                if ((c = singleton.Item.CompareTo(ltd.Start)) < 0) return AsArray(singleton, ltd);
+                else if (c == 0) return Interval.FromTo(singleton.Item, true, ltd.End, ltd.IncludeEnd).AsArray();
+                else if ((c = singleton.Item.CompareTo(ltd.End)) > 0) return AsArray(ltd, singleton);
+                else if (c == 0) return Interval.FromTo(ltd.Start, ltd.IncludeStart, singleton.Item, true).AsArray();
+                return ltd.AsArray();
+            }
+
+            internal static IInterval<T>[] Or(Infinite inf, Singleton singleton) => Or(singleton, inf);
+            internal static IInterval<T>[] Or(Infinite a, Infinite b)
+            {
+                if (a.IsUniversal || b.IsUniversal) return Universal.AsArray();
+                if (a.IsEmpty) return b.AsArray();
+                if (b.IsEmpty) return a.AsArray();
+                int c = a.Head.CompareTo(b.Head);
+                if (c < 0)
+                {
+                    if (a.Tail == Infinite.Direction.Positive) return (a.Tail == b.Tail) ? a.AsArray() : Universal.AsArray();
+                    else return (a.Tail == b.Tail) ? b.AsArray() : AsArray(a, b);
+                }
+                else if (c > 0)
+                {
+                    if (a.Tail == Infinite.Direction.Negative) return (a.Tail == b.Tail) ? a.AsArray() : Universal.AsArray();
+                    else return (a.Tail == b.Tail) ? b.AsArray() : AsArray(b, a);
+                }
+                else if (a.Tail == b.Tail)
+                    return new Infinite(a.Head, a.IncludeHead || b.IncludeHead, a.Tail).AsArray();
+                else if (a.IncludeHead || b.IncludeHead)
+                    return Universal.AsArray();
+                else
+                    return AsArray(new Infinite(a.Head, false, Infinite.Direction.Negative),
+                                    new Infinite(a.Head, false, Infinite.Direction.Positive));
+            }
+            internal static IInterval<T>[] Or(Infinite inf, Limited ltd)
+            {
+                if (inf.IsUniversal) return Universal.AsArray();
+                if (inf.IsEmpty) return ltd.AsArray();
+                int c;
+                if ((c = inf.Head.CompareTo(ltd.Start)) < 0)
+                {
+                    if (inf.Tail == Infinite.Direction.Negative) return AsArray(inf, ltd);
+                    return inf.AsArray();
+                }
+                else if (c == 0)
+                {
+                    if (inf.Tail == Infinite.Direction.Negative)
+                        return (inf.IncludeHead || ltd.IncludeStart) ? new Infinite(ltd.End, ltd.IncludeEnd, Infinite.Direction.Negative).AsArray()
+                                                                        : AsArray(inf, ltd);
+                    return new Infinite(inf.Head, inf.IncludeHead || ltd.IncludeStart, inf.Tail).AsArray();
+                }
+                else if ((c = inf.Head.CompareTo(ltd.End)) > 0)
+                {
+                    if (inf.Tail == Infinite.Direction.Positive) return AsArray(ltd, inf);
+                    return inf.AsArray();
+                }
+                else if (c == 0)
+                {
+                    if (inf.Tail == Infinite.Direction.Positive)
+                        return (inf.IncludeHead || ltd.IncludeEnd) ? new Infinite(ltd.Start, ltd.IncludeStart, Infinite.Direction.Positive).AsArray()
+                                                                        : AsArray(ltd, inf);
+                    return new Infinite(inf.Head, inf.IncludeHead || ltd.IncludeEnd, inf.Tail).AsArray();
+                }
+                else if (inf.Tail == Infinite.Direction.Positive)
+                    return new Infinite(ltd.Start, ltd.IncludeStart, inf.Tail).AsArray();
+                else
+                    return new Infinite(ltd.End, ltd.IncludeEnd, inf.Tail).AsArray();
+            }
+
+            internal static IInterval<T>[] Or(Limited ltd, Singleton singleton) => Or(singleton, ltd);
+            internal static IInterval<T>[] Or(Limited ltd, Infinite inf) => Or(inf, ltd);
+            internal static IInterval<T>[] Or(Limited a, Limited b)
+            {
+                int c;
+                if ((c = a.Start.CompareTo(b.Start)) > 0) return Or(b, a);
+                else if (c == 0)
+                {
+                    if ((c = a.End.CompareTo(b.End)) < 0) return Interval.FromTo(a.Start, a.IncludeStart || b.IncludeStart, b.End, b.IncludeEnd).AsArray();
+                    else if (c > 0) return Interval.FromTo(a.Start, a.IncludeStart || b.IncludeStart, a.End, a.IncludeEnd).AsArray();
+                    return Interval.FromTo(a.Start, a.IncludeStart || b.IncludeStart, a.End, a.IncludeEnd || b.IncludeEnd).AsArray();
+                }
+                else if ((c = a.End.CompareTo(b.Start)) < 0) return AsArray(a, b);
+                else if (c == 0) return (a.IncludeEnd || b.IncludeStart) ? Interval.FromTo(a.Start, a.IncludeStart, b.End, b.IncludeEnd).AsArray()
+                                                                            : AsArray(a, b);
+                else if ((c = a.End.CompareTo(b.End)) < 0) return Interval.FromTo(a.Start, a.IncludeStart, b.End, b.IncludeEnd).AsArray();
+                else if (c == 0) return Interval.FromTo(a.Start, a.IncludeStart, a.End, a.IncludeEnd || b.IncludeEnd).AsArray();
+                else return Interval.FromTo(a.Start, a.IncludeStart, a.End, a.IncludeEnd).AsArray();
+            }
+            
+            #endregion
+
+
+
+            #region Interval NOT operations 
+
+            internal static IInterval<T>[] Not(Singleton singleton)
+                => AsArray(new Infinite(singleton.Item, false, Infinite.Direction.Negative),
+                            new Infinite(singleton.Item, false, Infinite.Direction.Positive));
+            internal static IInterval<T>[] Not(Infinite inf)
+            {
+                if (inf.IsUniversal) return Universal.AsArray();
+                if (inf.IsEmpty) return Empty.AsArray();
+                return new Infinite(inf.Head, !inf.IncludeHead, ~inf.Tail).AsArray();
+            }
+            internal static IInterval<T>[] Not(Limited ltd) 
+                => AsArray(new Infinite(ltd.Start, !ltd.IncludeStart, Infinite.Direction.Negative),
+                            new Infinite(ltd.End, !ltd.IncludeEnd, Infinite.Direction.Positive));
+
+            internal static IInterval<T>[] Not(params IInterval<T>[] other)
+            {
+                switch (other.Length)
+                {
+                    case 0: return Universal.AsArray();
+                    case 1: switch (other[0])
+                        {
+                            case Singleton singleton: return Not(singleton);
+                            case Infinite inf: return Not(inf);
+                            case Limited ltd: return Not(ltd);
+                            default: throw new NotImplementedException();
+                        }
+                }
+
+                List<IInterval<T>> intervals = new List<IInterval<T>>();
+                T lastInflection;
+                bool lastIncluded;
+                IInterval<T> lastInterval = other[0];
+                switch (lastInterval)
+                {
+                    case Singleton singleton:
+                        lastInflection = singleton.Item;
+                        lastIncluded = true;
+                        intervals.Add(new Infinite(singleton.Item, false, Infinite.Direction.Negative));
+                        break;
+                    case Infinite inf:
+                        lastInflection = inf.Head;
+                        lastIncluded = !inf.IncludeHead;
+                        if (inf.Tail != Infinite.Direction.Negative)
+                            intervals.Add(new Infinite(inf.Head, !inf.IncludeHead, Infinite.Direction.Negative));
+                        break;
+                    case Limited ltd:
+                        lastInflection = ltd.End;
+                        lastIncluded = !ltd.IncludeEnd;
+                        intervals.Add(new Infinite(ltd.Start, ltd.IncludeStart, Infinite.Direction.Negative));
+                        break;
+                    default: throw new NotImplementedException();
+                }
+
+                for (int i = 1; i < other.Length; i++)
+                {
+                    IInterval<T> thisInterval = other[i];
+
+                }
+
+
+                // TODO:  finish here.
+                throw new NotImplementedException();
+                
+                
+                
+
+            }
+            #endregion
+
+
+
+            internal struct Limited : IInterval<T>
+            {
+                public readonly T Start;
+                public readonly T End;
+                public readonly bool IncludeStart;
+                public readonly bool IncludeEnd;
+                internal Limited(T start, bool includeStart, T end, bool includeEnd)
+                {
+                    if (start == null || end == null)
+                        throw new ArgumentNullException("Parameters 'start' and 'end' cannot be null.");
+                    this.Start = start;
+                    this.End = end;
+                    this.IncludeStart = includeStart;
+                    this.IncludeEnd = includeEnd;
+                }
+
+                public IInterval<T> And(IInterval<T> other)
+                {
+                    switch (other)
+                    {
+                        case Singleton s: return Interval.And(this, s);
+                        case Infinite i:return Interval.And(this, i);
+                        case Limited l: return Interval.And(this, l);
+                        default: throw new NotImplementedException();
+                    }
+                }
+
+                bool IInterval<T>.Brackets(T item) => Start.CompareTo(item) <= 0 && item.CompareTo(End) <= 0;
+
+                bool IInterval<T>.Contains(T item)
+                {
+                    int c = Start.CompareTo(item);
+                    if (c > 0) return false;
+                    if (c == 0) return IncludeStart;
+                    c = End.CompareTo(item);
+                    if (c < 0) return false;
+                    if (c == 0) return IncludeEnd;
+                    return true;
+                }
+
+                public IInterval<T>[] Not() => Interval.Not(this);
+
+                public IInterval<T>[] Or(IInterval<T> other)
+                {
+                    switch (other)
+                    {
+                        case Singleton s: return Interval.Or(this, s);
+                        case Infinite i: return Interval.Or(this, i);
+                        case Limited l: return Interval.Or(this, l);
+                        default: throw new NotImplementedException();
+                    }
+                }
+            }
+
+            internal struct Infinite : IInterval<T>
+            {
+                public enum Direction { Empty = 0, Positive = 1, Negative = 2, Universal = 3 }
+                public readonly T Head;
+                public readonly Direction Tail;
+                public readonly bool IncludeHead;
+                internal Infinite(T head, bool includeHead, Direction tail)
+                {
+                    if (head == null)
+                        throw new ArgumentNullException("Parameter 'head' cannot be null.");
+                    this.Head = head;
+                    this.IncludeHead = includeHead;
+                    this.Tail = tail;
+                }
+                public bool IsUniversal => Tail == Direction.Universal;
+                public bool IsPositive => (Tail & Direction.Positive) > Direction.Empty;
+                public bool IsNegative => (Tail & Direction.Negative) > Direction.Empty;
+                public bool IsEmpty => Tail == Direction.Empty;
+
+                public bool Brackets(T item)
+                {
+                    int c = item.CompareTo(item);
+                    if (c < 0) return this.Tail == Direction.Negative;
+                    else if (c > 0) return this.Tail == Direction.Positive;
+                    return true;
+                }
+
+                public bool Contains(T item)
+                {
+                    int c = item.CompareTo(item);
+                    if (c < 0) return this.Tail == Direction.Negative;
+                    else if (c > 0) return this.Tail == Direction.Positive;
+                    return IncludeHead;
+                }
+
+                public IInterval<T> And(IInterval<T> other)
+                {
+                    switch (other)
+                    {
+                        case Singleton s: return Interval.And(this, s);
+                        case Infinite i: return Interval.And(this, i);
+                        case Limited l: return Interval.And(this, l);
+                        default: throw new NotImplementedException();
+                    }
+                }
+
+                public IInterval<T>[] Or(IInterval<T> other)
+                {
+                    switch (other)
+                    {
+                        case Singleton s: return Interval.Or(this, s);
+                        case Infinite i: return Interval.Or(this, i);
+                        case Limited l: return Interval.Or(this, l);
+                        default: throw new NotImplementedException();
+                    }
+                }
+
+                IInterval<T>[] IInterval<T>.Not() => Interval.Not(this);
+            }
+
+            internal struct Singleton : IInterval<T>
+            {
+                public readonly T Item;
+                public Singleton(T item)
+                {
+                    if (item == null)
+                        throw new ArgumentNullException("Parameter 'item' and 'end' cannot be null.");
+                    this.Item = item;
+                }
+
+                public IInterval<T> And(IInterval<T> other)
+                {
+                    switch (other)
+                    {
+                        case Singleton s: return Interval.And(this, s);
+                        case Infinite i: return Interval.And(this, i);
+                        case Limited l: return Interval.And(this, l);
+                        default: throw new NotImplementedException();
+                    }
+                }
+
+                bool IInterval<T>.Brackets(T item) => Item.CompareTo(item) == 0;
+
+                bool IInterval<T>.Contains(T item) => Item.CompareTo(item) == 0;
+
+                public IInterval<T>[] Not() => Interval.Not(this);
+
+                public IInterval<T>[] Or(IInterval<T> other)
+                {
+                    switch (other)
+                    {
+                        case Singleton s: return Interval.Or(this, s);
+                        case Infinite i: return Interval.Or(this, i);
+                        case Limited l: return Interval.Or(this, l);
+                        default: throw new NotImplementedException();
+                    }
+                }
+            }
+
         }
 
-        #endregion
-
-
+        
     }
 
-
-    /// <summary>Interval set for longs.</summary>
-    public sealed class LongIntervalSet : IntervalSet<long>
+    public sealed class DiscreteIntervalSet<T> : IIntervalSet<T>, IEnumerable<T>, ISet<T>
     {
-        static LongIntervalSet()
-        {   
-            IntervalSet<long>.AreConsecutive = (a, b) => (a == b - 1);
-            LongIntervalSet.AreConsecutive = (a, b) => (a == b - 1);
-        }
-    }
-
-
-    /// <summary>Real number interval set.  Based on doubles.</summary>
-    public sealed class RealIntervalSet : IntervalSet<double>
-    {
-       
 
     }
+    
 }

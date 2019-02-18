@@ -10,7 +10,7 @@ namespace DataStructures
     /// <summary>
     /// A link-based data structure which maintains its contents in sorted order, but finding the appropriate position for each item 
     /// added or removed.  The SkipList's asymptotic time complexity approaches O(log_2(n)), where 'n' is the number of items contained 
-    /// on the list.  It achieves this complexity by maintain links with each item that may or may not skip over other items to 
+    /// on the list.  It achieves this complexity by maintaining links with each item that may or may not skip over other items to 
     /// expedite comparisons.  Duplicate items are not allowed.
     /// <para/>The links from item to item will usually point to their immediately adjacent neighbors, while the rest will point to 
     /// items with at least one item skipped.  An item cannot be skipped if it has the same or fewer links than a particular item.  The 
@@ -29,7 +29,7 @@ namespace DataStructures
     /// </summary>
     /// <remarks> As described by William Pugh, referenced by Scott Mitchell of Microsoft in 
     /// https://msdn.microsoft.com/en-us/library/ms379573(v=vs.80).aspx#datastructures20_4_topic2 .  Retrieved 8/9/16.    
-    /// Validated 100% code coverage 8/20/16.
+    /// Validated 100% code coverage 8/20/16 except GetBeforeOrEqual().
     /// </remarks>
     public sealed class SkipList<T> : ICollection<T>
     {
@@ -42,6 +42,14 @@ namespace DataStructures
 
 
         private double _AdjacencyFraction = DEFAULT_ADJACENCY_FRACTION;
+        /// <summary>
+        /// The value given will represent the expected fraction of items that reside in this SkipList with a "height" 
+        /// of 1.  Of those with a higher "height", the same fraction will have a "height" of 2, and of those higher 
+        /// than 2 the same fraction will have a height of "3", and so on.  A lower adjacency fraction will allow more 
+        /// skipping, so this value can fine-tune the performance of the SkipList.
+        /// <para/>
+        /// For O(log_2) behavior, the default adjacency fraction will be 0.5.
+        /// </summary>
         public double AdjacencyFraction
         {
             get
@@ -68,12 +76,17 @@ namespace DataStructures
         /// Creates a new SkipList.  If the type implements IComparable, a comparator of that type will be used.  If not, throws an 
         /// exception.>
         /// </summary>
-        public SkipList()
+        /// <param name="adjacencyFraction">Optional.  The value given will represent the expected fraction of items that reside in this 
+        /// SkipList with a "height" of 1.  Of those with a higher "height", the same fraction will have a "height" of 2, and of those 
+        /// higher than 2 the same fraction will have a height of "3", and so on.  A lower adjacency fraction will allow more skipping, 
+        /// so this value can fine-tune the performance of the SkipList.</param>
+        public SkipList(double adjacencyFraction = DEFAULT_ADJACENCY_FRACTION)
         {
             if (typeof(IComparable<T>).IsAssignableFrom(typeof(T))) Comparer = Comparer<T>.Default;
             else if (typeof(IComparable).IsAssignableFrom(typeof(T))) Comparer = Comparer<T>.Default;
             else
                 throw new InvalidOperationException("An IComparer<" + typeof(T).Name + "> cannot be created automatically.");
+            AdjacencyFraction = adjacencyFraction;
         }
         /// <summary>
         /// Creates a new SkipList that uses the given comparator for internal sorting.
@@ -82,7 +95,7 @@ namespace DataStructures
         /// <param name="adjacencyFraction">Optional.  The value given will represent the expected fraction of items that reside in this 
         /// SkipList with a "height" of 1.  Of those with a higher "height", the same fraction will have a "height" of 2, and of those 
         /// higher than 2 the same fraction will have a height of "3", and so on.  A lower adjacency fraction will allow more skipping, 
-        /// so this value can fine-tine the performance of the SkipList.</param>
+        /// so this value can fine-tune the performance of the SkipList.</param>
         public SkipList(IComparer<T> comparer, double adjacencyFraction = DEFAULT_ADJACENCY_FRACTION)
         {
             AdjacencyFraction = adjacencyFraction;
@@ -92,8 +105,12 @@ namespace DataStructures
         /// Creates a new SkipList and populates it with the given items.  If the type implements IComparable, a default comparator for that type 
         /// will be generated.  Otherwise, throws an exception.
         /// </summary>
-        /// <param name="items"></param>
-        public SkipList(IEnumerable<T> items) : this()
+        /// <param name="items">The items to populate this list with upon creation.</param>
+        /// /// <param name="adjacencyFraction">Optional.  The value given will represent the expected fraction of items that reside in this 
+        /// SkipList with a "height" of 1.  Of those with a higher "height", the same fraction will have a "height" of 2, and of those 
+        /// higher than 2 the same fraction will have a height of "3", and so on.  A lower adjacency fraction will allow more skipping, 
+        /// so this value can fine-tune the performance of the SkipList.</param>
+        public SkipList(IEnumerable<T> items, double adjacencyFraction = DEFAULT_ADJACENCY_FRACTION) : this(adjacencyFraction)
         {
             foreach (T item in items)
                 Add(item);
@@ -569,8 +586,7 @@ namespace DataStructures
         /// will be the item returned.
         /// </summary>
         public bool TryGetBefore(T item, out T before)
-        {
-
+        {   
             Node prior = GetPriorOrEqual(item);
             if (prior == null)
             {
@@ -588,6 +604,15 @@ namespace DataStructures
             }
 
             before = prior.Data;
+            return true;
+        }
+
+        /// <summary>Returns the contents immediately before the given item, or equal to the given item.</summary>
+        public bool TryGetBeforeOrEqual(T item, out T contents)
+        {
+            Node n = GetPriorOrEqual(item);
+            if (n == null) { contents = default(T); return false; }
+            contents = n.Data;
             return true;
         }
 
@@ -659,19 +684,11 @@ namespace DataStructures
         {
             return "Count = " + Count;
         }
-
-        //public string HeightProfile()
-        //{
-        //    int[] counts = new int[Head.Height+5];
-        //    Node current = Head;
-        //    while (current != null) counts[current++.Height-1]++;
-        //    string str = "";
-        //    for (int i = 0; i < counts.Length; i++) str += i + " : " + counts[i] + "\r\n";
-        //    return str;
-
-        //}
+        
 
         #endregion
+
+
 
         [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
         void ICollection<T>.CopyTo(T[] array, int arrayIndex)
