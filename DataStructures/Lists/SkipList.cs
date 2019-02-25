@@ -680,11 +680,8 @@ namespace DataStructures
         }
 
         [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-        public override string ToString()
-        {
-            return "Count = " + Count;
-        }
-        
+        public override string ToString() { return "Count = " + Count; }
+
 
         #endregion
 

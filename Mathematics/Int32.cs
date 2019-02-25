@@ -53,6 +53,7 @@ namespace Mathematics
         {
             return (number & 1) == 0;
         }
+        public static bool IsOdd(int number) => (number & 1) == 0;
 
         public static int Mod(int number, int modulus)
         {
