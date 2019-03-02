@@ -8,6 +8,9 @@ using static DataStructures.Intervals;
 
 namespace DataStructures
 {
+    /// <summary>
+    /// A set of methods used for comparisons and logical operations on intervals.
+    /// </summary>
     public static class Intervals
     {
 
@@ -81,6 +84,25 @@ namespace DataStructures
                 if (c < 0) { min = half; half = ((max - min) / 2); if (min == half) half++; continue; }
                 else if (c > 0) { max = half; half = (max - min) / 2; continue; }
                 else return half;
+            }
+        }
+
+        internal static bool IntervalEquals<T>(this IInterval<T> a, IInterval<T> b) where T : IComparable<T>
+        {
+            switch (a)
+            {
+                case Singleton<T> s_a when b is Singleton<T> s_b:
+                    return s_a.Item.EqualTo(s_b.Item);
+                case Infinite<T> i_a when b is Infinite<T> i_b:
+                    return i_a.Head.EqualTo(i_b.Head)
+                        && i_a.IncludeHead && i_b.IncludeHead && i_a.Tail == i_b.Tail;
+                case Limited<T> l_a when b is Limited<T> l_b:
+                    return l_a.Start.EqualTo(l_b.Start)
+                        && l_a.End.EqualTo(l_b.End)
+                        && l_a.IncludeStart == l_b.IncludeStart
+                        && l_a.IncludeEnd == l_b.IncludeEnd;
+                default:
+                    return false;
             }
         }
 
@@ -526,7 +548,7 @@ namespace DataStructures
         {
             List<IInterval<T>> list = new List<IInterval<T>>();
             IInterval<T> focus = interval;
-            int idx = GetPrecedingIndex(FirstInflection(interval), chain);
+            int idx = GetPrecedingIndex(chain, FirstInflection(interval));
             if (idx < 0) idx = 0;
             for (int i = 0; i < idx; i++)
                 list.Add(chain[i]);
@@ -560,8 +582,7 @@ namespace DataStructures
             List<IInterval<T>> sorted = new List<IInterval<T>>(a);
             sorted.AddRange(b);
             sorted.Sort();
-            List<IInterval<T>> result = new List<IInterval<T>>();
-            result.Add(sorted[0]);
+            List<IInterval<T>> result = new List<IInterval<T>> { sorted[0] };
             for (int i = 1; i < sorted.Count; i++)
             {
                 IInterval<T>[] union = Or(result[result.Count - 1], sorted[i]);
@@ -792,7 +813,7 @@ namespace DataStructures
             // Find where the overlaps start.
             for (aIdx = 0; aIdx < a.Length; aIdx++)
             {
-                IInterval<T> aVal = a[aIdx];                
+                IInterval<T> aVal = a[aIdx];
                 bIdx = IndexIn(b, (ival) => !aVal.Equals(aVal.Subtract(ival)[0]));
                 if (bIdx < 0) break;
                 list.Add(aVal);
@@ -818,13 +839,13 @@ namespace DataStructures
                         if (diff.Length > 1) list.Add(diff[1]);
                         bIdx = i;
                     }
-                }                
+                }
             }
 
             // Done.
             return list.ToArray();
-            
-            int IndexIn( IInterval<T>[] chain, Func<IInterval<T>, bool> func, int startIdx = 0)
+
+            int IndexIn(IInterval<T>[] chain, Func<IInterval<T>, bool> func, int startIdx = 0)
             {
                 for (int i = startIdx; i < chain.Length; i++)
                     if (func(chain[i])) return i;
@@ -894,12 +915,50 @@ namespace DataStructures
                 return true;
             }
 
+
+            bool IInterval<T>.Contains(IInterval<T> other)
+            {
+                switch (other)
+                {
+                    case Singleton<T> s: return Contains(s.Item);
+                    case Limited<T> l:
+                        int c = l.Start.CompareTo(Start);
+                        if (c < 0) return false;
+                        if (c == 0) return IncludeStart || !l.IncludeStart;
+                        c = l.End.CompareTo(End);
+                        if (c > 0) return false;
+                        if (c == 0) return IncludeEnd || !l.IncludeEnd;
+                        return true;
+                    case Infinite<T> _:
+                    case Universal<T> _: return false;
+                    case Empty<T> _: return true;
+                    default: throw new NotImplementedException();
+                }
+            }
+
             public override bool Equals(object obj)
             {
                 if (!(obj is Limited<T> l)) return false;
                 return Start.EqualTo(l.Start) && End.EqualTo(l.End) && IncludeStart == l.IncludeStart && IncludeEnd == l.IncludeEnd;
             }
             public override int GetHashCode() => Start.GetHashCode();
+
+            bool IInterval<T>.Brackets(T item) => item.GreaterThanOrEqualTo(Start) && item.LessThanOrEqualTo(End);
+
+            bool IInterval<T>.Brackets(IInterval<T> other)
+            {
+                switch (other)
+                {
+                    case Singleton<T> s: return s.Item.GreaterThanOrEqualTo(Start) && s.Item.LessThanOrEqualTo(End);
+                    case Limited<T> l: return Start.LessThanOrEqualTo(l.Start) && l.End.LessThanOrEqualTo(End);
+                    case Infinite<T> i:
+                    case Universal<T> _: return false;
+                    case Empty<T> _: return true;
+                    default: throw new NotImplementedException();
+                }
+            }
+
+
         }
 
         /// <summary>
@@ -953,7 +1012,31 @@ namespace DataStructures
 
             public bool Brackets(IInterval<T> other)
             {
-                
+                switch (other)
+                {
+                    case Singleton<T> s:
+                        int c = s.Item.CompareTo(Head);
+                        if (c == 0) return true;
+                        return Math.Sign(s.Item.CompareTo(Head)) == Math.Sign((int)Tail);
+                    case Limited<T> l:
+                        if (Tail > 0)
+                        {
+                            if (l.End.LessThanOrEqualTo(Head)) return false;
+                            return l.Start.GreaterThanOrEqualTo(Head);
+                        }
+                        else
+                        {
+                            if (l.Start.GreaterThanOrEqualTo(Head)) return false;
+                            return l.End.LessThanOrEqualTo(Head);
+                        }
+                    case Infinite<T> i:
+                        if (Tail != i.Tail) return false;
+                        if (Head.GreaterThanOrEqualTo(i.Head)) return Tail < 0;
+                        return Tail > 0;
+                    case Universal<T> _: return false;
+                    case Empty<T> _: return true;
+                    default: throw new NotImplementedException();
+                }
             }
 
             public bool Contains(IInterval<T> other)
@@ -963,9 +1046,33 @@ namespace DataStructures
                     case Singleton<T> s:
                         int c = s.Item.CompareTo(Head);
                         return (c == 0) ? IncludeHead : Math.Sign(c) == Math.Sign((int)Tail);
-                    
+                    case Limited<T> l:
+                        if (Tail > 0)
+                        {
+                            if (l.End.LessThanOrEqualTo(Head)) return false;
+                            c = l.Start.CompareTo(Head);
+                            if (c < 0) return false;
+                            if (c > 0) return true;
+                            return IncludeHead || !l.IncludeStart;
+                        }
+                        else
+                        {
+                            if (l.Start.GreaterThanOrEqualTo(Head)) return false;
+                            c = l.End.CompareTo(Head);
+                            if (c < 0) return true;
+                            if (c > 0) return false;
+                            return IncludeHead || !l.IncludeEnd;
+                        }
+                    case Infinite<T> i:
+                        if (Tail != i.Tail) return false;
+                        c = i.Head.CompareTo(Head);
+                        if (c == 0) return IncludeHead || !i.IncludeHead;
+                        return Math.Sign(c) == Math.Sign((int)Tail);
+                    case Universal<T> _: return false;
+                    case Empty<T> _: return true;
+                    default: throw new NotImplementedException();
                 }
-                
+
             }
         }
 
@@ -995,7 +1102,7 @@ namespace DataStructures
             {
                 if (other is Singleton<T> s && Item.EqualTo(s.Item)) return true;
                 if (other is Empty<T>) return true;
-                return false;                
+                return false;
             }
         }
 
@@ -1049,45 +1156,109 @@ namespace DataStructures
         /// </summary>
         bool Contains(T item);
 
+        /// <summary>Returns whether this interval brackets all items in the given other interval.</summary>
         bool Brackets(IInterval<T> other);
 
+        /// <summary>Returns whether this interval contains all items in the given other interval.</summary>
         bool Contains(IInterval<T> other);
     }
 
 
 
 
-
+    /// <summary>The interface for a discrete or continuous interval set.</summary>
     public interface IIntervalSet<T> where T : IComparable<T>
     {
+        /// <summary>Returns whether this set includes the given singleton item.</summary>
         bool Includes(T item);
 
-        IIntervalSet<T> FromString(string str);
-
+        /// <summary>Returns all constituent intervals from this set.</summary>
         IInterval<T>[] GetIntervals();
 
+        /// <summary>
+        /// Adds the given singleton item to this set.  Returns true if the set is changed; otherwise, returns false.
+        /// </summary>
         bool Add(T item);
-        void Add(T from, T to);
-        void Clear();
-        void ExceptWith(IIntervalSet<T> other);
-        void IntersectWith(IIntervalSet<T> other);
-        bool IsProperSubsetOf(IIntervalSet<T> other);
-        bool IsProperSuperSetOf(IIntervalSet<T> other);
-        bool IsSubsetOf(IIntervalSet<T> other);
-        bool IsSuperSetOf(IIntervalSet<T> other);
-        bool Overlaps(IIntervalSet<T> other);
-        bool Remove(T item);
-        void Remove(T from, T to);
-        void Remove(IIntervalSet<T> other);
-        bool SetEquals(IIntervalSet<T> other);
-        void SymmetricExceptWith(IIntervalSet<T> other);
-        void UnionWith(IIntervalSet<T> other);
 
+        /// <summary>Adds the given range to this set, starting at 'from' until 'to', inclusive.</summary>
+        void Add(T from, T to);
+
+        /// <summary>Clears all items from this set.</summary>
+        void Clear();
+
+        /// <summary>
+        /// Modifies the current <see cref="IIntervalSet{T}"/> object to contain only elements that are present in 
+        /// that object and in the specified collection.
+        /// </summary>
+        void IntersectWith(IIntervalSet<T> other);
+
+        /// <summary>
+        /// Determines whether a <see cref="IIntervalSet{T}"/> object is a proper subset of the specified collection.
+        /// </summary>
+        bool IsProperSubsetOf(IIntervalSet<T> other);
+
+        /// <summary>
+        /// Determines whether a <see cref="IIntervalSet{T}"/> object is a proper superset of the specified 
+        /// collection.
+        /// </summary>
+        bool IsProperSuperSetOf(IIntervalSet<T> other);
+
+        /// <summary>
+        /// Determines whether a <see cref="IIntervalSet{T}"/> object is a subset of the specified collection.
+        /// </summary>
+        bool IsSubsetOf(IIntervalSet<T> other);
+
+        /// <summary>
+        /// Determines whether a <see cref="IIntervalSet{T}"/> object is a superset of the specified collection.
+        /// </summary>
+        bool IsSuperSetOf(IIntervalSet<T> other);
+
+        /// <summary>
+        /// Determines whether the current <see cref="IIntervalSet{T}"/> object and a specified collection share common elements.
+        /// </summary>
+        bool Overlaps(IIntervalSet<T> other);
+
+        /// <summary>
+        /// Removes the singleton item from the set.  Returns true if the set was changed, otherwise returns false.
+        /// </summary>
+        bool Remove(T item);
+
+        /// <summary>
+        /// Removes the limited range starting at 'from' and going to 'to', inclusive./>
+        /// </summary>
+        void Remove(T from, T to);
+
+        /// <summary>
+        /// Sets this interval set to be the difference of this and the given set.
+        /// </summary>
+        void Remove(IIntervalSet<T> other);
+        /// <summary>
+        /// Determines whether a <see cref="IIntervalSet{T}"/> object and the specified collection contain the same 
+        /// elements.
+        /// </summary>
+        bool SetEquals(IIntervalSet<T> other);
+
+        /// <summary>
+        /// Modifies the current <see cref="IIntervalSet{T}"/> object to contain only elements that are present either 
+        /// in that object or in the specified collection, but not both.
+        /// </summary>
+        void SymmetricExceptWith(IIntervalSet<T> other);
+
+        /// <summary>
+        /// Modifies the current <see cref="IIntervalSet{T}"/> object to contain all elements that are present in itself, the specified collection, or both.
+        /// </summary>
+        /// <param name="other"></param>
+        void UnionWith(IIntervalSet<T> other);
     }
 
 
 
-
+    /// <summary>
+    /// An interval set for continuous values.  There is no notion of adjacency in such a set, so for every two 
+    /// T values 'a' and 'b', there always exists at least one value 'x' between them.  Interval sets comprising 
+    /// values such as <seealso cref="double"/> values and <seealso cref="float"/> values should be of this type.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public sealed class ContinuousIntervalSet<T> : IIntervalSet<T> where T : IComparable<T>
     {
         private IInterval<T>[] _Intervals;
@@ -1105,14 +1276,6 @@ namespace DataStructures
         public static ContinuousIntervalSet<T> Universal() => new ContinuousIntervalSet<T>(new Universal<T>().AsArray());
 
         internal ContinuousIntervalSet(params IInterval<T>[] intervals) { this._Intervals = intervals; }
-
-        /// <summary>Returns a new interval set from the given string.</summary>
-        public ContinuousIntervalSet<T> FromString(string str)
-        {
-            throw new NotImplementedException();
-        }
-
-        IIntervalSet<T> IIntervalSet<T>.FromString(string str) => FromString(str);
 
         /// <summary>Returns whether this interval set includes the given item.</summary>
         public bool Includes(T item) => _Intervals[GetPrecedingOrBracketingIndex(item)].Brackets(item);
@@ -1149,7 +1312,7 @@ namespace DataStructures
         }
 
 
-        IEnumerable<IInterval<T>> IIntervalSet<T>.GetIntervals() => _Intervals;
+        IInterval<T>[] IIntervalSet<T>.GetIntervals() => _Intervals.ToArray();
 
         /// <summary>Adds the given item to this set.</summary>
         public bool Add(T item)
@@ -1165,11 +1328,179 @@ namespace DataStructures
         /// <summary>Clears all contents from this interval set.</summary>
         public void Clear() => _Intervals = new IInterval<T>[] { new Intervals.Empty<T>() };
 
+        /// <summary>
+        /// Removes the given singleton item from this interval set.  Returns true if the set was changed, and false 
+        /// if the item was never in this set to begin with.
+        /// </summary>
+        public bool Remove(T item) => Remove(new Singleton<T>(item));
+
         /// <summary>Removes all items in the given other set, from this set.</summary>
-        public void ExceptWith(IIntervalSet<T> other) => _Intervals = Subtract<T>(_Intervals, other.GetIntervals());
+        public void Remove(IIntervalSet<T> other) => _Intervals = Subtract<T>(_Intervals, other.GetIntervals());
+
+        /// <summary>Removes the given interval, returning whether the interval set has changed.</summary>
+        public bool Remove(IInterval<T> interval)
+        {
+            bool changed = false;
+            List<IInterval<T>> list = new List<IInterval<T>>();
+            int idx = 0;
+
+            // Skip over until we find some intervals that are changed.
+            while (idx < _Intervals.Length)
+            {
+                IInterval<T> focus = _Intervals[idx++];
+                IInterval<T>[] diff = focus.Subtract(interval);
+                if (diff.Length == 0 || diff[0] is Empty<T>) { changed = true; break; }
+                list.AddRange(diff);
+                if (diff.Length > 1 || !diff[0].IntervalEquals(focus)) { changed = true; break; }
+            }
+
+            // If we've gotten to the end and changed is still false, there is no change by removing the interval.
+            if (!changed) return false;
+
+            // Keep changing so long as the intervals are being changed.
+            while (idx < _Intervals.Length)
+            {
+                IInterval<T> focus = _Intervals[idx++];
+                IInterval<T>[] diff = focus.Subtract(interval);
+                if (diff.Length == 0 || diff[0] is Empty<T>) continue;
+                list.AddRange(diff);
+                if (diff.Length == 0 && diff[0].IntervalEquals(focus)) break;
+            }
+
+            // Add the remainder of the list, which won't be changed by subtracting the interval.
+            while (idx < _Intervals.Length)
+                list.Add(_Intervals[idx++]);
+
+            // A change is guaranteed to have occurred
+            return true;
+        }
+
+        /// <summary>Removes the indicated range from this list.</summary>
+        public void Remove(T from, T to) => Remove(new Limited<T>(from, to));
+
+        /// <summary>Removes all items in the given other set, from this set.</summary>
+        public void ExceptWith(IIntervalSet<T> other) => Remove(other);
 
         /// <summary>Changes this to the set intersection of this set and the given other set.</summary>
         public void IntersectWith(IIntervalSet<T> other) => _Intervals = And<T>(_Intervals, other.GetIntervals());
+
+        bool IIntervalSet<T>.IsProperSubsetOf(IIntervalSet<T> other)
+        {
+            IInterval<T>[] otherIntervals = other.GetIntervals();
+            foreach (IInterval<T> otherInterval in other.GetIntervals())
+            {
+                T otherStart = otherInterval.FirstInflection(), otherEnd = otherInterval.LastInflection();
+                int precedeStartIdx = this.GetPrecedingOrBracketingIndex(otherStart), precedeEndIdx = this.GetPrecedingOrBracketingIndex(otherEnd);
+                if (precedeStartIdx < 0 || precedeEndIdx < 0) return false;
+                if (precedeStartIdx != precedeEndIdx) return false;
+                IInterval<T> thisInterval = _Intervals[precedeStartIdx];
+                if (!thisInterval.Contains(otherStart) || !thisInterval.Contains(otherEnd)) return false;
+                if (thisInterval.FirstInflection().EqualTo(otherStart) || thisInterval.LastInflection().EqualTo(otherEnd)) return false;
+            }
+            return true;
+        }
+
+        bool IIntervalSet<T>.IsProperSuperSetOf(IIntervalSet<T> other) => other.IsProperSubsetOf(this);
+
+        bool IIntervalSet<T>.IsSubsetOf(IIntervalSet<T> other)
+        {
+            IInterval<T>[] otherIntervals = other.GetIntervals();
+            foreach (IInterval<T> otherInterval in other.GetIntervals())
+            {
+                T otherStart = otherInterval.FirstInflection(), otherEnd = otherInterval.LastInflection();
+                int precedeStartIdx = this.GetPrecedingOrBracketingIndex(otherStart), precedeEndIdx = this.GetPrecedingOrBracketingIndex(otherEnd);
+                if (precedeStartIdx < 0 || precedeEndIdx < 0) return false;
+                if (precedeStartIdx != precedeEndIdx) return false;
+                IInterval<T> thisInterval = _Intervals[precedeStartIdx];
+                if (!thisInterval.Contains(otherStart) || !thisInterval.Contains(otherEnd)) return false;
+            }
+            return true;
+        }
+
+        bool IIntervalSet<T>.IsSuperSetOf(IIntervalSet<T> other) => other.IsSubsetOf(this);
+
+        bool IIntervalSet<T>.Overlaps(IIntervalSet<T> other) => other.GetIntervals().Any(a => _Intervals.Any(b => a.And(b).Length != 0));
+
+        bool IIntervalSet<T>.SetEquals(IIntervalSet<T> other)
+        {
+            IInterval<T>[] others = other.GetIntervals();
+            if (_Intervals.Length != others.Length) return false;
+            for (int i = 0; i < _Intervals.Length; i++)
+            {
+                if (!_Intervals[i].IntervalEquals(others[i])) return false;
+            }
+            return true;
+        }
+
+        void IIntervalSet<T>.SymmetricExceptWith(IIntervalSet<T> other)
+        {
+            throw new NotImplementedException();
+        }
+
+        void IIntervalSet<T>.UnionWith(IIntervalSet<T> other) => _Intervals = Or(_Intervals, other.GetIntervals());
+    }
+
+
+
+
+    public sealed class DiscreteIntervalSet<T> : IIntervalSet<T>, IEnumerable<T> where T:IComparable<T>
+    {
+        private IInterval<T>[] _Intervals;
+        internal readonly Func<T, T> GetPrevious;
+        internal readonly Func<T, T> GetNext;
+
+        public DiscreteIntervalSet(Func<T, T> getPrevious, Func<T, T> getNext)
+        {
+            this.GetPrevious = getPrevious;
+            this.GetNext = getNext;
+            _Intervals = new IInterval<T>[] { new Empty<T>()};
+            Count = 0;
+        }
+
+        public bool AreConsecutive(T a, T b) => GetNext(a).EqualTo(b) || GetPrevious(b).EqualTo(a);
+
+        public int  Count { get; private set; }
+
+
+        public bool Add(T item)
+        {
+            throw new NotImplementedException();
+        }
+
+        void IIntervalSet<T>.Add(T from, T to)
+        {
+            throw new NotImplementedException();
+        }
+
+        void IIntervalSet<T>.Clear()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IInterval<T>[] IIntervalSet<T>.GetIntervals()
+        {
+            throw new NotImplementedException();
+        }
+
+        bool IIntervalSet<T>.Includes(T item)
+        {
+            throw new NotImplementedException();
+        }
+
+        void IIntervalSet<T>.IntersectWith(IIntervalSet<T> other)
+        {
+            throw new NotImplementedException();
+        }
 
         bool IIntervalSet<T>.IsProperSubsetOf(IIntervalSet<T> other)
         {
@@ -1201,6 +1532,11 @@ namespace DataStructures
             throw new NotImplementedException();
         }
 
+        void IIntervalSet<T>.Remove(T from, T to)
+        {
+            throw new NotImplementedException();
+        }
+
         void IIntervalSet<T>.Remove(IIntervalSet<T> other)
         {
             throw new NotImplementedException();
@@ -1220,11 +1556,93 @@ namespace DataStructures
         {
             throw new NotImplementedException();
         }
-    }
 
-    public sealed class DiscreteIntervalSet<T> //: IIntervalSet<T>, IEnumerable<T>, ISet<T>
-    {
+        public class Discrete
+        {
 
+            public bool TrySimplify(IInterval<T>[] chain, out IEnumerable<IInterval<T>> simplified)
+            {
+                List<IInterval<T>> result = new List<IInterval<T>>() { chain[0] };
+                bool changed = false;
+                for (int i = 1; i < chain.Length; i++)
+                {
+                    IInterval<T> prior = result[result.Count - 1];
+                    IInterval<T> focus = chain[i];
+                    if (!TrySimplify(prior, focus, out IInterval<T> blended)) { result.Add(focus); continue; }
+                    changed = true;
+                    result[result.Count - 1] = blended;
+                }
+                simplified = result;
+                return changed;
+            }
+
+            internal bool TrySimplify(IInterval<T> a, IInterval<T> b, out IInterval<T> simp)
+            {
+                switch (a)
+                {
+                    case Singleton<T> s: return TrySimplify(s, b, out simp);
+                    case Limited<T> l: return TrySimplify(l, b, out simp);
+                    case Infinite<T> i: return TrySimplify(i, b, out simp);                    
+                }
+                simp = null;
+                return false;
+            }
+            internal bool TrySimplify(Infinite<T> i, IInterval<T> ival, out IInterval<T> simp)
+            {
+                simp = null;
+                switch (ival)
+                {
+                    case Singleton<T> s:  return TrySimplify(s, i, out simp);
+                    case Limited<T> l: return TrySimplify(l, i, out simp);
+                    case Infinite<T> i_2 when i.IncludeHead && i_2.IncludeHead:
+                        if (AreConsecutive(i.Head, i_2.Head) && i.Tail < 0 && i_2.Tail > 0) simp = new Universal<T>();
+                        else if (AreConsecutive(i_2.Head, i.Head) && i_2.Tail < 0 && i.Tail > 0) simp = new Universal<T>();
+                        break;
+                }
+                return simp != null;
+            }
+            internal bool TrySimplify(Limited<T> l, IInterval<T> ival, out IInterval<T> simp)
+            {
+                simp = null;
+                switch (ival)
+                {
+                    case Singleton<T> s: return TrySimplify(s, l, out simp);
+                    case Limited<T> l_2:                        
+                        if (AreConsecutive(l.End, l_2.Start) && l.IncludeEnd && l_2.IncludeStart)
+                            simp = new Limited<T>(l.Start, l.IncludeStart, l_2.End, l_2.IncludeEnd);
+                        else if (AreConsecutive(l_2.End, l.Start) && l_2.IncludeEnd && l.IncludeStart)
+                            simp = new Limited<T>(l_2.Start, l_2.IncludeStart, l.End, l.IncludeEnd);
+                        break;
+                    case Infinite<T> i when i.IncludeHead:                        
+                        if (AreConsecutive(i.Head, l.Start) && l.IncludeStart && i.Tail < 0)
+                            simp = new Infinite<T>(l.Start, true, i.Tail);
+                        else if (AreConsecutive(l.End, i.Head) && l.IncludeEnd && i.Tail > 0)
+                            simp = new Infinite<T>(l.End, true, i.Tail);
+                        break;                
+                }
+                return simp != null;
+            }
+            internal bool TrySimplify(Singleton<T> s, IInterval<T> ival, out IInterval<T> simp)
+            {
+                simp = null;
+                switch (ival)
+                {
+                    case Singleton<T> s_2:
+                        if (AreConsecutive(s.Item, s_2.Item)) simp = new Limited<T>(s.Item, s_2.Item);
+                        else if (AreConsecutive(s_2.Item, s.Item)) simp = new Limited<T>(s_2.Item, s.Item);
+                        break;
+                    case Limited<T> l:
+                        if (AreConsecutive(s.Item, l.Start) && l.IncludeStart) simp = new Limited<T>(s.Item, true, l.End, l.IncludeEnd);
+                        else if (AreConsecutive(l.End, s.Item) && l.IncludeEnd) simp = new Limited<T>(l.Start, l.IncludeStart, s.Item, true);
+                        break;
+                    case Infinite<T> i:
+                        if (AreConsecutive(s.Item, i.Head) && i.IncludeHead && i.Tail > 0) simp = new Infinite<T>(s.Item, true, i.Tail);
+                        else if (AreConsecutive(i.Head, s.Item) && i.IncludeHead && i.Tail < 0) simp = new Infinite<T>(s.Item, true, i.Tail);
+                        break;                    
+                }
+                return simp != null;
+            }
+        }
     }
 
 }
