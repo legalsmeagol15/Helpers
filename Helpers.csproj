@@ -70,8 +70,6 @@
     <Compile Include="DataStructures\Maps\TupleDictionary.cs" />
     <Compile Include="DataStructures\Threading\PipelineWorker.cs" />
     <Compile Include="DataStructures\Threading\RedoWorker.cs" />
-    <Compile Include="DataStructures\Trees\QuadTree.cs" />
-    <Compile Include="DataStructures\Trees\QuadTreeZ.cs" />
     <Compile Include="Undo\IUndoable.cs" />
     <Compile Include="Undo\IUndoStack.cs" />
     <Compile Include="Undo\Undoable.cs" />
@@ -81,40 +79,23 @@
     <Compile Include="Graphs\IEdge.cs" />
     <Compile Include="Graphs\IVertex.cs" />
     <Compile Include="Graphs\Traversals.cs" />
-    <Compile Include="Mathematics\Cartesian\Globe.cs" />
     <Compile Include="Mathematics\Cartesian\ITransformable.cs" />
     <Compile Include="Mathematics\Cartesian\Matrix.cs" />
-    <Compile Include="Mathematics\Cartesian\Operations.cs" />
     <Compile Include="Mathematics\Cartesian\Plane.cs" />
-    <Compile Include="Mathematics\Cartesian\Point.cs" />
-    <Compile Include="Mathematics\Cartesian\Rect.cs" />
     <Compile Include="Mathematics\Cartesian\Vector.cs" />
     <Compile Include="Mathematics\CommonValues.cs" />
     <Compile Include="Mathematics\Complex.cs" />
     <Compile Include="Mathematics\Decimal.cs" />
-    <Compile Include="Mathematics\Cartesian\BezierCubic.cs" />
-    <Compile Include="Mathematics\Cartesian\BezierQuadratic.cs" />
-    <Compile Include="Mathematics\Cartesian\Circle.cs" />
-    <Compile Include="Mathematics\Fraction.cs" />
-    <Compile Include="Mathematics\Functions\IDifferentiable.cs" />
-    <Compile Include="Mathematics\Cartesian\Line.cs" />
     <Compile Include="Mathematics\Cartesian\NURBS.cs" />
-    <Compile Include="Mathematics\Cartesian\PolyBezierCubic.cs" />
-    <Compile Include="Mathematics\Functions\Polynomial.cs" />
     <Compile Include="Mathematics\Int32.cs" />
     <Compile Include="Mathematics\Int64.cs" />
-    <Compile Include="Mathematics\Operations.cs" />
-    <Compile Include="Mathematics\Parsing\DataContext.cs" />
-    <Compile Include="Mathematics\Parsing\Exceptions.cs" />
-    <Compile Include="Mathematics\Parsing\Formula.cs" />
-    <Compile Include="Mathematics\Parsing\NamedFunction.cs" />
-    <Compile Include="Mathematics\Parsing\Operator.cs" />
-    <Compile Include="Mathematics\Parsing\Variable.cs" />
     <Compile Include="Mathematics\Primes.cs" />
     <Compile Include="Mathematics\Sorting.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Mathematics\Functions\" />
+    <Folder Include="Properties\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

@@ -6,23 +6,7 @@ using System.Threading.Tasks;
 
 namespace Helpers.CLArgs
 {
-    public static class CLArgs
-    {
-        public static object Parse<T>(T result, params string[] args)
-        {
-            if (result == null) throw new ArgumentNullException("result");
-
-            int idx = 0;
-            while (idx < args.Length)
-            {
-
-            }
-
-        }
-
-
-    }
-
+   
     /// <summary>
     /// An exception thrown by the argument parser.  The exception's message will contain the help text.
     /// </summary>
