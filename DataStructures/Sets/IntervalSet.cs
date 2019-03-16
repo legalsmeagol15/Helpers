@@ -53,20 +53,14 @@ namespace DataStructures
         /// <summary>Returns whether this <see cref="IntervalSet{T}"/> represents a positive-infinite set.</summary>
         public bool IsPositiveInfinite => Inflections.Length > 0 && Inflections[Inflections.Length - 1].IsStart;
         /// <summary>Returns whether this <see cref="IntervalSet{T}"/> represents a negative-infinite set.</summary>
-        public bool IsNegativeInfinite => Inflections.Length > 0 && Inflections[0].IsEnd;
-        /// <summary>
-        /// Returns whether the two intervals specify a singleton together, whether included or excluded.
-        /// </summary>
-        protected static bool IsSingleton(Inflection a, Inflection b)
-            => a == b
-            && !a.IsUniversal && !b.IsUniversal
-            && a.Include == b.Include
-            && a.Interval == (Interval)(-1 * (int)b.Interval);
+        public bool IsNegativeInfinite => Inflections.Length > 0 && Inflections[0].IsEnd;        
 
         /// <summary>Returns whether the given item is included in this <see cref="IntervalSet{T}"/>.</summary>
         public bool Includes(T item)
         {
             if (Inflections.Length == 0) return false;
+            if (Inflections[0].IsUniversal) return true;
+
             // Get the inflection at or preceding the given item.
             int min = 0, max = Inflections.Length;
             int mid = 0, oldMid = mid;
@@ -350,9 +344,11 @@ namespace DataStructures
             {
                 Inflection last = orig[i - 1];
                 Inflection focus = _IncludeOnly(orig[i]);
+                /*  TODO:  is this impossible?
                 if (focus < last)
                     throw new SetIntegrityException("Inflections \"" + last.ToString() + "\" and \""
                                                     + focus.ToString() + "\" out of order.");
+                                                    */
                 if (last.Interval == focus.Interval)
                     throw new SetIntegrityException("Set integrity error - nested interval.");
                 if (last == focus && last.Include != focus.Include)
