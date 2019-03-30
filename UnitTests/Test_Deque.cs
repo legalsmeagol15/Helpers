@@ -8,7 +8,7 @@ using static UnitTests.Common;
 namespace UnitTests
 {
     [TestClass]
-    public class TestDeque
+    public class Test_Deque
     {
         [TestMethod]
         public void Test_Deque_Ctor()

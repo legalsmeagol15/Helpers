@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace UnitTests
 {
     [TestClass]
-    public class TestIntervalSets
+    public class Test_IntervalSet
     {
         [TestMethod]
         public void Test_IntervalSet_Comparison()

@@ -66,8 +66,10 @@ namespace Arguments
                     g.Options.Add(o);
                     if (ga.Required != g.Required)
                     {
-                        if (g.Required == null) g.Required = ga.Required;
-                        else throw new ProfileException("Option " + o.Name + " has requirement inconsistency for group " + g.Name);
+                        if (g.Required == null)
+                            g.Required = ga.Required;
+                        else if (ga.Required != null)
+                            throw new ProfileException("Option " + o.Name + " has requirement inconsistency for group " + g.Name);
                     }
                         
                     foreach (string ea in ga.Exclusions)

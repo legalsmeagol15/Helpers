@@ -56,9 +56,9 @@
   </Choose>
   <ItemGroup>
     <Compile Include="Common.cs" />
-    <Compile Include="TestArgumentParsing.cs" />
-    <Compile Include="TestIntervalSets.cs" />
-    <Compile Include="TestModularList.cs" />
+    <Compile Include="Test_ArgumentParsing.cs" />
+    <Compile Include="Test_IntervalSet.cs" />
+    <Compile Include="Test_Deque.cs" />
     <Compile Include="Test_CompositeKeyDictionary.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Test_Primes.cs" />
