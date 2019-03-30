@@ -23,12 +23,16 @@ namespace Arguments
         public Profile(Type type)
         {
 
-            // Assign all the property-attached options to their groups
+            // Assign all the property-attached options to their groups            
             foreach (PropertyInfo pInfo in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                _Add_Throw(pInfo);
+            foreach (PropertyInfo pInfo in type.GetProperties(BindingFlags.NonPublic | BindingFlags.Instance))
                 _Add_Throw(pInfo);
 
             // Assign all the field-attached options to their groups
             foreach (FieldInfo fInfo in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+                _Add_Throw(fInfo);
+            foreach (FieldInfo fInfo in type.GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
                 _Add_Throw(fInfo);
 
             void _Add_Throw(MemberInfo mInfo)
@@ -97,30 +101,34 @@ namespace Arguments
 
         public class Option
         {
-            public readonly string Name;
+            
             public readonly IEnumerable<AliasAttribute> Aliases;
             public readonly IEnumerable<GroupAttribute> GroupsAttr;
             public readonly HelpAttribute Help;
             public readonly PatternAttribute Pattern;
-            public readonly PropertyInfo PropertyInfo;
-            public readonly FieldInfo FieldInfo;
+            public readonly MemberInfo Info;
             public readonly char Flag = '\0';
-            public Type OptionType => (PropertyInfo != null) ? PropertyInfo.PropertyType : FieldInfo.FieldType;
+            public string Name => (Aliases != null && Aliases.Any()) ? Aliases.First().Alias
+                                : Info.Name;
+            public Type OptionType => (Info is PropertyInfo pInfo) ? pInfo.PropertyType 
+                                    : (Info is FieldInfo fInfo) ? fInfo.FieldType 
+                                    : typeof(object);
 
             private Option(MemberInfo mInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, PatternAttribute pattern)
             {
-
-                this.Aliases = aliases;
+                List<AliasAttribute> aliasList = new List<AliasAttribute>();
+                this.Aliases = aliasList;
+                if (aliases == null) aliasList.Add(new AliasAttribute(true, mInfo.Name));
                 this.GroupsAttr = groups;
                 this.Help = help;
                 this.Pattern = pattern;
-
-                //HashSet<string> aliasesUnique = new HashSet<string>();
+                Info = mInfo;
                 
                 foreach (AliasAttribute aliasAttr in aliases)
                 {
+                    if (aliasAttr == aliases.First()) continue;
                     if (IsMatch(aliasAttr.Alias))
-                        throw new NamingException("Option \"" + this.Name + "\" has duplicate alias \"" + aliasAttr.Alias + "\".");
+                        throw new NamingException("Option \"" + this.Name + "\" has duplicate alias \"" + aliasAttr.Alias + "\".");                    
                     if (aliasAttr.Alias.Length == 1)
                     {
                         if (Pattern != null && Pattern.Pattern != ArgumentPattern.KeyOnly)
@@ -129,13 +137,9 @@ namespace Arguments
                             throw new StructureException("Option \"" + this.Name + "\" has flag conflict between '" + Flag + "' and \"" + aliasAttr.Alias[0] + "\".");
                         Flag = aliasAttr.Alias[0];
                     }
+                    aliasList.Add(aliasAttr);
                 }
-
-                if (aliases.Any())
-                    this.Name = aliases.First().Alias;
-                else
-                    this.Name = mInfo.Name;
-
+                
                 if (groups.Select(g => g.Name).Distinct().Count() != groups.Count())
                     throw new GroupException("On Option \"" + this.Name + "\", duplicate group names.");
                 foreach (GroupAttribute ga in groups)
@@ -144,17 +148,9 @@ namespace Arguments
             }
 
             public Option(PropertyInfo pInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, PatternAttribute pattern)
-                : this((MemberInfo)pInfo, aliases, groups, help, pattern)
-            {
-                this.PropertyInfo = pInfo;
-                this.FieldInfo = null;
-            }
+                : this((MemberInfo)pInfo, aliases, groups, help, pattern) { }
             public Option(FieldInfo fInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, PatternAttribute pattern)
-                : this((MemberInfo)fInfo, aliases, groups, help, pattern)
-            {
-                this.PropertyInfo = null;
-                this.FieldInfo = fInfo;
-            }
+                : this((MemberInfo)fInfo, aliases, groups, help, pattern) { }
 
             private bool _IsSet = false;
             private object _Value = null;
@@ -165,7 +161,7 @@ namespace Arguments
             public bool IsMatch(string arg)
             {
                 if (arg == Name) return true;
-                if (Aliases == null) return false;
+                if (Aliases == null || !Aliases.Any()) return arg.ToLower() == Name.ToLower();
                 foreach (AliasAttribute aliasAttr in Aliases)
                 {
                     if (aliasAttr.IsCaseSensitive && arg == aliasAttr.Alias)
@@ -360,19 +356,20 @@ namespace Arguments
             {
                 try
                 {
-                    if (o.PropertyInfo != null)
+                    if (o.Info is PropertyInfo pInfo)
                     {
-                        if (o.Value.GetType() != o.PropertyInfo.PropertyType)
-                            throw new ParsingException("Parser for argument " + o.Name + " returned invalid type " + o.Value.GetType().Name + ", must be a " + o.PropertyInfo.PropertyType.Name);
-                        o.PropertyInfo.SetValue(resultObj, o.Value);
+                        if (! pInfo.PropertyType.IsAssignableFrom(o.Value.GetType()))
+                            throw new ParsingException("Parser for argument " + o.Name + " returned invalid type " + o.Value.GetType().Name + ", must be a " + pInfo.PropertyType.Name + ".");
+                        pInfo.SetValue(resultObj, o.Value);
                     }
-                    else if (o.FieldInfo != null)
+                    else if (o.Info is FieldInfo fInfo)                        
                     {
-                        if (o.Value.GetType() != o.FieldInfo.FieldType)
-                            throw new ParsingException("Parser for argument " + o.Name + " returned invalid type " + o.Value.GetType().Name + ", must be a " + o.FieldInfo.FieldType);
-                        o.FieldInfo.SetValue(resultObj, o.Value);
-                    }
-                    else throw new ParsingException("Unable to set " + o.Name);
+                        if (!fInfo.FieldType.IsAssignableFrom(o.Value.GetType()))
+                            throw new ParsingException("Parser for argument " + o.Name + " returned invalid type " + o.Value.GetType().Name + ", must be a " + fInfo.FieldType + ".");
+                        fInfo.SetValue(resultObj, o.Value);
+                    }                    
+                    else
+                        throw new ParsingException("Unable to set " + o.Name);
                 }
                 catch (ParsingException) { throw; }
                 catch (Exception) { o.Throw(); }

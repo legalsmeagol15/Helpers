@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 
 namespace Arguments
 {
-
+    /// <summary>
+    /// 
+    /// </summary>
     public static class Options
     {
         /// <summary>

@@ -24,6 +24,18 @@ namespace UnitTests
             AssertThrows<ProfileException>(() => Arguments.Options.Parse < ProfileExceptionOptionsA>("BoolArg") );
         }
 
+        [TestMethod]
+        public void Test_Options_Aliases()
+        {
+            AliasOptionsA opts = Arguments.Options.Parse<AliasOptionsA>("test");
+            Assert.AreEqual(opts.Test, true);
+        }
+
+        public class AliasOptionsA
+        {   
+            internal bool Test = false;
+        }
+
         public class ProfileExceptionOptionsA
         {
             [Pattern(ArgumentPattern.ValueOptional)]
