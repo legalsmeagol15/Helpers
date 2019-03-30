@@ -11,14 +11,26 @@ namespace UnitTests
         [TestMethod]
         public void Test_Options_Parsing()
         {
-            TestOptions opts = Arguments.Options.Parse<TestOptions>("BoolArg", "StringArgA=valueA", "StringArgB", "valueB", "IntArgA=50");
+            SimpleOptionsA opts = Arguments.Options.Parse<SimpleOptionsA>("BoolArg", "StringArgA=valueA", "StringArgB", "valueB", "IntArgA=50");
             Assert.AreEqual(opts.BoolArg, true);
             Assert.AreEqual(opts.StringArgA, "valueA");
             Assert.AreEqual(opts.StringArgB, "valueB");
             Assert.AreEqual(opts.IntArgA, 50);
         }
 
-        public class TestOptions
+        [TestMethod]
+        public void Test_Options_ProfileExceptions()
+        {
+            AssertThrows<ProfileException>(() => Arguments.Options.Parse < ProfileExceptionOptionsA>("BoolArg") );
+        }
+
+        public class ProfileExceptionOptionsA
+        {
+            [Pattern(ArgumentPattern.ValueOptional)]
+            public bool BoolArg;
+        }
+
+        public class SimpleOptionsA
         {
             [Pattern(ArgumentPattern.KeyOnly)]
             [Group("GroupA", true)]
