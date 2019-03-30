@@ -39,9 +39,7 @@ namespace Arguments
         public GroupAttribute(string name, params string[] exclusions)
         {
             this.Name = name;
-            this.Exclusions = exclusions;
-            if (exclusions.Contains(name))
-                throw new ProfileException("A group cannot exclude another group of with the same name (" + name + ").");
+            this.Exclusions = exclusions;            
         }
         /// <summary>Creates a new group attribute.</summary>
         public GroupAttribute(string name, bool required, params string[] exclusions) : this (name, exclusions)

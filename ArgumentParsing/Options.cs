@@ -15,7 +15,7 @@ namespace Arguments
         /// </summary>
         /// <exception cref="ProfileException">Thrown when an error occurs due to the setup of the class type T.</exception>
         /// <exception cref="ParsingException">Thrown when a supplied argument cannot be parsed.</exception>
-        public static T Parse<T>(params string[] args )
+        public static T Parse<T>(params string[] args)
         {
             if (typeof(T).GenericTypeArguments.Any())
                 throw new ProfileException("Result objects cannot be generic.");
@@ -25,7 +25,7 @@ namespace Arguments
             return optionsObject;
         }
     }
-    
+
     /// <summary>
     /// An exception thrown by the argument parser.  The exception's message will contain the help text.
     /// </summary>
@@ -36,16 +36,33 @@ namespace Arguments
         public ParsingException(string message) : base(message) { }
     }
 
-    /// <summary>
-    /// An exception thrown when profiling the argument object.
-    /// </summary>
-    public sealed class ProfileException : Exception
+    /// <summary>An exception thrown when profiling the argument object.</summary>
+    public class ProfileException : Exception
     {
         /// <summary>Creates a new <see cref="ProfileException"/>.</summary>
-        /// <param name="message">The message accompanying  the profiling failure.</param>
-        public ProfileException(string message) : base(message) { }
+        protected internal ProfileException(string message) : base(message) { }
     }
 
-    
+    /// <summary>An exception thrown when profiling the member names of the argument object.</summary>
+    public sealed class NamingException : ProfileException
+    {
+        /// <summary>Creates a new <see cref="ProfileException"/>.</summary>
+        internal NamingException(string message) : base(message) { }
+    }
+
+    /// <summary>An exception thrown when graphing the argument groups of the argument object.</summary>
+    public sealed class GroupException : ProfileException
+    {
+        /// <summary>Creates a new <see cref="ProfileException"/>.</summary>
+        internal GroupException(string message) : base(message) { }
+    }
+
+    /// <summary>An exception thrown when analyzing the argument structure of the argument object.</summary>
+    public sealed class StructureException : ProfileException
+    {
+        internal StructureException(string message) : base(message) { }
+    }
+
+
 
 }

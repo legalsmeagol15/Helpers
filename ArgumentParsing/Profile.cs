@@ -49,11 +49,20 @@ namespace Arguments
                 else if (mInfo is FieldInfo fInfo) o = new Option(fInfo, aliases, groups, helpAttr, patternAttr);
                 else throw new NotImplementedException();
 
-                // Add the option to the appropriate groups.
-                if (_Options.Any(existing => existing.Name == o.Name))
-                    throw new ProfileException("An Option with the name " + o.Name + " already exists");
+                if (o.OptionType==typeof(bool) || o.OptionType==typeof(Boolean))                
+                    if (patternAttr != null && patternAttr.Pattern != ArgumentPattern.KeyOnly)
+                        throw new StructureException("Bool argument " + o.Name + " must be key-only.");
+
+                // Check for alias duplication.
+                if (_Options.Any(existing => existing.IsMatch(o.Name)))
+                    throw new NamingException("An Option with the name \"" + o.Name + "\" already exists");
                 if (o.Flag != '\0' && _Options.Any(existing => o.Flag == existing.Flag))
-                    throw new ProfileException("An Option with the flag " + o.Flag + " already exists");
+                    throw new NamingException("An Option with the flag '" + o.Flag + "' already exists");
+                foreach (AliasAttribute a in aliases)
+                    if (_Options.Any(existing => existing.IsMatch(a.Alias)))
+                        throw new NamingException("Alias conflict for \"" + a.Alias + "\".)");
+
+                // Add the option to the appropriate groups.                
                 _Options.Add(o);
                 foreach (GroupAttribute ga in o.GroupsAttr)
                 {
@@ -69,13 +78,15 @@ namespace Arguments
                         if (g.Required == null)
                             g.Required = ga.Required;
                         else if (ga.Required != null)
-                            throw new ProfileException("Option " + o.Name + " has requirement inconsistency for group " + g.Name);
+                            throw new GroupException("Option \"" + o.Name + "\" has requirement inconsistency for group " + g.Name);
                     }
                         
                     foreach (string ea in ga.Exclusions)
                     {
                         Group exc = _Groups.FirstOrDefault(existing => existing.Name == ea);
-                        if (exc == null) continue;
+                        if (exc == null) _Groups.Add(exc = new Group(ea));
+                        else if (exc == g)
+                            throw new GroupException("Option \"" + o.Name + "\" in group \"" + g.Name + "\" cannot exclude its own group.");
                         g.Excluded.Add(exc);
                         exc.Excluded.Add(g);
                     }
@@ -104,37 +115,32 @@ namespace Arguments
                 this.Help = help;
                 this.Pattern = pattern;
 
-                if (Pattern != null && Pattern.Pattern == ArgumentPattern.ValueRequired)
-                {
-                    if (mInfo is PropertyInfo pInfo && pInfo.PropertyType == typeof(bool))
-                        throw new ProfileException("If the member is a bool property, a value must be supplied.");
-                    if (mInfo is FieldInfo fInfo && fInfo.FieldType == typeof(bool))
-                        throw new ProfileException("If the member is a bool field, a value must be supplied.");
-                }
-
-                HashSet<string> aliasesUnique = new HashSet<string>();
-                if (aliases.Any())
-                    this.Name = aliases.First().Alias;
-                else
-                    aliasesUnique.Add(this.Name = mInfo.Name);
+                //HashSet<string> aliasesUnique = new HashSet<string>();
+                
                 foreach (AliasAttribute aliasAttr in aliases)
                 {
-                    if (!aliasesUnique.Add(aliasAttr.Alias))
-                        throw new ProfileException("Option " + this.Name + " has duplicate alias " + aliasAttr.Alias);
+                    if (IsMatch(aliasAttr.Alias))
+                        throw new NamingException("Option \"" + this.Name + "\" has duplicate alias \"" + aliasAttr.Alias + "\".");
                     if (aliasAttr.Alias.Length == 1)
                     {
                         if (Pattern != null && Pattern.Pattern != ArgumentPattern.KeyOnly)
-                            throw new ProfileException("Flag alias " + aliasAttr.Alias[0] + " must be of type " + ArgumentPattern.KeyOnly.ToString());
+                            throw new StructureException("Flag alias \"" + aliasAttr.Alias[0] + "\" must be of type " + ArgumentPattern.KeyOnly.ToString() + ".");
                         if (Flag != '\0')
-                            throw new ProfileException("Option " + this.Name + " has flag conflict between " + Flag + " and " + aliasAttr.Alias[0]);
+                            throw new StructureException("Option \"" + this.Name + "\" has flag conflict between '" + Flag + "' and \"" + aliasAttr.Alias[0] + "\".");
                         Flag = aliasAttr.Alias[0];
                     }
                 }
+
+                if (aliases.Any())
+                    this.Name = aliases.First().Alias;
+                else
+                    this.Name = mInfo.Name;
+
                 if (groups.Select(g => g.Name).Distinct().Count() != groups.Count())
-                    throw new ProfileException("On Option " + this.Name + ", duplicate group names.");
+                    throw new GroupException("On Option \"" + this.Name + "\", duplicate group names.");
                 foreach (GroupAttribute ga in groups)
                     if (ga.Exclusions.Distinct().Count() != ga.Exclusions.Count())
-                        throw new ParsingException("On Option " + this.Name + ", in group " + ga.Name + ", there is a duplicate exclusion.");
+                        throw new ParsingException("On Option \"" + this.Name + "\", in group \"" + ga.Name + "\", there exists a duplicate exclusion.");
             }
 
             public Option(PropertyInfo pInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, PatternAttribute pattern)
@@ -247,7 +253,7 @@ namespace Arguments
             public void Add(Option option)
             {
                 if (Options.Any(o => option.Name == o.Name))
-                    throw new ProfileException("A member with name " + option.Name + " already exists on group "
+                    throw new GroupException("A member with name " + option.Name + " already exists on group "
                                                 + Name + ".");
                 Options.Add(option);
 
