@@ -55,6 +55,9 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="TestArgumentParsing.cs" />
+    <Compile Include="TestIntervalSets.cs" />
+    <Compile Include="TestModularList.cs" />
     <Compile Include="Test_CompositeKeyDictionary.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Test_Primes.cs" />
