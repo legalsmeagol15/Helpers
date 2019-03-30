@@ -8,298 +8,254 @@ using System.Threading.Tasks;
 namespace DataStructures
 {
     /// <summary>
-    /// An array-backed list that supports O(1) operations to insert or delete at the beginning or at the end of the list, but also O(1) operations to read at any index.  Operations 
-    /// to Insert or to RemoveAt any point in the middle will be O(1) in the best case and O(n) in the worst case.
+    /// An array-backed list that supports O(1) operations to insert or delete at the beginning or at the end of the 
+    /// list, but also O(1) operations to read at any index.  Operations to Insert or to RemoveAt any point in the 
+    /// middle will be O(1) in the best case and O(n) in the worst case.
     /// </summary>
     /// <remarks>
     /// This list works by allowing the starting item's index to vary to any point modded by the capacity of the list.
+    /// Validated 3/17/19
     /// </remarks>
+    /// <author>Wesley Oates</author>
     public sealed class ModularList<T> : IList<T>
-        //TODO:  Validate ModularList.
     {
         private T[] _Table;
+        private static readonly int DEFAULT_SIZE = 16;
         private int _Start;
-        
-        public ModularList()
+
+        /// <summary>
+        /// Creates a <see cref="ModularList{T}"/> that is empty (if the items argument is omitted), or that 
+        /// contains the given items.
+        /// </summary>
+        /// <param name="items">Optional.  The items to be contained in this list on construction.  If omitted, this 
+        /// list will start empty.</param>
+        public ModularList(IEnumerable<T> items = null)
         {
-            _Table = new T[17];
+            if (items == null)
+            {
+                _Table = new T[DEFAULT_SIZE];
+                Count = 0;
+            }                
+            else
+            {
+                Count = items.Count();
+                _Table = new T[Mathematics.Int32.RoundUpPow2(Count-1)];
+                int i = 0;
+                foreach (T item in items) _Table[i++] = item;
+            }
             _Start = 0;
         }
-        public ModularList(IEnumerable<T> items) : this()
+        /// <summary>Creates an empty <see cref="ModularList{T}"/>, that will start with the given capacity./>.
+        /// </summary>
+        public ModularList(int capacity)
         {
-            foreach (T item in items) AddLast(item);
+            _Table = new T[capacity];
+            Count = 0;
+            _Start = 0;
         }
 
+        /// <summary>Gets or sets the item at the given index.</summary>
         public T this[int index]
         {
             get
             {
-                if (index < 0 || index >= Count || Count == 0) throw new IndexOutOfRangeException();
                 index += _Start;
-                if (index >= _Table.Length) index -= _Table.Length;
+                if (index >= _Table.Length) index += _Table.Length;
                 return _Table[index];
             }
-
             set
             {
-                if (index < 0 || index >= Count || Count == 0) throw new IndexOutOfRangeException();
                 index += _Start;
-                if (index >= _Table.Length) index -= _Table.Length;
+                if (index >= _Table.Length) index += _Table.Length;
                 _Table[index] = value;
             }
         }
 
-        /// <summary>
-        /// Gets the total number of elements the internal data structure can hold without resizing.
-        /// </summary>
-        public int Capacity { get { return _Table.Length; } }
-        /// <summary>
-        /// Gets the number of elements contained in the ModularList&lt;T&gt;.
-        /// </summary>
-        public int Count { get; private set; } = 0;
-        int ICollection<T>.Count { get { return this.Count; } }
+        /// <summary>The number of items contained in this list.</summary>
+        public int Count { get; private set; }
 
-        bool ICollection<T>.IsReadOnly { get { return false; } }
-        
+        /// <summary>The current capacity of the table.  Adding more items than its capacity will cause its capacity 
+        /// to increase automatically.</summary>
+        public int Capacity { get => _Table.Length; }
 
-        void ICollection<T>.Add(T item) { AddLast(item); }
+        bool ICollection<T>.IsReadOnly => false;
 
-
-        #region ModularList contents manipulation
-
-        /// <summary>
-        /// Adds an object to the beginning of the ModularList&lt;T&gt;.
-        /// </summary>
-        /// <param name="item">The item to be added.</param>
+        void ICollection<T>.Add(T item) => AddLast(item);
+        /// <summary>Adds the given item to the beginning of this list.</summary>
         public void AddFirst(T item)
         {
             if (Count == _Table.Length)
             {
-                IncreaseCapacity();
-                _Start = _Table.Length - 1;
-                _Table[_Start] = item;
-            }
-            else if (_Start > 0)
-            {
-                _Table[--_Start] = item;
+                int idx = _Start;
+                T[] newTable = new T[_Table.Length * 2];
+                for (int i = 1; i <= Count; i++)
+                {
+                    newTable[i] = _Table[idx++];
+                    if (idx >= _Table.Length) idx -= _Table.Length;
+                }
+                newTable[_Start = 0] = item;
+                _Table = newTable;
             }
             else
             {
-                _Start = _Table.Length - 1;
+                if (--_Start < 0) _Start += _Table.Length;
                 _Table[_Start] = item;
             }
             Count++;
         }
-        /// <summary>
-        /// Adds an object to the end of the ModularList&lt;T&gt;.
-        /// </summary>
-        /// <param name="item">The item to be added.</param>
+        /// <summary>Adds the given item to the end of this list.</summary>
         public void AddLast(T item)
         {
+
             if (Count == _Table.Length)
             {
-                IncreaseCapacity();
-                _Table[Count++] = item;
+                int idx = _Start;
+                T[] newTable = new T[_Table.Length * 2];
+                for (int i = 0; i < Count; i++)
+                {
+                    newTable[i] = _Table[idx++];
+                    if (idx >= _Table.Length) idx -= _Table.Length;
+                }
+                _Start = 0;
+                newTable[Count] = item;
+                _Table = newTable;
             }
             else
             {
-                int idx = _Start + Count++;
+                int idx = _Start + Count;
                 if (idx >= _Table.Length) idx -= _Table.Length;
                 _Table[idx] = item;
             }
+            Count++;
         }
-        /// <summary>
-        /// Removes all elements from the ModularList&lt;T&gt;.
-        /// </summary>
+
+
+        /// <summary>Removes all items from this list.</summary>
         public void Clear()
         {
-            _Table = new T[_Table.Length];
             Count = 0;
             _Start = 0;
         }
-        /// <summary>
-        /// Removes the element at the beginning of the ModularList&lt;T&gt;.
-        /// </summary>
-        /// <returns>Returns the element removed.</returns>
-        public T RemoveFirst()
-        {           
-            T result = _Table[_Start++];
-            if (--Count == 0 || _Start >= _Table.Length) _Start = 0;
-            return result;
-        }
-        /// <summary>
-        /// Removes the element at the end of the ModularList&lt;T&gt;.
-        /// </summary>
-        /// <returns>Returns the element removed.</returns>
-        public T RemoveLast()
-        {         
-            int index = _Start + --Count;
-            if (Count == 0) _Start = 0;
-            if (index > _Table.Length) index -= _Table.Length;
-            return _Table[index];
-        }
 
-        private void IncreaseCapacity()
-        {
-
-            T[] newTable = new T[_Table.Length * 2];
-            int idx = 0;
-            foreach (T item in this) _Table[idx++] = item;
-            _Start = 0;
-            _Table = newTable;
-        }
-
-        /// <summary>
-        /// Inserts an element into the ModularList&lt;T&gt; at the specified index.
-        /// </summary>
-        /// <param name="index">The index at which to insert.</param>
-        /// <param name="item">The item to insert.</param>
-        public void Insert(int index, T item)
-        {
-            if (Count == _Table.Length) IncreaseCapacity();
-            index += _Start;
-            if (index >= _Table.Length) index -= _Table.Length;
-            int end = index + ++Count;
-            if (end >= _Table.Length)
-            {
-                end -= _Table.Length;
-                for (int i = end - 1; i > 0; i--) _Table[i] = _Table[i - 1];
-                _Table[0] = _Table[_Table.Length - 1];
-                for (int i = _Table.Length - 1; i > index; i--) _Table[i] = _Table[i - 1];                
-            }
-            else
-            {
-                for (int i = end - 1; i > index; i--) _Table[i] = _Table[i - 1];
-            }
-            _Table[index] = item;
-        }
-
-        /// <summary>
-        /// Removes the element at the specified index of the ModularList&lt;T&gt;.
-        /// </summary>
-        /// <param name="index">The index at which to remove.</param>
-        public void RemoveAt(int index)
-        {
-            index += _Start;
-            if (index >= _Table.Length) index -= _Table.Length;
-            int end = index + --Count;
-            if (end >= _Table.Length)
-            {
-                end -= _Table.Length;
-                for (int i = index; i < _Table.Length - 1; i++) _Table[i] = _Table[i + 1];
-                _Table[_Table.Length - 1] = _Table[0];
-                for (int i = 0; i < end; i++) _Table[i] = _Table[i + 1];
-            }
-            else if (end < _Table.Length - 1)
-            {
-                for (int i = index; i < end; i++) _Table[i] = _Table[i + 1];
-            }
-            else
-            {
-                for (int i = index; i < end; i++) _Table[i] = _Table[i + 1];
-                _Table[end] = _Table[0];
-            }
-        }
-
-        /// <summary>
-        /// Removes the first occurrence of a specific object from the ModularList&lt;T&gt;.
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        public bool Remove(T item)
-        {
-            int index = IndexOf(item);
-            if (index < 0) return false;
-            RemoveAt(index);
-            return true;
-        }
-
-        #endregion
-
-
-
-        #region Modularlist contents queries
-
-        /// <summary>
-        /// Returns the item at the beginning of the ModularList&lt;T&gt;.
-        /// </summary>
-        public T First
-        {
-            get
-            {
-                if (Count == 0) throw new IndexOutOfRangeException();
-                return _Table[_Start];
-            }
-        }
-        /// <summary>
-        /// Returns the item at the end of the ModularList&lt;T&gt;.
-        /// </summary>
-        public T Last
-        {
-            get
-            {
-                if (Count == 0) throw new IndexOutOfRangeException();
-                int idx = _Start + Count - 1;
-                if (idx >= _Table.Length) idx -= _Table.Length;
-                return _Table[idx];
-            }
-        }
-        /// <summary>
-        /// Determines whether an element is in the ModularList&lt;T&gt;.
-        /// </summary>  
-        public bool Contains(T item)
-        {
-            return IndexOf(item) != -1;
-        }
+        /// <summary>Returns whether an item Equals() to the given item is contained in this list.</summary>
+        public bool Contains(T item) => IndexOf(item) >= 0;
 
         void ICollection<T>.CopyTo(T[] array, int arrayIndex)
         {
-            foreach (T item in this) array[arrayIndex++] = item;
-        }
-
-
-        public IEnumerator<T> GetEnumerator()
-        {
-            int end = _Start + Count;
-            if (end >= _Table.Length)
+            int idx = _Start;
+            for (int i = 0; i < Count; i++)
             {
-                end -= _Table.Length;
-                for (int i = _Start; i < _Table.Length; i++) yield return _Table[i];
-                for (int i = 0; i < end; i++) yield return _Table[i];
-            }
-            else
-            {
-                for (int i = _Start; i < end; i++) yield return _Table[i];
+                if (arrayIndex >= array.Length) return;
+                array[arrayIndex++] = _Table[idx++];
+                if (idx >= _Table.Length) idx -= _Table.Length;
             }            
         }
-        IEnumerator IEnumerable.GetEnumerator()
+
+        /// <summary>The in-order enumerator for this list.</summary>
+        public IEnumerator<T> GetEnumerator()
         {
-            return this.GetEnumerator();
-        }
-        /// <summary>
-        /// Searches for the specified object and returns the zero-based index of the first occurrence within the entire ModularList&lt;T&gt;.
-        /// </summary>
-        /// <returns>If the object is contained in the list, returns the index of object.  Otherwise, returns -1.</returns>
-        public int IndexOf(T item)
-        {            
-            int end = _Start + Count;
-            if (end >= _Table.Length)
+            int idx = _Start;
+            for (int i = 0; i < Count; i++)
             {
-                end -= _Table.Length;
-                for (int i = _Start; i < _Table.Length; i++) if (_Table[i].Equals(item)) return i - _Start;
-                for (int i = 0; i < end; i++) if (_Table[i].Equals(item)) return i + (_Table.Length - _Start);
+                yield return _Table[idx++];
+                if (idx >= _Table.Length) idx -= _Table.Length;
             }
-            else
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+        
+        /// <summary>Returns the index of the first item Equals() to the given item, if one exists.  If not, returns
+        /// -1.</summary>
+        public int IndexOf(T item)
+        {
+            int idx = _Start;
+            for (int i = 0; i < Count; i++)
             {
-                for (int i = _Start; i < end; i++) if (_Table[i].Equals(item)) return i;
+                if (_Table[idx++].Equals(item)) return i;
+                if (idx >= _Table.Length) idx -= _Table.Length;
             }
             return -1;
         }
 
-      
+        /// <summary>Inserts the given item at the given index.</summary>
+        public void Insert(int index, T item)
+        {
+            if (index > Count || index < 0)
+                throw new IndexOutOfRangeException();         
+
+            else if (Count == _Table.Length)
+            {
+                T[] newTable = new T[_Table.Length * 2];
+                int oldIdx = _Start;
+                for (int i = 0; i < index; i++)
+                {
+                    newTable[i] = _Table[oldIdx++];
+                    if (oldIdx >= _Table.Length) oldIdx -= _Table.Length;
+                }
+                newTable[index] = item;
+                Count++;
+                for (int i = index + 1; i < Count; i++)
+                {
+                    newTable[i] = _Table[oldIdx++];
+                    if (oldIdx >= _Table.Length) oldIdx -= _Table.Length;
+                }
+                _Start = 0;
+                _Table = newTable;
+            }
+            else
+            {
+                int oldIdx = index + _Start;
+                if (oldIdx >= _Table.Length) oldIdx -= _Table.Length;
+                T oldItem = _Table[oldIdx];
+                _Table[oldIdx] = item;                
+                for (; index < Count; index++)
+                {
+                    if (++oldIdx >= _Table.Length) oldIdx -= _Table.Length;
+                    T swap = _Table[oldIdx];
+                    _Table[oldIdx] = oldItem;
+                    oldItem = swap;
+                }
+                Count++;
+            }
+        }
+
+        /// <summary>Removes the first instance of the given item from this list.  If no Equals() item exists, returns 
+        /// false.  Otherwise, returns true.</summary>
+        public bool Remove(T item)
+        {
+            int idx = IndexOf(item);
+            if (idx < 0) return false;
+            RemoveAt(idx);
+            return true;
+        }
+        /// <summary>Removes the item at the given index.</summary>
+        public T RemoveAt(int index)
+        {
+            index += _Start;
+            if (index >= _Table.Length) index -= _Table.Length;
+            T result = _Table[index];
+            int end = _Start + --Count;
+            if (end >= _Table.Length) end -= _Table.Length;
+            while (index != end)
+            {                
+                int nextIdx = index + 1;
+                if (nextIdx >= _Table.Length) nextIdx -= _Table.Length;
+                _Table[index] = _Table[nextIdx];
+                if (++index >= _Table.Length) index -= _Table.Length;
+            }
+            return result;
+        }
+        void IList<T>.RemoveAt(int index) => RemoveAt(index);
+        /// <summary>Removes and returns the last item from this list.</summary>
+        public T RemoveLast() => this[--Count];
+        /// <summary>Removes and returns the first item from this list.</summary>
+        public T RemoveFirst()
+        {
+            T result = _Table[_Start++];
+            if (_Start >= _Table.Length) _Start -= _Table.Length;
+            Count--;
+            return result;
+        }
         
-        #endregion
-
-
     }
 }

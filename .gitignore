@@ -213,3 +213,4 @@ ModelManifest.xml
 
 # Project-specific stuff
 Properties/
+/packages.config

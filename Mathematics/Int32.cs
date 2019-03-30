@@ -60,6 +60,17 @@ namespace Mathematics
             return ((number % modulus) + modulus) % modulus;
         }
 
+        /// <summary>Returns the next power of 2 above the given number.</summary>
+        public static int RoundUpPow2(int x)
+        {
+            if (x <= 0) return 0;
+            for (int i = 1; i < 32; i++)
+            {
+                if ((x >> i) == 0) return 1 << i;                
+            }
+            return 0;
+        }
+
         public static int Pow(int number, int power)
         {
             if (power < 0) throw new ArgumentException("Power must be 0 or greater.");
