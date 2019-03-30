@@ -2,7 +2,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Arguments;
 
-namespace HelpersTest
+namespace UnitTests
 {
     [TestClass]
     public class TestArgumentParsing

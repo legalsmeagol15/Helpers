@@ -55,37 +55,23 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="Common.cs" />
     <Compile Include="TestArgumentParsing.cs" />
     <Compile Include="TestIntervalSets.cs" />
     <Compile Include="TestModularList.cs" />
     <Compile Include="Test_CompositeKeyDictionary.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Test_Primes.cs" />
-    <Compile Include="Test_QuadTree.cs" />
     <Compile Include="Test_HashCollection.cs" />
     <Compile Include="Test_SkipList.cs" />
     <Compile Include="Test_DynamicLinkedList.cs" />
     <Compile Include="Test_Heap.cs" />
     <Compile Include="Test_Parsing.cs" />
-    <Compile Include="Test_IntervalSet.cs" />
-    <Compile Include="Test_Dependency.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Helpers\DataStructures\DataStructures.csproj">
-      <Project>{b1da6068-30a2-478f-8115-f3ede4ef1388}</Project>
-      <Name>DataStructures</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\ArtificialIntelligence\ArtificialIntelligence.csproj">
-      <Project>{0bd847db-678d-4bc5-9bd6-f70b0a0ff5b2}</Project>
-      <Name>ArtificialIntelligence</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Mathematics\Mathematics.csproj">
-      <Project>{dc7c8e96-6f24-48df-a32f-2dc12b1d315b}</Project>
-      <Name>Mathematics</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Parsing\Dependency.csproj">
-      <Project>{bf4a81f3-fc3d-434a-9cc2-16fb12ec0e03}</Project>
-      <Name>Dependency</Name>
+    <ProjectReference Include="..\Helpers.csproj">
+      <Project>{13ca4a04-0ad2-41cc-8599-3dc870032224}</Project>
+      <Name>Helpers</Name>
     </ProjectReference>
   </ItemGroup>
   <Choose>

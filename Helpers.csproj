@@ -76,6 +76,7 @@
     <Compile Include="DataStructures\Threading\PipelineWorker.cs" />
     <Compile Include="DataStructures\Threading\RedoWorker.cs" />
     <Compile Include="Mathematics\Functions\Simple.cs" />
+    <Compile Include="Mathematics\Random.cs" />
     <Compile Include="Undo\IUndoable.cs" />
     <Compile Include="Undo\IUndoStack.cs" />
     <Compile Include="Undo\Undoable.cs" />

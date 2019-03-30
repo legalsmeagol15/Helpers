@@ -17,19 +17,19 @@ namespace DataStructures
     /// Validated 3/17/19
     /// </remarks>
     /// <author>Wesley Oates</author>
-    public sealed class ModularList<T> : IList<T>
+    public sealed class Deque<T> : IList<T>
     {
         private T[] _Table;
         private static readonly int DEFAULT_SIZE = 16;
         private int _Start;
 
         /// <summary>
-        /// Creates a <see cref="ModularList{T}"/> that is empty (if the items argument is omitted), or that 
+        /// Creates a <see cref="Deque{T}"/> that is empty (if the items argument is omitted), or that 
         /// contains the given items.
         /// </summary>
         /// <param name="items">Optional.  The items to be contained in this list on construction.  If omitted, this 
         /// list will start empty.</param>
-        public ModularList(IEnumerable<T> items = null)
+        public Deque(IEnumerable<T> items = null)
         {
             if (items == null)
             {
@@ -45,9 +45,9 @@ namespace DataStructures
             }
             _Start = 0;
         }
-        /// <summary>Creates an empty <see cref="ModularList{T}"/>, that will start with the given capacity./>.
+        /// <summary>Creates an empty <see cref="Deque{T}"/>, that will start with the given capacity./>.
         /// </summary>
-        public ModularList(int capacity)
+        public Deque(int capacity)
         {
             _Table = new T[capacity];
             Count = 0;

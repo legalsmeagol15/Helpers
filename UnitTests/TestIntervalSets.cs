@@ -2,7 +2,7 @@
 using DataStructures;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace HelpersTest
+namespace UnitTests
 {
     [TestClass]
     public class TestIntervalSets

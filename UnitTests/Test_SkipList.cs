@@ -1,9 +1,9 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
-using DataStructures;
 using System.Linq;
 using System.Diagnostics;
+using DataStructures;
 
 namespace UnitTests
 {

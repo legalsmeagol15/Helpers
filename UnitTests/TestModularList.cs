@@ -2,22 +2,23 @@
 using System;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using static HelpersTest.Common;
+using static UnitTests.Common;
 
-namespace HelpersTest
+
+namespace UnitTests
 {
     [TestClass]
-    public class TestModularList
+    public class TestDeque
     {
         [TestMethod]
-        public void Test_ModularList_Ctor()
+        public void Test_Deque_Ctor()
         {
-            ModularList<int> ml = new ModularList<int>();
+            Deque<int> ml = new Deque<int>();
             Assert.AreEqual(0, ml.Count);
             Assert.AreEqual(16, ml.Capacity);
 
             int[] items = { 1, 17, 42, 14, 3, 5, -2, 6, 18, 4, 3, 53, 4, 0, 2, 2, 54, 18 };
-            ml = new ModularList<int>(items);
+            ml = new Deque<int>(items);
             Assert.AreEqual(items.Length, ml.Count);
             Assert.AreEqual(Mathematics.Int32.RoundUpPow2(items.Length), ml.Capacity);
 
@@ -27,9 +28,9 @@ namespace HelpersTest
         }
 
         [TestMethod]
-        public void Test_ModularList_Add()
+        public void Test_Deque_Add()
         {
-            ModularList<int> ml = new ModularList<int>(4);
+            Deque<int> ml = new Deque<int>(4);
             Assert.AreEqual(0, ml.Count);
             Assert.AreEqual(4, ml.Capacity);
 
@@ -59,10 +60,10 @@ namespace HelpersTest
         }
 
         [TestMethod]
-        public void Test_ModularList_Clear()
+        public void Test_Deque_Clear()
         {
             int[] items = new int[] { 1, 2, 3, 4 };
-            ModularList<int> ml = new ModularList<int>(items);
+            Deque<int> ml = new Deque<int>(items);
             Assert.AreEqual(4, ml.Count);
             Assert.AreEqual(4, ml.Capacity);
 
@@ -79,10 +80,10 @@ namespace HelpersTest
         }
 
         [TestMethod]
-        public void Test_ModularList_Indexing()
+        public void Test_Deque_Indexing()
         {
             int[] items = { 0, 1, 2, 3, 4, 5, 6, 7 };
-            ModularList<int> ml = new ModularList<int>(items);
+            Deque<int> ml = new Deque<int>(items);
             for (int i = 0; i < 7; i++)
                 ml[i] = ml[i];
             for (int i = 0; i < 7; i++)
@@ -93,10 +94,10 @@ namespace HelpersTest
         }
 
         [TestMethod]
-        public void Test_ModularList_Insert()
+        public void Test_Deque_Insert()
         {
             int[] items = { 0,1,2,3,4,5,6,7 };
-            ModularList<int> ml = new ModularList<int>(16);
+            Deque<int> ml = new Deque<int>(16);
             ml.Insert(0, 10);
             Assert.IsTrue(ml.Contains(10));
             Assert.AreEqual(1, ml.Count);
@@ -111,7 +112,7 @@ namespace HelpersTest
             Assert.AreEqual(16, ml.Capacity);
 
             // Try inserting where Count = Capacity = 8
-            ml = new ModularList<int>(items);
+            ml = new Deque<int>(items);
             Assert.IsFalse(ml.Contains(20));
             Assert.IsFalse(ml.Contains(10));
             Assert.AreEqual(8, ml.Count);
@@ -122,7 +123,7 @@ namespace HelpersTest
             Assert.AreEqual(16, ml.Capacity);
 
             // Try inserting where Count=6, Capacity = 8
-            ml = new ModularList<int>(items);
+            ml = new Deque<int>(items);
             Assert.AreEqual(0, ml.RemoveFirst());
             Assert.AreEqual(1, ml.RemoveFirst());
             Assert.IsFalse(ml.Contains(0));
@@ -141,7 +142,7 @@ namespace HelpersTest
             Assert.AreEqual(9, ml.Count);
             Assert.AreEqual(16, ml.Capacity);
 
-            ml = new ModularList<int>(items);
+            ml = new Deque<int>(items);
             Assert.AreEqual(0, ml.RemoveFirst());
             Assert.AreEqual(1, ml.RemoveFirst());
             ml.Insert(0, 10);
@@ -184,10 +185,10 @@ namespace HelpersTest
         }
 
         [TestMethod]
-        public void Test_ModularList_Remove()
+        public void Test_Deque_Remove()
         {
             int[] items = { 0, 1, 2, 3, 4, 5, 6, 7 };
-            ModularList<int> ml = new ModularList<int>(items);
+            Deque<int> ml = new Deque<int>(items);
             Assert.AreEqual(7, ml.RemoveLast());
             Assert.AreEqual(7, ml.Count);
             Assert.IsFalse(ml.Contains(7));
@@ -197,7 +198,7 @@ namespace HelpersTest
             Assert.IsFalse(ml.Contains(0));
             for (int i = 1; i <= 6; i++) Assert.IsTrue(ml.Contains(i));
 
-            ml = new ModularList<int>(items);
+            ml = new Deque<int>(items);
             Assert.AreEqual(0, ml.RemoveFirst());
             Assert.AreEqual(1, ml.RemoveFirst());
             ml.AddLast(10);
