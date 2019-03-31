@@ -132,6 +132,21 @@ namespace DataStructures
             Add(item, true, item, true);
             return true;
         }
+        /// <summary>Removes the given range of items.</summary>
+        public bool Remove(T item)
+        {
+            if (!Includes(item)) return false;
+            Remove(item, true, item, false);
+            return true;
+        }
+        /// <summary>Removes the given range of items.</summary>
+        public void Remove(T start, T end) => Remove(start, true, end, true);
+        /// <summary>Removes the given range of items.</summary>
+        public void Remove(T start, bool removeStart, T end, bool removeEnd)
+        {
+            Inflections = Subtract(Inflections, new Inflection[] { new Inflection(start, removeStart, TailType.Start),
+                                                                    new Inflection(end, removeEnd, TailType.End) });
+        }
 
         /// <summary>Returns a set-equal copy of this <see cref="IntervalSet{T}"/>.</summary>
         public virtual IntervalSet<T> Copy()
@@ -462,7 +477,7 @@ namespace DataStructures
         }
 
         /// <summary>Returns the implications of the given inflection arrays.</summary>
-        protected sealed override Inflection[] Imply(Inflection[] a, Inflection[] b) => base.Imply(Simplify(a), Simplify(b));
+        protected sealed override Inflection[] Imply(Inflection[] a, Inflection[] b) => Simplify(base.Imply(Simplify(a), Simplify(b)));
 
         /// <summary>Returns the union of the given inflection arrays.</summary>
         protected sealed override Inflection[] Or(Inflection[] a, Inflection[] b)
@@ -517,10 +532,8 @@ namespace DataStructures
             else if (bIdx < b.Length && aInf.IsEnd)
                 for (; bIdx < b.Length; bIdx++)
                     Append(list, b[bIdx]);
-            
-            return list.ToArray();
 
-
+            return Simplify(list.ToArray());
         }
 
         /// <summary>Returns the inverse of the given inflection array.</summary>
@@ -538,14 +551,14 @@ namespace DataStructures
                                            : new Inflection(GetNext(mirror.Point), true, TailType.Start));
                 Append(list, mirror);
             }
-            return list.ToArray();
+            return Simplify(list.ToArray());
         }
 
         /// <summary>Returns the set difference of the given inflection arrays.</summary>
-        protected sealed override Inflection[] Subtract(Inflection[] a, Inflection[] b) => base.Subtract(Simplify(a), Simplify(b));
+        protected sealed override Inflection[] Subtract(Inflection[] a, Inflection[] b) => Simplify(base.Subtract(Simplify(a), Simplify(b)));
 
         /// <summary>Returns the symmetric set difference of the given inflection arrays.</summary>
-        protected sealed override Inflection[] Xor(Inflection[] a, Inflection[] b) => base.Xor(Simplify(a), Simplify(b));
+        protected sealed override Inflection[] Xor(Inflection[] a, Inflection[] b) => Simplify(base.Xor(Simplify(a), Simplify(b)));
 
         /// <summary>Returns a copy of this <see cref="DiscreteIntervalSet{T}"/>.</summary>
         public override IntervalSet<T> Copy() => base.Copy();
