@@ -29,17 +29,27 @@ namespace UnitTests
         {
             AliasOptionsA opts = Arguments.Options.Parse<AliasOptionsA>("test", "uploadmbps=64.17", "downloadmbps=22.79");
             Assert.AreEqual(opts.Test, true);
+            Assert.AreEqual(opts.UploadMbps, 64.17d);
+            Assert.AreEqual(opts.DownloadMbps, 22.79d);
+
+            opts = Arguments.Options.Parse<AliasOptionsA>("test", "UploadMean=64.17", "downloadmean=22.79");
+            Assert.AreEqual(opts.Test, true);
+            Assert.AreEqual(opts.UploadMbps, 64.17d);
+            Assert.AreEqual(opts.DownloadMbps, 22.79d);
         }
         
         internal class AliasOptionsA
-        {
-            //[Alias(false, "test")]
+        {   
             [Group("testing")]
             internal bool Test = false;
 
+            [Alias(false, "uploadmbps")]
+            [Alias(false, "uploadmean")]
             [Group("testing")]
             internal double UploadMbps = 0.0;
 
+            [Alias(false, "DownloadMbps")]
+            [Alias(false, "downloadmean")]
             [Group("testing")]
             internal double DownloadMbps = 0.0;
         }

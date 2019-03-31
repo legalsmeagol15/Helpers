@@ -60,7 +60,7 @@ namespace Arguments
                     throw new NamingException("An Option with the flag '" + o.Flag + "' already exists");
                 foreach (AliasAttribute a in aliases)
                     if (_Options.Any(existing => existing.IsMatch(a.Alias)))
-                        throw new NamingException("Alias conflict for \"" + a.Alias + "\".)");
+                        throw new NamingException("Alias conflict for \"" + a.Alias + "\".)");                
 
                 // Add the option to the appropriate groups.                
                 _Options.Add(o);
@@ -122,8 +122,7 @@ namespace Arguments
                 
                 foreach (AliasAttribute aliasAttr in aliases)
                 {
-                    if (aliasAttr == aliases.First()) continue;
-                    if (IsMatch(aliasAttr.Alias))
+                    if (aliasList.Count > 0 && aliasAttr == aliasList[0] && IsMatch(aliasAttr.Alias))
                         throw new NamingException("Option \"" + this.Name + "\" has duplicate alias \"" + aliasAttr.Alias + "\".");                    
                     if (aliasAttr.Alias.Length == 1)
                     {
@@ -163,7 +162,7 @@ namespace Arguments
                 {
                     if (aliasAttr.IsCaseSensitive && arg == aliasAttr.Alias)
                         return true;
-                    else if (arg.ToLower() == aliasAttr.ToString())
+                    else if (arg.ToLower() == aliasAttr.Alias.ToLower())
                         return true;
                 }
                 return false;
