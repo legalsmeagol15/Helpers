@@ -526,8 +526,7 @@ namespace DataStructures
         /// <summary>Returns the inverse of the given inflection array.</summary>
         protected sealed override Inflection[] Not(Inflection[] inflections)
         {
-            a = Simplify(a);
-            b = Simplify(b);
+            inflections = Simplify(inflections);
             if (IsUniversal) return new Inflection[0];
             if (IsEmpty) return new Inflection[] { Universal };
             List<Inflection> list = new List<IntervalSet<T>.Inflection>();
