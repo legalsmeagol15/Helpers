@@ -39,8 +39,8 @@ namespace DataStructures
                 List<Inflection> list = new List<Inflection>();
                 foreach (T item in sorted)
                 {
-                    list.Add(new Inflection(item, true, Interval.Start));
-                    list.Add(new Inflection(item, true, Interval.End));
+                    list.Add(new Inflection(item, true, TailType.Start));
+                    list.Add(new Inflection(item, true, TailType.End));
                 }
                 this.Inflections = list.ToArray();
             }
@@ -113,6 +113,26 @@ namespace DataStructures
         /// <summary>Returns the implication ("IF") of this and the given <see cref="IntervalSet{T}"/>.</summary>
         public void Imply(IntervalSet<T> other) => Inflections = Imply(Inflections, other.Inflections);
 
+        /// <summary>Unions with the given range to this <see cref="IntervalSet{T}"/>.</summary>
+        /// <param name="start">The start of the range, inclusive.</param>
+        /// <param name="end">The end of the range, inclusive.</param>
+        public void Add(T start, T end) => Add(start, true, end, true);
+
+        /// <summary>Unions with the given range to this <see cref="IntervalSet{T}"/>.</summary>
+        public void Add(T start, bool includeStart, T end, bool includeEnd)
+        {
+            Inflections = Or(Inflections, new Inflection[] { new Inflection(start, includeStart, TailType.Start),
+                                                                new Inflection(end, includeEnd, TailType.End) });
+        }
+        
+        /// <summary>Adds the given singleton to this <see cref="IntervalSet{T}"/>.</summary>
+        public bool Add(T item)
+        {
+            if (Includes(item)) return false;
+            Add(item, true, item, true);
+            return true;
+        }
+
         /// <summary>Returns a set-equal copy of this <see cref="IntervalSet{T}"/>.</summary>
         public virtual IntervalSet<T> Copy()
         {
@@ -126,10 +146,10 @@ namespace DataStructures
         public void MakeEmpty() => Inflections = new Inflection[0];
         /// <summary>Unions this interval with a positive-infinite set, starting as indicated.</summary>
         public void MakePositiveInfinite(T start, bool includeStart = true)
-            => Inflections = Or(Inflections, new Inflection[] { new Inflection(start, includeStart, Interval.Start) });
+            => Inflections = Or(Inflections, new Inflection[] { new Inflection(start, includeStart, TailType.Start) });
         /// <summary>Unions this interval with a negative-infinite set, ending as indicated.</summary>
         public void MakeNegativeInfinite(T end, bool includeEnd = true)
-            => Inflections = Or(Inflections, new Inflection[] { new Inflection(end, includeEnd, Interval.End) });        
+            => Inflections = Or(Inflections, new Inflection[] { new Inflection(end, includeEnd, TailType.End) });        
 
         /// <summary>Returns the inverse of the given <see cref="Inflection"/> array.</summary>
         protected virtual Inflection[] Not(Inflection[] inflections)
@@ -151,7 +171,7 @@ namespace DataStructures
         protected virtual Inflection[] Xor(Inflection[] a, Inflection[] b) => Or(Subtract(a, b), Subtract(b, a));
 
         /// <summary>An instance of a universal <see cref="Inflection"/>.</summary>
-        protected static readonly Inflection Universal = new Inflection(default(T), true, Interval.Universal);
+        protected static readonly Inflection Universal = new Inflection(default(T), true, TailType.Universal);
 
         internal Inflection[] AsArray(params Inflection[] inflections) => inflections;
 
@@ -211,7 +231,7 @@ namespace DataStructures
         }
 
         /// <summary>The direction of an interval marked by an <see cref="Inflection"/>.</summary>
-        public enum Interval
+        public enum TailType
         {
             /// <summary>This <see cref="Inflection"/> starts an interval.</summary>
             Start = 1,
@@ -229,29 +249,29 @@ namespace DataStructures
             /// <summary>Whether the <see cref="Point"/> is included in the universe marked by this <see cref="Inflection"/>.</summary>
             public readonly bool Include;
             /// <summary>The direction of the interval marked by this <see cref="Inflection"/>.</summary>
-            public Interval Interval;
+            public TailType Tail;
 
             /// <summary>Creates a new inflection with the given properties.</summary>
             [DebuggerStepThrough]
-            public Inflection(T point, bool include, Interval interval)
+            public Inflection(T point, bool include, TailType tail)
             {
                 this.Point = point;
                 this.Include = include;
-                this.Interval = interval;
+                this.Tail = tail;
             }
 
             /// <summary>
             /// Returns a mirror of this <see cref="Inflection"/>, with the same <see cref="Point"/> but the opposite 
-            /// <see cref="Include"/> value and <see cref="Interval"/> direction.
+            /// <see cref="Include"/> value and <see cref="Tail"/> direction.
             /// </summary>
-            public Inflection Mirror() => new Inflection(Point, !Include, (Interval)((int)this.Interval * -1));
+            public Inflection Mirror() => new Inflection(Point, !Include, (TailType)((int)this.Tail * -1));
 
             /// <summary>Returns whether this <see cref="Inflection"/> marks a universal set.</summary>
-            public bool IsUniversal => Interval == Interval.Universal;
+            public bool IsUniversal => Tail == TailType.Universal;
             /// <summary>Returns whether this <see cref="Inflection"/> starts an interval.</summary>
-            public bool IsStart => Interval == Interval.Start;
+            public bool IsStart => Tail == TailType.Start;
             /// <summary>Returns whether this <see cref="Inflection"/> ends an interval.</summary>
-            public bool IsEnd => Interval == Interval.End;
+            public bool IsEnd => Tail == TailType.End;
 
             /// <summary>Conveniently cases the given inflection to its <see cref="Point"/>.</summary>
             public static implicit operator T(Inflection f) { return f.Point; }
@@ -271,13 +291,13 @@ namespace DataStructures
 
             /// <summary>
             /// Two <see cref="Inflection"/> structs are equal if their <see cref="Point"/> compare equally, an their 
-            /// <see cref="Include"/> and <see cref="Interval"/> are both identical.
+            /// <see cref="Include"/> and <see cref="Tail"/> are both identical.
             /// </summary>            
             public override bool Equals(object obj)
                 => (obj is Inflection f)
                     && this == f
                     && this.Include == f.Include
-                    && this.Interval == f.Interval;
+                    && this.Tail == f.Tail;
 
             /// <summary>Returns the hashcode of the <see cref="Point"/>.</summary>
             public override int GetHashCode() => Point.GetHashCode();
@@ -285,10 +305,10 @@ namespace DataStructures
             /// <summary>Returns a string representation of this <see cref="Inflection"/>.</summary>
             public override string ToString()
             {
-                switch (Interval)
+                switch (Tail)
                 {
-                    case Interval.Start: return (Include ? Point.ToString() : "(" + Point.ToString() + ")") + "..";
-                    case Interval.End: return ".." + (Include ? Point.ToString() : "(" + Point.ToString() + ")");
+                    case TailType.Start: return (Include ? Point.ToString() : "(" + Point.ToString() + ")") + "..";
+                    case TailType.End: return ".." + (Include ? Point.ToString() : "(" + Point.ToString() + ")");
                     default: throw new NotImplementedException();
                 }
             }
@@ -349,7 +369,7 @@ namespace DataStructures
                     throw new SetIntegrityException("Inflections \"" + last.ToString() + "\" and \""
                                                     + focus.ToString() + "\" out of order.");
                                                     */
-                if (last.Interval == focus.Interval)
+                if (last.Tail == focus.Tail)
                     throw new SetIntegrityException("Set integrity error - nested interval.");
                 if (last == focus && last.Include != focus.Include)
                     throw new SetIntegrityException("Set integrity error - inconsistent singleton.");
@@ -366,9 +386,9 @@ namespace DataStructures
                 if (inf.Include)
                     return inf;
                 if (inf.IsEnd)
-                    return new Inflection(GetPrevious(inf.Point), true, Interval.End);
+                    return new Inflection(GetPrevious(inf.Point), true, TailType.End);
                 if (inf.IsStart)
-                    return new Inflection(GetNext(inf.Point), true, Interval.Start);
+                    return new Inflection(GetNext(inf.Point), true, TailType.Start);
                 throw new Exception("Set integrity error - universal not ruled out.");
             }
 
@@ -378,6 +398,8 @@ namespace DataStructures
         /// <summary>Returns the intersection of the given inflection arrays.</summary>
         protected sealed override Inflection[] And(Inflection[] a, Inflection[] b)
         {
+            a = Simplify(a);
+            b = Simplify(b);
             if (a.Length == 0 || b.Length == 0) return AsArray();
             if (a[0].IsUniversal) return b.ToArray();
             if (b[0].IsUniversal) return a.ToArray();
@@ -412,15 +434,15 @@ namespace DataStructures
                 {
                     if (aInf.IsStart) aDepth++; else aDepth--;
                     if (bInf.IsStart) bDepth++; else bDepth--;
-                    if (aInf.Interval == bInf.Interval)
+                    if (aInf.Tail == bInf.Tail)
                     {
                         if (!aInf.Include) Append(list, bInf);
                         else Append(list, aInf);
                     }
                     else if (aInf.Include && bInf.Include)
                     {
-                        Append(list, new Inflection(aInf.Point, true, Interval.Start));
-                        Append(list, new Inflection(aInf.Point, true, Interval.End));
+                        Append(list, new Inflection(aInf.Point, true, TailType.Start));
+                        Append(list, new Inflection(aInf.Point, true, TailType.End));
                     }
                     else
                         throw new SetIntegrityException("This should be impossible.");
@@ -440,11 +462,13 @@ namespace DataStructures
         }
 
         /// <summary>Returns the implications of the given inflection arrays.</summary>
-        protected sealed override Inflection[] Imply(Inflection[] a, Inflection[] b) => base.Imply(a, b);
+        protected sealed override Inflection[] Imply(Inflection[] a, Inflection[] b) => base.Imply(Simplify(a), Simplify(b));
 
         /// <summary>Returns the union of the given inflection arrays.</summary>
         protected sealed override Inflection[] Or(Inflection[] a, Inflection[] b)
         {
+            a = Simplify(a);
+            b = Simplify(b);
             if (a.Length == 0) return AsArray(b);
             if (b.Length == 0) return AsArray(a);
             if (a[0].IsUniversal || b[0].IsUniversal) return AsArray(IntervalSet<T>.Universal);
@@ -478,8 +502,8 @@ namespace DataStructures
                     if (bInf.IsStart) bDepth++; else bDepth--;
                     if (!aInf.Include && !bInf.Include)
                     {
-                        if (aInf.Interval == bInf.Interval)
-                            Append(list, new Inflection(aInf.Point, aInf.Include || bInf.Include, aInf.Interval));
+                        if (aInf.Tail == bInf.Tail)
+                            Append(list, new Inflection(aInf.Point, aInf.Include || bInf.Include, aInf.Tail));
                         else if (aInf.IsEnd) { Append(list, aInf); Append(list, bInf); }
                         else { Append(list, bInf); Append(list, aInf); }
                     }
@@ -502,6 +526,8 @@ namespace DataStructures
         /// <summary>Returns the inverse of the given inflection array.</summary>
         protected sealed override Inflection[] Not(Inflection[] inflections)
         {
+            a = Simplify(a);
+            b = Simplify(b);
             if (IsUniversal) return new Inflection[0];
             if (IsEmpty) return new Inflection[] { Universal };
             List<Inflection> list = new List<IntervalSet<T>.Inflection>();
@@ -509,18 +535,18 @@ namespace DataStructures
             {
                 Inflection mirror = inf.Mirror();
                 if (!mirror.Include)
-                    mirror = (mirror.IsEnd ? new Inflection(GetPrevious(mirror.Point), true, Interval.End)
-                                           : new Inflection(GetNext(mirror.Point), true, Interval.Start));
+                    mirror = (mirror.IsEnd ? new Inflection(GetPrevious(mirror.Point), true, TailType.End)
+                                           : new Inflection(GetNext(mirror.Point), true, TailType.Start));
                 Append(list, mirror);
             }
             return list.ToArray();
         }
 
         /// <summary>Returns the set difference of the given inflection arrays.</summary>
-        protected sealed override Inflection[] Subtract(Inflection[] a, Inflection[] b) => base.Subtract(a, b);
+        protected sealed override Inflection[] Subtract(Inflection[] a, Inflection[] b) => base.Subtract(Simplify(a), Simplify(b));
 
         /// <summary>Returns the symmetric set difference of the given inflection arrays.</summary>
-        protected sealed override Inflection[] Xor(Inflection[] a, Inflection[] b) => base.Xor(a, b);
+        protected sealed override Inflection[] Xor(Inflection[] a, Inflection[] b) => base.Xor(Simplify(a), Simplify(b));
 
         /// <summary>Returns a copy of this <see cref="DiscreteIntervalSet{T}"/>.</summary>
         public override IntervalSet<T> Copy() => base.Copy();
@@ -556,12 +582,12 @@ namespace DataStructures
                         list.RemoveAt(list.Count - 1);
                         if (inf.Include)
                         {
-                            list.Add(new Inflection(inf.Point, true, Interval.Start));
+                            list.Add(new Inflection(inf.Point, true, TailType.Start));
                             list.Add(inf);
                         }
                     }
                     else if (!inf.Include)
-                        list.Add(new Inflection(last.Point, true, Interval.End));
+                        list.Add(new Inflection(last.Point, true, TailType.End));
                     else
                         list.Add(inf);
                 }
@@ -605,6 +631,7 @@ namespace DataStructures
 
 
     }
+
 
     /// <summary>An discrete interval set whose contents are standard 4-byte <see cref="int"/>s.</summary>
     public sealed class Int32IntervalSet : DiscreteIntervalSet<int>
