@@ -18,7 +18,7 @@ namespace DataStructures
     public abstract class IntervalSet<T> : IIntervalSet<T> where T : IComparable<T>
     {
         /// <summary>The set of inflection points for this interval set.</summary>
-        protected Inflection[] Inflections { get; set; }
+        protected internal  Inflection[] Inflections { get; set; }
 
         /// <summary>Creates a new <see cref="IntervalSet{T}"/> with the given inflection points.</summary>
         /// <param name="inflections">Optional.  If omitted, creates an empty <see cref="IntervalSet{T}"/>.</param>
@@ -684,6 +684,18 @@ namespace DataStructures
         public Int64IntervalSet(params long[] items) : base(items) { }
         /// <summary>Creates a new <see cref="Int64IntervalSet"/> containing the given items.</summary>
         public Int64IntervalSet(IEnumerable<long> items = null) : base(items) { }
+
+#pragma warning disable 1591
+        public static Int64IntervalSet operator +(Int64IntervalSet a, DiscreteIntervalSet<long> b) => new Int64IntervalSet(a.Or(a.Inflections, b.Inflections));
+        public static Int64IntervalSet operator *(Int64IntervalSet a, DiscreteIntervalSet<long> b) => new Int64IntervalSet(a.And(a.Inflections, b.Inflections));        
+        public static Int64IntervalSet operator -(Int64IntervalSet a, DiscreteIntervalSet<long> b) => new Int64IntervalSet(a.Subtract(a.Inflections, b.Inflections));        
+        public static Int64IntervalSet operator ^(Int64IntervalSet a, DiscreteIntervalSet<long> b) => new Int64IntervalSet(a.Xor(a.Inflections, b.Inflections));
+        public static Int64IntervalSet operator |(Int64IntervalSet a, DiscreteIntervalSet<long> b) => a + b;
+        public static Int64IntervalSet operator &(Int64IntervalSet a, DiscreteIntervalSet<long> b) => a * b;
+        public static Int64IntervalSet operator !(Int64IntervalSet i) => new Int64IntervalSet(i.Not(i.Inflections));
+        public static Int64IntervalSet operator ~(Int64IntervalSet i) => !i;
+#pragma warning restore 1591
+
     }
 
     public sealed class Float64IntervalSet : IntervalSet<double>
