@@ -23,7 +23,7 @@ namespace DataStructures
         /// <summary>Creates a new <see cref="IntervalSet{T}"/> with the given inflection points.</summary>
         /// <param name="inflections">Optional.  If omitted, creates an empty <see cref="IntervalSet{T}"/>.</param>
         [DebuggerStepThrough]
-        protected IntervalSet(Inflection[] inflections = null) { Inflections = inflections ?? new Inflection[0]; }
+        protected IntervalSet(params Inflection[] inflections) { Inflections = inflections ?? new Inflection[0]; }
         /// <summary>Creates a new <see cref="IntervalSet{T}"/> with the given item contents included as singletons.
         /// </summary>
         /// <param name="items">Optional.  If omitted, creates an empty <see cref="IntervalSet{T}"/>.</param>
@@ -141,7 +141,7 @@ namespace DataStructures
             return copy;
         }
         /// <summary>Makes this set an universal <see cref="IntervalSet{T}"/>.</summary>
-        public void MakeUniversal() => Inflections = new Inflection[] { Universal };
+        public void MakeUniversal() => Inflections = new Inflection[] { Inflection.Universal };
         /// <summary>Makes this set an empty <see cref="IntervalSet{T}"/>.</summary>
         public void MakeEmpty() => Inflections = new Inflection[0];
         /// <summary>Unions this interval with a positive-infinite set, starting as indicated.</summary>
@@ -155,7 +155,7 @@ namespace DataStructures
         protected virtual Inflection[] Not(Inflection[] inflections)
         {
             if (IsUniversal) return new Inflection[0];
-            if (IsEmpty) return new Inflection[] { Universal };
+            if (IsEmpty) return new Inflection[] { Inflection.Universal };
             return inflections.Select(s => s.Mirror()).ToArray();
         }
         /// <summary>Returns the intersection of the two <see cref="Inflection"/> arrays.</summary>
@@ -169,10 +169,7 @@ namespace DataStructures
         /// <summary>Returns the exclusive-or (symmetric exception with) of the two <see cref="Inflection"/> arrays.
         /// </summary>
         protected virtual Inflection[] Xor(Inflection[] a, Inflection[] b) => Or(Subtract(a, b), Subtract(b, a));
-
-        /// <summary>An instance of a universal <see cref="Inflection"/>.</summary>
-        protected static readonly Inflection Universal = new Inflection(default(T), true, TailType.Universal);
-
+        
         internal Inflection[] AsArray(params Inflection[] inflections) => inflections;
 
         /// <summary>Returns interval set equality.</summary>
@@ -244,6 +241,9 @@ namespace DataStructures
         /// <summary>Marks a change in an interval set between inclusion and exclusion, or vice versa.</summary>
         public struct Inflection
         {
+            /// <summary>A universal inflection.</summary>
+            public static readonly Inflection Universal = new Inflection(default(T), true, TailType.Universal);
+
             /// <summary>The point in the universe marked by this <see cref="Inflection"/>.</summary>
             public readonly T Point;
             /// <summary>Whether the <see cref="Point"/> is included in the universe marked by this <see cref="Inflection"/>.</summary>
@@ -333,7 +333,7 @@ namespace DataStructures
     public abstract class DiscreteIntervalSet<T> : IntervalSet<T>, IEnumerable<T> where T : IComparable<T>
     {
         /// <summary>Creates a new <see cref="DiscreteIntervalSet{T}"/> with the given inflections.</summary>
-        protected DiscreteIntervalSet(Inflection[] inflections) : base(Simplify(inflections)) { }
+        protected DiscreteIntervalSet(params Inflection[] inflections) : base(Simplify(inflections)) { }
         /// <summary>Creates a new <see cref="DiscreteIntervalSet{T}"/> with the given inclusions.</summary>
         protected DiscreteIntervalSet(IEnumerable<T> items) : base(items) { this.Inflections = Simplify(this.Inflections); }
         
@@ -358,7 +358,7 @@ namespace DataStructures
         private static Inflection[] Simplify(Inflection[] orig)
         {
             if (orig.Length == 0) return new Inflection[0];
-            if (orig[0].IsUniversal) return new Inflection[] { IntervalSet<T>.Universal };
+            if (orig[0].IsUniversal) return new Inflection[] { Inflection.Universal };
             List<Inflection> list = new List<Inflection>() { _IncludeOnly(orig[0]) };
             for (int i = 1; i < orig.Length; i++)
             {
@@ -471,7 +471,7 @@ namespace DataStructures
             b = Simplify(b);
             if (a.Length == 0) return AsArray(b);
             if (b.Length == 0) return AsArray(a);
-            if (a[0].IsUniversal || b[0].IsUniversal) return AsArray(IntervalSet<T>.Universal);
+            if (a[0].IsUniversal || b[0].IsUniversal) return AsArray(Inflection.Universal);
 
             int aIdx = 0, bIdx = 0;
             int aDepth = a[0].IsEnd ? 1 : 0;
@@ -528,7 +528,7 @@ namespace DataStructures
         {
             inflections = Simplify(inflections);
             if (IsUniversal) return new Inflection[0];
-            if (IsEmpty) return new Inflection[] { Universal };
+            if (IsEmpty) return new Inflection[] { Inflection.Universal };
             List<Inflection> list = new List<IntervalSet<T>.Inflection>();
             foreach (Inflection inf in Inflections)
             {
@@ -644,7 +644,7 @@ namespace DataStructures
         /// <summary>Returns a copy of this <see cref="Int32IntervalSet"/>.</summary>
         public override IntervalSet<int> Copy() => new Int32IntervalSet(this.Inflections);
 
-        private Int32IntervalSet(Inflection[] inflections) : base(inflections) { }
+        private Int32IntervalSet(params Inflection[] inflections) : base(inflections) { }
         /// <summary>Creates a new <see cref="Int32IntervalSet"/> containing the given items.</summary>
         public Int32IntervalSet(params int[] items) : base(items) { }
         /// <summary>Creates a new <see cref="Int32IntervalSet"/> containing the given items.</summary>
@@ -660,10 +660,13 @@ namespace DataStructures
             GetPrevious = (item) => --item;
         }
 
+        /// <summary>Returns a universal set.</summary>
+        public static Int64IntervalSet Universal() => new Int64IntervalSet(Inflection.Universal);
+
         /// <summary>Returns a copy of this <see cref="Int64IntervalSet"/>.</summary>
         public override IntervalSet<long> Copy() => new Int64IntervalSet(this.Inflections);
 
-        private Int64IntervalSet(Inflection[] inflections) : base(inflections) { }
+        private Int64IntervalSet(params Inflection[] inflections) : base(inflections) { }
         /// <summary>Creates a new <see cref="Int64IntervalSet"/> containing the given items.</summary>
         public Int64IntervalSet(params long[] items) : base(items) { }
         /// <summary>Creates a new <see cref="Int64IntervalSet"/> containing the given items.</summary>
