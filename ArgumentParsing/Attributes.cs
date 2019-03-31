@@ -6,17 +6,7 @@ using System.Threading.Tasks;
 
 namespace Arguments
 {
-    /// <summary>The parsing layout patterns for an argument.</summary>
-    public enum ArgumentPattern
-    {
-        /// <summary>An option which does not allow an assigned value.</summary>
-        KeyOnly,
-        /// <summary>An option which may allow an assigned value, but which does not require it.</summary>
-        ValueOptional,
-        /// <summary>An option which may must have a value associated with it.</summary>
-        ValueRequired
-    }
-
+    
     [AttributeUsage(validOn: AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public sealed class AliasAttribute : Attribute
     {
@@ -62,33 +52,21 @@ namespace Arguments
 
 
     /// <summary>
-    /// Marks the properties and fields that will be parsed from an argument array.
+    /// Marks the properties and fields that will be specially parsed from an argument array.
     /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
-    public sealed class PatternAttribute : Attribute
+    public sealed class ParseAttribute : Attribute
     {
-        /// <summary>The type of this option.</summary>
-
-        /// <summary>Whether this <see cref="PatternAttribute"/> will allow an associated value or not.</summary>
-        public ArgumentPattern Pattern = ArgumentPattern.KeyOnly;
-
+        
         /// <summary>
         /// If a value is associated with this option, this method will parse the given string into a value.  If the 
-        /// given value is not parsed (as in the case of an optional value), this method should return null.
+        /// given value is not parsed, this method should return null.
         /// </summary>
-        public Func<string, object> ValueParser = null;
+        public Func<string, object> Parser = null;
 
         /// <summary>Creates a new pattern attribute specifying the pattern type and the applicable parser.</summary>
-        public PatternAttribute(ArgumentPattern pattern, Func<string, object> parser)
-        {
-            if (pattern == ArgumentPattern.KeyOnly && parser != null)
-                throw new Exception("Key-only argument patterns may not have a supplied parser.");
-            Pattern = pattern;
-            ValueParser = parser;
-        }
+        public ParseAttribute(Func<string, object> parser) { this.Parser = parser; }
 
-        /// <summary>Creates a new pattern attribute specifying a key-only option pattern.</summary>
-        public PatternAttribute(ArgumentPattern pattern = ArgumentPattern.KeyOnly) : this(pattern, null) { }
     }
 
 }

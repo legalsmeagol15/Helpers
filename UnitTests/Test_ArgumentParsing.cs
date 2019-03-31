@@ -21,42 +21,49 @@ namespace UnitTests
         [TestMethod]
         public void Test_Options_ProfileExceptions()
         {
-            AssertThrows<ProfileException>(() => Arguments.Options.Parse < ProfileExceptionOptionsA>("BoolArg") );
+            //AssertThrows<ProfileException>(() => Arguments.Options.Parse < ProfileExceptionOptionsA>("BoolArg") );
         }
 
         [TestMethod]
         public void Test_Options_Aliases()
         {
-            AliasOptionsA opts = Arguments.Options.Parse<AliasOptionsA>("test");
+            AliasOptionsA opts = Arguments.Options.Parse<AliasOptionsA>("test", "uploadmbps=64.17", "downloadmbps=22.79");
             Assert.AreEqual(opts.Test, true);
         }
-
-        public class AliasOptionsA
-        {   
+        
+        internal class AliasOptionsA
+        {
+            //[Alias(false, "test")]
+            [Group("testing")]
             internal bool Test = false;
+
+            [Group("testing")]
+            internal double UploadMbps = 0.0;
+
+            [Group("testing")]
+            internal double DownloadMbps = 0.0;
         }
 
         public class ProfileExceptionOptionsA
-        {
-            [Pattern(ArgumentPattern.ValueOptional)]
+        {            
             public bool BoolArg;
         }
 
         public class SimpleOptionsA
         {
-            [Pattern(ArgumentPattern.KeyOnly)]
+            
             [Group("GroupA", true)]
             public bool BoolArg;
 
-            [Pattern(ArgumentPattern.ValueRequired)]
+            
             [Group("GroupA", true)]
             public string StringArgA;
 
-            [Pattern(ArgumentPattern.ValueRequired)]
+            
             [Group("GroupA")]
             public string StringArgB;
 
-            [Pattern(ArgumentPattern.ValueRequired)]
+            
             [Group("GroupA")]
             public int IntArgA;
         }

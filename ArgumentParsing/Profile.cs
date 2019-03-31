@@ -40,7 +40,7 @@ namespace Arguments
                 IEnumerable<AliasAttribute> aliases = mInfo.GetCustomAttributes<AliasAttribute>();
                 IEnumerable<GroupAttribute> groups = mInfo.GetCustomAttributes<GroupAttribute>();
                 HelpAttribute helpAttr = mInfo.GetCustomAttribute<HelpAttribute>();
-                PatternAttribute patternAttr = mInfo.GetCustomAttribute<PatternAttribute>();
+                ParseAttribute patternAttr = mInfo.GetCustomAttribute<ParseAttribute>();
 
                 // Ensure there's at list one alias.  If there are none, it matches the member's name.
                 if (!aliases.Any())
@@ -52,11 +52,7 @@ namespace Arguments
                 if (mInfo is PropertyInfo pInfo) o = new Option(pInfo, aliases, groups, helpAttr, patternAttr);
                 else if (mInfo is FieldInfo fInfo) o = new Option(fInfo, aliases, groups, helpAttr, patternAttr);
                 else throw new NotImplementedException();
-
-                if (o.OptionType==typeof(bool) || o.OptionType==typeof(Boolean))                
-                    if (patternAttr != null && patternAttr.Pattern != ArgumentPattern.KeyOnly)
-                        throw new StructureException("Bool argument " + o.Name + " must be key-only.");
-
+                
                 // Check for alias duplication.
                 if (_Options.Any(existing => existing.IsMatch(o.Name)))
                     throw new NamingException("An Option with the name \"" + o.Name + "\" already exists");
@@ -105,7 +101,7 @@ namespace Arguments
             public readonly IEnumerable<AliasAttribute> Aliases;
             public readonly IEnumerable<GroupAttribute> GroupsAttr;
             public readonly HelpAttribute Help;
-            public readonly PatternAttribute Pattern;
+            public readonly ParseAttribute Pattern;
             public readonly MemberInfo Info;
             public readonly char Flag = '\0';
             public string Name => (Aliases != null && Aliases.Any()) ? Aliases.First().Alias
@@ -114,7 +110,7 @@ namespace Arguments
                                     : (Info is FieldInfo fInfo) ? fInfo.FieldType 
                                     : typeof(object);
 
-            private Option(MemberInfo mInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, PatternAttribute pattern)
+            private Option(MemberInfo mInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, ParseAttribute pattern)
             {
                 List<AliasAttribute> aliasList = new List<AliasAttribute>();
                 this.Aliases = aliasList;
@@ -131,8 +127,8 @@ namespace Arguments
                         throw new NamingException("Option \"" + this.Name + "\" has duplicate alias \"" + aliasAttr.Alias + "\".");                    
                     if (aliasAttr.Alias.Length == 1)
                     {
-                        if (Pattern != null && Pattern.Pattern != ArgumentPattern.KeyOnly)
-                            throw new StructureException("Flag alias \"" + aliasAttr.Alias[0] + "\" must be of type " + ArgumentPattern.KeyOnly.ToString() + ".");
+                        if (OptionType != typeof(bool) && OptionType != typeof(Boolean))                        
+                            throw new StructureException("Flag alias \"" + aliasAttr.Alias[0] + "\" my be applied only to bool arguments.");
                         if (Flag != '\0')
                             throw new StructureException("Option \"" + this.Name + "\" has flag conflict between '" + Flag + "' and \"" + aliasAttr.Alias[0] + "\".");
                         Flag = aliasAttr.Alias[0];
@@ -147,9 +143,9 @@ namespace Arguments
                         throw new ParsingException("On Option \"" + this.Name + "\", in group \"" + ga.Name + "\", there exists a duplicate exclusion.");
             }
 
-            public Option(PropertyInfo pInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, PatternAttribute pattern)
+            public Option(PropertyInfo pInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, ParseAttribute pattern)
                 : this((MemberInfo)pInfo, aliases, groups, help, pattern) { }
-            public Option(FieldInfo fInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, PatternAttribute pattern)
+            public Option(FieldInfo fInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help, ParseAttribute pattern)
                 : this((MemberInfo)fInfo, aliases, groups, help, pattern) { }
 
             private bool _IsSet = false;
@@ -162,6 +158,7 @@ namespace Arguments
             {
                 if (arg == Name) return true;
                 if (Aliases == null || !Aliases.Any()) return arg.ToLower() == Name.ToLower();
+                if (Aliases == null) return false;
                 foreach (AliasAttribute aliasAttr in Aliases)
                 {
                     if (aliasAttr.IsCaseSensitive && arg == aliasAttr.Alias)
@@ -184,14 +181,12 @@ namespace Arguments
                     throw new ParsingException("Argument \"" + Name + "\" is supplied more than once.");
                 Value = null;
                 if (String.IsNullOrWhiteSpace(argValue))
-                    return false;
-                if (Pattern.Pattern == ArgumentPattern.KeyOnly)
-                    return false;
-                if (Pattern != null && Pattern.ValueParser != null)
+                    return false;                
+                if (Pattern != null && Pattern.Parser != null)
                 {
                     try
                     {
-                        Value = Pattern.ValueParser(argValue);
+                        Value = Pattern.Parser(argValue);
                         if (Value != null) return true;
                     }
                     catch { }
@@ -230,6 +225,8 @@ namespace Arguments
                 }
                 return false;
             }
+
+            public override string ToString() => "<" + Name + ">" + (Value == null ? "null" : Value.ToString()) + "</" + Name + ">";
         }
 
 
@@ -280,8 +277,6 @@ namespace Arguments
                     Option o = _Options.FirstOrDefault(existing => existing.IsMatch(split[0]));
                     if (o == null)
                         throw new ParsingException("Argument \"" + split[0] + "\" is not defined.");
-                    if (o.Pattern == null && o.Pattern.Pattern == ArgumentPattern.KeyOnly)
-                        throw new ParsingException("Cannot assign value \"" + split[1] + "\" to key-only argument \"" + split[0] + "\".");
                     if (!o.TryParse(split[1]))
                         throw new ParsingException("Cannot parse value \"" + arg[1] + "\" on argument \"" + split[0] + "\".");
                     continue;
@@ -306,22 +301,17 @@ namespace Arguments
                     Option o = _Options.FirstOrDefault(existing => existing.IsMatch(arg));
                     if (o == null)
                         throw new ParsingException("Argument \"" + arg + "\" is not defined.");
-                    if (o.Pattern == null || o.Pattern.Pattern == ArgumentPattern.KeyOnly)
+                    if (o.OptionType == typeof(bool) || o.OptionType == typeof(Boolean))
                     {
                         o.Value = Chosen;
                         continue;
                     }
                     if (i == strs.Length - 1)
-                    {
-                        if (o.Pattern.Pattern == ArgumentPattern.ValueOptional) { o.Value = Chosen; continue; }
                         o.Throw();
-                    }
+
                     string nextArg = strs[i + 1];
                     if (!o.TryParse(nextArg))
-                    {
-                        if (o.Pattern.Pattern == ArgumentPattern.ValueOptional) { o.Value = Chosen; continue; }
                         o.Throw();
-                    }
                     i++;
                     continue;
                 }
