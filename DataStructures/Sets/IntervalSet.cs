@@ -106,7 +106,7 @@ namespace DataStructures
         public void UnionWith(IntervalSet<T> other) => Inflections = Or(Inflections, other.Inflections);
         /// <summary>Returns the set difference ("SUBTRACT") of this and the given <see cref="IntervalSet{T}"/>.
         /// </summary>
-        public void Except(IntervalSet<T> other) => Inflections = Subtract(Inflections, other.Inflections);
+        public void ExceptWith(IntervalSet<T> other) => Inflections = Subtract(Inflections, other.Inflections);
         /// <summary>Returns the symmetric difference ("OR") of this and the given <see cref="IntervalSet{T}"/>.
         /// </summary>
         public void SymmetricExcept(IntervalSet<T> other) => Inflections = Xor(Inflections, other.Inflections);
