@@ -675,15 +675,20 @@ namespace DataStructures
 
         /// <summary>Returns a universal set.</summary>
         public static Int64IntervalSet Universal() => new Int64IntervalSet(Inflection.Universal);
-
+        /// <summary>Returns a positive-infinite set.</summary>
+        public static Int64IntervalSet From(long start) => new Int64IntervalSet(new Inflection(start, true, TailType.Start));
+        /// <summary>Returns a negative-infinite set.</summary>
+        public static Int64IntervalSet To(long end) => new Int64IntervalSet(new Inflection(end, true, TailType.End));
         /// <summary>Returns a copy of this <see cref="Int64IntervalSet"/>.</summary>
-        public override IntervalSet<long> Copy() => new Int64IntervalSet(this.Inflections);
+        public override IntervalSet<long> Copy() => new Int64IntervalSet(this.Inflections.ToArray());
 
         private Int64IntervalSet(params Inflection[] inflections) : base(inflections) { }
         /// <summary>Creates a new <see cref="Int64IntervalSet"/> containing the given items.</summary>
         public Int64IntervalSet(params long[] items) : base(items) { }
         /// <summary>Creates a new <see cref="Int64IntervalSet"/> containing the given items.</summary>
         public Int64IntervalSet(IEnumerable<long> items = null) : base(items) { }
+        /// <summary>Creates a new <see cref="Int64IntervalSet"/> starting and ending with the indicated interval.</summary>
+        public Int64IntervalSet(long from, long to) : base(new Inflection(from, true, TailType.Start), new Inflection(to, true, TailType.End)) { }
 
 #pragma warning disable 1591
         public static Int64IntervalSet operator +(Int64IntervalSet a, DiscreteIntervalSet<long> b) => new Int64IntervalSet(a.Or(a.Inflections, b.Inflections));
@@ -695,7 +700,7 @@ namespace DataStructures
         public static Int64IntervalSet operator !(Int64IntervalSet i) => new Int64IntervalSet(i.Not(i.Inflections));
         public static Int64IntervalSet operator ~(Int64IntervalSet i) => !i;
 #pragma warning restore 1591
-
+        
     }
 
     public sealed class Float64IntervalSet : IntervalSet<double>
