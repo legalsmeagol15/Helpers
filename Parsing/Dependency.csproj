@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{BF4A81F3-FC3D-434A-9CC2-16FB12EC0E03}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Parsing</RootNamespace>
+    <AssemblyName>Parsing</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Dependency\Context.cs" />
+    <Compile Include="Reference.cs" />
+    <Compile Include="Dependency\Attributes.cs" />
+    <Compile Include="Dependency\Profiles.cs" />
+    <Compile Include="Exceptions.cs" />
+    <Compile Include="Interfaces.cs" />
+    <Compile Include="Values\Boolean.cs" />
+    <Compile Include="Clause.cs" />
+    <Compile Include="Values\EvaluationError.cs" />
+    <Compile Include="Functions\Arithmetic.cs" />
+    <Compile Include="Functions\Calculus.cs" />
+    <Compile Include="Functions\Constant.cs" />
+    <Compile Include="Functions\Form.cs" />
+    <Compile Include="Functions\Function.cs" />
+    <Compile Include="Expression.cs" />
+    <Compile Include="Functions\Operators.cs" />
+    <Compile Include="Functions\Trigonometry.cs" />
+    <Compile Include="Values\Fraction.cs" />
+    <Compile Include="Values\Null.cs" />
+    <Compile Include="Values\Number.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Values\Range.cs" />
+    <Compile Include="Values\String.cs" />
+    <Compile Include="Unit.cs" />
+    <Compile Include="Dependency\Variable.cs" />
+    <Compile Include="Values\Vector.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DataStructures\DataStructures.csproj">
+      <Project>{b1da6068-30a2-478f-8115-f3ede4ef1388}</Project>
+      <Name>DataStructures</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Graphs\Graphs.csproj">
+      <Project>{76524399-7d62-4bd8-96b1-53cef1d9962a}</Project>
+      <Name>Graphs</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Mathematics\Mathematics.csproj">
+      <Project>{dc7c8e96-6f24-48df-a32f-2dc12b1d315b}</Project>
+      <Name>Mathematics</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

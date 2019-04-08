@@ -1,0 +1,125 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\Beruthiel\packages\MSTest.TestAdapter.1.4.0\build\net45\MSTest.TestAdapter.props" Condition="Exists('..\Beruthiel\packages\MSTest.TestAdapter.1.4.0\build\net45\MSTest.TestAdapter.props')" />
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{13CA4A04-0AD2-41CC-8599-3DC870032224}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Helpers</RootNamespace>
+    <AssemblyName>Helpers</AssemblyName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Debug\Helpers.xml</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ArgumentParsing\Attributes.cs" />
+    <Compile Include="ArgumentParsing\Options.cs" />
+    <Compile Include="ArgumentParsing\Profile.cs" />
+    <Compile Include="ArtificialIntelligence\ConstraintResolver.cs" />
+    <Compile Include="ArtificialIntelligence\Logical\CNF.cs" />
+    <Compile Include="ArtificialIntelligence\Logical\Resolution.cs" />
+    <Compile Include="ArtificialIntelligence\Search.cs" />
+    <Compile Include="ArtificialIntelligence\TheoremResolver.cs" />
+    <Compile Include="DataStructures\Interfaces\IEdge.cs" />
+    <Compile Include="DataStructures\Interfaces\IPriorityQueue.cs" />
+    <Compile Include="DataStructures\Interfaces\IVertex.cs" />
+    <Compile Include="DataStructures\Lists.cs" />
+    <Compile Include="DataStructures\Maps\CompositeKeyDictionary.cs" />
+    <Compile Include="DataStructures\Trees\DependencyGraph.cs" />
+    <Compile Include="DataStructures\Sets\DisjointSet.cs" />
+    <Compile Include="DataStructures\Lists\DurationList.cs" />
+    <Compile Include="DataStructures\Trees\DynamicHeap.cs" />
+    <Compile Include="DataStructures\Lists\DynamicLinkedList.cs" />
+    <Compile Include="DataStructures\Sets\Extensions.cs" />
+    <Compile Include="DataStructures\Hybrid\HashCollection.cs" />
+    <Compile Include="DataStructures\Hybrid\HashList.cs" />
+    <Compile Include="DataStructures\Hybrid\HashStack.cs" />
+    <Compile Include="DataStructures\Trees\Heap.cs" />
+    <Compile Include="DataStructures\Hybrid\IndexingQueue.cs" />
+    <Compile Include="DataStructures\Sets\IntervalSet.cs" />
+    <Compile Include="DataStructures\Lists\Deque.cs" />
+    <Compile Include="DataStructures\Lists\SkipList.cs" />
+    <Compile Include="DataStructures\Maps\TupleDictionary.cs" />
+    <Compile Include="DataStructures\Threading\PipelineWorker.cs" />
+    <Compile Include="DataStructures\Threading\RedoWorker.cs" />
+    <Compile Include="DataStructures\ValueChangedArgs.cs" />
+    <Compile Include="Mathematics\Functions\Simple.cs" />
+    <Compile Include="Mathematics\Random.cs" />
+    <Compile Include="Undo\IUndoable.cs" />
+    <Compile Include="Undo\IUndoStack.cs" />
+    <Compile Include="Undo\Undoable.cs" />
+    <Compile Include="Undo\UndoableGroup.cs" />
+    <Compile Include="Undo\UndoStack.cs" />
+    <Compile Include="Graphs\Heuristic.cs" />
+    <Compile Include="Graphs\IEdge.cs" />
+    <Compile Include="Graphs\IVertex.cs" />
+    <Compile Include="Graphs\Traversals.cs" />
+    <Compile Include="Mathematics\Cartesian\ITransformable.cs" />
+    <Compile Include="Mathematics\Cartesian\Matrix.cs" />
+    <Compile Include="Mathematics\Cartesian\Plane.cs" />
+    <Compile Include="Mathematics\Cartesian\Vector.cs" />
+    <Compile Include="Mathematics\CommonValues.cs" />
+    <Compile Include="Mathematics\Complex.cs" />
+    <Compile Include="Mathematics\Decimal.cs" />
+    <Compile Include="Mathematics\Cartesian\NURBS.cs" />
+    <Compile Include="Mathematics\Int32.cs" />
+    <Compile Include="Mathematics\Int64.cs" />
+    <Compile Include="Mathematics\Primes.cs" />
+    <Compile Include="Mathematics\Sorting.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\Beruthiel\packages\MSTest.TestAdapter.1.4.0\build\net45\MSTest.TestAdapter.props')" Text="$([System.String]::Format('$(ErrorText)', '..\Beruthiel\packages\MSTest.TestAdapter.1.4.0\build\net45\MSTest.TestAdapter.props'))" />
+    <Error Condition="!Exists('..\Beruthiel\packages\MSTest.TestAdapter.1.4.0\build\net45\MSTest.TestAdapter.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Beruthiel\packages\MSTest.TestAdapter.1.4.0\build\net45\MSTest.TestAdapter.targets'))" />
+  </Target>
+  <Import Project="..\Beruthiel\packages\MSTest.TestAdapter.1.4.0\build\net45\MSTest.TestAdapter.targets" Condition="Exists('..\Beruthiel\packages\MSTest.TestAdapter.1.4.0\build\net45\MSTest.TestAdapter.targets')" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
