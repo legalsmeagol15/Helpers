@@ -78,6 +78,7 @@
     <Compile Include="DataStructures\ValueChangedArgs.cs" />
     <Compile Include="Mathematics\Functions\Simple.cs" />
     <Compile Include="Mathematics\Random.cs" />
+    <Compile Include="Time.cs" />
     <Compile Include="Undo\IUndoable.cs" />
     <Compile Include="Undo\IUndoStack.cs" />
     <Compile Include="Undo\Undoable.cs" />

@@ -30,6 +30,7 @@ namespace DataStructures
     /// <remarks> As described by William Pugh, referenced by Scott Mitchell of Microsoft in 
     /// https://msdn.microsoft.com/en-us/library/ms379573(v=vs.80).aspx#datastructures20_4_topic2 .  Retrieved 8/9/16.    
     /// Validated 100% code coverage 8/20/16 except GetBeforeOrEqual().
+    /// Broke RemoveMin() 4/8/19.
     /// </remarks>
     public sealed class SkipList<T> : ICollection<T>
     {

@@ -146,7 +146,7 @@ namespace DataStructures
         public Node FirstNode => _FirstNode;
         public Node LastNode => _LastNode;
 
-        public IEnumerable<Node> Nodes()
+        public IEnumerable<Node> GetNodes()
         {
             Node n = FirstNode;
             while (n != null) { yield return n; n = n.Next; }
@@ -159,16 +159,33 @@ namespace DataStructures
         /// <summary>A lightweight data structure representing a position within a dynamic linked list.</summary>
         public class Node
         {
+            /// <summary>
+            /// 
+            /// </summary>
             public T Contents { get; set; }
 
+            /// <summary>
+            /// 
+            /// </summary>
             public Node Previous { get; internal set; }
-            public  Node Next { get; internal set; }
+
+            /// <summary>
+            /// 
+            /// </summary>
+            public Node Next { get; internal set; }
+
+            /// <summary>
+            /// 
+            /// </summary>
             public DynamicLinkedList<T> List { get; private set; }
 
+            /// <summary>
+            /// 
+            /// </summary>
             public Node(T contents, DynamicLinkedList<T> list, Node previous, Node next)
             {
                 Contents = contents;
-                List = list;                
+                List = list;
                 Previous = previous;
                 Next = next;
             }
@@ -234,7 +251,7 @@ namespace DataStructures
                 Node previous = Previous;
                 if (items.Count() == 0) return null;
                 foreach (T item in items) InsertBefore(item);
-                return previous == null ? List._FirstNode : previous.Next;                
+                return previous == null ? List._FirstNode : previous.Next;
             }
             /// <summary>
             /// Inserts the item immediately before this node, and returns the node of the newly-added item.
@@ -256,7 +273,7 @@ namespace DataStructures
                 return newNode;
             }
 
-            
+
 
 
 
@@ -298,8 +315,15 @@ namespace DataStructures
                 return count;
             }
 
+            /// <summary>
+            /// 
+            /// </summary>
             public override string ToString() => "Node " + ((Contents == null) ? "_" : Contents.ToString());
 
+            /// <summary>Steps to the next node.</summary>
+            public static Node operator ++(Node n) => n.Next;
+            /// <summary>Steps to the previous node.</summary>
+            public static Node operator --(Node n) => n.Previous;
         }
 
 
