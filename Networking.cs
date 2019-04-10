@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Arguments;
 
 namespace Helpers
 {
@@ -26,4 +27,17 @@ namespace Helpers
             throw new Exception("No network adapters with an IPv4 address in the system!");
         }
     }
+
+    /// <summary>Parses from an IPAddress.</summary>
+    public class Parser : Arguments.ParseAttribute.IParser
+    {
+        public object Parse(string str)
+        {
+            return IPAddress.Parse(str);
+        }
+
+        
+    }
+
+
 }

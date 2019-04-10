@@ -54,19 +54,14 @@ namespace Arguments
     /// <summary>
     /// Marks the properties and fields that will be specially parsed from an argument array.
     /// </summary>
-    [AttributeUsage(validOn: AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
+    [AttributeUsage(validOn: AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
     public sealed class ParseAttribute : Attribute
     {
-        
-        /// <summary>
-        /// If a value is associated with this option, this method will parse the given string into a value.  If the 
-        /// given value is not parsed, this method should return null.
-        /// </summary>
-        public Func<string, object> Parser = null;
+        /// <summary>The property names parsed by this method.</summary>
+        public readonly string[] Properties;
 
         /// <summary>Creates a new pattern attribute specifying the pattern type and the applicable parser.</summary>
-        public ParseAttribute(Func<string, object> parser) { this.Parser = parser; }
-
+        public ParseAttribute(params string[] properties) { Properties = properties; }
     }
 
 }

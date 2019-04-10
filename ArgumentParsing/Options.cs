@@ -22,7 +22,7 @@ namespace Arguments
             if (typeof(T).GenericTypeArguments.Any())
                 throw new ProfileException("Result objects cannot be generic.");
             T optionsObject = Activator.CreateInstance<T>();
-            Profile prof = new Profile(typeof(T));
+            Profile<T> prof = new Profile<T>();
             prof.Parse(args, optionsObject);
             return optionsObject;
         }
@@ -35,7 +35,8 @@ namespace Arguments
     {
         /// <summary>Create a new <see cref="ParsingException"/>.</summary>
         /// <param name="message">The help message accompanying the parsing failure.</param>
-        public ParsingException(string message) : base(message) { }
+        /// <param name="inner">The exception thrown while attempting to parse.</param>
+        public ParsingException(string message, Exception inner = null) : base(message, inner) { }
     }
 
     /// <summary>An exception thrown when profiling the argument object.</summary>
