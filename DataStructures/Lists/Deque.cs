@@ -80,6 +80,12 @@ namespace DataStructures
         /// to increase automatically.</summary>
         public int Capacity { get => _Table.Length; }
 
+        /// <summary>Returns the first item in this <see cref="Deque{T}"/>.</summary>
+        public T First => this[0];
+
+        /// <summary>Returns the last item in this <see cref="Deque{T}"/>.</summary>
+        public T Last => this[Count - 1];
+
         bool ICollection<T>.IsReadOnly => false;
 
         void ICollection<T>.Add(T item) => AddLast(item);

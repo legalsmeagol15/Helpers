@@ -13,6 +13,6 @@ namespace Helpers
         public static DateTime Trim(this DateTime date, long ticks) => new DateTime(date.Ticks - (date.Ticks % ticks), date.Kind);
 
         /// <summary>Rounds down to the nearest second.</summary>        
-        public static DateTime TrimSecond(this DateTime date) => Trim(date, TimeSpan.TicksPerSecond);
+        public static DateTime TrimToSecond(this DateTime date) => Trim(date, TimeSpan.TicksPerSecond);
     }
 }
