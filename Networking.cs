@@ -27,17 +27,5 @@ namespace Helpers
             throw new Exception("No network adapters with an IPv4 address in the system!");
         }
     }
-
-    /// <summary>Parses from an IPAddress.</summary>
-    public class Parser : Arguments.ParseAttribute.IParser
-    {
-        public object Parse(string str)
-        {
-            return IPAddress.Parse(str);
-        }
-
-        
-    }
-
-
+    
 }
