@@ -62,7 +62,7 @@ namespace Arguments
                 Field o = null;
                 string name = mInfo.Name;
                 {
-                    var nameAttr = aliasAttrs.First(a => a.Alias != null && !string.IsNullOrWhiteSpace(a.Alias));
+                    var nameAttr = aliasAttrs.FirstOrDefault(a => a.Alias != null && !string.IsNullOrWhiteSpace(a.Alias));
                     if (nameAttr != null) name = nameAttr.Alias;
                 }
                 if (mInfo is PropertyInfo pInfo) o = new Field(pInfo, name, helpAttrs.FirstOrDefault());
@@ -184,13 +184,13 @@ namespace Arguments
             public readonly MemberInfo Member;
             public readonly string Name;
             private MethodInfo _Parser = null;
-            private readonly Type _Type;
+            internal readonly Type Type;
             public MethodInfo Parser
             {
                 get => _Parser; internal set
                 {
-                    if (value.ReturnType != _Type)
-                        throw new ProfileException("A parser must return the same type as the option (" + _Type.Name + ").");
+                    if (value != null && value.ReturnType != Type)
+                        throw new ProfileException("A parser must return the same type as the option (" + Type.Name + ").");
                     _Parser = value;
                 }
             }
@@ -199,26 +199,32 @@ namespace Arguments
             {
                 List<AliasAttribute> aliasList = new List<AliasAttribute>();
                 this.Help = help;
-                this.Member = mInfo;                
+                this.Member = mInfo;
+                this.Name = name;
             }
             public Field(PropertyInfo pInfo, string name, HelpAttribute help = null)
-                : this((MemberInfo)pInfo, name, help) { _Type = pInfo.PropertyType; }
+                : this((MemberInfo)pInfo, name, help) { Type = pInfo.PropertyType; }
             public Field(FieldInfo fInfo, string name, HelpAttribute help)
-                : this((MemberInfo)fInfo, name, help) { _Type = fInfo.FieldType; }
-           
+                : this((MemberInfo)fInfo, name, help) { Type = fInfo.FieldType; }
+
             internal bool IsSet = false;
             private object _Value = null;
-            public object Value { get => IsSet ? _Value : null; set { _Value = value; IsSet = true; } }
+            public object Value
+            {
+                get => IsSet ? _Value : null;
+                set
+                {
+                    if (IsSet) throw new ParsingException("Field " + Name + " cannot be set more than once.");
+                    _Value = value; IsSet = true;
+                }
+            }
             public void Reset() => IsSet = false;
 
             public bool TryParse(string argValue, object hostObject)
             {
-                if (IsSet)
-                    throw new ParsingException("Argument \"" + Name + "\" is supplied more than once.");
-                _Value = null;
                 if (string.IsNullOrWhiteSpace(argValue))
-                    return false;  
-                
+                    return false;
+
                 // If a parser is assigned, try that first.
                 if (Parser != null)
                 {
@@ -244,33 +250,33 @@ namespace Arguments
 
                 // Try some of the standard types.
                 {
-                    if (_Type == typeof(string) || _Type == typeof(String))
+                    if (Type == typeof(string) || Type == typeof(String))
                     {
-                        _Value = argValue;
+                        Value = argValue;
                         return true;
                     }
-                    else if (_Type == typeof(bool) || _Type == typeof(Boolean))
+                    else if (Type == typeof(bool) || Type == typeof(Boolean))
                     {
                         bool success = bool.TryParse(argValue, out bool b);
-                        _Value = b;
+                        Value = b;
                         return success;
                     }
-                    else if (_Type == typeof(int) || _Type == typeof(Int32))
+                    else if (Type == typeof(int) || Type == typeof(Int32))
                     {
                         bool success = int.TryParse(argValue, out int i);
-                        _Value = i;
+                        Value = i;
                         return success;
                     }
-                    else if (_Type == typeof(float) || _Type == typeof(Single))
+                    else if (Type == typeof(float) || Type == typeof(Single))
                     {
                         bool success = float.TryParse(argValue, out float f);
-                        _Value = f;
+                        Value = f;
                         return success;
                     }
-                    else if (_Type == typeof(double) || _Type == typeof(Double))
+                    else if (Type == typeof(double) || Type == typeof(Double))
                     {
                         bool success = double.TryParse(argValue, out double d);
-                        _Value = d;
+                        Value = d;
                         return success;
                     }
                 }
@@ -396,7 +402,8 @@ namespace Arguments
             
 
             // A single-arg (bool) parse?  
-            if (!split && (typeof(bool).IsAssignableFrom(typeof(T)) || typeof(Boolean).IsAssignableFrom(typeof(T))))
+            if (!split && (typeof(bool).IsAssignableFrom(alias.Field.Type) 
+                            || typeof(Boolean).IsAssignableFrom(alias.Field.Type)))
             {
                 alias.Field.Value = Chosen;
                 return 1;
@@ -478,9 +485,9 @@ namespace Arguments
         /// options for the resultObj.
         /// </summary>
         /// <param name="args"></param>
-        /// <param name="resultObj"></param>
+        /// <param name="hostObj"></param>
         /// <param name="ignores">Optional.  An explicit array of string arguments you want to have ignored.</param>
-        public void Parse(IEnumerable<string> args, T resultObj, IEnumerable<string> ignores = null)
+        public void Parse(IEnumerable<string> args, T hostObj, IEnumerable<string> ignores = null)
         {
             ResetAll();
 
@@ -494,7 +501,7 @@ namespace Arguments
                 if (ignores != null && ignores.Any(ig => ig == arg))
                     continue;
 
-                int parsed = ParseArg(arg, i == strs.Length ? null : strs[i + 1]);
+                int parsed = ParseArg(hostObj, arg, i == strs.Length-1 ? null : strs[i + 1]);
                 if (parsed == 0) throw new Exception("Empty arguments cannot be parsed.");
                 i += (parsed - 1);
             }
@@ -503,7 +510,7 @@ namespace Arguments
             Validate();
             
             // Step #3 Apply
-            Apply(resultObj);
+            Apply(hostObj);
 
             // Step #4 Reset
             ResetAll();
