@@ -6,29 +6,41 @@ using System.Threading.Tasks;
 
 namespace Arguments
 {
-    
+    /// <summary>An attribute indicating that a property, field, or method can be referenced or invoked by an alias 
+    /// or flag.  </summary>
     [AttributeUsage(validOn: AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public sealed class AliasAttribute : Attribute
     {
-        internal static readonly bool DEFAULT_CASE_SENSITIVE = false;
+        internal const bool DEFAULT_CASE_SENSITIVE = false;
         internal readonly string Alias;
+        internal readonly char Flag = '\0';
         internal readonly bool IsCaseSensitive;
-        public AliasAttribute(bool isCaseSensitive, string alias) { this.IsCaseSensitive = isCaseSensitive; this.Alias = alias; }
-        public AliasAttribute(string alias) : this(DEFAULT_CASE_SENSITIVE, alias) { }
+
+        /// <summary>
+        /// Creates an alias attribute with the indicated name and case sensitivity rule.  Optionally, a flag may be 
+        /// provided.
+        /// </summary>
+        public AliasAttribute(string alias, bool isCaseSensitive = DEFAULT_CASE_SENSITIVE, char flag = '\0')
+        {
+            this.IsCaseSensitive = isCaseSensitive;
+            this.Alias = alias;
+            this.Flag = flag;
+        }
+
     }
 
     /// <summary>Indicates a conjunctive set of argument requirements.</summary>
     [AttributeUsage(validOn: AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public sealed class GroupAttribute : Attribute
     {
-        internal static readonly bool DEFAULT_GROUP_REQUIRED = false;
+        internal const bool DEFAULT_GROUP_REQUIRED = false;
         internal readonly string Name;
         internal readonly IEnumerable<string> Exclusions;
         internal readonly bool? Required = null;
         /// <summary>Creates a new group attribute.</summary>
         public GroupAttribute(string name, params string[] exclusions)
         {
-            this.Name = name;
+            this.Name = name.ToLower();
             this.Exclusions = exclusions;            
         }
         /// <summary>Creates a new group attribute.</summary>
@@ -54,14 +66,14 @@ namespace Arguments
     /// <summary>
     /// Marks the properties and fields that will be specially parsed from an argument array.
     /// </summary>
-    [AttributeUsage(validOn: AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-    public sealed class ParseAttribute : Attribute
+    [AttributeUsage(validOn: AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
+    public sealed class MethodAttribute : Attribute
     {
         /// <summary>The property names parsed by this method.</summary>
-        public readonly string[] Properties;
+        public readonly string Invocation;
 
         /// <summary>Creates a new pattern attribute specifying the pattern type and the applicable parser.</summary>
-        public ParseAttribute(params string[] properties) { Properties = properties; }
+        public MethodAttribute(string invocation) { this.Invocation = invocation; }
     }
 
 }

@@ -16,8 +16,11 @@ namespace Arguments
         /// <summary>The default of whether a group is required for an argument profile.</summary>
         public static readonly bool DEFAULT_GROUP_REQUIRED = false;
 
-        private readonly IList<Group> _Groups = new List<Group>();
-        private readonly IList<Option> _Options = new List<Option>();
+        private readonly IDictionary<string, Alias> _Aliases = new Dictionary<string, Alias>();
+        private readonly IDictionary<char, Flag> _Flags = new Dictionary<char, Flag>();
+        private readonly IDictionary<string, Group> _Groups = new Dictionary<string, Group>();
+        private readonly IDictionary<string, Method> _Invocations = new Dictionary<string, Method>();
+        
         
         private static readonly object Chosen = true;
 
@@ -49,150 +52,174 @@ namespace Arguments
 
             void _Add_Throw(MemberInfo mInfo)
             {
-                IEnumerable<AliasAttribute> aliases = mInfo.GetCustomAttributes<AliasAttribute>();
-                IEnumerable<GroupAttribute> groups = mInfo.GetCustomAttributes<GroupAttribute>();
-                HelpAttribute helpAttr = mInfo.GetCustomAttribute<HelpAttribute>();
+                IEnumerable<AliasAttribute> aliasAttrs = mInfo.GetCustomAttributes<AliasAttribute>();
+                IEnumerable<GroupAttribute> groupAttrs = mInfo.GetCustomAttributes<GroupAttribute>();
+                IEnumerable<HelpAttribute> helpAttrs = mInfo.GetCustomAttributes<HelpAttribute>();
+                if (helpAttrs.Count() > 1)
+                    throw new ProfileException("Only one " + typeof(HelpAttribute).Name + " per member is allowed.");
 
-                // Ensure there's at list one alias.  If there are none, it matches the member's name.
-                if (!aliases.Any())
-                    if (groups != null || helpAttr != null)
-                        aliases = new List<AliasAttribute>() { new AliasAttribute(mInfo.Name) };
-
-                // Create the new Option
-                Option o;
-                if (mInfo is PropertyInfo pInfo) o = new Option(pInfo, aliases, groups, helpAttr);
-                else if (mInfo is FieldInfo fInfo) o = new Option(fInfo, aliases, groups, helpAttr);
-                else if (mInfo is MethodInfo methInfo) o = new Option(methInfo, aliases, groups, helpAttr);
-                else throw new NotImplementedException();
-                
-                // Check for alias duplication.
-                if (_Options.Any(existing => existing.IsMatch(o.Name)))
-                    throw new NamingException("An Option with the name \"" + o.Name + "\" already exists");
-                if (o.Flag != '\0' && _Options.Any(existing => o.Flag == existing.Flag))
-                    throw new NamingException("An Option with the flag '" + o.Flag + "' already exists");
-                foreach (AliasAttribute a in aliases)
-                    if (_Options.Any(existing => existing.IsMatch(a.Alias)))
-                        throw new NamingException("Alias conflict for \"" + a.Alias + "\".)");
-
-                // With the new option, it shouldn't have a parser assigned yet.
-                o.Parser = null;
-
-                // Add the option to the appropriate groups.                
-                _Options.Add(o);
-                foreach (GroupAttribute ga in o.GroupsAttr)
+                // Create the new Option for a property or field.
+                Field o = null;
+                string name = mInfo.Name;
                 {
-                    Group g = _Groups.FirstOrDefault(existing => existing.Name == ga.Name);
-                    if (g == null)
+                    var nameAttr = aliasAttrs.First(a => a.Alias != null && !string.IsNullOrWhiteSpace(a.Alias));
+                    if (nameAttr != null) name = nameAttr.Alias;
+                }
+                if (mInfo is PropertyInfo pInfo) o = new Field(pInfo, name, helpAttrs.FirstOrDefault());
+                else if (mInfo is FieldInfo fInfo) o = new Field(fInfo, name, helpAttrs.FirstOrDefault());
+
+                // If we have an option, interpret the property or field.
+                if (o != null)
+                {
+                    bool notAdded = true;
+
+                    // Assign all the option's aliases and flags.
+                    foreach (AliasAttribute attr in aliasAttrs)
                     {
-                        _Groups.Add(g = new Group(ga.Name));
-                        if (ga.Required != null) g.Required = ga.Required;
+                        // Flag before alias, to look for naming conflicts.
+                        if (attr.Flag != '\0')
+                        {
+                            if (_Flags.ContainsKey(attr.Flag))
+                                throw new NamingException("An Option \"" + _Flags[attr.Flag].Option.Name
+                                                            + "\" with the flag '" + attr.Flag + "' already exists.");
+                            Flag f = new Flag(attr.Flag, o);
+                            _Flags[attr.Flag] = f;
+                            notAdded = false;
+                        }
+                        else if (attr.Alias == null || String.IsNullOrWhiteSpace(attr.Alias))
+                            throw new NamingException("No applied alias or flag in alias attribute.");
+                        else if (attr.Alias.Length == 1 && _Flags.ContainsKey(attr.Alias[0]))
+                            throw new NamingException("Naming conflict with between alias \"" + attr.Alias + "\" and flag '"
+                                                        + attr.Alias + "' on Option " + _Flags[attr.Alias[0]].Option.Name + ".");
+                        else if (_Aliases.ContainsKey(attr.Alias.ToLower()))
+                            throw new NamingException("An Option with the name \"" + attr.Alias + "\" already exists.");
+                        else
+                        {
+                            Alias a = new Alias(attr.Alias, o, attr.IsCaseSensitive);
+                            _Aliases[a._Lower] = a;
+                            notAdded = false;
+                        }
                     }
-                    g.Options.Add(o);
-                    if (ga.Required != g.Required)
+
+                    // If there was no alias assignment, assign under the member name.
+                    if (!aliasAttrs.Any() || notAdded)
                     {
-                        if (g.Required == null)
-                            g.Required = ga.Required;
-                        else if (ga.Required != null)
-                            throw new GroupException("Option \"" + o.Name + "\" has requirement inconsistency for group " + g.Name);
+                        if (_Aliases.ContainsKey(o.Name.ToLower()))
+                            throw new NamingException("An Option with the name \"" + o.Name + "\" already exists.");
+                        _Aliases[o.Name.ToLower()] = new Alias(o.Name, o, AliasAttribute.DEFAULT_CASE_SENSITIVE);
                     }
-                        
-                    foreach (string ea in ga.Exclusions)
+
+                    // With the new option, it shouldn't have a parser assigned yet.
+                    o.Parser = null;
+
+                    // Add the option to the appropriate groups.                
+                    foreach (GroupAttribute ga in groupAttrs)
                     {
-                        Group exc = _Groups.FirstOrDefault(existing => existing.Name == ea);
-                        if (exc == null) _Groups.Add(exc = new Group(ea));
-                        else if (exc == g)
-                            throw new GroupException("Option \"" + o.Name + "\" in group \"" + g.Name + "\" cannot exclude its own group.");
-                        g.Excluded.Add(exc);
-                        exc.Excluded.Add(g);
+                        if (!_Groups.TryGetValue(ga.Name, out Group g))
+                        {
+                            string nameLower = ga.Name.ToLower();
+                            _Groups[nameLower] = (g = new Group(nameLower));
+                            if (ga.Required != null) g.Required = ga.Required;
+                        }         
+                        if (ga.Required != g.Required)
+                        {
+                            if (g.Required == null)
+                                g.Required = ga.Required;
+                            else if (ga.Required != null)
+                                throw new GroupException("Option \"" + o.Name + "\" has requirement inconsistency for group " + g.Name);
+                        }
+                        g.Options.Add(o);
+
+                        foreach (string ea in ga.Exclusions)
+                        {
+                            if (!_Groups.TryGetValue(ea.ToLower(), out Group exc))
+                            {
+                                _Groups[ea.ToLower()] = (exc = new Group(ea.ToLower()));
+                                if (exc == g)
+                                    throw new GroupException("Option \"" + o.Name + "\" in group \"" + g.Name + "\" cannot exclude its own group.");
+                                g.Excluded.Add(exc);
+                                exc.Excluded.Add(g);
+                            }
+                        }
+                    }
+
+                }
+
+                // Apply the method to an existing option, or create a new method?
+                else if (mInfo is MethodInfo methodInfo)
+                {
+                    IEnumerable<MethodAttribute> methodAttrs = mInfo.GetCustomAttributes<MethodAttribute>();
+                    if (!methodAttrs.Any()) return;
+
+                    foreach (MethodAttribute methodAttr in methodAttrs)
+                    {
+                        string toLower = methodAttr.Invocation.ToLower();
+                        if (_Aliases.TryGetValue(toLower, out Alias a))
+                        {
+                            if (a.Field.Parser != null)
+                                throw new ProfileException("Option " + toLower + " is already associated with a parser.");
+                            a.Field.Parser = methodInfo;
+                        }
+                        else if (toLower.Length == 1 && _Flags.TryGetValue(methodAttr.Invocation[0], out Flag f))
+                        {
+                            if (f.Option.Parser != null)
+                                throw new ProfileException("Flag '" + f.Character + "' is already associated with a parser.");
+                            f.Option.Parser = methodInfo;
+                        }
+                        else if (_Invocations.TryGetValue(toLower, out Method m))
+                            throw new ProfileException("A method invoked by \"" + methodAttr.Invocation + "\" already exists.");
+                        else
+                            _Invocations[toLower] = new Method(methodInfo);
                     }
                 }
+
+
             }
         }
 
 
-        internal class Option
+        internal sealed class Field
         {
-
-            public readonly IEnumerable<AliasAttribute> Aliases;
-            public readonly IEnumerable<GroupAttribute> GroupsAttr;
             public readonly HelpAttribute Help;
-            public readonly MemberInfo Info;
-            public MethodInfo Parser = null;
-            public readonly char Flag = '\0';
-            public string Name => (Aliases != null && Aliases.Any()) ? Aliases.First().Alias
-                                : Info.Name;
+            public readonly MemberInfo Member;
+            public readonly string Name;
+            private MethodInfo _Parser = null;
+            private readonly Type _Type;
+            public MethodInfo Parser
+            {
+                get => _Parser; internal set
+                {
+                    if (value.ReturnType != _Type)
+                        throw new ProfileException("A parser must return the same type as the option (" + _Type.Name + ").");
+                    _Parser = value;
+                }
+            }
 
-            private Option(MemberInfo mInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help)
+            private Field(MemberInfo mInfo, string name, HelpAttribute help = null)
             {
                 List<AliasAttribute> aliasList = new List<AliasAttribute>();
-                this.Aliases = aliasList;
-                if (aliases == null) aliasList.Add(new AliasAttribute(true, mInfo.Name));
-                this.GroupsAttr = groups;
                 this.Help = help;
-                Info = mInfo;
-
-                foreach (AliasAttribute aliasAttr in aliases)
-                {
-                    if (aliasList.Count > 0 && aliasAttr == aliasList[0] && IsMatch(aliasAttr.Alias))
-                        throw new NamingException("Option \"" + this.Name + "\" has duplicate alias \"" + aliasAttr.Alias + "\".");
-                    if (aliasAttr.Alias.Length == 1)
-                    {
-                        if (typeof(T) != typeof(bool) && typeof(T) != typeof(Boolean))
-                            throw new StructureException("Flag alias \"" + aliasAttr.Alias[0] + "\" my be applied only to bool arguments.");
-                        if (Flag != '\0')
-                            throw new StructureException("Option \"" + this.Name + "\" has flag conflict between '" + Flag + "' and \"" + aliasAttr.Alias[0] + "\".");
-                        Flag = aliasAttr.Alias[0];
-                    }
-                    aliasList.Add(aliasAttr);
-                }
-
-                if (groups.Select(g => g.Name).Distinct().Count() != groups.Count())
-                    throw new GroupException("On Option \"" + this.Name + "\", duplicate group names.");
-                foreach (GroupAttribute ga in groups)
-                    if (ga.Exclusions.Distinct().Count() != ga.Exclusions.Count())
-                        throw new ParsingException("On Option \"" + this.Name + "\", in group \"" + ga.Name + "\", there exists a duplicate exclusion.");
+                this.Member = mInfo;                
             }
-            public Option(PropertyInfo pInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help)
-                : this((MemberInfo)pInfo, aliases, groups, help) { }
-            public Option(FieldInfo fInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help)
-                : this((MemberInfo)fInfo, aliases, groups, help) { }
-            public Option(MethodInfo mInfo, IEnumerable<AliasAttribute> aliases, IEnumerable<GroupAttribute> groups, HelpAttribute help)
-                : this((MemberInfo)mInfo, aliases, groups, help) { }
-
-            private bool _IsSet = false;
-            private object _Value = null;            
-            public object Value { get => _IsSet ? (T)_Value : default(T); set { _Value = value; _IsSet = true; } }
-            public void Reset() => _IsSet = false;
-
-            public bool IsMatch(char chr) => chr == Flag;
-            public bool IsMatch(string arg)
-            {
-                if (arg == Name) return true;
-                if (Aliases == null || !Aliases.Any()) return arg.ToLower() == Name.ToLower();
-                if (Aliases == null) return false;
-                foreach (AliasAttribute aliasAttr in Aliases)
-                {
-                    if (aliasAttr.IsCaseSensitive && arg == aliasAttr.Alias)
-                        return true;
-                    else if (arg.ToLower() == aliasAttr.Alias.ToLower())
-                        return true;
-                }
-                return false;
-            }
-
-            public void Throw()
-            {
-                if (Help != null) throw new ParsingException(Help._Message);
-                throw new ParsingException(Name);
-            }
+            public Field(PropertyInfo pInfo, string name, HelpAttribute help = null)
+                : this((MemberInfo)pInfo, name, help) { _Type = pInfo.PropertyType; }
+            public Field(FieldInfo fInfo, string name, HelpAttribute help)
+                : this((MemberInfo)fInfo, name, help) { _Type = fInfo.FieldType; }
+           
+            internal bool IsSet = false;
+            private object _Value = null;
+            public object Value { get => IsSet ? _Value : null; set { _Value = value; IsSet = true; } }
+            public void Reset() => IsSet = false;
 
             public bool TryParse(string argValue, object hostObject)
             {
-                if (Value != null)
+                if (IsSet)
                     throw new ParsingException("Argument \"" + Name + "\" is supplied more than once.");
-                Value = default(T);
-                if (String.IsNullOrWhiteSpace(argValue))
-                    return false;                
+                _Value = null;
+                if (string.IsNullOrWhiteSpace(argValue))
+                    return false;  
+                
+                // If a parser is assigned, try that first.
                 if (Parser != null)
                 {
                     try
@@ -205,8 +232,6 @@ namespace Arguments
                         else
                         {
                             object ret = Parser.Invoke(hostObject, new string[] { argValue });
-                            if (ret.GetType() != Parser.ReturnType)
-                                throw new ArgumentException("The parser for \"" + Name  + "\" returned type " + ret.GetType().Name + ".");
                             Value = (T)ret;
                         }
                     }
@@ -217,40 +242,75 @@ namespace Arguments
                     return Value != null;
                 }
 
-                Type t = typeof(T);                
-                if (t== typeof(string) || t == typeof(String))
+                // Try some of the standard types.
                 {
-                    _Value = argValue;
-                    return true;
+                    if (_Type == typeof(string) || _Type == typeof(String))
+                    {
+                        _Value = argValue;
+                        return true;
+                    }
+                    else if (_Type == typeof(bool) || _Type == typeof(Boolean))
+                    {
+                        bool success = bool.TryParse(argValue, out bool b);
+                        _Value = b;
+                        return success;
+                    }
+                    else if (_Type == typeof(int) || _Type == typeof(Int32))
+                    {
+                        bool success = int.TryParse(argValue, out int i);
+                        _Value = i;
+                        return success;
+                    }
+                    else if (_Type == typeof(float) || _Type == typeof(Single))
+                    {
+                        bool success = float.TryParse(argValue, out float f);
+                        _Value = f;
+                        return success;
+                    }
+                    else if (_Type == typeof(double) || _Type == typeof(Double))
+                    {
+                        bool success = double.TryParse(argValue, out double d);
+                        _Value = d;
+                        return success;
+                    }
                 }
-                else if (t == typeof(bool) || t == typeof(Boolean))
-                {
-                    bool success = bool.TryParse(argValue, out bool b);
-                    _Value = b;
-                    return success;
-                }
-                else if (t == typeof(int) || t == typeof(Int32))
-                {
-                    bool success = int.TryParse(argValue, out int i);
-                    _Value = i;
-                    return success;
-                }
-                else if (t == typeof(float) || t == typeof(Single))
-                {
-                    bool success = float.TryParse(argValue, out float f);
-                    _Value = f;
-                    return success;
-                }
-                else if (t == typeof(double) || t == typeof(Double))
-                {
-                    bool success = double.TryParse(argValue, out double d);
-                    _Value = d;
-                    return success;
-                }
+                
                 return false;
             }
 
             public override string ToString() => "<" + Name + ">" + (Value == null ? "null" : Value.ToString()) + "</" + Name + ">";
+
+            internal void Throw()
+            {
+                if (Help != null) throw new ParsingException(Help._Message);
+                throw new ParsingException("Invalid syntax with argument " + Name);
+            }
+        }
+
+        private class Flag
+        {
+            public readonly char Character;
+            public readonly Field Option;
+            public Flag(char flag, Field option) { this.Character = flag;this.Option = option; }
+        }
+
+        internal class Alias
+        {
+            internal readonly string _Lower;
+            public readonly string Name;
+            public readonly bool IsCaseSensitive;
+            public readonly Field Field;
+            public Alias(string name, Field option, bool isCaseSensitive = false)
+            {
+                this.Name = name;
+                this.Field = option;
+                this.IsCaseSensitive = isCaseSensitive;
+                _Lower = name.ToLower();
+            }
+
+            public override bool Equals(object obj) => _Lower == ((Alias)obj)._Lower;
+
+            public override int GetHashCode() => _Lower.GetHashCode();
         }
 
 
@@ -258,16 +318,16 @@ namespace Arguments
         {
             public readonly string Name;
             public readonly HashSet<Group> Excluded = new HashSet<Group>();
-            public readonly IList<Option> Options = new List<Option>();
-            public bool? Required;
+            public readonly IList<Field> Options = new List<Field>();
+            public bool? Required { get; internal set; }
 
-            public Group (string name, params Option[] options)
+            public Group (string name, params Field[] options)
             {
                 this.Name = name;
-                foreach (Option o in options)
+                foreach (Field o in options)
                     Add(o);
             }            
-            public void Add(Option option)
+            public void Add(Field option)
             {
                 if (Options.Any(o => option.Name == o.Name))
                     throw new GroupException("A member with name " + option.Name + " already exists on group "
@@ -279,71 +339,78 @@ namespace Arguments
         }
 
 
+        private class Method
+        {
+            public readonly MethodInfo MethodInfo;
+            public Method(MethodInfo mInfo) { this.MethodInfo = mInfo; }
+        }
+
+
         private static readonly char[] ArgSplitters = { '=', ':', ' ', '?' };
-        /// <summary>
-        /// Parses a single argument.  Returns the number of arguments parsed.
-        /// </summary>
+        /// <summary>Parses a single argument.  Returns the number of arguments parsed.</summary>
+        public int ParseArg(object hostObj, string arg, string nextArg = null) => ParseArg(hostObj, arg, ArgSplitters, nextArg);
+        /// <summary>Parses a single argument.  Returns the number of arguments parsed.</summary>
         /// <param name="arg">The whitespace-delineated argument to parse.</param>
         /// <param name="hostObj">The object whose settings are being set.</param>
         /// <param name="nextArg">Optional.  The next argument after the current one.  If it becomes part of the 
         /// parse, this method will return 2 (representing the number of arguments parsed).</param>
+        /// <param name="splitters">The characters on which a single argument will be split in two.</param>
         /// <returns>Returns 0, 1, or 2 (if nextArg is supplied), which is the number of arguments that have been parsed.</returns>
-        public int ParseArg(object hostObj, string arg, string nextArg = null)
+        public int ParseArg(object hostObj, string arg, char[] splitters, string nextArg = null)
         {
             bool split = false;
-            if (String.IsNullOrWhiteSpace(arg)) return 0;
+            if (string.IsNullOrWhiteSpace(arg)) return 0;
 
-            // An option split by '=', ':', or " " ?
-            int splitIdx = arg.IndexOfAny(ArgSplitters);
-            if (splitIdx > 0 && splitIdx < arg.Length - 1)
+            // An option split by arg splitters?
             {
-                nextArg = arg.Substring(splitIdx + 1);
-                arg = arg.Substring(0, splitIdx);
-                split = true;
+                int splitIdx = arg.IndexOfAny(splitters);
+                if (splitIdx > 0 && splitIdx < arg.Length - 1)
+                {
+                    nextArg = arg.Substring(splitIdx + 1);
+                    arg = arg.Substring(0, splitIdx);
+                    split = true;
+                }
             }
 
-            // Aggregated flag options?  All options in an aggregated flag must match options in a group, or none 
-            // of them can.
+            // Boolean aggregated flag options?  All options in an aggregated flag must match options in a group, or 
+            // none of them can.
             if (arg[0] == '-' && arg.Length > 1 && arg[1] != '-')
             {
                 if (arg.Length == 1) throw new ParsingException("Symbol '-' should precede a flag.");
-                char[] aggFlags = arg.Substring(1).ToCharArray();
+                arg = arg.TrimStart('-');
+                char[] aggFlags = arg.ToCharArray();
 
                 // If every flag has an associated option, interpret the chars as flags.
-                Option[] joined = aggFlags.Join(_Options, flag => flag, opt => opt.Flag, (flag, opt) => opt).ToArray();
-                if (joined.Length == aggFlags.Length)
+                if (aggFlags.All(flag => _Flags.Keys.Contains(flag)))
                 {
-                    foreach (Option existing in joined)
-                        existing.Value = Chosen;
+                    foreach (char flag in aggFlags)
+                        _Flags[flag].Option.Value = Chosen;
                     return 1;
                 }
-
-                // Otherwise, strike the '-' chars and interpret the remainder as an option.
-                int notFlagIdx = arg.First(chr => chr != '-');
-                if (notFlagIdx < 0) throw new ParsingException("Symbol '-' should precede an option.");
-                arg = arg.Substring(notFlagIdx);
             }
 
-            // If there's no associated option, it cannot be parsed.
-            Option o = _Options.FirstOrDefault(existing => existing.IsMatch(arg));
-            if (o == null)
+            // If there's no associated field, it cannot be parsed.
+            string toLower = arg.ToLower();
+            if (!_Aliases.TryGetValue(toLower, out Alias alias))
                 throw new ParsingException("Argument \"" + arg + "\" is not defined.");
+            
 
             // A single-arg (bool) parse?  
             if (!split && (typeof(bool).IsAssignableFrom(typeof(T)) || typeof(Boolean).IsAssignableFrom(typeof(T))))
             {
-                o.Value = Chosen;
+                alias.Field.Value = Chosen;
                 return 1;
             }
 
             // In all other cases, we're looking at a 2-arg parse.  If there's no nextArg, that's a bad thing.
             if (nextArg == null)
-                o.Throw();
+                alias.Field.Throw();
 
             // Failure to parse requires a throw.
-            if (!o.TryParse(nextArg, hostObj))
-                o.Throw();
+            if (!alias.Field.TryParse(nextArg, hostObj))
+                alias.Field.Throw();
 
+            // If it was split, only one of the original arguments has been parsed.
             return split ? 1 : 2;
         }
 
@@ -352,25 +419,25 @@ namespace Arguments
         {
             // Step #1 - Check for inactive-but-required groups.
             {
-                Group g = _Groups.FirstOrDefault(g1 => g1.Required == true && !g1.IsActive);
+                Group g = _Groups.Values.FirstOrDefault(g1 => g1.Required == true && !g1.IsActive);
                 if (g != null) throw new ParsingException("Required group " + g.Name + " is not active.");
             }
 
             // Step #2 - Check for group exclusion conflicts.
             {
-                var conflicted = _Groups.Where(g => g.Excluded.Any(g1 => g1.IsActive));
+                var conflicted = _Groups.Values.Where(g => g.Excluded.Any(g1 => g1.IsActive));
                 if (conflicted.Any())
                     throw new ParsingException("There are " + conflicted.Count() + " groups which are mutually exclusive.");
             }
 
             // Step #3 - Check for unfulfilled options.
             {
-                IEnumerable<Option> unfulfilled =
-                    _Options.Where(o => o.Value != null
-                                        && o.GroupsAttr.Any()
-                                        && _Groups.Where(g => g.Options.Contains(o)).All(g => !g.IsActive));
-                if (unfulfilled.Any())
-                    throw new ParsingException("Argument " + unfulfilled.First().Name + " requires additional arguments.");
+                //IEnumerable<Field> unfulfilled =
+                //    _Aliases.Values.Where(a => a.Field.Value != null
+                //                        && a.Groups.Any()
+                //                        && _Groups.Where(g => g.Options.Contains(o)).All(g => !g.IsActive));
+                //if (unfulfilled.Any())
+                //    throw new ParsingException("Argument " + unfulfilled.First().Name + " requires additional arguments.");
             }
         }
 
@@ -382,17 +449,17 @@ namespace Arguments
         {
 
             // Step #3 - Finally, assign the values to the properties/fields on the result object.
-            foreach (Option o in _Options.Where(o1 => o1.Value != null))
+            foreach (Field o in _Aliases.Values.Select(a => a.Field).Where(f => f.IsSet))
             {
                 try
                 {
-                    if (o.Info is PropertyInfo pInfo)
+                    if (o.Member is PropertyInfo pInfo)
                     {
                         if (!pInfo.PropertyType.IsAssignableFrom(o.Value.GetType()))
                             throw new ParsingException("Parser for argument " + o.Name + " returned invalid type " + o.Value.GetType().Name + ", must be a " + pInfo.PropertyType.Name + ".");
                         pInfo.SetValue(resultObj, o.Value);
                     }
-                    else if (o.Info is FieldInfo fInfo)
+                    else if (o.Member is FieldInfo fInfo)
                     {
                         if (!fInfo.FieldType.IsAssignableFrom(o.Value.GetType()))
                             throw new ParsingException("Parser for argument " + o.Name + " returned invalid type " + o.Value.GetType().Name + ", must be a " + fInfo.FieldType + ".");
@@ -446,7 +513,7 @@ namespace Arguments
         /// <summary>Resets the stored value of all options.</summary>
         public void ResetAll()
         {
-            foreach (Option o in _Options) o.Reset();
+            foreach (Field f in _Aliases.Values.Select(a =>  a.Field)) f.Reset();
         }
 
 

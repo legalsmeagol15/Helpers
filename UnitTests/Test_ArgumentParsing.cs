@@ -43,13 +43,13 @@ namespace UnitTests
             [Group("testing")]
             internal bool Test = false;
 
-            [Alias(false, "uploadmbps")]
-            [Alias(false, "uploadmean")]
+            [Alias("uploadmbps",  false)]
+            [Alias("uploadmean", false)]
             [Group("testing")]
             internal double UploadMbps = 0.0;
 
-            [Alias(false, "DownloadMbps")]
-            [Alias(false, "downloadmean")]
+            [Alias("DownloadMbps", false)]
+            [Alias("downloadmean", false)]
             [Group("testing")]
             internal double DownloadMbps = 0.0;
         }
