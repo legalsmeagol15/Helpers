@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Arguments
 {
-    
+
     /// <summary>
     /// Derived through reflection from the code of the options object.
     /// </summary>
@@ -20,8 +20,8 @@ namespace Arguments
         private readonly IDictionary<char, Flag> _Flags = new Dictionary<char, Flag>();
         private readonly IDictionary<string, Group> _Groups = new Dictionary<string, Group>();
         private readonly IDictionary<string, MethodInfo> _Invocations = new Dictionary<string, MethodInfo>();
-        
-        
+
+
         private static readonly object Chosen = true;
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace Arguments
             foreach (MethodInfo mInfo in type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
                 _Add_Throw(mInfo);
             foreach (MethodInfo mInfo in type.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance))
-                _Add_Throw(mInfo);            
+                _Add_Throw(mInfo);
 
             void _Add_Throw(MemberInfo mInfo)
             {
@@ -121,7 +121,7 @@ namespace Arguments
                             string nameLower = ga.Name.ToLower();
                             _Groups[nameLower] = (g = new Group(nameLower));
                             if (ga.Required != null) g.Required = ga.Required;
-                        }         
+                        }
                         if (ga.Required != g.Required)
                         {
                             if (g.Required == null)
@@ -129,7 +129,7 @@ namespace Arguments
                             else if (ga.Required != null)
                                 throw new GroupException("Option \"" + o.Name + "\" has requirement inconsistency for group " + g.Name);
                         }
-                        g.Options.Add(o);
+                        g.Fields.Add(o);
 
                         foreach (string ea in ga.Exclusions)
                         {
@@ -236,7 +236,7 @@ namespace Arguments
             }
             public void Reset() => IsSet = false;
 
-            public bool TryParse(string argValue, object hostObject)
+            public bool TryParse(object hostObject, string argValue)
             {
                 if (string.IsNullOrWhiteSpace(argValue))
                     return false;
@@ -250,7 +250,7 @@ namespace Arguments
                         {
                             Parser.Invoke(hostObject, new string[] { argValue });
                             Value = Chosen;
-                        }                            
+                        }
                         else
                         {
                             Value = Parser.Invoke(hostObject, new string[] { argValue });
@@ -258,7 +258,7 @@ namespace Arguments
                     }
                     catch (Exception ex)
                     {
-                        throw new Arguments.ParsingException("Assigned parser for \"" + Name + "\" failed to parse " + argValue, ex );
+                        throw new Arguments.ParsingException("Assigned parser for \"" + Name + "\" failed to parse " + argValue, ex);
                     }
                     return Value != null;
                 }
@@ -295,7 +295,7 @@ namespace Arguments
                         return success;
                     }
                 }
-                
+
                 return false;
             }
 
@@ -313,7 +313,7 @@ namespace Arguments
         {
             public readonly char Character;
             public readonly Field Field;
-            public Flag(char flag, Field option) { this.Character = flag;this.Field = option; }
+            public Flag(char flag, Field option) { this.Character = flag; this.Field = option; }
         }
 
 
@@ -342,27 +342,27 @@ namespace Arguments
         {
             public readonly string Name;
             public readonly HashSet<Group> Excluded = new HashSet<Group>();
-            public readonly IList<Field> Options = new List<Field>();
+            public readonly IList<Field> Fields = new List<Field>();
             public bool? Required { get; internal set; }
 
-            public Group (string name, params Field[] options)
+            public Group(string name, params Field[] options)
             {
                 this.Name = name;
                 foreach (Field o in options)
                     Add(o);
-            }            
+            }
             public void Add(Field option)
             {
-                if (Options.Any(o => option.Name == o.Name))
+                if (Fields.Any(o => option.Name == o.Name))
                     throw new GroupException("A member with name " + option.Name + " already exists on group "
                                                 + Name + ".");
-                Options.Add(option);
+                Fields.Add(option);
 
             }
-            public bool IsActive => Options.All(o => o.Value != null);
+            public bool IsActive => Fields.All(o => o.IsSet);
             public override string ToString() => "Group \"" + this.Name + "\"";
         }
-        
+
 
         private static readonly char[] ArgSplitters = { '=', ':', ' ', '/', '?' };
         /// <summary>Parses a single argument.  Returns the number of arguments parsed.</summary>
@@ -384,7 +384,7 @@ namespace Arguments
                 int splitIdx = arg.IndexOfAny(splitters);
                 if (splitIdx > 0 && splitIdx < arg.Length - 1)
                 {
-                    nextArg = arg.Substring(splitIdx + 1).TrimStart(splitters);
+                    nextArg = arg.Substring(splitIdx + 1);
                     arg = arg.Substring(0, splitIdx);
                     split = true;
                 }
@@ -429,7 +429,7 @@ namespace Arguments
 
 
             // A single-arg (bool) parse?  
-            else if (!split && (typeof(bool).IsAssignableFrom(alias.Field.Type) 
+            else if (!split && (typeof(bool).IsAssignableFrom(alias.Field.Type)
                             || typeof(Boolean).IsAssignableFrom(alias.Field.Type)))
             {
                 alias.Field.Value = Chosen;
@@ -441,10 +441,10 @@ namespace Arguments
                 alias.Field.Throw();
 
             // Failure to parse requires a throw.
-            else if (!alias.Field.TryParse(nextArg, hostObj))
+            else if (!alias.Field.TryParse(hostObj, nextArg))
                 alias.Field.Throw();
 
-            
+
 
             // If it was split, only one of the original arguments has been parsed.
             return split ? 1 : 2;
@@ -456,7 +456,11 @@ namespace Arguments
             // Step #1 - Check for inactive-but-required groups.
             {
                 Group g = _Groups.Values.FirstOrDefault(g1 => g1.Required == true && !g1.IsActive);
-                if (g != null) throw new ParsingException("Required group " + g.Name + " is not active.");
+                if (g != null)
+                {
+                    string notActive = string.Join(",", g.Fields.Select(o => o.Name));
+                    throw new ParsingException("Required group \"" + g.Name + "\" is not active with the following fields:  " + notActive);
+                }
             }
 
             // Step #2 - Check for group exclusion conflicts.
@@ -525,19 +529,19 @@ namespace Arguments
             for (int i = 0; i < strs.Length; i++)
             {
                 string arg = strs[i];
-                
+
                 // An ignored option?
                 if (ignores != null && ignores.Any(ig => ig == arg))
                     continue;
 
-                int parsed = Parse(hostObj, arg, i == strs.Length-1 ? null : strs[i + 1]);
+                int parsed = Parse(hostObj, arg, i == strs.Length - 1 ? null : strs[i + 1]);
                 if (parsed == 0) throw new Exception("Empty arguments cannot be parsed.");
                 i += (parsed - 1);
             }
 
             // Step #2 Validate.
             Validate();
-            
+
             // Step #3 Apply
             Apply(hostObj);
 
@@ -549,7 +553,7 @@ namespace Arguments
         /// <summary>Resets the stored value of all options.</summary>
         public void ResetAll()
         {
-            foreach (Field f in _Aliases.Values.Select(a =>  a.Field)) f.Reset();
+            foreach (Field f in _Aliases.Values.Select(a => a.Field)) f.Reset();
         }
 
 

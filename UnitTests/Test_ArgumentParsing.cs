@@ -51,7 +51,27 @@ namespace UnitTests
             args[5] = "User-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)";
 
             ExampleHttp http = Arguments.Options.Parse<ExampleHttp>(args);
+
+            // Do a timing.
+            var prof = new Arguments.Profile<ExampleHttp>();
+            int i = 0;
+            DateTime start = DateTime.Now;
+            for (; i < (1<<17); i++)
+            {
+                ExampleHttp e = new ExampleHttp();
+                
+                foreach (string arg in args)
+                    prof.Parse(e, arg);
+                prof.Validate();
+                prof.Apply(e);
+                prof.ResetAll();
+            }
+            DateTime end = DateTime.Now;
+
+            Console.WriteLine("Performed " + i + " parsings at " + ((end - start).TotalMilliseconds / i) + " ms each.");
         }
+
+
 
         public class ExampleHttp
         {
@@ -70,7 +90,10 @@ namespace UnitTests
             [Invocation("GET")]
             private void InterpretGet(string value)
             {
-                Console.WriteLine("Whatever");
+                string[] split = value.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                Request = split[0];
+                split = split[1].Split('/');
+                Http = split[1];
             }
             [Invocation("Host")]
             private IPAddress InterpretHost(string value)
