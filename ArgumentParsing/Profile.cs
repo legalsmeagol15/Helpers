@@ -294,6 +294,23 @@ namespace Arguments
                         Value = d;
                         return success;
                     }
+                    else if (Type == typeof(byte) || Type == typeof(Byte))
+                    {
+                        byte[] bytes = System.Convert.FromBase64String(argValue);
+                        if (bytes.Length != 1) return false;
+                        Value = bytes[0];
+                    }
+                    else if (Type == typeof(char) || Type == typeof(Char))
+                    {
+                        if (argValue.Length != 1) return false;
+                        Value = argValue[0];
+                        return true;
+                    }
+                    else if (Type == typeof(byte[]) || Type == typeof(Byte[]))
+                    {
+                        Value = System.Convert.FromBase64String(argValue);
+                        return true;
+                    }
                 }
 
                 return false;
@@ -344,6 +361,7 @@ namespace Arguments
             public readonly HashSet<Group> Excluded = new HashSet<Group>();
             public readonly IList<Field> Fields = new List<Field>();
             public bool? Required { get; internal set; }
+            public bool IsRequired => Required != null && Required == true;
 
             public Group(string name, params Field[] options)
             {
@@ -372,7 +390,8 @@ namespace Arguments
         /// <param name="hostObj">The object whose settings are being set.</param>
         /// <param name="nextArg">Optional.  The next argument after the current one.  If it becomes part of the 
         /// parse, this method will return 2 (representing the number of arguments parsed).</param>
-        /// <param name="splitters">The characters on which a single argument will be split in two.</param>
+        /// <param name="splitters">The characters on which a single argument will be split into a key/value pair.  If 
+        /// there are multiple occurrences of these splitters, the argument will be split only on the first.</param>
         /// <returns>Returns 0, 1, or 2 (if nextArg is supplied), which is the number of arguments that have been parsed.</returns>
         public int Parse(T hostObj, string arg, char[] splitters, string nextArg = null)
         {
@@ -554,6 +573,37 @@ namespace Arguments
         public void ResetAll()
         {
             foreach (Field f in _Aliases.Values.Select(a => a.Field)) f.Reset();
+        }
+
+
+        /// <summary>Converts the currently-stored options into a string with the indicated separators.</summary>
+        /// <param name="keyValueSeparator">Optional.  If omitted, each key-value pair will be separated by the 
+        /// string ": \t".</param>
+        /// <param name="argSeparator">Optional.  If omitted, each argument will be separated by the string "\r\n".</param>
+        public string Serialize(string keyValueSeparator = ": \t", string argSeparator = "\r\n")
+        {
+            StringBuilder sb = new StringBuilder();
+            HashSet<Field> fields = new HashSet<Field>();
+            foreach (Alias a in _Aliases.Values)
+                if (fields.Add(a.Field))
+                    _TryAppend(a.Field);
+            foreach (Flag f in _Flags.Values)
+                if (fields.Add(f.Field))
+                    _TryAppend(f.Field);
+            foreach (Group g in _Groups.Values)
+                foreach (Field f in g.Fields)
+                    if (fields.Add(f))
+                        _TryAppend(f);
+
+            return sb.ToString();
+
+            void _TryAppend(Field field)
+            {
+                if (field.IsSet)
+                    sb.Append(field.Name + keyValueSeparator + field.Value.ToString() + argSeparator);
+                else if (_Groups.Values.Where(g => g.Required==true).Where(g => g.Fields.Contains(field)).Any())
+                    sb.Append(field.Name + keyValueSeparator + "" + argSeparator);
+            }
         }
 
 

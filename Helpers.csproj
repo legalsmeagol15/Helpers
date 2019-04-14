@@ -75,7 +75,7 @@
     <Compile Include="DataStructures\Maps\TupleDictionary.cs" />
     <Compile Include="DataStructures\Threading\PipelineWorker.cs" />
     <Compile Include="DataStructures\Threading\RedoWorker.cs" />
-    <Compile Include="DataStructures\ValueChangedArgs.cs" />
+    <Compile Include="Events.cs" />
     <Compile Include="Mathematics\Functions\Simple.cs" />
     <Compile Include="Mathematics\Random.cs" />
     <Compile Include="Networking.cs" />

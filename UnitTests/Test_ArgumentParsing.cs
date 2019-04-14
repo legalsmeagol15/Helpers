@@ -67,7 +67,6 @@ namespace UnitTests
                 prof.ResetAll();
             }
             DateTime end = DateTime.Now;
-
             Console.WriteLine("Performed " + i + " parsings at " + ((end - start).TotalMilliseconds / i) + " ms each.");
         }
 
