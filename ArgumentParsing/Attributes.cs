@@ -67,13 +67,17 @@ namespace Arguments
     /// Marks the properties and fields that will be specially parsed from an argument array.
     /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
-    public sealed class MethodAttribute : Attribute
+    public sealed class InvocationAttribute : Attribute
     {
         /// <summary>The property names parsed by this method.</summary>
         public readonly string Invocation;
 
         /// <summary>Creates a new pattern attribute specifying the pattern type and the applicable parser.</summary>
-        public MethodAttribute(string invocation) { this.Invocation = invocation; }
+        public InvocationAttribute(string invocation) { this.Invocation = invocation; }
     }
+
+    /// <summary>Use this attribute to mark a member as unavailable for automatic parsing.</summary>
+    [AttributeUsage(validOn: AttributeTargets.All, AllowMultiple = true, Inherited = true)]
+    public sealed class NoParseAttribute : Attribute { }
 
 }

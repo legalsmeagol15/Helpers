@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Arguments
 {
-
+    
     /// <summary>
     /// Derived through reflection from the code of the options object.
     /// </summary>
@@ -19,7 +19,7 @@ namespace Arguments
         private readonly IDictionary<string, Alias> _Aliases = new Dictionary<string, Alias>();
         private readonly IDictionary<char, Flag> _Flags = new Dictionary<char, Flag>();
         private readonly IDictionary<string, Group> _Groups = new Dictionary<string, Group>();
-        private readonly IDictionary<string, Method> _Invocations = new Dictionary<string, Method>();
+        private readonly IDictionary<string, MethodInfo> _Invocations = new Dictionary<string, MethodInfo>();
         
         
         private static readonly object Chosen = true;
@@ -52,6 +52,7 @@ namespace Arguments
 
             void _Add_Throw(MemberInfo mInfo)
             {
+                if (mInfo.GetCustomAttributes<NoParseAttribute>().Any()) return;
                 IEnumerable<AliasAttribute> aliasAttrs = mInfo.GetCustomAttributes<AliasAttribute>();
                 IEnumerable<GroupAttribute> groupAttrs = mInfo.GetCustomAttributes<GroupAttribute>();
                 IEnumerable<HelpAttribute> helpAttrs = mInfo.GetCustomAttributes<HelpAttribute>();
@@ -80,7 +81,7 @@ namespace Arguments
                         if (attr.Flag != '\0')
                         {
                             if (_Flags.ContainsKey(attr.Flag))
-                                throw new NamingException("An Option \"" + _Flags[attr.Flag].Option.Name
+                                throw new NamingException("An Option \"" + _Flags[attr.Flag].Field.Name
                                                             + "\" with the flag '" + attr.Flag + "' already exists.");
                             Flag f = new Flag(attr.Flag, o);
                             _Flags[attr.Flag] = f;
@@ -90,7 +91,7 @@ namespace Arguments
                             throw new NamingException("No applied alias or flag in alias attribute.");
                         else if (attr.Alias.Length == 1 && _Flags.ContainsKey(attr.Alias[0]))
                             throw new NamingException("Naming conflict with between alias \"" + attr.Alias + "\" and flag '"
-                                                        + attr.Alias + "' on Option " + _Flags[attr.Alias[0]].Option.Name + ".");
+                                                        + attr.Alias + "' on Option " + _Flags[attr.Alias[0]].Field.Name + ".");
                         else if (_Aliases.ContainsKey(attr.Alias.ToLower()))
                             throw new NamingException("An Option with the name \"" + attr.Alias + "\" already exists.");
                         else
@@ -148,28 +149,43 @@ namespace Arguments
                 // Apply the method to an existing option, or create a new method?
                 else if (mInfo is MethodInfo methodInfo)
                 {
-                    IEnumerable<MethodAttribute> methodAttrs = mInfo.GetCustomAttributes<MethodAttribute>();
+                    IEnumerable<InvocationAttribute> methodAttrs = mInfo.GetCustomAttributes<InvocationAttribute>();
                     if (!methodAttrs.Any()) return;
 
-                    foreach (MethodAttribute methodAttr in methodAttrs)
+                    foreach (InvocationAttribute methodAttr in methodAttrs)
                     {
+                        // An invocation must accept exactly one method, a string.
                         string toLower = methodAttr.Invocation.ToLower();
-                        if (_Aliases.TryGetValue(toLower, out Alias a))
+                        ParameterInfo[] parms = methodInfo.GetParameters();
+                        if (parms.Length != 1)
+                            throw new ProfileException("Method must accept exactly 1 argument, a string.");
+                        else if (!typeof(string).IsAssignableFrom(parms[0].ParameterType) && !typeof(String).IsAssignableFrom(parms[0].ParameterType))
+                            throw new ProfileException("Invocation " + methodAttr.Invocation + " must take a string as its first and only argument.");
+                        else if (_Aliases.TryGetValue(toLower, out Alias a))
                         {
+                            // The method applies to an existing option.  It must return the correct type, and accept 
+                            // a string.
                             if (a.Field.Parser != null)
                                 throw new ProfileException("Option " + toLower + " is already associated with a parser.");
+                            if (methodInfo.ReturnType != a.Field.Type)
+                                throw new ProfileException("Parser assigned to " + a.Field.Name + " must return type " + a.Field.Type.Name + ".");
                             a.Field.Parser = methodInfo;
                         }
                         else if (toLower.Length == 1 && _Flags.TryGetValue(methodAttr.Invocation[0], out Flag f))
                         {
-                            if (f.Option.Parser != null)
+                            if (f.Field.Parser != null)
                                 throw new ProfileException("Flag '" + f.Character + "' is already associated with a parser.");
-                            f.Option.Parser = methodInfo;
+                            f.Field.Parser = methodInfo;
                         }
-                        else if (_Invocations.TryGetValue(toLower, out Method m))
+                        else if (_Invocations.ContainsKey(toLower))
                             throw new ProfileException("A method invoked by \"" + methodAttr.Invocation + "\" already exists.");
                         else
-                            _Invocations[toLower] = new Method(methodInfo);
+                        {
+                            // The method is a free invocation.
+                            if (methodInfo.ReturnType != typeof(void))
+                                throw new ProfileException("Invocation " + toLower + " must return type void.");
+                            _Invocations[toLower] = methodInfo;
+                        }
                     }
                 }
 
@@ -237,8 +253,7 @@ namespace Arguments
                         }                            
                         else
                         {
-                            object ret = Parser.Invoke(hostObject, new string[] { argValue });
-                            Value = (T)ret;
+                            Value = Parser.Invoke(hostObject, new string[] { argValue });
                         }
                     }
                     catch (Exception ex)
@@ -293,12 +308,14 @@ namespace Arguments
             }
         }
 
+
         private class Flag
         {
             public readonly char Character;
-            public readonly Field Option;
-            public Flag(char flag, Field option) { this.Character = flag;this.Option = option; }
+            public readonly Field Field;
+            public Flag(char flag, Field option) { this.Character = flag;this.Field = option; }
         }
+
 
         internal class Alias
         {
@@ -317,6 +334,7 @@ namespace Arguments
             public override bool Equals(object obj) => _Lower == ((Alias)obj)._Lower;
 
             public override int GetHashCode() => _Lower.GetHashCode();
+            public override string ToString() => "Alias \"" + Name + "\"";
         }
 
 
@@ -342,19 +360,13 @@ namespace Arguments
 
             }
             public bool IsActive => Options.All(o => o.Value != null);
+            public override string ToString() => "Group \"" + this.Name + "\"";
         }
+        
 
-
-        private class Method
-        {
-            public readonly MethodInfo MethodInfo;
-            public Method(MethodInfo mInfo) { this.MethodInfo = mInfo; }
-        }
-
-
-        private static readonly char[] ArgSplitters = { '=', ':', ' ', '?' };
+        private static readonly char[] ArgSplitters = { '=', ':', ' ', '/', '?' };
         /// <summary>Parses a single argument.  Returns the number of arguments parsed.</summary>
-        public int ParseArg(object hostObj, string arg, string nextArg = null) => ParseArg(hostObj, arg, ArgSplitters, nextArg);
+        public int Parse(T hostObj, string arg, string nextArg = null) => Parse(hostObj, arg, ArgSplitters, nextArg);
         /// <summary>Parses a single argument.  Returns the number of arguments parsed.</summary>
         /// <param name="arg">The whitespace-delineated argument to parse.</param>
         /// <param name="hostObj">The object whose settings are being set.</param>
@@ -362,7 +374,7 @@ namespace Arguments
         /// parse, this method will return 2 (representing the number of arguments parsed).</param>
         /// <param name="splitters">The characters on which a single argument will be split in two.</param>
         /// <returns>Returns 0, 1, or 2 (if nextArg is supplied), which is the number of arguments that have been parsed.</returns>
-        public int ParseArg(object hostObj, string arg, char[] splitters, string nextArg = null)
+        public int Parse(T hostObj, string arg, char[] splitters, string nextArg = null)
         {
             bool split = false;
             if (string.IsNullOrWhiteSpace(arg)) return 0;
@@ -372,7 +384,7 @@ namespace Arguments
                 int splitIdx = arg.IndexOfAny(splitters);
                 if (splitIdx > 0 && splitIdx < arg.Length - 1)
                 {
-                    nextArg = arg.Substring(splitIdx + 1);
+                    nextArg = arg.Substring(splitIdx + 1).TrimStart(splitters);
                     arg = arg.Substring(0, splitIdx);
                     split = true;
                 }
@@ -390,7 +402,7 @@ namespace Arguments
                 if (aggFlags.All(flag => _Flags.Keys.Contains(flag)))
                 {
                     foreach (char flag in aggFlags)
-                        _Flags[flag].Option.Value = Chosen;
+                        _Flags[flag].Field.Value = Chosen;
                     return 1;
                 }
             }
@@ -398,11 +410,26 @@ namespace Arguments
             // If there's no associated field, it cannot be parsed.
             string toLower = arg.ToLower();
             if (!_Aliases.TryGetValue(toLower, out Alias alias))
-                throw new ParsingException("Argument \"" + arg + "\" is not defined.");
-            
+            {
+                // Is there some other free invocation?
+                if (_Invocations.TryGetValue(toLower, out MethodInfo m))
+                {
+                    try
+                    {
+                        m.Invoke(hostObj, new object[] { nextArg });
+                    }
+                    catch
+                    {
+                        throw new ParsingException("Exception in invocation \"" + toLower + "\".");
+                    }
+                }
+                else
+                    throw new ParsingException("Argument \"" + arg + "\" is not defined.");
+            }
+
 
             // A single-arg (bool) parse?  
-            if (!split && (typeof(bool).IsAssignableFrom(alias.Field.Type) 
+            else if (!split && (typeof(bool).IsAssignableFrom(alias.Field.Type) 
                             || typeof(Boolean).IsAssignableFrom(alias.Field.Type)))
             {
                 alias.Field.Value = Chosen;
@@ -410,12 +437,14 @@ namespace Arguments
             }
 
             // In all other cases, we're looking at a 2-arg parse.  If there's no nextArg, that's a bad thing.
-            if (nextArg == null)
+            else if (nextArg == null)
                 alias.Field.Throw();
 
             // Failure to parse requires a throw.
-            if (!alias.Field.TryParse(nextArg, hostObj))
+            else if (!alias.Field.TryParse(nextArg, hostObj))
                 alias.Field.Throw();
+
+            
 
             // If it was split, only one of the original arguments has been parsed.
             return split ? 1 : 2;
@@ -440,7 +469,7 @@ namespace Arguments
             // Step #3 - Check for unfulfilled options.
             {
                 //IEnumerable<Field> unfulfilled =
-                //    _Aliases.Values.Where(a => a.Field.Value != null
+                //    _Aliases.Values.Where(a => a.Field.IsSet
                 //                        && a.Groups.Any()
                 //                        && _Groups.Where(g => g.Options.Contains(o)).All(g => !g.IsActive));
                 //if (unfulfilled.Any())
@@ -501,7 +530,7 @@ namespace Arguments
                 if (ignores != null && ignores.Any(ig => ig == arg))
                     continue;
 
-                int parsed = ParseArg(hostObj, arg, i == strs.Length-1 ? null : strs[i + 1]);
+                int parsed = Parse(hostObj, arg, i == strs.Length-1 ? null : strs[i + 1]);
                 if (parsed == 0) throw new Exception("Empty arguments cannot be parsed.");
                 i += (parsed - 1);
             }
