@@ -28,10 +28,8 @@ namespace Helpers
             throw new Exception("No network adapters with an IPv4 address in the system!");
         }
 
-        /// <summary>
-        /// Returns an IPAddress-and-port combo for both ipv4 or ipv6.
-        /// </summary>
-        ///<remarks>From https://stackoverflow.com/questions/2727609/best-way-to-create-ipendpoint-from-string </remarks>
+        /// <summary>Returns an IPAddress-and-port combo for both ipv4 or ipv6.</summary>
+        /// <remarks>From https://stackoverflow.com/questions/2727609/best-way-to-create-ipendpoint-from-string </remarks>
         public static IPEndPoint ParseIPEndPoint(string str)
         {
             string[] split = str.Split(':');
