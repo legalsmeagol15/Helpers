@@ -17,7 +17,8 @@ namespace DataStructures
     /// <summary>An abstract interval set of the given type.</summary>
     public abstract class IntervalSet<T> : IIntervalSet<T> where T : IComparable<T>
     {
-        /// <summary>The set of inflection points for this interval set.</summary>
+        /// <summary>The set of inflection points for this interval set.  This must be guaranteed to be in strictly 
+        /// ascending order at all times.</summary>
         protected internal Inflection[] Inflections { get; set; }
 
         /// <summary>Creates a new <see cref="IntervalSet{T}"/> with the given inflection points.</summary>
@@ -176,9 +177,165 @@ namespace DataStructures
             return inflections.Select(s => s.Mirror()).ToArray();
         }
         /// <summary>Returns the intersection of the two <see cref="Inflection"/> arrays.</summary>
-        protected abstract Inflection[] And(Inflection[] a, Inflection[] b);
+
+        /// <summary>Returns the intersection of the given inflection arrays.</summary>
+        protected virtual Inflection[] And(Inflection[] a, Inflection[] b)
+        {
+            if (a.Length == 0 || b.Length == 0) return AsArray();
+            Inflection aInf = a[0], bInf = b[0];
+            if (aInf.IsUniversal) return b.ToArray();
+            if (bInf.IsUniversal) return a.ToArray();
+            int aIdx = 0, bIdx = 0;
+            int depth = 0;
+            List<Inflection> list = new List<Inflection>();
+
+            while (true)
+            {
+                if (aInf < bInf)
+                {
+                    if (aInf.IsStart) { if (++depth == 2) list.Add(aInf); }
+                    else if (aInf.IsEnd) { if (--depth == 0) list.Add(aInf); }
+                    else if (aInf.IsSingleton)
+                    {
+                        if (depth == 1 && aInf.IsIncluded) list.Add(aInf);
+                        else if (depth == 2 && !aInf.IsIncluded) list.Add(aInf);
+                    }
+                    if (++aIdx >= a.Length) break;
+                    aInf = a[aIdx];
+                    continue;
+                }
+                else if (bInf < aInf)
+                {
+
+                    if (bInf.IsStart) { if (++depth == 2) list.Add(bInf); }
+                    else if (bInf.IsEnd) { if (--depth == 0) list.Add(bInf); }
+                    else if (bInf.IsSingleton)
+                    {
+                        if (depth == 1 && bInf.IsIncluded) list.Add(bInf);
+                        else if (depth == 2 && !bInf.IsIncluded) list.Add(bInf);
+                    }
+                    if (++bIdx >= b.Length) break;
+                    bInf = b[bIdx];
+                    continue;
+                }
+                // aInf == bInf
+                else if (aInf.IsStart && bInf.IsStart)
+                {
+                    depth = 2;
+                    list.Add(Inflection.Start(aInf.Point, aInf.IsIncluded && bInf.IsIncluded));
+                }
+                else if (aInf.IsEnd && bInf.IsEnd)
+                {
+                    depth = 0;
+                    list.Add(Inflection.End(aInf.Point, aInf.IsIncluded && bInf.IsIncluded));
+                }
+                else if (aInf.IsSingleton)
+                    list.Add(aInf);
+                else if (bInf.IsSingleton)
+                    list.Add(bInf);
+                else
+                {
+                    if (aInf.IsIncluded && bInf.IsIncluded) list.Add(Inflection.Singleton(aInf.Point));
+                    depth = 1;
+                }
+            }
+            if (bIdx == b.Length && b[b.Length - 1].IsStart)
+                while (aIdx < a.Length)
+                    list.Add(a[aIdx++]);
+            else if (aIdx == a.Length && a[a.Length - 1].IsStart)
+                while (bIdx < b.Length)
+                    list.Add(b[bIdx++]);
+
+            return list.ToArray();
+
+        }
         /// <summary>Returns the union of the two <see cref="Inflection"/> arrays.</summary>
-        protected abstract Inflection[] Or(Inflection[] a, Inflection[] b);
+        protected virtual Inflection[] Or(Inflection[] a, Inflection[] b)
+        {
+            if (a.Length == 0) return AsArray(b);
+            if (b.Length == 0) return AsArray(a);
+            Inflection aInf = a[0], bInf = b[0];
+            if (aInf.IsUniversal || bInf.IsUniversal) return AsArray(Inflection.Universal);
+
+            int aIdx = 0, bIdx = 0;
+            int depth = 0;
+            List<Inflection> list = new List<IntervalSet<T>.Inflection>();
+            do
+            {
+                if (aInf < bInf)
+                {
+                    if (aInf.IsStart) { if (++depth == 1) list.Add(aInf); }
+                    else if (aInf.IsEnd) { if (--depth == 0) list.Add(aInf); }
+                    if (++aIdx >= a.Length) break;
+                    aInf = a[aIdx];
+                    continue;
+                }
+                else if (bInf < aInf)
+                {
+                    if (bInf.IsStart) { if (++depth == 1) list.Add(bInf); }
+                    else if (bInf.IsEnd) { if (--depth == 0) list.Add(bInf); }
+                    if (++bIdx >= b.Length) break;
+                    bInf = b[bIdx];
+                    continue;
+                }
+                // aInf == bInf
+                else if (aInf.IsSingleton)
+                {
+                    // If depth == 0, it must be an included singleton.  Add it.  If depth == 1, it's either an 
+                    // included singleton or non-included singleton.  If it's included, it must come from the side 
+                    // that didn't up the depth.  Skip it.  If it's not included, it must have come from the side that 
+                    // upped the depth.  Append it.  If depth == 2, it must be a non-included singleton.  Skip it, 
+                    // unless bInf is also a non-included singleton.
+                    switch (depth)
+                    {
+                        case 0: list.Add(aInf); break;
+                        case 1: if (!aInf.IsIncluded) list.Add(aInf); break;
+                        case 2: if (bInf.IsSingleton && !bInf.IsIncluded) list.Add(aInf); break;
+                    }
+                    if (++aIdx >= a.Length) break;
+                    aInf = a[aIdx];
+                    continue;
+                }
+                else if (bInf.IsSingleton)
+                {
+                    switch (depth)
+                    {
+                        case 0: list.Add(bInf); break;
+                        case 1: if (!bInf.IsIncluded) list.Add(bInf); break;
+                    }
+                    if (++bIdx >= b.Length) break;
+                    bInf = b[bIdx];
+                    continue;
+                }
+                else
+                {
+                    // If depth == 2, these must both be ends.
+                    if (depth == 2) { depth = 0; list.Add(Inflection.End(aInf.Point, aInf.IsIncluded || bInf.IsIncluded)); }
+
+                    // If depth == 2, these must both be starts.
+                    else if (depth == 0) { depth = 2; list.Add(Inflection.Start(aInf.Point, aInf.IsIncluded || bInf.IsIncluded)); }
+
+                    // Otherwise, it's a start/end or end/start.  Depth doesn't change.  If neither is included, we 
+                    // have a singleton hole.
+                    else if (!aInf.IsIncluded && !bInf.IsIncluded)
+                        list.Add(Inflection.Singleton(aInf.Point, false));
+                }
+
+                // The following applies to all aInf==bInf
+                if (++aIdx < a.Length) aInf = a[aIdx];
+                if (++bIdx < b.Length) bInf = b[bIdx];
+                
+            } while (aIdx < a.Length && bIdx < b.Length);
+
+            if (!bInf.IsStart)
+                while (aIdx < a.Length)
+                    list.Add(a[aIdx++]);
+            if (!aInf.IsStart)
+                while (bIdx < b.Length)
+                    list.Add(b[bIdx++]);
+
+            return list.ToArray();
+        }
         /// <summary>Returns the implication of the two <see cref="Inflection"/> arrays.</summary>
         protected virtual Inflection[] Imply(Inflection[] a, Inflection[] b) => throw new NotImplementedException();
         /// <summary>Returns the set difference of the two <see cref="Inflection"/> arrays.</summary>
@@ -264,10 +421,9 @@ namespace DataStructures
                 Included = 0x1,
                 Start = 0x2,
                 End = 0x4,
-                DIRECTION_MASK = (Start | End),
-                SingletonOmitted = Start | End,
-                SingletonIncluded = Start | End | Included,
-                Universal = 0x8,                
+                Singleton = 0x8,
+                DIRECTION_MASK = (Start | End),                
+                Universal = 0x16              
             }
 
             /// <summary>A universal inflection.</summary>
@@ -285,7 +441,7 @@ namespace DataStructures
             public bool IsEnd => (_Flags & Flags.End) != Flags.ERROR;
             /// <summary>Returns whether this inflection represents an universal interval.</summary>
             public bool IsUniversal => (_Flags & Flags.Universal) != Flags.ERROR;
-            public bool IsSingleton => (_Flags & Flags.SingletonOmitted) != Flags.ERROR;
+            public bool IsSingleton => (_Flags & (Flags.Singleton | Flags.Included)) != Flags.ERROR;
             public bool IsSameDirection(Inflection other) => (_Flags & (Flags.Start | Flags.End)) == (other._Flags & (Flags.Start | Flags.End));
 
             /// <summary>Creates a starting inflection.</summary>
@@ -296,7 +452,7 @@ namespace DataStructures
             public static Inflection End(T point, bool include = true) => new Inflection(point, include ? (Flags.End | Flags.Included) : Flags.Included);
             /// <summary>Creates a singleton inflection.</summary>
             [DebuggerStepThrough]
-            public static Inflection Singleton(T point, bool include = true) => new Inflection(point, include ? Flags.SingletonIncluded : Flags.SingletonOmitted);
+            public static Inflection Singleton(T point, bool include = true) => new Inflection(point, Flags.Singleton | (include ? Flags.Included : 0x0));
             /// <summary>Creates a new inflection with the given properties.</summary>
             [DebuggerStepThrough]
             private Inflection(T point, Flags flags)
@@ -310,7 +466,13 @@ namespace DataStructures
             /// Returns a mirror of this <see cref="Inflection"/>, with the same <see cref="Point"/> but the opposite 
             /// direction and the <seealso cref="IsIncluded"/> value flipped..
             /// </summary>
-            public Inflection Mirror() => new Inflection(Point, IsIncluded ? _Flags & (~Flags.Included) : _Flags | Flags.Included);
+            public Inflection Mirror()
+            {
+                if (IsStart) return Inflection.End(Point, !IsIncluded);
+                if (IsEnd) return Inflection.Start(Point, !IsIncluded);
+                if (IsSingleton) return Inflection.Singleton(Point, !IsIncluded);
+                throw new InvalidOperationException("An inflection of type " + this.ToString() + " cannot be mirrored.");
+            }
 
             /// <summary>Conveniently cases the given inflection to its <see cref="Point"/>.</summary>
             public static implicit operator T(Inflection f) { return f.Point; }
@@ -387,22 +549,26 @@ namespace DataStructures
         /// </summary>
         protected static Inflection[] Simplify(Inflection[] orig)
         {
-            if (orig.Length == 0) return new Inflection[0];
-            if (orig[0].IsUniversal) return new Inflection[] { Inflection.Universal };
-            List<Inflection> list = new List<Inflection>() { _IncludeOnly(orig[0]) };
+            if (orig.Length == 0) return orig;
+            Inflection last = orig[0];
+            if (last.IsUniversal) return orig;
+
+            List<Inflection> list = new List<Inflection>() { _IncludeOnly(last) };
+            foreach (Inflection focus in orig)
+            {
+                if (list.Count == 0) { list.Add(focus); continue; }
+                if (focus.IsSingleton && !focus.IsIncluded) continue;
+
+            }
             for (int i = 1; i < orig.Length; i++)
             {
                 Inflection last = orig[i - 1];
                 Inflection focus = _IncludeOnly(orig[i]);
-                /*  TODO:  is this impossible?
-                if (focus < last)
-                    throw new SetIntegrityException("Inflections \"" + last.ToString() + "\" and \""
-                                                    + focus.ToString() + "\" out of order.");
-                                                    */
+                
                 if (last.IsSameDirection(focus))
                     throw new SetIntegrityException("Set integrity error - nested interval.");
-                if (last == focus && last.IsIncluded != focus.IsIncluded)
-                    throw new SetIntegrityException("Set integrity error - inconsistent singleton.");
+                if (last >= focus)
+                    throw new SetIntegrityException("Set integrity error - inflections must be in strictly ascending order.");
                 if (last.IsEnd && AreConsecutive(last.Point, focus.Point))
                 {
                     list.RemoveAt(list.Count - 1);
@@ -411,9 +577,12 @@ namespace DataStructures
                 list.Add(focus);
             }
             return list.ToArray();
-            Inflection _IncludeOnly(Inflection inf)
+
+            // Only included inflection points are valid in a discrete interval set.
+            void _IncludeOnly(Inflection inf)
             {
                 if (inf.IsIncluded)
+                if (inf.IsIncluded || inf.IsSingleton)
                     return inf;
                 if (inf.IsEnd)
                     return Inflection.End(GetPrevious(inf.Point));
@@ -425,133 +594,12 @@ namespace DataStructures
         }
 
 
-        /// <summary>Returns the intersection of the given inflection arrays.</summary>
-        protected sealed override Inflection[] And(Inflection[] a, Inflection[] b)
-        {
-            a = Simplify(a);
-            b = Simplify(b);
-            if (a.Length == 0 || b.Length == 0) return AsArray();
-            if (a[0].IsUniversal) return b.ToArray();
-            if (b[0].IsUniversal) return a.ToArray();
-            int aIdx = 0, bIdx = 0;
-            int aDepth = a[0].IsEnd ? 1 : 0;
-            int bDepth = b[0].IsEnd ? 1 : 0;
-
-            List<Inflection> list = new List<Inflection>();
-            while (true)
-            {
-                Inflection aInf = a[aIdx], bInf = b[bIdx];
-                if (aInf < bInf)
-                {
-                    if (aInf.IsStart && ++aDepth == 1 && bDepth > 0)
-                        Append(list, aInf);
-                    else if (aInf.IsEnd && --aDepth == 0 && bDepth > 0)
-                        Append(list, aInf);
-                    else if (aInf == bInf && bDepth > 0)
-                        Append(list, aInf);
-                    if (++aIdx >= a.Length) break;
-                    continue;
-                }
-                else if (bInf < aInf)
-                {
-                    if (bInf.IsStart && ++bDepth == 1 && aDepth > 0)
-                        Append(list, bInf);
-                    else if (bInf.IsEnd && --bDepth == 0 && aDepth > 0)
-                        Append(list, bInf);
-                    if (++bIdx >= b.Length) break;
-                    continue;
-                }
-                else // aInf == bInf
-                {
-                    if (aInf.IsStart) aDepth++; else aDepth--;
-                    if (bInf.IsStart) bDepth++; else bDepth--;
-                    if (aInf.IsSameDirection(bInf))
-                    {
-                        if (!aInf.IsIncluded) Append(list, bInf);
-                        else Append(list, aInf);
-                    }
-                    else if (aInf.IsIncluded && bInf.IsIncluded)
-                    {
-                        Append(list, Inflection.Start(aInf.Point));
-                        Append(list, Inflection.End(aInf.Point));
-                    }
-                    else
-                        throw new SetIntegrityException("This should be impossible.");
-                    aIdx++;
-                    bIdx++;
-                }
-            }
-            if (bDepth > 0)
-                for (; aIdx < a.Length; aIdx++)
-                    Append(list, a[aIdx]);
-            else if (aDepth > 0)
-                for (; bIdx < b.Length; bIdx++)
-                    Append(list, b[bIdx]);
-
-            return list.ToArray();
-
-        }
 
         /// <summary>Returns the implications of the given inflection arrays.</summary>
         protected sealed override Inflection[] Imply(Inflection[] a, Inflection[] b) => Simplify(base.Imply(Simplify(a), Simplify(b)));
 
         /// <summary>Returns the union of the given inflection arrays.</summary>
-        protected sealed override Inflection[] Or(Inflection[] a, Inflection[] b)
-        {
-            a = Simplify(a);
-            b = Simplify(b);
-            if (a.Length == 0) return AsArray(b);
-            if (b.Length == 0) return AsArray(a);
-            if (a[0].IsUniversal || b[0].IsUniversal) return AsArray(Inflection.Universal);
-
-            int aIdx = 0, bIdx = 0;
-            int aDepth = a[0].IsEnd ? 1 : 0;
-            int bDepth = b[0].IsEnd ? 1 : 0;
-            List<Inflection> list = new List<IntervalSet<T>.Inflection>();
-            Inflection aInf, bInf;
-            while (true)
-            {
-                aInf = a[aIdx];
-                bInf = b[bIdx];
-                if (aInf < bInf)
-                {
-                    if (aInf.IsStart && (++aDepth == 1) && (bDepth == 0)) Append(list, aInf);
-                    else if (aInf.IsEnd && (--aDepth == 0) && (bDepth == 0)) Append(list, aInf);
-                    if (++aIdx >= a.Length) break;
-                }
-                else if (bInf < aInf)
-                {
-                    if (bInf.IsStart && (++bDepth == 1) && (aDepth == 0))
-                        Append(list, bInf);
-                    else if (bInf.IsEnd && (--bDepth == 0) && (aDepth == 0))
-                        Append(list, bInf);
-                    if (++bIdx >= b.Length) break;
-                }
-                else
-                {
-                    if (aInf.IsStart) aDepth++; else aDepth--;
-                    if (bInf.IsStart) bDepth++; else bDepth--;
-                    if (!aInf.IsIncluded && !bInf.IsIncluded)
-                    {
-                        if (aInf.IsSameDirection(bInf))
-                            Append(list, aInf.IsStart ? Inflection.Start(aInf.Point, aInf.IsIncluded || bInf.IsIncluded) 
-                                                        : Inflection.End(aInf.Point, aInf.IsIncluded || bInf.IsIncluded));
-                        else if (aInf.IsEnd) { Append(list, aInf); Append(list, bInf); }
-                        else { Append(list, bInf); Append(list, aInf); }
-                    }
-                    if (++aIdx >= a.Length) break;
-                    if (++bIdx >= b.Length) break;
-                }
-            }
-            if (aIdx < a.Length && bInf.IsEnd)
-                for (; aIdx < a.Length; aIdx++)
-                    Append(list, a[aIdx]);
-            else if (bIdx < b.Length && aInf.IsEnd)
-                for (; bIdx < b.Length; bIdx++)
-                    Append(list, b[bIdx]);
-
-            return Simplify(list.ToArray());
-        }
+        
 
         /// <summary>Returns the inverse of the given inflection array.</summary>
         protected sealed override Inflection[] Not(Inflection[] inflections)
