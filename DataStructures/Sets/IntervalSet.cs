@@ -11,7 +11,27 @@ namespace DataStructures
     /// <summary>Describes an interval set, which is a loss-tolerant data inclusion/exclusion set.</summary>
     public interface IIntervalSet<T> where T : IComparable<T>
     {
+        bool IsEmpty { get; }
+        
+        bool IsUniversal { get; }
+        
+        bool IsPositiveInfinite { get; }
+        
+        bool IsNegativeInfinite { get; }
 
+        bool Includes(T item);
+
+        void Negate();        
+        void IntersectWith(IntervalSet<T> other);        
+        void UnionWith(IntervalSet<T> other);
+        void ExceptWith(IntervalSet<T> other);
+        void SymmetricExceptWith(IntervalSet<T> other);
+        void ImplyWith(IntervalSet<T> other);
+
+        void MakeUniversal();
+        void MakeEmpty();
+        void MakePositiveInfinite(T start, bool includeStart = true);
+        void MakeNegativeInfinite(T end, bool includeEnd = true);
     }
 
     /// <summary>An abstract interval set of the given type.</summary>
@@ -112,9 +132,9 @@ namespace DataStructures
         public void ExceptWith(IntervalSet<T> other) => Inflections = Subtract(Inflections, other.Inflections);
         /// <summary>Returns the symmetric difference ("OR") of this and the given <see cref="IntervalSet{T}"/>.
         /// </summary>
-        public void SymmetricExcept(IntervalSet<T> other) => Inflections = Xor(Inflections, other.Inflections);
+        public void SymmetricExceptWith(IntervalSet<T> other) => Inflections = Xor(Inflections, other.Inflections);
         /// <summary>Returns the implication ("IF") of this and the given <see cref="IntervalSet{T}"/>.</summary>
-        public void Imply(IntervalSet<T> other) => Inflections = Imply(Inflections, other.Inflections);
+        public void ImplyWith(IntervalSet<T> other) => Inflections = Imply(Inflections, other.Inflections);
 
         /// <summary>Unions with the given range to this <see cref="IntervalSet{T}"/>.</summary>
         /// <param name="start">The start of the range, inclusive.</param>
@@ -442,7 +462,7 @@ namespace DataStructures
             /// <summary>Returns whether this inflection represents an universal interval.</summary>
             public bool IsUniversal => (_Flags & Flags.Universal) != Flags.ERROR;
             public bool IsSingleton => (_Flags & (Flags.Singleton | Flags.Included)) != Flags.ERROR;
-            public bool IsSameDirection(Inflection other) => (_Flags & (Flags.Start | Flags.End)) == (other._Flags & (Flags.Start | Flags.End));
+            public bool IsSameDirection(Inflection other) => !IsSingleton && !other.IsSingleton && IsStart == other.IsStart && IsEnd == other.IsEnd;
 
             /// <summary>Creates a starting inflection.</summary>
             [DebuggerStepThrough]
@@ -553,43 +573,83 @@ namespace DataStructures
             Inflection last = orig[0];
             if (last.IsUniversal) return orig;
 
-            List<Inflection> list = new List<Inflection>() { _IncludeOnly(last) };
+            List<Inflection> list = new List<Inflection>();
             foreach (Inflection focus in orig)
-            {
-                if (list.Count == 0) { list.Add(focus); continue; }
-                if (focus.IsSingleton && !focus.IsIncluded) continue;
-
-            }
-            for (int i = 1; i < orig.Length; i++)
-            {
-                Inflection last = orig[i - 1];
-                Inflection focus = _IncludeOnly(orig[i]);
-                
-                if (last.IsSameDirection(focus))
-                    throw new SetIntegrityException("Set integrity error - nested interval.");
-                if (last >= focus)
-                    throw new SetIntegrityException("Set integrity error - inflections must be in strictly ascending order.");
-                if (last.IsEnd && AreConsecutive(last.Point, focus.Point))
-                {
-                    list.RemoveAt(list.Count - 1);
-                    continue;
-                }
-                list.Add(focus);
-            }
+                _Append(focus);
             return list.ToArray();
 
-            // Only included inflection points are valid in a discrete interval set.
-            void _IncludeOnly(Inflection inf)
+            void _Append(Inflection inf)
             {
+                // Included inf is the base case.
                 if (inf.IsIncluded)
-                if (inf.IsIncluded || inf.IsSingleton)
-                    return inf;
-                if (inf.IsEnd)
-                    return Inflection.End(GetPrevious(inf.Point));
-                if (inf.IsStart)
-                    return Inflection.Start(GetNext(inf.Point));
-                throw new Exception("Set integrity error - universal not ruled out.");
+                {
+                    if (list.Count==0) { list.Add(inf); return; }
+
+                    Inflection lastInf = list[list.Count - 1];
+                    if (lastInf > inf)
+                        throw new SetIntegrityException("Inflections are not in strictly ascending order.");
+                    else if (lastInf.IsSameDirection(inf))
+                        throw new SetIntegrityException("Nested interval.");
+                    else if (lastInf == inf)
+                    {
+                        if (lastInf.IsStart)
+                        {
+                            if (inf.IsEnd) list[list.Count - 1] = Inflection.Singleton(lastInf.Point, true);
+                        }
+                        else if (lastInf.IsEnd)
+                        {
+                            if (inf.IsStart) list.RemoveAt(list.Count - 1);
+                        }
+                        else
+                            list[list.Count - 1] = inf;
+                        return;
+                    }
+                    else if (AreConsecutive(lastInf, inf))
+                    {
+                        if (lastInf.IsStart)
+                        {
+                            if (inf.IsEnd) list.Add(inf);
+                        }
+                        else if (lastInf.IsEnd)
+                        {
+                            if (inf.IsStart) list.RemoveAt(list.Count - 1);
+                            else list[list.Count - 1] = Inflection.End(inf.Point, true);
+                        }
+                        else if (lastInf.IsSingleton)
+                        {
+                            if (inf.IsStart)
+                                list[list.Count - 1] = Inflection.Start(lastInf.Point, true);
+                            else
+                            {
+                                list[list.Count - 1] = Inflection.Start(lastInf.Point, true);
+                                list.Add(Inflection.End(inf.Point, true));
+                            }
+                        }
+                        return;
+                    }
+                    else  // A gap between lastInf and inf
+                    {
+                        list.Add(inf);
+                        return;
+                    }
+                }
+                // Omitted end - count the Point down.
+                else if (inf.IsEnd)
+                    _Append(Inflection.End(GetPrevious(inf.Point), true));
+                // Omitted start - cound the Point up.
+                else if (inf.IsStart)
+                    _Append(Inflection.Start(GetNext(inf.Point), true));
+                // The omitted singleton can only occur when previous inflection is a start.
+                else if (inf.IsSingleton && list.Count > 0 && list[list.Count - 1].IsStart)
+                {
+                    _Append(Inflection.End(GetPrevious(inf.Point), true));
+                    list.Add(Inflection.Start(GetNext(inf.Point), true));
+                }
+                else
+                    throw new SetIntegrityException("Invalid inflection " + inf.ToString());
+
             }
+            
 
         }
 
