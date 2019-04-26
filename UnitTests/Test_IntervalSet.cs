@@ -119,7 +119,8 @@ namespace UnitTests
             copy1.UnionWith(intSetB);
             for (int i = -3; i <= 50; i++)
             {
-                Assert.IsTrue((intSetA.Includes(i) || intSetB.Includes(i)) == copy1.Includes(i), (" at i = " + i));
+                bool includedInOne = intSetA.Includes(i) || intSetB.Includes(i);
+                Assert.IsTrue(includedInOne == copy1.Includes(i), (" at i = " + i));
             }
 
             intSetA = new Int32IntervalSet(1, 2, 3, 7, 8, 13, 14, 15, 18, 24, 25, 26);
