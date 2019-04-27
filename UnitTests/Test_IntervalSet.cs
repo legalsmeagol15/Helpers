@@ -38,8 +38,8 @@ namespace UnitTests
 
             for (int i = -3; i <= 50; i++)
             {
-                bool inSet = intSet.Includes(i);
-                Assert.AreEqual(intSet.Includes(i), copy.Includes(i), (" at i = " + i));
+                bool inSet = intSet.Contains(i);
+                Assert.AreEqual(intSet.Contains(i), copy.Contains(i), (" at i = " + i));
             }
         }
 
@@ -55,9 +55,9 @@ namespace UnitTests
             Assert.IsFalse(intSet.IsNegativeInfinite);
             Assert.IsFalse(intSet.IsPositiveInfinite);
 
-            Assert.IsFalse(intSet.Includes(0));
-            Assert.IsFalse(intSet.Includes(10));
-            Assert.IsFalse(intSet.Includes(-1));
+            Assert.IsFalse(intSet.Contains(0));
+            Assert.IsFalse(intSet.Contains(10));
+            Assert.IsFalse(intSet.Contains(-1));
             
             int[] contents = { 1, 2, 3, 7, 8, 13, 14, 15, 18, 24,25,26 };
             intSet = new Int32IntervalSet(contents);
@@ -65,7 +65,7 @@ namespace UnitTests
             for (int i = -3; i <= 50; i++)
             {
                 bool inContents = Array.FindIndex(contents, c => c == i) >= 0;
-                bool inSet = intSet.Includes(i);
+                bool inSet = intSet.Contains(i);
                 Assert.AreEqual(inContents, inSet, (" at i = " + i));
             }
             
@@ -78,20 +78,19 @@ namespace UnitTests
         {
             var intSetA = new Int32IntervalSet(new int[] { 1, 2, 3, 7, 8, 13, 14, 15, 18, 24, 25, 26 });
             var intSetB = new Int32IntervalSet(new int[] { 0,3,4,5,12,13,14,25,26,27});
-            var copy1 = intSetA.Copy();
-            copy1.IntersectWith(intSetB);
+            var copy1 = intSetA & intSetB;
             for (int i = -3; i <= 50; i++)
             {
-                Assert.IsTrue((intSetA.Includes(i) && intSetB.Includes(i)) == copy1.Includes(i), (" at i = " + i));
+                bool inBoth = intSetA.Contains(i) && intSetB.Contains(i);
+                Assert.IsTrue(inBoth == copy1.Contains(i), (" at i = " + i));
             }
 
             intSetA = new Int32IntervalSet(1, 2, 3, 7, 8, 13, 14, 15, 18, 24, 25, 26 );
             intSetB = new Int32IntervalSet(0, 3, 4, 5, 12, 13, 14, 25, 26, 27 );
-            var copy2 = intSetB.Copy();
-            copy2.IntersectWith(intSetA);
+            var copy2 = intSetB & intSetA;
             for (int i = -3; i <= 50; i++)
             {
-                Assert.IsTrue((intSetA.Includes(i) && intSetB.Includes(i)) == copy2.Includes(i), (" at i = " + i));
+                Assert.IsTrue((intSetA.Contains(i) && intSetB.Contains(i)) == copy2.Contains(i), (" at i = " + i));
             }
         }
 
@@ -100,11 +99,10 @@ namespace UnitTests
         public void Test_IntervalSet_Not()
         {
             var orig = new Int32IntervalSet(1, 2, 3, 7, 8, 13, 14, 15, 18, 24, 25, 26, 28, 29, 30, 32, 34);
-            var negSet = orig.Copy();
-            negSet.Negate();
+            var negSet = !orig;
             for (int i = -3; i <= 50; i++)
             {
-                Assert.IsTrue(orig.Includes(i) != negSet.Includes(i), (" at i = " + i));
+                Assert.IsTrue(orig.Contains(i) != negSet.Contains(i), (" at i = " + i));
             }
         }
 
@@ -115,21 +113,19 @@ namespace UnitTests
         {
             var intSetA = new Int32IntervalSet(new int[] { 1, 2, 3, 7, 8, 13, 14, 15, 18, 24, 25, 26 });
             var intSetB = new Int32IntervalSet(new int[] { 0, 3, 4, 5, 12, 13, 14, 25, 26, 27 });
-            var copy1 = intSetA.Copy();
-            copy1.UnionWith(intSetB);
+            var copy1 = intSetA | intSetB;
             for (int i = -3; i <= 50; i++)
             {
-                bool includedInOne = intSetA.Includes(i) || intSetB.Includes(i);
-                Assert.IsTrue(includedInOne == copy1.Includes(i), (" at i = " + i));
+                bool includedInOne = intSetA.Contains(i) || intSetB.Contains(i);
+                Assert.IsTrue(includedInOne == copy1.Contains(i), (" at i = " + i));
             }
 
             intSetA = new Int32IntervalSet(1, 2, 3, 7, 8, 13, 14, 15, 18, 24, 25, 26);
             intSetB = new Int32IntervalSet(0, 3, 4, 5, 12, 13, 14, 25, 26, 27);
-            var copy2 = intSetB.Copy();
-            copy2.UnionWith(intSetA);
+            var copy2 = intSetB | intSetA;
             for (int i = -3; i <= 50; i++)
             {
-                Assert.IsTrue((intSetA.Includes(i) || intSetB.Includes(i)) == copy2.Includes(i), (" at i = " + i));
+                Assert.IsTrue((intSetA.Contains(i) || intSetB.Contains(i)) == copy2.Contains(i), (" at i = " + i));
             }
 
             var emptySet = new Int32IntervalSet();
@@ -138,20 +134,19 @@ namespace UnitTests
 
             for (int i = -3; i <= 50; i++)
             {
-                Assert.IsTrue(!emptySet.Includes(i), (" at i = " + i));
-                Assert.IsTrue(universalSet.Includes(i), (" at i = " + i));
+                Assert.IsTrue(!emptySet.Contains(i), (" at i = " + i));
+                Assert.IsTrue(universalSet.Contains(i), (" at i = " + i));
             }
 
-            var copy3 = intSetA.Copy();
-            copy3.UnionWith(emptySet);
+            var copy3 = intSetA | emptySet;
             for (int i = -3; i <= 50; i++)
             {
-                Assert.IsTrue(copy3.Includes(i) == intSetA.Includes(i), (" at i = " + i));
+                Assert.IsTrue(copy3.Contains(i) == intSetA.Contains(i), (" at i = " + i));
             }
-            copy3.UnionWith(universalSet);
+            copy3 |= universalSet;
             for (int i = -3; i <= 50; i++)
             {
-                Assert.IsTrue(copy3.Includes(i), (" at i = " + i));
+                Assert.IsTrue(copy3.Contains(i), (" at i = " + i));
             }
         }
 
@@ -174,8 +169,7 @@ namespace UnitTests
             Assert.AreEqual("<..>", intSet.ToString());
 
             var orig = new Int32IntervalSet(1, 2, 3, 7, 8, 13, 14, 15, 18, 24, 25, 26, 28, 29, 30, 32, 34);
-            var negSet = orig.Copy();
-            negSet.Negate();
+            var negSet = !orig;
             Assert.AreEqual("1..3,7..8,13..15,18,24..26,28..30,32,34", orig.ToString());
             Assert.AreEqual("<..0,4..6,9..12,16..17,19..23,27,31,33,35..>", negSet.ToString());
         }
