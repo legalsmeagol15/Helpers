@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -25,8 +26,8 @@ namespace DataStructures
 
         void MakeUniversal();
         void MakeEmpty();
-        void MakePositiveInfinite(T start, bool includeStart = true);
-        void MakeNegativeInfinite(T end, bool includeEnd = true);
+        void MakePositiveInfinite();
+        void MakeNegativeInfinite();
     }
 
 
@@ -35,9 +36,10 @@ namespace DataStructures
     {
         /// <summary>The set of inflection points for this interval set.  This must be guaranteed to be in strictly 
         /// ascending order at all times.</summary>
-        protected internal Inflection[] Inflections { get; set; }
+        protected internal Inflection[] Inflections { get; internal set; }
 
-        /// <summary>Creates a new <see cref="IntervalSet{T}"/> with the given inflection points.</summary>
+        /// <summary>Creates a new <see cref="IntervalSet{T}"/> with the given inflection points.  The inflections 
+        /// should be in strictly ascending order - this constructor does not check.</summary>
         /// <param name="inflections">Optional.  If omitted, creates an empty <see cref="IntervalSet{T}"/>.</param>
         [DebuggerStepThrough]
         protected IntervalSet(params Inflection[] inflections) { Inflections = inflections ?? new Inflection[0]; }
@@ -47,22 +49,19 @@ namespace DataStructures
         [DebuggerStepThrough]
         protected IntervalSet(IEnumerable<T> items = null) : this((Inflection[])null)
         {
-            if (items == null)
-                Inflections = new Inflection[0];
-            else
+            if (items == null || !items.Any()) return;
+
+            // As long as I'm copying the array, might as well check for strict ascendance too.
+            T lastItem = items.First();
+            this.Inflections = new Inflection[items.Count()];
+            this.Inflections[0] = Inflection.Singleton(lastItem);
+            int idx = 1;
+            foreach (T item in items.Skip(1))
             {
-                // As long as I'm copying the array, might as well check for strict ascendance too.
-                T lastItem = items.First();
-                this.Inflections = new Inflection[items.Count()];
-                this.Inflections[0] = Inflection.Singleton(lastItem);
-                int idx = 1;
-                foreach (T item in items.Skip(1))
-                {
-                    if (item.CompareTo(lastItem) <= 0)
-                        throw new ArgumentException("Items must be in strictly ascending order.");
-                    Inflections[idx++] = Inflection.Singleton(item);
-                    lastItem = item;
-                }
+                if (item.CompareTo(lastItem) <= 0)
+                    throw new ArgumentException("Items must be in strictly ascending order.");
+                Inflections[idx++] = Inflection.Singleton(item);
+                lastItem = item;
             }
         }
 
@@ -168,23 +167,35 @@ namespace DataStructures
         /// <summary>Makes this set an empty <see cref="IntervalSet{T}"/>.</summary>
         public void MakeEmpty() => Inflections = new Inflection[0];
         /// <summary>Unions this interval with a positive-infinite set, starting as indicated.</summary>
-        public void MakePositiveInfinite(T start, bool includeStart = true)
-            => Inflections = Or(Inflections, new Inflection[] { Inflection.Start(start, includeStart) });
+        public void MakePositiveInfinite()
+        {
+            if (Inflections.Length == 0)
+                Inflections = new Inflection[] { Inflection.Universal };  
+            else
+            {
+                Inflection inf = Inflections[Inflections.Length - 1];
+                Inflections[Inflections.Length - 1] = Inflection.Compose(inf.Point, inf.HasBefore, inf.IsIncluded, true);
+            }
+
+
+        }
         /// <summary>Unions this interval with a negative-infinite set, ending as indicated.</summary>
-        public void MakeNegativeInfinite(T end, bool includeEnd = true)
-            => Inflections = Or(Inflections, new Inflection[] { Inflection.End(end, includeEnd) });
+        public void MakeNegativeInfinite()
+        {
+            if (Inflections.Length == 0)
+                Inflections = new Inflection[] { Inflection.Universal };
+            else
+            {
+                Inflection inf = Inflections[0];
+                Inflections[0] = Inflection.Compose(inf.Point, true, inf.IsIncluded, inf.HasAfter);
+            }
+            
+
+        }
 
         #endregion
 
 
-
-        /// <summary>Returns a set-equal copy of this <see cref="IntervalSet{T}"/>.</summary>
-        public virtual IntervalSet<T> Copy()
-        {
-            IntervalSet<T> copy = (IntervalSet<T>)Activator.CreateInstance(this.GetType());
-            copy.Inflections = this.Inflections.ToArray();
-            return copy;
-        }
 
 
 
@@ -193,6 +204,15 @@ namespace DataStructures
 
         #region IntervalSet inflection logic
 
+        /// <summary>Returns a set-equal copy of this <see cref="IntervalSet{T}"/>.</summary>
+        public virtual IntervalSet<T> Copy()
+        {
+            IntervalSet<T> copy = (IntervalSet<T>)Activator.CreateInstance(this.GetType());
+            copy.Inflections = this.Inflections.ToArray();
+            return copy;
+        }
+        
+
         /// <summary>Returns the inverse of the given <see cref="Inflection"/> array.</summary>
         protected virtual Inflection[] Not(Inflection[] inflections)
         {
@@ -200,6 +220,7 @@ namespace DataStructures
             if (IsEmpty) return new Inflection[] { Inflection.Universal };
             return inflections.Select(s => Inflection.Not(s)).ToArray();
         }
+
 
         /// <summary>
         /// Returns <see cref="Inflection"/>s representing the operation of the given <paramref name="logic"/> 
@@ -210,7 +231,7 @@ namespace DataStructures
         /// <param name="logic">Returns true if and only if, operating on the bool given from <paramref name="a"/> and 
         /// the bool given from <paramref name="b"/>, the result would be included.</param>
         /// <returns></returns>
-        protected IList<Inflection> AnyFunc(IList<Inflection> a, IList<Inflection> b, Func<bool, bool, bool> logic)
+        protected IList<Inflection> ApplyFunction(IList<Inflection> a, IList<Inflection> b, Func<bool, bool, bool> logic)
         {
             int aIdx = 0, bIdx = 0;
             Inflection aInf = Inflection.Empty, bInf = Inflection.Empty;
@@ -223,7 +244,7 @@ namespace DataStructures
                 if (aInf.IsBefore(bInf))
                 {
                     Inflection inf = Inflection.Compose(aInf.Point, logic(aInf.HasBefore, bInf.HasBefore),
-                                                                    logic(aInf.HasPoint, bInf.HasBefore),
+                                                                    logic(aInf.IsIncluded, bInf.HasBefore),
                                                                     logic(aInf.HasAfter, bInf.HasBefore));
                     _Append(inf);
                     aIdx++;
@@ -231,7 +252,7 @@ namespace DataStructures
                 else if (bInf.IsBefore(aInf))
                 {
                     Inflection inf = Inflection.Compose(bInf.Point, logic(aInf.HasBefore, bInf.HasBefore),
-                                                                    logic(aInf.HasBefore, bInf.HasPoint),
+                                                                    logic(aInf.HasBefore, bInf.IsIncluded),
                                                                     logic(aInf.HasBefore, bInf.HasAfter));
                     _Append(inf);
                     bIdx++;
@@ -239,7 +260,7 @@ namespace DataStructures
                 else
                 {
                     Inflection inf = Inflection.Compose(aInf.Point, logic(aInf.HasBefore, bInf.HasBefore),
-                                                                    logic(aInf.HasPoint, bInf.HasPoint),
+                                                                    logic(aInf.IsIncluded, bInf.IsIncluded),
                                                                     logic(aInf.HasAfter, bInf.HasAfter));
                     _Append(inf);
                     aIdx++;
@@ -252,7 +273,7 @@ namespace DataStructures
             {
                 aInf = a[aIdx++];
                 Inflection inf = Inflection.Compose(aInf.Point, logic(aInf.HasBefore, bInf.HasAfter),
-                                                                logic(aInf.HasPoint, bInf.HasAfter),
+                                                                logic(aInf.IsIncluded, bInf.HasAfter),
                                                                 logic(aInf.HasAfter, bInf.HasAfter));
                 _Append(inf);
             }
@@ -260,7 +281,7 @@ namespace DataStructures
             {
                 bInf = b[bIdx++];
                 Inflection inf = Inflection.Compose(bInf.Point, logic(aInf.HasAfter, bInf.HasBefore),
-                                                                logic(aInf.HasAfter, bInf.HasPoint),
+                                                                logic(aInf.HasAfter, bInf.IsIncluded),
                                                                 logic(aInf.HasAfter, bInf.HasAfter));
                 _Append(inf);
             }
@@ -280,19 +301,19 @@ namespace DataStructures
 
         /// <summary>Returns the intersection of the given inflection arrays.</summary>
         protected virtual Inflection[] And(Inflection[] a, Inflection[] b)
-            => AnyFunc(a, b, (aOn, bOn) => aOn && bOn).ToArray();
+            => ApplyFunction(a, b, (aOn, bOn) => aOn && bOn).ToArray();
         /// <summary>Returns the union of the two <see cref="Inflection"/> arrays.</summary>
         protected virtual Inflection[] Or(Inflection[] a, Inflection[] b)
-            => AnyFunc(a, b, (aOn, bOn) => aOn || bOn).ToArray();
+            => ApplyFunction(a, b, (aOn, bOn) => aOn || bOn).ToArray();
         protected virtual Inflection[] Imply(Inflection[] a, Inflection[] b)
-            => AnyFunc(a, b, (aOn, bOn) => (!aOn || bOn)).ToArray();
+            => ApplyFunction(a, b, (aOn, bOn) => (!aOn || bOn)).ToArray();
         /// <summary>Returns the set difference of the two <see cref="Inflection"/> arrays.</summary>
         protected virtual Inflection[] Subtract(Inflection[] a, Inflection[] b)
-            => AnyFunc(a, b, (aOn, bOn) => (aOn && !bOn)).ToArray();
+            => ApplyFunction(a, b, (aOn, bOn) => (aOn && !bOn)).ToArray();
         /// <summary>Returns the exclusive-or (symmetric exception with) of the two <see cref="Inflection"/> arrays.
         /// </summary>
         protected virtual Inflection[] Xor(Inflection[] a, Inflection[] b)
-            => AnyFunc(a, b, (aOn, bOn) => (aOn ^ bOn)).ToArray();
+            => ApplyFunction(a, b, (aOn, bOn) => (aOn ^ bOn)).ToArray();
 
         #endregion
 
@@ -330,7 +351,7 @@ namespace DataStructures
         /// <summary>Returns a string representation of this <see cref="IntervalSet{T}"/>.</summary>
         public sealed override string ToString()
         {
-            if (Inflections == null || Inflections.Length == 0) return "..";
+            if (Inflections.Length == 0) return "..";
             Inflection first = Inflections[0];
             Inflection last = Inflections[Inflections.Length - 1];
             StringBuilder sb = new StringBuilder();
@@ -345,7 +366,7 @@ namespace DataStructures
             sb.Append((last.IsStart || (last.IsSingleton && !last.IsIncluded)) ? ".>" : "");
             return sb.ToString();            
         }
-        
+
         /// <summary>Marks a change in an interval set between inclusion and exclusion, or vice versa.</summary>
         protected internal struct Inflection
         {
@@ -353,18 +374,18 @@ namespace DataStructures
             private enum Flags
             {
                 ERROR = 0x0,
-                INCLUDED = 0x1,
+                POINT = 0x1,
                 START = 0x2,
                 END = 0x4,
-                SINGLETON = 0x8,
-                UNIVERSAL = 0x10,
-                HAS_BEFORE_MASK = (UNIVERSAL | END) & ~START & ~INCLUDED,
-                HAS_POINT_MASK = (UNIVERSAL | INCLUDED) & ~START & ~END,
-                HAS_AFTER_MASK = (UNIVERSAL | START) & ~END & ~INCLUDED,
-                IS_INCLUDED_MASK = (UNIVERSAL | INCLUDED)
+                SINGLETON = 0x8,  // TODO:  this could be cut out for efficiency.
+                UNIVERSAL = 0x10, // TODO:  this could be cut out for efficiency.
+                UNVERSAL_MASK = START | POINT | END,
+                HAS_BEFORE_MASK = (UNIVERSAL | END),
+                HAS_POINT_MASK = (UNIVERSAL | POINT),
+                HAS_AFTER_MASK = (UNIVERSAL | START),
+                IS_INCLUDED_MASK = (UNIVERSAL | POINT)
             }
-            
-            private Flags _Flags;
+            private readonly Flags _Flags;
 
             /// <summary>A universal inflection.</summary>
             public static readonly Inflection Universal = new Inflection(default(T), Flags.UNIVERSAL);
@@ -374,7 +395,7 @@ namespace DataStructures
 
             /// <summary>The point in the universe marked by this <see cref="Inflection"/>.</summary>
             public readonly T Point;
-            
+
 
             /// <summary>Returns whether the <see cref="Point"/> is included.</summary>
             public bool IsIncluded => (_Flags & Flags.IS_INCLUDED_MASK) != Flags.ERROR;
@@ -384,14 +405,16 @@ namespace DataStructures
             public bool IsEnd => (_Flags & Flags.END) != Flags.ERROR;
             /// <summary>Returns whether this inflection represents an universal interval.</summary>
             public bool IsUniversal => (_Flags & Flags.UNIVERSAL) != Flags.ERROR;
+            /// <summary>Returns whether this inflection represents a singleton.</summary>
             public bool IsSingleton => (_Flags & Flags.SINGLETON) != Flags.ERROR;
+            
             /// <summary>
             /// Used only to signal that a composed inflection has no contents.  An empty <see cref="IntervalSet{T}"/> 
             /// will have no Inflections in its <seealso cref="IntervalSet{T}.Inflections"/> property.
             /// </summary>
             internal bool IsEmpty => _Flags == Flags.ERROR;
             internal bool HasBefore => (_Flags & Flags.HAS_BEFORE_MASK) != Flags.ERROR;
-            internal bool HasPoint => (_Flags & Flags.HAS_POINT_MASK) != Flags.ERROR;
+            
             internal bool HasAfter => (_Flags & Flags.HAS_AFTER_MASK) != Flags.ERROR;
             [DebuggerStepThrough]
             public bool IsSameDirection(Inflection other) => !IsSingleton && !other.IsSingleton && IsStart == other.IsStart && IsEnd == other.IsEnd;
@@ -399,13 +422,13 @@ namespace DataStructures
 
             /// <summary>Creates a starting inflection.</summary>
             [DebuggerStepThrough]
-            public static Inflection Start(T point, bool include = true) => new Inflection(point, include ? (Flags.START | Flags.INCLUDED) : Flags.START);
+            public static Inflection Start(T point, bool include = true) => new Inflection(point, include ? (Flags.START | Flags.POINT) : Flags.START);
             /// <summary>Creates an ending inflection.</summary>
             [DebuggerStepThrough]
-            public static Inflection End(T point, bool include = true) => new Inflection(point, include ? (Flags.END | Flags.INCLUDED) : Flags.END);
+            public static Inflection End(T point, bool include = true) => new Inflection(point, include ? (Flags.END | Flags.POINT) : Flags.END);
             /// <summary>Creates a singleton inflection.</summary>
             [DebuggerStepThrough]
-            public static Inflection Singleton(T point, bool include = true) => new Inflection(point, include ? (Flags.SINGLETON | Flags.INCLUDED) : Flags.SINGLETON);
+            public static Inflection Singleton(T point, bool include = true) => new Inflection(point, include ? (Flags.SINGLETON | Flags.POINT) : Flags.SINGLETON);
             /// <summary>Creates a new inflection with the given properties.</summary>
             [DebuggerStepThrough]
             private Inflection(T point, Flags flags)
@@ -420,7 +443,9 @@ namespace DataStructures
             /// <summary>Conveniently cases the given inflection to its <see cref="Point"/>.</summary>
             public static implicit operator T(Inflection f) { return f.Point; }
 
+            [DebuggerStepThrough]
             public bool IsBefore(Inflection other) => (Point.CompareTo(other.Point) < 0);
+            [DebuggerStepThrough]
             public bool IsAfter(Inflection other) => (Point.CompareTo(other.Point) > 0);
             
 
@@ -439,8 +464,8 @@ namespace DataStructures
             /// <summary>Returns a string representation of this <see cref="Inflection"/>.</summary>
             public override string ToString()
             {
-                string pt = IsIncluded ? Point.ToString() : ".(" + Point.ToString() + ").";
-                if (IsSingleton) return pt;
+                string pt = IsIncluded ? Point.ToString() : "(" + Point.ToString() + ")";
+                if (IsSingleton) return IsIncluded ? pt : "." + pt + ".";
                 if (IsStart) return pt + ".";
                 if (IsEnd) return "." + pt;
                 if (IsUniversal) return "<..>";
@@ -543,14 +568,14 @@ namespace DataStructures
                 // Included inf is the base case.
                 if (inf.IsIncluded)
                 {
-                    if (list.Count==0) { list.Add(inf); return; }
+                    if (list.Count == 0) { list.Add(inf); return; }
 
                     Inflection lastInf = list[list.Count - 1];
                     if (inf.IsBefore(lastInf))
                         throw new SetIntegrityException("Inflections are not in strictly ascending order.");
                     else if (lastInf.IsSameDirection(inf))
                         throw new SetIntegrityException("Nested interval.");
-                    else if (lastInf.Point.CompareTo(inf.Point)==0)
+                    else if (lastInf.Point.CompareTo(inf.Point) == 0)
                     {
                         if (lastInf.IsStart)
                         {
@@ -568,7 +593,7 @@ namespace DataStructures
                     {
                         if (lastInf.IsStart)
                         {
-                            if (inf.IsEnd) list.Add(inf);                            
+                            if (inf.IsEnd) list.Add(inf);
                         }
                         else if (lastInf.IsEnd)
                         {
@@ -579,7 +604,7 @@ namespace DataStructures
                         {
                             list[list.Count - 1] = Inflection.Start(lastInf.Point, true);
                             if (!inf.IsStart)
-                                list.Add(Inflection.End(inf.Point, true));                            
+                                list.Add(Inflection.End(inf.Point, true));
                         }
                         return;
                     }
@@ -596,23 +621,20 @@ namespace DataStructures
                 else if (inf.IsStart)
                     _Append(Inflection.Start(GetNext(inf.Point), true));
                 // The omitted singleton can only occur when previous inflection is a start.
-                else if (inf.IsSingleton && list.Count > 0 && list[list.Count - 1].IsStart)
+                else if (inf.IsSingleton)
                 {
                     _Append(Inflection.End(GetPrevious(inf.Point), true));
                     list.Add(Inflection.Start(GetNext(inf.Point), true));
                 }
                 else
                     throw new SetIntegrityException("Invalid inflection for appending: " + inf.ToString());
-
             }
             
-
+            
+            
         }
         
-
-        /// <summary>Returns a copy of this <see cref="DiscreteIntervalSet{T}"/>.</summary>
-        public override IntervalSet<T> Copy() => base.Copy();
-
+        
         /// <summary>Returns the included inflection points in this <see cref="DiscreteIntervalSet{T}"/>.</summary>        
         public override IEnumerable<T> GetInflections()
         {
@@ -620,29 +642,57 @@ namespace DataStructures
                 yield return (f.IsIncluded ? f.Point : GetNext(f.Point));
         }
         
+        public IEnumerable<T> Reverse()
+        {
+            throw new NotImplementedException();
+        }
 
         /// <summary>Enumerates through this <see cref="DiscreteIntervalSet{T}"/>, returning one included item at a time.
         /// </summary>
         public IEnumerator<T> GetEnumerator()
         {
             if (Inflections.Length == 0) yield break;
-            if (Inflections[0].IsEnd)
-                throw new InvalidOperationException("Cannot iterate through a negative-infinite interval set.");
-            Inflection infFocus = Inflections[0];
-            T pt = infFocus.Point;
-            for (int i = 1; i < Inflections.Length; i++)
+            Inflection inf = Inflections[0];
+            if (inf.IsUniversal)
+                throw new InvalidOperationException("Cannot iterate through an infinite " + this.GetType().Name + ".");
+            if (inf.IsEnd)
+                throw new InvalidOperationException("Cannot iterate through a negative-infinite " + this.GetType().Name + " set.");
+
+            if (inf.IsIncluded)
+                yield return inf.Point;
+            if (Inflections.Length == 1)
+                yield break;
+            for (int idx = 1; idx < Inflections.Length; idx++)
             {
-                Inflection infNext = Inflections[i];
-                if (infFocus.IsIncluded) yield return pt;
-                if (infFocus.IsStart)
-                    while ((pt = GetNext(pt)).CompareTo(infNext.Point) < 0)
+                Inflection nextInf = Inflections[idx];                
+                while (inf.HasAfter || (inf.IsSingleton && !inf.IsIncluded))
+                {
+                    T pt = GetNext(inf.Point);
+                    while (pt.CompareTo(nextInf.Point) < 0)
+                    {
                         yield return pt;
-                infFocus = infNext;
+                        pt = GetNext(pt);
+                        
+                    }
+                    if (++idx >= Inflections.Length) break;
+                    inf = nextInf;
+                    if (inf.IsIncluded)
+                        yield return inf.Point;                    
+                    nextInf = Inflections[idx];
+                }
+                
+                inf = nextInf;
+                if (inf.IsIncluded)
+                    yield return inf.Point;
             }
-            if (infFocus.IsIncluded) yield return pt;
-            if (infFocus.IsStart)
+
+            // Positive-infinite can go on forever.
+            if (inf.IsStart)
+            {
+                T pt = inf.Point;
                 while (true)
-                    yield return (pt = GetNext(pt));  // Positive-infinite can go on forever.
+                    yield return (pt = GetNext(pt));
+            }            
         }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -665,7 +715,7 @@ namespace DataStructures
         /// <summary>Returns a copy of this <see cref="Int32IntervalSet"/>.</summary>
         public override IntervalSet<int> Copy() => new Int32IntervalSet(this.Inflections);
 
-        private Int32IntervalSet(params Inflection[] inflections) : base(Simplify(inflections)) { }
+        private Int32IntervalSet(params Inflection[] inflections) : base(inflections) { }
         /// <summary>Creates a new <see cref="Int32IntervalSet"/> containing the given items.</summary>
         public Int32IntervalSet(params int[] items) : base(items) { }
         /// <summary>Creates a new <see cref="Int32IntervalSet"/> containing the given items.</summary>
@@ -681,6 +731,12 @@ namespace DataStructures
         public static Int32IntervalSet operator !(Int32IntervalSet a) => new Int32IntervalSet(a.Not(a.Inflections));
         public static Int32IntervalSet operator ~(Int32IntervalSet a) => !a;
 #pragma warning restore 1591
+
+        public Int32IntervalSet And(Int32IntervalSet other) => this & other;
+        public Int32IntervalSet Or(Int32IntervalSet other) => this | other;
+        public Int32IntervalSet Subtract(Int32IntervalSet other) => this - other;
+        public Int32IntervalSet Xor(Int32IntervalSet other) => this ^ other;
+        public Int32IntervalSet Implies(Int32IntervalSet other) => new Int32IntervalSet(Imply(this.Inflections, other.Inflections));
     }
 
     /// <summary>An discrete interval set whose contents are standard 8-byte <see cref="long"/>s.</summary>
