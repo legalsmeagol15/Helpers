@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Arguments
 {
     /// <summary>An attribute indicating that a property, field, or method can be referenced or invoked by an alias 
-    /// or flag.  </summary>
+    /// or flag.</summary>
     [AttributeUsage(validOn: AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public sealed class AliasAttribute : Attribute
     {
