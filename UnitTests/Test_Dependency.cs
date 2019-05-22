@@ -18,7 +18,7 @@ namespace UnitTests
         [TestMethod]
         public void TestParsing_Parsing()
         {
-            Expression.FromString("(3x2+(2/y1)*-7)");
+            Clause.FromString("(3x2+(2/y1)*-7)");
             //Expression.FromString("3x+7");
 
         }

@@ -18,7 +18,7 @@ namespace Dependency
     {
         int MaxIndex { get; }
         int MinIndex { get; }
-        object this[IEvaluateable index] { get; }
+        IEvaluateable this[params Number[] indices] { get; }
 
     }
 }

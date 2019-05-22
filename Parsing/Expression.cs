@@ -14,9 +14,9 @@ namespace Dependency
         IEvaluateable[] Contents { get; }        
     }
     
-    public sealed class Expression : IExpression
+    public sealed class Clause : IExpression
     {
-        internal enum BracketType { None, Paren, Square, Curly}
+        internal enum BracketType { None, Paren, Curly} // Square is reserved for indexing.
         internal readonly BracketType Brackets;
         internal string Closer
         {
@@ -25,7 +25,6 @@ namespace Dependency
                 switch (Brackets)
                 {
                     case BracketType.Paren: return ")";
-                    case BracketType.Square: return "]";
                     case BracketType.Curly: return "}";
                     default:return "";
                 }
@@ -38,33 +37,23 @@ namespace Dependency
                 switch (Brackets)
                 {
                     case BracketType.Paren: return "(";
-                    case BracketType.Square: return "[";
                     case BracketType.Curly: return "{";
                     default: return "";
                 }
             }
         }
 
-        private Expression _Value = null;
+        private Clause _Value = null;
         public IEvaluateable Value => _Value ?? Evaluate();
-        public IEvaluateable Evaluate() => _Value = new Expression(Brackets, Contents.Select(c => c.Evaluate()));
+        public IEvaluateable Evaluate() => _Value = new Clause(Brackets, Contents.Select(c => c.Evaluate()));
 
         public IEvaluateable[] Contents { get; internal set; }
 
-        private Expression(BracketType brackets = BracketType.None) { this.Brackets = brackets; }
-        private Expression(BracketType brackets, IEnumerable<IEvaluateable> contents) : this(brackets) { Contents = contents.ToArray(); }
+        private Clause(BracketType brackets = BracketType.None) { this.Brackets = brackets; }
+        private Clause(BracketType brackets, IEnumerable<IEvaluateable> contents) : this(brackets) { Contents = contents.ToArray(); }
 
 
-
-        public abstract class Function : IExpression
-        {
-            public IEvaluateable[] Contents { get; protected internal set; }
-
-            IEvaluateable IEvaluateable.Evaluate()
-            {
-                throw new NotImplementedException();
-            }
-        }
+        
 
 
         private class Prioritized
@@ -74,7 +63,7 @@ namespace Dependency
             public Prioritized(Operator.Priorities priority, DynamicLinkedList<IEvaluateable>.Node node) { this.Priority = priority; this.Node = node; }
         }
 
-        public static Expression FromString(string str, FunctionFactory functions, DependencyManager depMngr)
+        public static Clause FromString(string str, FunctionFactory functions, DependencyManager depMngr)
         {
             Console.WriteLine("Pattern = " + Pattern);
             Console.WriteLine("Input = " + str);
@@ -85,7 +74,7 @@ namespace Dependency
             
             try
             {
-                Expression e = new Expression(BracketType.None);
+                Clause e = new Clause(BracketType.None);
                 _Parse(e);
                 return e;
             }catch (NestingMismatchException nme)
@@ -115,17 +104,20 @@ namespace Dependency
                         case string _ when token.StartsWith("\"") && token.EndsWith("\"") && token.Count((c) => c == '\"') == 2:
                             inputs.AddLast(new Dependency.String(token)); continue;
 
-                        case "(": inputs.AddLast(_Parse(new Expression(BracketType.Paren))); continue;
-                        case "[": inputs.AddLast(_Parse(new Expression(BracketType.Square))); continue;
-                        case "{": inputs.AddLast(_Parse(new Expression(BracketType.Curly))); continue;
+                        case "(": inputs.AddLast(_Parse(new Clause(BracketType.Paren))); continue;                        
+                        case "{": inputs.AddLast(_Parse(new Clause(BracketType.Curly))); continue;
+                        case "[":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.INDEXING, inputs.AddLast(_Parse(new Indexing())))); continue;                        
                         case ")":
                         case "}":
-                        case "]":
-                            if (!(exp is Expression e)) throw new NestingMismatchException();
-                            if (e.Closer != token) throw new NestingMismatchException();
-                            e.Contents = __InputsToTree();
+                            if (!(exp is Clause c)) throw new NestingMismatchException();
+                            if (c.Closer != token) throw new NestingMismatchException();
+                            c.Contents = __InputsToTree();
                             return exp;
-
+                        case "]":
+                            if (!(exp is Indexing i)) throw new NestingMismatchException();
+                            i.Contents = __InputsToTree();
+                            return exp;
                         case ",": continue;
                         case ";": throw new NotImplementedException();
 
@@ -167,6 +159,28 @@ namespace Dependency
 
                         default: throw new SyntaxException("Unrecognized token: ", token, null);
                     }
+                    if (inputs.Count >=2)
+                    {
+                        switch (inputs.LastNode.Previous.Contents)
+                        {
+                            case Number n:
+                                if (inputs.Last is Function fLast) inputs.LastNode.InsertBefore(new Multiplication(n, fLast));
+                                else if (inputs.Last is Clause cLast) inputs.LastNode.InsertBefore(new Multiplication(n, cLast));                                
+                                break;
+                            case Function fPrev:
+                                if (inputs.Last is Clause inputClause && inputClause.Brackets == BracketType.Paren)
+                                {
+                                    fPrev.Contents = inputClause.Contents;
+                                    inputs.RemoveLast();
+                                    break;
+                                }
+                                throw new SyntaxException("Function " + fPrev.Name + " must be followed by parenthetical input expression.");
+                            
+                        }
+                        
+                    }
+                    
+                    
                     splitIdx++;
                 }
                 
@@ -194,7 +208,6 @@ namespace Dependency
             switch (Brackets)
             {
                 case BracketType.Paren: return "(" + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + ")";
-                case BracketType.Square:return "[" + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + "]";
                 case BracketType.Curly: return "{" + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + "}";
                 default:return string.Join(",", (IEnumerable<IEvaluateable>)Contents);
             }

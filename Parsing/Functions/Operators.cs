@@ -53,6 +53,8 @@ namespace Dependency
             this.Contents = new IEvaluateable[] { node.Previous.Remove(), node.Next.Remove() };
             return true;
         }
+
+        
         
     }
 
@@ -73,6 +75,8 @@ namespace Dependency
             bool _IsAddable(IEvaluateable ie) => ie is Number;
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Addition>(node);
+
+        public override string ToString() => string.Join(" + ", (IEnumerable<IEvaluateable>)Contents);
     }
 
     public sealed class And : Operator
@@ -93,6 +97,8 @@ namespace Dependency
         }
 
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<And>(node);
+
+        public override string ToString() => string.Join(" & ", (IEnumerable<IEvaluateable>)Contents);
     }
 
     public sealed class Division : Operator
@@ -109,6 +115,8 @@ namespace Dependency
             bool _IsDivisible(IEvaluateable ie) => ie is Number;
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
+
+        public override string ToString() => string.Join(" / ", (IEnumerable<IEvaluateable>)Contents);
     }
 
     public sealed class Exponentiation : Operator
@@ -125,6 +133,65 @@ namespace Dependency
             bool _CanExponentiate(IEvaluateable ie) => ie is Number;
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
+
+        public override string ToString() => string.Join(" ^ ", (IEnumerable<IEvaluateable>)Contents);
+    }
+
+
+    public abstract class Indexing : Operator, IIndexable
+    {
+
+
+        IEvaluateable IIndexable.this[params Number[] indices]
+        {
+            get
+            {
+                if (!Contents.Any()) return new IndexingError("No base to index.");
+                if (Contents[0] is IIndexable i) return i[indices];
+                return new IndexingError("Base of type " + Contents[0].GetType().Name + " is not indexable.");
+            }
+        }
+
+        int IIndexable.MaxIndex
+        {
+            get
+            {
+                if (!Contents.Any()) return new IndexingError("No base to index.");
+                if (Contents[0] is IIndexable i) return i.MaxIndex;
+                return new IndexingError("Base of type " + Contents[0].GetType().Name + " is not indexable.");
+            }
+        }
+        
+        int IIndexable.MinIndex
+        {
+            get
+            {
+                if (!Contents.Any()) return new IndexingError("No base to index.");
+                if (Contents[0] is IIndexable i) return i.MinIndex;
+                return new IndexingError("Base of type " + Contents[0].GetType().Name + " is not indexable.");
+            }
+        }
+
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> rawInputs)
+        {
+            IEvaluateable[] inputs = rawInputs.ToArray();
+            if (inputs.Length < 2) return new InputCountError(this, inputs, 2);
+            if (!(inputs[0] is IIndexable a)) return new TypeMismatchError(this, inputs, 0, typeof(Number));
+            Number[] indices = new Number[inputs.Length - 1];
+            for (int i = 1; i < inputs.Length; i++)
+            {
+                if (!(inputs[i] is Number n)) return new TypeMismatchError(this, inputs, i, typeof(Number));
+                indices[i - 1] = n;
+            }            
+            return a[indices];
+        }
+
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
+        {
+            
+        }
+
+        public override string ToString() => Contents[0].ToString() + "[" + string.Join(",", Contents.Skip(1)) + "]";
     }
 
     public sealed class Multiplication : Operator
@@ -145,6 +212,8 @@ namespace Dependency
             bool _CanMultply(IEvaluateable ie) => ie is Number;
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Multiplication>(node);
+
+        public override string ToString() => string.Join(" * ", (IEnumerable<IEvaluateable>)Contents);
     }
 
     public sealed class Negation : Operator
@@ -164,6 +233,8 @@ namespace Dependency
             Contents = new IEvaluateable[] { node.Next.Remove() };
             return true;
         }
+
+        public override string ToString() => "-" + Contents[0].ToString();
     }
 
     public sealed class Or : Operator
@@ -183,6 +254,8 @@ namespace Dependency
             bool _CanOr(IEvaluateable ie) => ie is Dependency.Boolean;
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Or>(node);
+
+        public override string ToString() => string.Join(" | ", (IEnumerable<IEvaluateable>)Contents);
     }
 
 
@@ -192,6 +265,8 @@ namespace Dependency
         {
             if (!tHandle.IsOpen) throw new SyntaxException();
         }
+
+        public override string ToString() => string.Join(" . ", (IEnumerable<IEvaluateable>)Contents);
     }
 
     public sealed class Subtraction : Operator
@@ -208,6 +283,8 @@ namespace Dependency
             bool _CanSubtract(IEvaluateable ie) => ie is Number;
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
+
+        public override string ToString() => string.Join(" - ", (IEnumerable<IEvaluateable>)Contents);
     }
 
     
