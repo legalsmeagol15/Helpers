@@ -1,154 +1,211 @@
-﻿using DataStructures;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Threading;
+using DataStructures;
 
 namespace Dependency
 {
-
-
-    
-    public static class Expression 
+    public interface IExpression : IEvaluateable
     {
-        public static IEvaluateable FromString(string str, IContext context, Function.Factory functions) 
-            => FromStringInternal(str, context, functions);
-
-        public static IEvaluateable FromString(string str, IContext context)
-            => FromStringInternal(str, context, (context == null) ? null : Function.Factory.StandardFactory);
-
-        public static IEvaluateable FromString(string str) 
-            => FromStringInternal(str, null, null);
-       
-
-        /// <summary>
-        /// Creates and returns an evaluatable objects from the given string, or returns an error indicating which it cannot.
-        /// <para/>Strong guarantee:  there will be no changes to the state of the given context if an exception is thrown.  If an 
-        /// exception is thrown, all added variables will be deleted by calling their respective contexts' Delete method.
-        /// </summary>        
-        /// <exception cref="SyntaxException">Thrown if the given string cannot be converted into a valid IEvaluateable.</exception>
-        /// <param name="str">The string to convert into an evaluatable object.</param>
-        /// <param name="functions">The allowed functions for this expression.</param>
-        /// <param name="context">The variable context in which variables are created or from which they are retrieved.</param>
-        internal static IEvaluateable FromStringInternal(string str, IContext context, Function.Factory functions)
-        {            
-            // Step #1 - check for edge conditions that will result in errors rather than throwing exceptions.            
-            //ISet<Variable> terms = new HashSet<Variable>();            
-            if (str == null || str == "") return null;
-
-            // Step #2a - from here, we'll be parsing the string.  Prep for parsing.            
-            string[] rawTokens = _Regex.Split(str);
-            Debug.Assert(rawTokens.Length > 0);
-
-            // Step #2c - prep objects that will embody the nesting structure.
-            Stack<TokenList> stack = new Stack<TokenList>();
-            TokenList rootList = new TokenList("", 0);
-            stack.Push(rootList);
-            List<Reference> newReferences = new List<Reference>();
-
-            // Step #3 - Parse into clause-by-clause tree structure containing tokenized objects
-            int i = 0;
-            try
-            {                
-                int position = 0;
-                for (i = 0; i < rawTokens.Length; i++)
+        IEvaluateable[] Contents { get; }        
+    }
+    
+    public sealed class Expression : IExpression
+    {
+        internal enum BracketType { None, Paren, Square, Curly}
+        internal readonly BracketType Brackets;
+        internal string Closer
+        {
+            get
+            {
+                switch (Brackets)
                 {
-                    // Step #3a - Set up the raw token.
-                    string rawToken = rawTokens[i];
-                    position += rawToken.Length;
-
-                    // Step #3b - nesting, literals, and operators.  Enough to make an arithmetic expression with no variables, 
-                    // functions, or context references.
-                    switch (rawToken)
-                    {
-                        // Skip whitespace
-                        case "":
-                        case string _ when string.IsNullOrWhiteSpace(rawToken):
-                            continue;
-
-                        //Nesting?
-                        case "(":
-                        case "[":
-                        case "{":
-                            TokenList tl = new TokenList(rawToken, i);
-                            stack.Peek().AddLast(tl);
-                            stack.Push(tl);
-                            continue;
-                        case ")":
-                        case "]":
-                        case "}":
-                            stack.Pop().Close(rawToken, i);
-                            if (stack.Count == 0)
-                                throw new SyntaxException("Invalid token: " + rawToken, string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, context);
-                            continue;
-
-                        //Sectioner?
-                        case ",": continue;
-                        case ";": continue;
-
-
-                        //Unary operator?
-                        case "-":
-                        case "!":
-                        case "~":
-                            if (stack.Peek().Count == 0 || stack.Peek().Last() is Operator)
-                                stack.Peek().AddLast(Function.Factory.CreateNegation());
-                            else stack.Peek().AddLast(Function.Factory.CreateSubtraction());
-                            continue;
-
-                        // Binary operator?
-                        case "+": stack.Peek().AddLast(Function.Factory.CreateAddition()); continue;
-                        case "*": stack.Peek().AddLast(Function.Factory.CreateMultiplication()); continue;
-                        case "/": stack.Peek().AddLast(Function.Factory.CreateDivision()); continue;
-                        case "^": stack.Peek().AddLast(Function.Factory.CreateExponentiation()); continue;
-                        case "|": stack.Peek().AddLast(Function.Factory.CreateOr()); continue;
-                        case "&": stack.Peek().AddLast(Function.Factory.CreateAnd()); continue;
-                        case ":": stack.Peek().AddLast(Function.Factory.CreateRange()); continue;
-
-                        // Literal?
-                        case var s when s.StartsWith("\"") && s.EndsWith("\"") && s.Count((c) => c == '\"') == 2:
-                            stack.Peek().AddLast(new String(s.Substring(1, s.Length - 2)));
-                            continue;
-                        case string _ when Number.TryParse(rawToken, out Number n):
-                            stack.Peek().AddLast(n);
-                            continue;
-                        case string _ when bool.TryParse(rawToken, out bool b):
-                            stack.Peek().AddLast(Boolean.FromBool(b));
-                            continue;
-
-                        // A function from the supplied dictionary?
-                        case string _ when functions != null && functions.TryCreateFunction(rawToken, out Function f):
-                            stack.Peek().AddLast(f);
-                            continue;
-
-                        // Context-specific?
-                        case string _ when context != null && Reference.TryCreate( context, rawToken.Split('.'), out Reference rel):                            
-                            stack.Peek().AddLast(rel);
-                            continue;
-
-                        // If we still don't know what the token is, it's definitely a syntax error.
-                        default:
-                            throw new SyntaxException("Invalid token: " + rawToken,
-                             string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length,
-                                context);
-                    }
+                    case BracketType.Paren: return ")";
+                    case BracketType.Square: return "]";
+                    case BracketType.Curly: return "}";
+                    default:return "";
                 }
             }
-            catch (Exception ex)
+        }
+        internal string Opener
+        {
+            get
             {
-                if (ex is SyntaxException) throw ex;
-                throw new SyntaxException("Syntax error", string.Join("", rawTokens), string.Join("", rawTokens.Take(i)).Length, context, ex);                
+                switch (Brackets)
+                {
+                    case BracketType.Paren: return "(";
+                    case BracketType.Square: return "[";
+                    case BracketType.Curly: return "{";
+                    default: return "";
+                }
+            }
+        }
+
+        private Expression _Value = null;
+        public IEvaluateable Value => _Value ?? Evaluate();
+        public IEvaluateable Evaluate() => _Value = new Expression(Brackets, Contents.Select(c => c.Evaluate()));
+
+        public IEvaluateable[] Contents { get; internal set; }
+
+        private Expression(BracketType brackets = BracketType.None) { this.Brackets = brackets; }
+        private Expression(BracketType brackets, IEnumerable<IEvaluateable> contents) : this(brackets) { Contents = contents.ToArray(); }
+
+
+
+        public abstract class Function : IExpression
+        {
+            public IEvaluateable[] Contents { get; protected internal set; }
+
+            IEvaluateable IEvaluateable.Evaluate()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+
+        private class Prioritized
+        {
+            public readonly Operator.Priorities Priority;
+            public readonly DynamicLinkedList<IEvaluateable>.Node Node;
+            public Prioritized(Operator.Priorities priority, DynamicLinkedList<IEvaluateable>.Node node) { this.Priority = priority; this.Node = node; }
+        }
+
+        public static Expression FromString(string str, FunctionFactory functions, DependencyManager depMngr)
+        {
+            Console.WriteLine("Pattern = " + Pattern);
+            Console.WriteLine("Input = " + str);
+            
+            string[] splits = Regex.Split(str);
+            HashSet<Reference> refs = new HashSet<Reference>();
+            int splitIdx = 0;
+            
+            try
+            {
+                Expression e = new Expression(BracketType.None);
+                _Parse(e);
+                return e;
+            }catch (NestingMismatchException nme)
+            {
+                Array.Resize(ref splits, splitIdx+1);
+                string msg = string.Join("", splits);
+                throw new SyntaxException("Nesting mismatch.", msg, nme);
             }
             
-            IEvaluateable contents = rootList.Parse();
-            return contents;
-        }
+            
+
+            IExpression _Parse(IExpression exp)
+            {
+                DynamicLinkedList<IEvaluateable> inputs = new DynamicLinkedList<IEvaluateable>();
+                Heap<Prioritized> operatorNodes 
+                    = new Heap<Prioritized>((a, b) => a.Priority.CompareTo(b.Priority));
+                while (splitIdx < splits.Length)
+                {
+                    string token = splits[splitIdx];
+                    if (string.IsNullOrWhiteSpace(token)) continue;
+                    switch (token)
+                    {
+                        case string _ when Number.TryParse(token, out Number n):
+                            inputs.AddLast(n); continue;
+                        case string _ when bool.TryParse(token, out bool b):
+                            inputs.AddLast(Dependency.Boolean.FromBool(b)); continue;
+                        case string _ when token.StartsWith("\"") && token.EndsWith("\"") && token.Count((c) => c == '\"') == 2:
+                            inputs.AddLast(new Dependency.String(token)); continue;
+
+                        case "(": inputs.AddLast(_Parse(new Expression(BracketType.Paren))); continue;
+                        case "[": inputs.AddLast(_Parse(new Expression(BracketType.Square))); continue;
+                        case "{": inputs.AddLast(_Parse(new Expression(BracketType.Curly))); continue;
+                        case ")":
+                        case "}":
+                        case "]":
+                            if (!(exp is Expression e)) throw new NestingMismatchException();
+                            if (e.Closer != token) throw new NestingMismatchException();
+                            e.Contents = __InputsToTree();
+                            return exp;
+
+                        case ",": continue;
+                        case ";": throw new NotImplementedException();
+
+                        case "-":
+                            Operator o;
+                            if (inputs.Any() && !(inputs.Last is Operator))
+                                operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Subtraction())));
+                            else
+                                operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Negation())));
+                            continue;
+                        case "!":
+                        case "~":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Negation()))); continue;
+                        case "+":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Addition()))); continue;
+                        case "*":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Multiplication()))); continue;
+                        case "/":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Division()))); continue;
+                        case "^":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Exponentiation()))); continue;
+                        case ".":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Reference()))); continue;
+                        case "&":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new And()))); continue;
+                        case "|":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Or()))); continue;
+                        case ":":
+                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.RANGE, inputs.AddLast(new Range()))); continue;
+
+                        case string _ when functions != null && functions.TryCreate(token, out Function f):
+                            inputs.AddLast(_Parse(f)); continue;
+
+                        case string _ when depMngr != null && depMngr.TryGet(token, out IContext ctxt):
+                            inputs.AddLast(ctxt); continue;
+
+                        case string _ when depMngr != null && depMngr.TryGet(token, out IVariable v):
+                            inputs.AddLast(v); continue;
+
+                        default: throw new SyntaxException("Unrecognized token: ", token, null);
+                    }
+                    splitIdx++;
+                }
                 
 
+                IEvaluateable[] __InputsToTree()
+                {
+                    while (operatorNodes.Count > 0)
+                    {
+                        var prioritized = operatorNodes.Dequeue();
+                        Operator oper = (Operator)prioritized.Node.Contents;
+                        if (!oper.Parse(prioritized.Node))
+                            throw new OperatorException();
+                    }
+                    return inputs.ToArray();
+                }
+            }
+
+            
+            
+        }
+
+
+        public override string ToString()
+        {
+            switch (Brackets)
+            {
+                case BracketType.Paren: return "(" + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + ")";
+                case BracketType.Square:return "[" + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + "]";
+                case BracketType.Curly: return "{" + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + "}";
+                default:return string.Join(",", (IEnumerable<IEvaluateable>)Contents);
+            }
+        }
+
+        IEvaluateable IEvaluateable.Evaluate()
+        {
+            throw new NotImplementedException();
+        }
+
+        #region Expression RegEx members
         private const string StringPattern = "(?<stringPattern>\".*\")";
         private const string OpenerPattern = @"(?<openerPattern>[\(\[{])";
         private const string CloserPattern = @"(?<closerPattern>[\)\]}])";
@@ -156,98 +213,27 @@ namespace Dependency
         private const string VarPattern = @"(?<varPattern> \$? [a-zA-Z_][\w_]* (?:\.[a-zA-Z_][\w_]*)*)";
         private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
         private const string SpacePattern = @"(?<spacePattern>\s+)";
-        private static string regExPattern = string.Format("{0} | {1} | {2} | {3} | {4} | {5} | {6}",
-               StringPattern,        //0
-               OpenerPattern,        //1
-               CloserPattern,        //2
-               OperPattern,          //3
-               VarPattern,           //4
-               NumPattern,           //5
-               SpacePattern);        //6
-        private static Regex _Regex = new Regex(regExPattern, RegexOptions.IgnorePatternWhitespace);
 
+        private static string Pattern = string.Join(" | ", StringPattern, OpenerPattern, CloserPattern, OperPattern, VarPattern, NumPattern, SpacePattern);
+        private static Regex Regex = new Regex(Pattern, RegexOptions.IgnorePatternWhitespace);
 
-
-        /// <summary>
-        /// A data structure that mirrors a Clause, but does not require that its contents be IEvaluatable.  This structure is designed to 
-        /// function as an intermediary between a simple list of tokens and an actual IEvaluatable Clause, and contains a method Parse() 
-        /// which will return a Clause based on this structure.
-        /// </summary>
-        private class TokenList : DynamicLinkedList<object>
+        public class SyntaxException : Exception
         {
-            public string Opener = "";
-            public string Closer = "";
-            public int Start;
-            public int End;
-            public TokenList(string opener, int startIndex) : base() { this.Opener = opener; this.Start = startIndex; }
-            public TokenList(IEnumerable<object> items, string opener, int startIndex) : base(items) { this.Opener = opener; this.Start = startIndex; }
-            public void Close(String closer, int endIndex) { this.Closer = closer; this.End = endIndex; }
-
-
-
-            /// <exception cref="InvalidOperationException">Thrown for a mismatch.</exception>
-            public IEvaluateable Parse()
-            {
-                // Step #1 - Watch for malformed nestings.
-                switch (Opener)
-                {
-                    case "": if (Closer != "") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;
-                    case "(": if (Closer != ")") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;
-                    case "[": if (Closer != "]") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;
-                    case "{": if (Closer != "}") throw new Exception("Mismatched brackets: " + Opener + " vs. " + Closer); break;
-                    default: throw new Exception("Unrecognized brackets: " + Opener + " vs. " + Closer);
-                }
-
-
-                // Step #2 - evaluate for pragmatics - things like scalars preceding functions or other nestings without a '*', etc.
-                // The following ungodly heap is designed to sort nodes according to the priority levels of the Function objects they contain.
-                StableHeap<DynamicLinkedList<object>.Node> prioritized
-                    = new StableHeap<DynamicLinkedList<object>.Node>((a, b) => ((Function)a.Contents).Priority.CompareTo(((Function)b.Contents).Priority));
-
-                DynamicLinkedList<object>.Node node = this.FirstNode;
-                while (node != null)
-                {
-                    switch (node.Contents)
-                    {
-                        case TokenList tl: node.Contents = tl.Parse(); break;
-                        case EvaluationError e: return e;
-                        case Reference r when r.Function != null:
-                        case Function f: prioritized.Enqueue(node); break;
-                        case Number n when node.Next != null:
-                            if (node.Next.Contents is Operator || node.Next.Contents is Constant) break;
-                            if (node.Next.Contents is TokenList || node.Next.Contents is Reference || node.Next.Contents is Function || node.Next.Contents is Clause)
-                                node.InsertAfter(Function.Factory.CreateMultiplication());
-                            break;
-                    }
-                    node = node.Next;
-                }
-
-                // Step #3 - construct a within-this-clause tree according to operator precedence.
-                while (prioritized.Count > 0)
-                {
-                    node = prioritized.Dequeue();
-                    Function function = (node.Contents is Function f) ? f : ((Reference)node.Contents).Function;
-                    function.ParseNode(node);
-                    function.Terms = new HashSet<Variable>(function.Inputs.SelectMany(input => Variable.GetTermsOf(input)));
-                }
-
-                // Step #4 - Return the fully-parsed clause.  If there's just one naked sub-clause in the parsed clause, return that with 
-                // this clause's opener/closer.                
-
-                // No need to return a chain of naked single-input clauses
-                if (Opener == "" && Closer == "")
-                {
-                    IEvaluateable result = (IEvaluateable)this.First;
-                    while ((result is Clause nakedC) && (nakedC.Inputs.Count() == 1) && (nakedC.IsNaked))
-                        result = nakedC.Inputs[0];
-                    return result;
-                }
-
-                // In all other cases, just make a containing clause of the content.
-                return new Clause(Opener, Closer, this.Select(item => (IEvaluateable)item).ToArray());
-            }
+            public readonly string Parsed;
+            public SyntaxException(string message, string parsed, Exception inner) : base(message, inner) { this.Parsed = parsed; }
         }
-        
 
+        public class OperatorException: Exception 
+        {
+            
+        }
+
+        internal class NestingMismatchException : Exception
+        {
+            public NestingMismatchException()
+            {
+            }            
+        }
+        #endregion
     }
 }

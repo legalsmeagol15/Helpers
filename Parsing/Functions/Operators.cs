@@ -1,447 +1,214 @@
-﻿using DataStructures;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Dependency.Function;
-using Parsing.Dependency;
+using DataStructures;
 
 namespace Dependency
 {
-    [Serializable]
-    /// <summary>
-    /// A special type of function typically written with a special relationship to its inputs.  For 
-    /// example, addition could be written "add(a,b)", instead we use "a + b" with a special symbol 
-    /// in between its two inputs.
-    /// </summary>
-    internal abstract class Operator : Function
+    public abstract class Operator : Function
     {
-        protected internal Operator(params IEvaluateable[] inputs) : base(inputs) { }
-
-        protected internal override void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 1, 1);
-
-        protected abstract string Symbol { get; }
-
-        public override bool IsNaked => false;
-
-        public override string ToString() =>
-            (Opener != "" ? Opener + " " : "") + string.Join(" " + Symbol + " ", (IEnumerable<IEvaluateable>)Inputs) + (Closer != "" ? " " + Closer : "");
-    }
-
-
-
-
-    #region Arithmetic operators
-
-    [Serializable]
-    internal sealed class Addition : Operator
-    {
-
-        internal Addition(params IEvaluateable[] inputs) : base(inputs) { }
-
-        protected override string Symbol => "+";
-        protected internal override ParsingPriority Priority => ParsingPriority.Addition;
-
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        protected internal enum Priorities
         {
-
-            decimal m = 0.0m;
-            List<IEvaluateable> expressions = new List<IEvaluateable>();
-            foreach (IEvaluateable input in evaluatedInputs)
-            {
-                if (input is Number n) m += n.Value;
-                else expressions.Add(input);
-            }
-            if (expressions.Count > 0) throw new NotImplementedException();
-            return new Number(m);
+            REFERENCE = 50,
+            OR = 60,
+            AND = 70,
+            EXPONENTIATION = 100,
+            NEGATION = 200,
+            MULTIPLICATION = 300,
+            DIVISION = 400,
+            ADDITION = 500,
+            SUBTRACTION = 600
         }
+        protected Operator() { }        
 
+        internal abstract bool Parse(DataStructures.DynamicLinkedList<IEvaluateable>.Node node);
+
+        protected bool ParseMany<T>(DataStructures.DynamicLinkedList<IEvaluateable>.Node node) where T : IEvaluateable
+        {
+            if (node.Previous == null || node.Next == null) return false;
+            IEvaluateable prev = node.Previous.Remove(), next = node.Next.Remove();
+            LinkedList<IEvaluateable> list = new LinkedList<IEvaluateable>();
+            list.AddLast(prev);
+            list.AddLast(next);
+            while (node.Previous != null && node.Previous is T)
+            {
+                node.Previous.Remove();
+                if (node.Previous == null) return false;
+                list.AddFirst(node.Previous.Remove());
+            }
+            while (node.Next != null && node.Next is T)
+            {
+                node.Next.Remove();
+                if (node.Next == null) return false;
+                list.AddLast(node.Next.Remove());
+            }            
+            this.Contents = list.ToArray();
+            return true;
+        }
+        protected bool ParseBinary(DataStructures.DynamicLinkedList<IEvaluateable>.Node node)
+        {
+            if (node.Previous == null || node.Next == null) return false;
+            this.Contents = new IEvaluateable[] { node.Previous.Remove(), node.Next.Remove() };
+            return true;
+        }
         
     }
 
-    [Serializable]
-    internal sealed class Division : Operator
+    public sealed class Addition : Operator
     {
-
-        internal Division(params IEvaluateable[] inputs) : base(inputs) { }
-        protected override string Symbol => "/";
-
-        protected internal override ParsingPriority Priority => ParsingPriority.Division;
-
-
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
         {
-            if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
-            if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b)
+            if (!inputs.Any()) return new InputCountError(this, inputs, 2);
+            Number sum = 0;
+            int idx = 0;
+            foreach (IEvaluateable ie in inputs)
             {
-                if (b == Number.Zero) return new EvaluationError("Division by zero.");
-                else return a / b;
+                if (!_IsAddable(ie)) return new TypeMismatchError(this, inputs, idx, typeof(Number));
+                sum += (Number)ie;
+                idx++;
             }
-
-            throw new NotImplementedException();
+            return sum;
+            bool _IsAddable(IEvaluateable ie) => ie is Number;
         }
-
-        
-
-
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Addition>(node);
     }
 
-    [Serializable]
-    internal sealed class Exponentiation : Operator
+    public sealed class And : Operator
     {
-
-        protected override string Symbol => "^";
-        internal Exponentiation(params IEvaluateable[] inputs) : base(inputs) { }
-        protected internal override ParsingPriority Priority => ParsingPriority.Exponentiation;
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
         {
-            if (evaluatedInputs.Length < 1) return InputCountError(evaluatedInputs, 1, 1000000);
-            Number b;
-            if (!(evaluatedInputs[0] is Number)) return InputTypeError(evaluatedInputs, 0, typeof(Number));
-            else b = (Number)evaluatedInputs[0];
-
-            for (int i = 1; i < evaluatedInputs.Length; i++)
+            if (!inputs.Any()) return new InputCountError(this, inputs, 2);
+            Dependency.Boolean b = true;
+            int idx = 0;
+            foreach (IEvaluateable ie in inputs)
             {
-                if (!(evaluatedInputs[i] is Number)) return InputTypeError(evaluatedInputs, i, typeof(Number));
-                b ^= (Number)evaluatedInputs[i];
+                if (!_CanAnd(ie)) return new TypeMismatchError(this, inputs, idx, typeof(Number));
+                b &= (Dependency.Boolean)ie;
+                idx++;
             }
             return b;
+            bool _CanAnd(IEvaluateable ie) => ie is Dependency.Boolean;
         }
 
-        
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<And>(node);
     }
 
-    [Serializable]
-    internal sealed class Multiplication : Operator
+    public sealed class Division : Operator
     {
-
-        internal Multiplication(params IEvaluateable[] inputs) : base(inputs) { }
-        protected internal override ParsingPriority Priority => ParsingPriority.Multiplication;
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> rawInputs)
         {
-            decimal m = 1.0m;
-            List<IEvaluateable> expressions = new List<IEvaluateable>();
-            foreach (IEvaluateable input in evaluatedInputs)
+            IEvaluateable[] inputs = rawInputs.ToArray();
+            if (inputs.Length != 2) return new InputCountError(this, inputs, 2);
+            if (!_IsDivisible(inputs[0])) return new TypeMismatchError(this, inputs, 0, typeof(Number));
+            if (!_IsDivisible(inputs[1])) return new TypeMismatchError(this, inputs, 1, typeof(Number));
+            Number a = (Number)inputs[0];
+            Number b = (Number)inputs[1];
+            return a / b;
+            bool _IsDivisible(IEvaluateable ie) => ie is Number;
+        }
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
+    }
+
+    public sealed class Exponentiation : Operator
+    {
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> rawInputs)
+        {
+            IEvaluateable[] inputs = rawInputs.ToArray();
+            if (inputs.Length != 2) return new InputCountError(this, inputs, 2);
+            if (!_CanExponentiate(inputs[0])) return new TypeMismatchError(this, inputs, 0, typeof(Number));
+            if (!_CanExponentiate(inputs[1])) return new TypeMismatchError(this, inputs, 1, typeof(Number));
+            Number a = (Number)inputs[0];
+            Number b = (Number)inputs[1];
+            return a ^ b;
+            bool _CanExponentiate(IEvaluateable ie) => ie is Number;
+        }
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
+    }
+
+    public sealed class Multiplication : Operator
+    {
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
+        {
+            if (!inputs.Any()) return new InputCountError(this, inputs, 2);
+            Number product = 0;
+            int idx = 0;
+            foreach (IEvaluateable ie in inputs)
             {
-                if (input is Number n) m *= n;
-                else expressions.Add(input);
+                if (!_CanMultply(ie)) return new TypeMismatchError(this, inputs, idx, typeof(Number));
+                product *= (Number)ie;
+                idx++;
             }
-            if (expressions.Count > 0) throw new NotImplementedException();
-            return new Number(m);
+            if (idx == 1) return inputs.First();
+            return product;
+            bool _CanMultply(IEvaluateable ie) => ie is Number;
         }
-        protected override string Symbol => "*";
-       
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Multiplication>(node);
     }
 
-    [Serializable]
-    internal sealed class Negation : Operator
+    public sealed class Negation : Operator
     {
-
-        internal Negation(params IEvaluateable[] input) : base(input) { }
-        protected internal override ParsingPriority Priority => ParsingPriority.Negation;
-
-        protected internal override void ParseNode(DynamicLinkedList<object>.Node node) => ParseNode(node, 0, 1);
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
         {
-            if (evaluatedInputs.Length != 1) return InputCountError(evaluatedInputs, 1);
-            switch (evaluatedInputs[0])
+            if (!inputs.Any()) return new InputCountError(this, inputs, 1);
+            IEvaluateable ie = inputs.First();
+            if (ie != inputs.Last()) return new InputCountError(this, inputs, 1);
+            if (ie is Number n) return -n;
+            if (ie is Dependency.Boolean b) return !b;
+            return new TypeMismatchError(this, inputs, 0, typeof(Number), typeof(Dependency.Boolean));            
+        }
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
+        {
+            if (node.Next == null) return false;
+            Contents = new IEvaluateable[] { node.Next.Remove() };
+            return true;
+        }
+    }
+
+    public sealed class Or : Operator
+    {
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
+        {
+            if (!inputs.Any()) return new InputCountError(this, inputs, 2);
+            Dependency.Boolean b = false;
+            int idx = 0;
+            foreach (IEvaluateable ie in inputs)
             {
-                case Number n: return -n;
-                case Boolean b: return !b;
+                if (!_CanOr(ie)) return new TypeMismatchError(this, inputs, idx, typeof(Number));
+                b |= (Dependency.Boolean)ie;
+                idx++;
             }
-            return InputTypeError(evaluatedInputs, 0, typeof(Number), typeof(Boolean));
+            return b;
+            bool _CanOr(IEvaluateable ie) => ie is Dependency.Boolean;
         }
-
-        protected override string Symbol => "-";
-        public override string ToString() => (Opener != "" ? Opener + " " : "") + "-" + Inputs[0].ToString() + (Closer != "" ? " " + Closer : "");
-
-
-        protected override IEvaluateable GetDerivative(Variable v)
-        {
-            if (Inputs.Length != 1) throw new NotImplementedException();
-            return this;
-        }
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Or>(node);
     }
 
-    [Serializable]
-    internal sealed class Subtraction : Operator
+
+    public sealed class Reference : Operator
     {
-        internal Subtraction(params IEvaluateable[] inputs) : base(inputs) { }
-        protected internal override ParsingPriority Priority => ParsingPriority.Subtraction;
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        public Reference(Transaction tHandle)
         {
-            if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
-            if (evaluatedInputs[0] is Number a && evaluatedInputs[1] is Number b) return a - b;
-            throw new NotImplementedException();
+            if (!tHandle.IsOpen) throw new SyntaxException();
         }
-        protected override string Symbol => "-";
-
-        protected override IEvaluateable GetDerivative(Variable v) => new Subtraction(Inputs.Select(i => Differentiate(i, v)).ToArray());
-
     }
 
-    #endregion
-
-
-
-
-
-    #region Comparison operators
-
-    [Serializable]
-    internal abstract class Comparison : Function, IEvaluateable
+    public sealed class Subtraction : Operator
     {
-        protected abstract string Symbol { get; }
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> rawInputs)
         {
-            if (evaluatedInputs.Length != 2) return InputCountError(evaluatedInputs, 2);
-            return EvaluateComparison(evaluatedInputs[0], evaluatedInputs[1]);
+            IEvaluateable[] inputs = rawInputs.ToArray();
+            if (inputs.Length != 2) return new InputCountError(this, inputs, 2);
+            if (!_CanSubtract(inputs[0])) return new TypeMismatchError(this, inputs, 0, typeof(Number));
+            if (!_CanSubtract(inputs[1])) return new TypeMismatchError(this, inputs, 1, typeof(Number));
+            Number a = (Number)inputs[0];
+            Number b = (Number)inputs[1];
+            return a - b;
+            bool _CanSubtract(IEvaluateable ie) => ie is Number;
         }
-
-        protected abstract Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b);
-
-        //Boolean IEvaluateable<Boolean>.Evaluate() => (Boolean)Evaluate(GetEvaluatedInputs());
-
-        IEvaluateable IEvaluateable.Evaluate() => Evaluate(GetEvaluatedInputs());
-
-
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
     }
 
-    [Serializable]
-    internal sealed class EqualTo : Comparison
-    {
-        protected override string Symbol => "=";
-
-        protected internal override ParsingPriority Priority => ParsingPriority.Function;
-
-        protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
-        {
-            if (a is Number nA && b is Number nB) return nA.Value == nB.Value;
-            if (a is Boolean bA && b is Boolean bB) return bA.Value == bB.Value;
-            return Boolean.False;
-        }
-
-    }
-
-    [Serializable]
-    internal sealed class GreaterThan : Comparison
-    {
-        protected override string Symbol => ">";
-
-        protected internal override ParsingPriority Priority => ParsingPriority.Function;
-
-        protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
-        {
-            if (a is Number nA && b is Number nB) return nA > nB;
-            return Boolean.False;
-        }
-
-    }
-
-    [Serializable]
-    internal sealed class LessThan : Comparison
-    {
-        protected override string Symbol => ">";
-
-        protected internal override ParsingPriority Priority => ParsingPriority.Function;
-
-        protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
-        {
-            if (a is Number nA && b is Number nB) return nA < nB;
-            return Boolean.False;
-        }
-    }
-
-    [Serializable]
-    internal sealed class NotEqualTo : Comparison
-    {
-        protected override string Symbol => "!=";
-
-        protected internal override ParsingPriority Priority => ParsingPriority.Function;
-
-        protected override Boolean EvaluateComparison(IEvaluateable a, IEvaluateable b)
-        {
-            if (a is Number nA && b is Number nB) return nA.Value != nB.Value;
-            if (a is Boolean bA && b is Boolean bB) return bA.Value != bB.Value;
-            return Boolean.True;
-        }
-
-    }
-
-
-    #endregion
-
-
-
-
-
-    #region Logical operators
-
-    [Serializable]
-    internal sealed class And : Operator
-    {
-
-        protected internal override ParsingPriority Priority => ParsingPriority.And;
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
-        {
-            bool b = true;
-            List<IEvaluateable> expressions = new List<IEvaluateable>();
-            foreach (IEvaluateable input in evaluatedInputs)
-            {
-                if (input is Boolean i) b &= i;
-                else expressions.Add(input);
-            }
-            if (expressions.Count > 0) throw new NotImplementedException();
-            return b ? Boolean.True : Boolean.False;
-        }
-
-
-        
-
-        protected override string Symbol => "&";
-
-
-    }
-
-    [Serializable]
-    internal sealed class Or : Operator
-    {
-        protected internal override ParsingPriority Priority => ParsingPriority.Or;
-
-        public override IEvaluateable Evaluate(params IEvaluateable[] evaluatedInputs)
-        {
-            bool b = false;
-            List<IEvaluateable> expressions = new List<IEvaluateable>();
-            foreach (IEvaluateable input in evaluatedInputs)
-            {
-                if (input is Boolean i) b |= i;
-                else expressions.Add(input);
-            }
-            if (expressions.Count > 0) throw new NotImplementedException();
-            return Boolean.FromBool(b);
-        }
-        protected override string Symbol => "|";
-
-        protected override IEvaluateable GetDerivative(Variable v) => NonDifferentiableFunctionError();
-    }
-
-    #endregion
-
-
-
-
-
-    #region Reference operators
-
-    //[Serializable]
-    //internal sealed class Relation : Operator
-    //{
-    //    protected internal override ParsingPriority Priority => ParsingPriority.Relation;
-
-    //    private LinkedList<Context> _Chain = new LinkedList<Context>();
-    //    internal Variable Variable = null;
-
-    //    public override IEvaluateable Evaluate()
-    //    {
-    //        //if (Inputs.Length != 1) return InputCountError(Inputs, new int[] { 1 });
-    //        //if (!(Inputs[0] is Variable)) return InputTypeError(Inputs, 0, new Type[] { typeof(Context) });
-    //        return Variable.Evaluate();
-    //    }
-
-    //    public override IEvaluateable Evaluate(params IEvaluateable[] inputs) => Variable.Evaluate();
-
-    //    protected internal override void ParseNode(DynamicLinkedList<object>.Node node)
-    //    {
-    //        if (node.Previous == null)
-    //            throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
-    //        switch (node.Previous.Remove())
-    //        {
-    //            case Relation r:
-    //                if (r.Variable != null)
-    //                    throw new InvalidOperationException("Cannot apply relation operator to " + typeof(Variable).Name + ".");
-    //                foreach (Context ctxt in this._Chain) r._Chain.AddLast(ctxt);
-    //                this._Chain = r._Chain;
-    //                break;
-    //            case Context c:
-    //                this._Chain.AddFirst(c); break;
-    //            default:
-    //                throw new InvalidOperationException("Relation operator (.) must be preceded by a context.");
-    //        }
-
-    //        if (node.Next == null)
-    //            throw new InvalidOperationException("Relation operator (.) must be followed by another "
-    //                        + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");
-    //        else if (this.Variable != null)
-    //            throw new InvalidOperationException("Relation operator (.) already refers to Variable " + this.Variable.Aliases.FirstOrDefault() + " in its chain.");
-    //        switch (node.Next.Remove())
-    //        {
-    //            case Relation r:
-    //                foreach (Context ctxt in r._Chain)
-    //                    this._Chain.AddLast(ctxt);                    
-    //                this.Variable = r.Variable; break;
-    //            case Variable v:
-    //                // If this is the end of the relation, we've found the Variable.  Example:  line.length
-    //                if (node.Next == null || !(node.Next.Contents is Relation))
-    //                    this.Variable = v;
-    //                // Otherwise, the Variable is functioning as a Context.  Example: line.point0.x
-    //                else if (v.Parent != null)
-    //                    this._Chain.AddLast(v.Parent);
-    //                else
-    //                    throw new InvalidOperationException(string.Format("Relation operator (.) points to a %s as a %s, but the %s has no %s.", typeof(Variable).Name, typeof(Context).Name, typeof(Variable).Name, typeof(Context).Name));
-    //                break;
-    //            case Context c:
-    //                this._Chain.AddLast(c); break;
-    //            default:
-    //                throw new InvalidOperationException("Relation operator (.) must be followed by another "
-    //                    + typeof(Context).Name + " or a " + typeof(Variable).Name + ".");
-    //        }
-
-    //        this.Inputs = new IEvaluateable[]{ this.Variable};
-    //    }
-
-    //    protected override string Symbol => ".";
-
-    //    public override string ToString() => string.Join(".", _Chain.Select(c => c.Aliases.FirstOrDefault())) + "." + Variable.Aliases.FirstOrDefault();
-    //}
-
-    [Serializable]
-    internal sealed class Span : Operator
-    {
-        protected internal override ParsingPriority Priority => ParsingPriority.Span;
-        
-        public override IEvaluateable Evaluate(params IEvaluateable[] inputs)
-        {
-            if (inputs.Length != 2) return InputCountError(inputs, new int[] { 2 });
-            if (inputs[0] is Number a)
-            {
-                if (inputs[1] is Number b) return new Range(a, b);
-                else return InputTypeError(inputs, 1, new Type[] { typeof(Number) });
-            }
-            else return InputTypeError(inputs, 0, new Type[] { typeof(Number) });
-        }
-
-        protected override string Symbol => ":";
-
-    }
-
-    #endregion
-
-
-
-
-
-
-
-
-
+    
 }
