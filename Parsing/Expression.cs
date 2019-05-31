@@ -56,24 +56,25 @@ namespace Dependency
         
 
 
-        private class Prioritized
+        private class PrioritizedToken
         {
             public readonly Operator.Priorities Priority;
             public readonly DynamicLinkedList<IEvaluateable>.Node Node;
-            public Prioritized(Operator.Priorities priority, DynamicLinkedList<IEvaluateable>.Node node) { this.Priority = priority; this.Node = node; }
+            public PrioritizedToken(Operator.Priorities priority, DynamicLinkedList<IEvaluateable>.Node node) { this.Priority = priority; this.Node = node; }
         }
-
-        public static Clause FromString(string str, FunctionFactory functions, DependencyManager depMngr)
+        
+        public static Clause FromString(string str, FunctionFactory functions = null, IContext rootContext = null)
         {
             Console.WriteLine("Pattern = " + Pattern);
             Console.WriteLine("Input = " + str);
             
             string[] splits = Regex.Split(str);
-            HashSet<Reference> refs = new HashSet<Reference>();
             int splitIdx = 0;
-            
+            IContext ctxt = rootContext;            
+
             try
             {
+                
                 Clause e = new Clause(BracketType.None);
                 _Parse(e);
                 return e;
@@ -89,103 +90,132 @@ namespace Dependency
             IExpression _Parse(IExpression exp)
             {
                 DynamicLinkedList<IEvaluateable> inputs = new DynamicLinkedList<IEvaluateable>();
-                Heap<Prioritized> operatorNodes 
-                    = new Heap<Prioritized>((a, b) => a.Priority.CompareTo(b.Priority));
+                Heap<PrioritizedToken> operatorNodes 
+                    = new Heap<PrioritizedToken>((a, b) => a.Priority.CompareTo(b.Priority));
+                bool dot = false;
                 while (splitIdx < splits.Length)
                 {
                     string token = splits[splitIdx];
                     if (string.IsNullOrWhiteSpace(token)) continue;
+
+                    // If a reference has been started, parse as a reference.
+                    if (ctxt != rootContext)
+                    {
+
+                        if (token == ".")
+                        {
+                            if (dot) throw new ReferenceException("Bad reference path.");
+                            dot = true;
+                            continue;
+                        }
+                        else if (ctxt.TryGetSubcontext(token, out ctxt)) continue;
+                        else if (ctxt.TryGetVariable(token, out IVariable var))
+                        {
+                            inputs.AddLast(var);
+                            ctxt = rootContext;
+                        }
+                        dot = false;
+                        continue;
+                    }                    
                     switch (token)
                     {
                         case string _ when Number.TryParse(token, out Number n):
                             inputs.AddLast(n); continue;
                         case string _ when bool.TryParse(token, out bool b):
                             inputs.AddLast(Dependency.Boolean.FromBool(b)); continue;
-                        case string _ when token.StartsWith("\"") && token.EndsWith("\"") && token.Count((c) => c == '\"') == 2:
+                        case string _ when token.StartsWith("\"") && token.EndsWith("\"") && token.Count((chr) => chr == '\"') == 2:
                             inputs.AddLast(new Dependency.String(token)); continue;
 
-                        case "(": inputs.AddLast(_Parse(new Clause(BracketType.Paren))); continue;                        
+                        case "(":
+                            if (inputs.Count > 0)
+                            {
+                                if (inputs.Last is NamedFunction nf) _Parse(nf);
+
+                            }
+                            __ImpliedScalar();
+                            inputs.AddLast(_Parse(new Clause(BracketType.Paren)));
+                            continue;                        
                         case "{": inputs.AddLast(_Parse(new Clause(BracketType.Curly))); continue;
                         case "[":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.INDEXING, inputs.AddLast(_Parse(new Indexing())))); continue;                        
+                            if (inputs.Count == 0) throw new NestingMismatchException("No base to index.");
+                            if (inputs.Last is Function) throw new NestingMismatchException("Cannot index a function or operator.");
+                            Indexing idxing = new Indexing();
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.INDEXING, inputs.AddLast(_Parse(idxing))));
+                            continue;                        
                         case ")":
                         case "}":
                             if (!(exp is Clause c)) throw new NestingMismatchException();
                             if (c.Closer != token) throw new NestingMismatchException();
-                            c.Contents = __InputsToTree();
+                            c.Contents = __Pushdown();
                             return exp;
                         case "]":
                             if (!(exp is Indexing i)) throw new NestingMismatchException();
-                            i.Contents = __InputsToTree();
+                            i.Contents = __Pushdown();
                             return exp;
                         case ",": continue;
                         case ";": throw new NotImplementedException();
 
                         case "-":
-                            Operator o;
                             if (inputs.Any() && !(inputs.Last is Operator))
-                                operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Subtraction())));
+                                operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Subtraction())));
                             else
-                                operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Negation())));
+                                operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.NEGATION, inputs.AddLast(new Negation())));
                             continue;
                         case "!":
                         case "~":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Negation()))); continue;
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.NEGATION, inputs.AddLast(new Negation()))); continue;
                         case "+":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Addition()))); continue;
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.ADDITION, inputs.AddLast(new Addition()))); continue;
                         case "*":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Multiplication()))); continue;
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.MULTIPLICATION, inputs.AddLast(new Multiplication()))); continue;
                         case "/":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Division()))); continue;
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.DIVISION, inputs.AddLast(new Division()))); continue;
                         case "^":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Exponentiation()))); continue;
-                        case ".":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Reference()))); continue;
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.EXPONENTIATION, inputs.AddLast(new Exponentiation()))); continue;
                         case "&":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new And()))); continue;
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.AND, inputs.AddLast(new And()))); continue;
                         case "|":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Or()))); continue;
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.OR, inputs.AddLast(new Or()))); continue;
                         case ":":
-                            operatorNodes.Enqueue(new Prioritized(Operator.Priorities.RANGE, inputs.AddLast(new Range()))); continue;
+                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.RANGE, inputs.AddLast(new Range()))); continue;
 
                         case string _ when functions != null && functions.TryCreate(token, out Function f):
-                            inputs.AddLast(_Parse(f)); continue;
+                            __ImpliedScalar();
+                            inputs.AddLast(_Parse(f));
+                            continue;
 
-                        case string _ when depMngr != null && depMngr.TryGet(token, out IContext ctxt):
-                            inputs.AddLast(ctxt); continue;
+                        case string _ when ctxt != null && ctxt.TryGetSubcontext(token, out ctxt):
+                            __ImpliedScalar();
+                            continue;                                
 
-                        case string _ when depMngr != null && depMngr.TryGet(token, out IVariable v):
-                            inputs.AddLast(v); continue;
+                        case string _ when ctxt != null && ctxt.TryGetVariable(token, out IVariable var):
+                            __ImpliedScalar();
+                            inputs.AddLast(var);
+                            continue;
 
                         default: throw new SyntaxException("Unrecognized token: ", token, null);
                     }
-                    if (inputs.Count >=2)
+
+                    splitIdx++;
+
+                    bool __ImpliedScalar()
                     {
-                        switch (inputs.LastNode.Previous.Contents)
+                        if (inputs.Count == 0) return false;
+                        switch (inputs.Last) 
                         {
-                            case Number n:
-                                if (inputs.Last is Function fLast) inputs.LastNode.InsertBefore(new Multiplication(n, fLast));
-                                else if (inputs.Last is Clause cLast) inputs.LastNode.InsertBefore(new Multiplication(n, cLast));                                
-                                break;
-                            case Function fPrev:
-                                if (inputs.Last is Clause inputClause && inputClause.Brackets == BracketType.Paren)
-                                {
-                                    fPrev.Contents = inputClause.Contents;
-                                    inputs.RemoveLast();
-                                    break;
-                                }
-                                throw new SyntaxException("Function " + fPrev.Name + " must be followed by parenthetical input expression.");
-                            
+                            case Number _:
+                            case Clause c when c.Brackets == BracketType.Paren:
+                                operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.MULTIPLICATION, inputs.AddLast(new Multiplication())));
+                                return true;
                         }
-                        
+                        return false;
                     }
                     
-                    
-                    splitIdx++;
                 }
-                
 
-                IEvaluateable[] __InputsToTree()
+                return exp;
+
+                IEvaluateable[] __Pushdown()
                 {
                     while (operatorNodes.Count > 0)
                     {
@@ -233,7 +263,7 @@ namespace Dependency
         public class SyntaxException : Exception
         {
             public readonly string Parsed;
-            public SyntaxException(string message, string parsed, Exception inner) : base(message, inner) { this.Parsed = parsed; }
+            public SyntaxException(string message, string parsed, Exception inner = null) : base(message, inner) { this.Parsed = parsed; }
         }
 
         public class OperatorException: Exception 
@@ -241,11 +271,15 @@ namespace Dependency
             
         }
 
+        public class ReferenceException : Exception
+        {
+            public ReferenceException(string message) : base(message) { }
+        }
+
         internal class NestingMismatchException : Exception
         {
-            public NestingMismatchException()
-            {
-            }            
+            public NestingMismatchException() { }
+            public NestingMismatchException(string message) : base(message)            {            }            
         }
         #endregion
     }

@@ -17,4 +17,9 @@ namespace Dependency
 
         public IEvaluateable[] Contents { get; internal set; }
     }
+
+    public abstract class NamedFunction : Function
+    {
+        public string Name { get; }
+    }
 }

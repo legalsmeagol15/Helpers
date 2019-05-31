@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 
 namespace Dependency
 {
-    class FunctionFactory
+    public sealed class FunctionFactory
     {
+        internal bool TryCreate(string token, out Function f)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

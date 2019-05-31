@@ -45,6 +45,13 @@ namespace DataStructures
             }
             _Start = 0;
         }
+        /// <summary>
+        /// Creates a <see cref="Deque{T}"/> that is empty (if the items argument is omitted), or that 
+        /// contains the given items.
+        /// </summary>
+        /// <param name="items">Optional.  The items to be contained in this list on construction.  If omitted, this 
+        /// list will start empty.</param>
+        public Deque(params T[] items) : this((IEnumerable<T>)items) { }
         /// <summary>Creates an empty <see cref="Deque{T}"/>, that will start with the given capacity./>.
         /// </summary>
         public Deque(int capacity)

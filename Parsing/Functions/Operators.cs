@@ -12,6 +12,7 @@ namespace Dependency
         protected internal enum Priorities
         {
             REFERENCE = 50,
+            INDEXING = 55,
             OR = 60,
             AND = 70,
             EXPONENTIATION = 100,
@@ -19,7 +20,8 @@ namespace Dependency
             MULTIPLICATION = 300,
             DIVISION = 400,
             ADDITION = 500,
-            SUBTRACTION = 600
+            SUBTRACTION = 600,
+                RANGE = 1000
         }
         protected Operator() { }        
 
@@ -138,58 +140,53 @@ namespace Dependency
     }
 
 
-    public abstract class Indexing : Operator, IIndexable
+    public sealed class Indexing : Operator, IIndexable
     {
-
-
+        internal IIndexable Base { get; set; }
+        
         IEvaluateable IIndexable.this[params Number[] indices]
         {
             get
             {
-                if (!Contents.Any()) return new IndexingError("No base to index.");
+                if (!Contents.Any()) return new IndexingError(this, Contents, "No base to index.");
                 if (Contents[0] is IIndexable i) return i[indices];
-                return new IndexingError("Base of type " + Contents[0].GetType().Name + " is not indexable.");
+                return new IndexingError(this, Contents ,"Base of type " + Contents[0].GetType().Name + " is not indexable.");
             }
         }
 
-        int IIndexable.MaxIndex
+        IEvaluateable IIndexable.MaxIndex
         {
             get
             {
-                if (!Contents.Any()) return new IndexingError("No base to index.");
+                if (!Contents.Any()) return new IndexingError(this, Contents, "No base to index.");
                 if (Contents[0] is IIndexable i) return i.MaxIndex;
-                return new IndexingError("Base of type " + Contents[0].GetType().Name + " is not indexable.");
+                return new IndexingError(this, Contents, "Base of type " + Contents[0].GetType().Name + " is not indexable.");
             }
         }
+
+
         
-        int IIndexable.MinIndex
+        IEvaluateable IIndexable.MinIndex
         {
             get
             {
-                if (!Contents.Any()) return new IndexingError("No base to index.");
+                if (!Contents.Any()) return new IndexingError(this, Contents, "No base to index.");
                 if (Contents[0] is IIndexable i) return i.MinIndex;
-                return new IndexingError("Base of type " + Contents[0].GetType().Name + " is not indexable.");
+                return new IndexingError(this, Contents, "Base of type " + Contents[0].GetType().Name + " is not indexable.");
             }
         }
 
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> rawInputs)
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
         {
-            IEvaluateable[] inputs = rawInputs.ToArray();
-            if (inputs.Length < 2) return new InputCountError(this, inputs, 2);
-            if (!(inputs[0] is IIndexable a)) return new TypeMismatchError(this, inputs, 0, typeof(Number));
-            Number[] indices = new Number[inputs.Length - 1];
-            for (int i = 1; i < inputs.Length; i++)
-            {
-                if (!(inputs[i] is Number n)) return new TypeMismatchError(this, inputs, i, typeof(Number));
-                indices[i - 1] = n;
-            }            
-            return a[indices];
-        }
-
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
-        {
+            IEvaluateable[] array = inputs.ToArray();
+            IIndexable b = inputs.First() as IIndexable;
+            if (b == null) return new IndexingError(this, inputs, "Indexing base does not evaluate to an indexable.");
+            if (array[0] is Number n && n.IsInteger) return b[n];
+            return new IndexingError(this, inputs, "TODO:  improve this.");
             
         }
+
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
 
         public override string ToString() => Contents[0].ToString() + "[" + string.Join(",", Contents.Skip(1)) + "]";
     }
@@ -258,15 +255,26 @@ namespace Dependency
         public override string ToString() => string.Join(" | ", (IEnumerable<IEvaluateable>)Contents);
     }
 
-
-    public sealed class Reference : Operator
+    public sealed class Range : Operator, IIndexable
     {
-        public Reference(Transaction tHandle)
+        public readonly IEvaluateable Start;
+        public readonly IEvaluateable End;
+
+        IEvaluateable IIndexable.this[params Number[] indices] => throw new NotImplementedException();
+
+        IEvaluateable IIndexable.MaxIndex => throw new NotImplementedException();
+
+        IEvaluateable IIndexable.MinIndex => throw new NotImplementedException();
+
+        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
         {
-            if (!tHandle.IsOpen) throw new SyntaxException();
+            throw new NotImplementedException();
         }
 
-        public override string ToString() => string.Join(" . ", (IEnumerable<IEvaluateable>)Contents);
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public sealed class Subtraction : Operator

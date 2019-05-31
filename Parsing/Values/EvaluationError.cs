@@ -53,4 +53,10 @@ namespace Dependency
             this.ValidTypes = validTypes;
         }
     }
+
+    public sealed class IndexingError : EvaluationError
+    {
+        public IndexingError(object complainant, IEnumerable<IEvaluateable> inputs, string msg) : base(complainant, inputs, msg) { }
+
+    }
 }
