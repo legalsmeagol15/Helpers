@@ -63,7 +63,7 @@ namespace Dependency
             public PrioritizedToken(Operator.Priorities priority, DynamicLinkedList<IEvaluateable>.Node node) { this.Priority = priority; this.Node = node; }
         }
         
-        public static Clause FromString(string str, FunctionFactory functions = null, IContext rootContext = null)
+        public static Clause FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
         {
             Console.WriteLine("Pattern = " + Pattern);
             Console.WriteLine("Input = " + str);
@@ -179,9 +179,9 @@ namespace Dependency
                         case ":":
                             operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.RANGE, inputs.AddLast(new Range()))); continue;
 
-                        case string _ when functions != null && functions.TryCreate(token, out Function f):
+                        case string _ when functions != null && functions.TryCreate(token, out NamedFunction nf):
                             __ImpliedScalar();
-                            inputs.AddLast(_Parse(f));
+                            inputs.AddLast(_Parse(nf));
                             continue;
 
                         case string _ when ctxt != null && ctxt.TryGetSubcontext(token, out ctxt):
