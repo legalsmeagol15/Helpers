@@ -9,21 +9,26 @@ namespace Dependency
 {
     public abstract class Operator : Function
     {
-        protected internal enum Priorities
+        
+        protected Operator() { }
+
+        public static bool TryCreate(string token, out Operator oper)
         {
-            REFERENCE = 50,
-            INDEXING = 55,
-            OR = 60,
-            AND = 70,
-            EXPONENTIATION = 100,
-            NEGATION = 200,
-            MULTIPLICATION = 300,
-            DIVISION = 400,
-            ADDITION = 500,
-            SUBTRACTION = 600,
-                RANGE = 1000
+            switch (token)
+            {
+                case "-": oper = new Subtraction(); return true; // Might still end up a negation
+                case "!":
+                case "~": oper = new Negation(); return true;
+                case "+": oper = new Addition(); return true;
+                case "*": oper = new Multiplication(); return true;
+                case "/": oper = new Division(); return true;
+                case "^": oper = new Exponentiation(); return true;
+                case "&": oper = new And(); return true;
+                case "|": oper = new Or(); return true;
+                case ":": oper = new Range(); return true;
+                default:oper = null; return false;
+            }
         }
-        protected Operator() { }        
 
         internal abstract bool Parse(DataStructures.DynamicLinkedList<IEvaluateable>.Node node);
 
@@ -46,23 +51,21 @@ namespace Dependency
                 if (node.Next == null) return false;
                 list.AddLast(node.Next.Remove());
             }            
-            this.Contents = list.ToArray();
+            this.Inputs = list.ToArray();
             return true;
         }
         protected bool ParseBinary(DataStructures.DynamicLinkedList<IEvaluateable>.Node node)
         {
             if (node.Previous == null || node.Next == null) return false;
-            this.Contents = new IEvaluateable[] { node.Previous.Remove(), node.Next.Remove() };
+            this.Inputs = new IEvaluateable[] { node.Previous.Remove(), node.Next.Remove() };
             return true;
         }
-
-        
         
     }
 
     public sealed class Addition : Operator
     {
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
+        protected override IEvaluateable Evaluate(IEvaluateable[] inputs)
         {
             if (!inputs.Any()) return new InputCountError(this, inputs, 2);
             Number sum = 0;
@@ -78,12 +81,12 @@ namespace Dependency
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Addition>(node);
 
-        public override string ToString() => string.Join(" + ", (IEnumerable<IEvaluateable>)Contents);
+        public override string ToString() => string.Join(" + ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
     public sealed class And : Operator
     {
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
+        protected override IEvaluateable Evaluate(IEvaluateable[] inputs)
         {
             if (!inputs.Any()) return new InputCountError(this, inputs, 2);
             Dependency.Boolean b = true;
@@ -100,12 +103,12 @@ namespace Dependency
 
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<And>(node);
 
-        public override string ToString() => string.Join(" & ", (IEnumerable<IEvaluateable>)Contents);
+        public override string ToString() => string.Join(" & ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
     public sealed class Division : Operator
     {
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> rawInputs)
+        protected override IEvaluateable Evaluate(IEvaluateable[] rawInputs)
         {
             IEvaluateable[] inputs = rawInputs.ToArray();
             if (inputs.Length != 2) return new InputCountError(this, inputs, 2);
@@ -118,12 +121,12 @@ namespace Dependency
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
 
-        public override string ToString() => string.Join(" / ", (IEnumerable<IEvaluateable>)Contents);
+        public override string ToString() => string.Join(" / ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
     public sealed class Exponentiation : Operator
     {
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> rawInputs)
+        protected override IEvaluateable Evaluate(IEvaluateable[] rawInputs)
         {
             IEvaluateable[] inputs = rawInputs.ToArray();
             if (inputs.Length != 2) return new InputCountError(this, inputs, 2);
@@ -136,64 +139,42 @@ namespace Dependency
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
 
-        public override string ToString() => string.Join(" ^ ", (IEnumerable<IEvaluateable>)Contents);
+        public override string ToString() => string.Join(" ^ ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
 
+    [InputTypeConstraint(0, true, TypesAllowed.Vector, TypesAllowed.IntegerNumber | TypesAllowed.PositiveNumber)]
+    [InputTypeConstraint(1, false, TypesAllowed.Vector, TypesAllowed.Vector)]
     public sealed class Indexing : Operator, IIndexable
     {
-        internal IIndexable Base { get; set; }
-        
-        IEvaluateable IIndexable.this[params Number[] indices]
+        IEvaluateable IIndexable.this[params Number[] indices] => throw new NotImplementedException();
+
+        IEvaluateable IIndexable.MaxIndex => throw new NotImplementedException();
+
+        IEvaluateable IIndexable.MinIndex => throw new NotImplementedException();
+
+        protected override IEvaluateable Evaluate(int constraintIndex, IEvaluateable[] inputs)
         {
-            get
-            {
-                if (!Contents.Any()) return new IndexingError(this, Contents, "No base to index.");
-                if (Contents[0] is IIndexable i) return i[indices];
-                return new IndexingError(this, Contents ,"Base of type " + Contents[0].GetType().Name + " is not indexable.");
-            }
+            throw new NotImplementedException();
         }
 
-        IEvaluateable IIndexable.MaxIndex
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
         {
-            get
-            {
-                if (!Contents.Any()) return new IndexingError(this, Contents, "No base to index.");
-                if (Contents[0] is IIndexable i) return i.MaxIndex;
-                return new IndexingError(this, Contents, "Base of type " + Contents[0].GetType().Name + " is not indexable.");
-            }
+            if (!ParseBinary(node)) return false;
+            Clause curly = this.Inputs[1] as Clause;
+            if (curly == null) throw new Exception("Should be impossible.");
+            this.Inputs[1] = curly.Contents;
+            return true;
         }
 
-
-        
-        IEvaluateable IIndexable.MinIndex
-        {
-            get
-            {
-                if (!Contents.Any()) return new IndexingError(this, Contents, "No base to index.");
-                if (Contents[0] is IIndexable i) return i.MinIndex;
-                return new IndexingError(this, Contents, "Base of type " + Contents[0].GetType().Name + " is not indexable.");
-            }
-        }
-
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
-        {
-            IEvaluateable[] array = inputs.ToArray();
-            IIndexable b = inputs.First() as IIndexable;
-            if (b == null) return new IndexingError(this, inputs, "Indexing base does not evaluate to an indexable.");
-            if (array[0] is Number n && n.IsInteger) return b[n];
-            return new IndexingError(this, inputs, "TODO:  improve this.");
-            
-        }
-
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
-
-        public override string ToString() => Contents[0].ToString() + "[" + string.Join(",", Contents.Skip(1)) + "]";
+        public override string ToString() => Inputs[0].ToString() + "{ " + Inputs[1].ToString() + " }";
     }
+
+
 
     public sealed class Multiplication : Operator
     {
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
+        protected override IEvaluateable Evaluate(IEvaluateable[] inputs)
         {
             if (!inputs.Any()) return new InputCountError(this, inputs, 2);
             Number product = 0;
@@ -210,12 +191,12 @@ namespace Dependency
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Multiplication>(node);
 
-        public override string ToString() => string.Join(" * ", (IEnumerable<IEvaluateable>)Contents);
+        public override string ToString() => string.Join(" * ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
     public sealed class Negation : Operator
-    {
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
+    {   
+        protected override IEvaluateable Evaluate(IEvaluateable[] inputs)
         {
             if (!inputs.Any()) return new InputCountError(this, inputs, 1);
             IEvaluateable ie = inputs.First();
@@ -227,18 +208,18 @@ namespace Dependency
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
         {
             if (node.Next == null) return false;
-            Contents = new IEvaluateable[] { node.Next.Remove() };
+            Inputs = new IEvaluateable[] { node.Next.Remove() };
             return true;
         }
 
-        public override string ToString() => "-" + Contents[0].ToString();
+        public override string ToString() => "-" + Inputs[0].ToString();
     }
 
     public sealed class Or : Operator
     {
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
+        protected override IEvaluateable Evaluate(IEvaluateable[] inputs)
         {
-            if (!inputs.Any()) return new InputCountError(this, inputs, 2);
+            if (inputs.Length == 0) return new InputCountError(this, inputs, 2);
             Dependency.Boolean b = false;
             int idx = 0;
             foreach (IEvaluateable ie in inputs)
@@ -252,7 +233,7 @@ namespace Dependency
         }
         internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Or>(node);
 
-        public override string ToString() => string.Join(" | ", (IEnumerable<IEvaluateable>)Contents);
+        public override string ToString() => string.Join(" | ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
     public sealed class Range : Operator, IIndexable
@@ -266,7 +247,7 @@ namespace Dependency
 
         IEvaluateable IIndexable.MinIndex => throw new NotImplementedException();
 
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> inputs)
+        protected override IEvaluateable Evaluate(IEvaluateable[] inputs)
         {
             throw new NotImplementedException();
         }
@@ -279,7 +260,7 @@ namespace Dependency
 
     public sealed class Subtraction : Operator
     {
-        protected override IEvaluateable Evaluate(IEnumerable<IEvaluateable> rawInputs)
+        protected override IEvaluateable Evaluate(IEvaluateable[] rawInputs)
         {
             IEvaluateable[] inputs = rawInputs.ToArray();
             if (inputs.Length != 2) return new InputCountError(this, inputs, 2);
@@ -290,9 +271,19 @@ namespace Dependency
             return a - b;
             bool _CanSubtract(IEvaluateable ie) => ie is Number;
         }
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
 
-        public override string ToString() => string.Join(" - ", (IEnumerable<IEvaluateable>)Contents);
+        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
+        {
+            if (node.Previous == null || node.Previous.Contents is Operator)
+            {
+                Negation n = new Negation();
+                node.Contents = n;
+                return n.Parse(node);               
+            }
+            return ParseBinary(node);
+        }
+
+        public override string ToString() => string.Join(" - ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
     

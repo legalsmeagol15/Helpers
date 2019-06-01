@@ -15,7 +15,7 @@ namespace Dependency
         internal readonly bool Value;
 
         private Boolean(bool b) { this.Value = b; }
-        IEvaluateable IEvaluateable.Evaluate() => this;
+        IEvaluateable IEvaluateable.Value() => this;
 
         public static implicit operator Boolean(bool b) => new Boolean(b);
         public static implicit operator bool(Boolean n) => n.Value;
@@ -36,5 +36,6 @@ namespace Dependency
         }
 
         public override int GetHashCode() => Value.GetHashCode();
+        
     }
 }

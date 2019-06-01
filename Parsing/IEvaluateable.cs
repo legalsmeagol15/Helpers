@@ -6,12 +6,28 @@ using System.Threading.Tasks;
 
 namespace Dependency
 {
+    internal enum TypesAllowed
+    {
+        NonIntegerNumber = 1 << 0,
+        IntegerNumber = 1 << 1,
+        PositiveNumber = 1 << 2,
+        NegativeNumber = 1 << 3,
+        ZeroNullEmpty = 1 << 4,
+        Real = NonIntegerNumber | IntegerNumber | PositiveNumber | NegativeNumber | ZeroNullEmpty,
+        Imaginary = 1 << 10,
+        Complex = Real | Imaginary,
+        Vector = 1 << 20,
+        NonEmptyString = 1 << 25,
+        String = ZeroNullEmpty | NonEmptyString,
+        Other = 1 << 31,
+            Any = ~0
+    }
+
     public interface IEvaluateable
     {
-        /// <summary>The current value of this <see cref="IEvaluateable"/>.</summary>
-        IEvaluateable Value { get; }
         /// <summary>Updates and returns the new value of this <see cref="IEvaluateable"/>.</summary>
-        IEvaluateable Evaluate();
+        IEvaluateable Value { get; }
+
     }
 
     public interface IContext : IEvaluateable

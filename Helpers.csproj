@@ -82,8 +82,7 @@
     <Compile Include="Networking.cs" />
     <Compile Include="Parsing\DependencyManager.cs" />
     <Compile Include="Parsing\Expression.cs" />
-    <Compile Include="Parsing\Functions\AbstractFunction.cs" />
-    <Compile Include="Parsing\Functions\FunctionFactory.cs" />
+    <Compile Include="Parsing\Functions\Function.cs" />
     <Compile Include="Parsing\Functions\Operators.cs" />
     <Compile Include="Parsing\IEvaluateable.cs" />
     <Compile Include="Parsing\Properties\AssemblyInfo.cs" />
@@ -94,6 +93,7 @@
     <Compile Include="Parsing\Values\Null.cs" />
     <Compile Include="Parsing\Values\Number.cs" />
     <Compile Include="Parsing\Values\String.cs" />
+    <Compile Include="Parsing\Values\Vector.cs" />
     <Compile Include="Time.cs" />
     <Compile Include="Undo\IUndoable.cs" />
     <Compile Include="Undo\IUndoStack.cs" />

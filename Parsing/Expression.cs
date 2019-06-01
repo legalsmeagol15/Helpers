@@ -9,76 +9,41 @@ using DataStructures;
 
 namespace Dependency
 {
+    /// <summary>Readable left-to-right.</summary>
     public interface IExpression : IEvaluateable
     {
-        IEvaluateable[] Contents { get; }        
+        IEvaluateable[] Contents { get; }
     }
     
+    
+
+
     public sealed class Clause : IExpression
     {
-        internal enum BracketType { None, Paren, Curly} // Square is reserved for indexing.
-        internal readonly BracketType Brackets;
-        internal string Closer
-        {
-            get
-            {
-                switch (Brackets)
-                {
-                    case BracketType.Paren: return ")";
-                    case BracketType.Curly: return "}";
-                    default:return "";
-                }
-            }
-        }
-        internal string Opener
-        {
-            get
-            {
-                switch (Brackets)
-                {
-                    case BracketType.Paren: return "(";
-                    case BracketType.Curly: return "{";
-                    default: return "";
-                }
-            }
-        }
-
-        private Clause _Value = null;
-        public IEvaluateable Value => _Value ?? Evaluate();
-        public IEvaluateable Evaluate() => _Value = new Clause(Brackets, Contents.Select(c => c.Evaluate()));
+        private IEvaluateable _Value = null;
+        internal readonly char Closer;
 
         public IEvaluateable[] Contents { get; internal set; }
 
-        private Clause(BracketType brackets = BracketType.None) { this.Brackets = brackets; }
-        private Clause(BracketType brackets, IEnumerable<IEvaluateable> contents) : this(brackets) { Contents = contents.ToArray(); }
 
+        public IEvaluateable Value => _Value ?? (_Value = Contents[0].Value);
 
+        private Clause (bool isParen, char closer = ')') { this.Closer = closer; }
         
-
-
-        private class PrioritizedToken
-        {
-            public readonly Operator.Priorities Priority;
-            public readonly DynamicLinkedList<IEvaluateable>.Node Node;
-            public PrioritizedToken(Operator.Priorities priority, DynamicLinkedList<IEvaluateable>.Node node) { this.Priority = priority; this.Node = node; }
-        }
         
         public static Clause FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
         {
-            Console.WriteLine("Pattern = " + Pattern);
-            Console.WriteLine("Input = " + str);
             
-            string[] splits = Regex.Split(str);
+            string[] splits = _Regex.Split(str);
             int splitIdx = 0;
             IContext ctxt = rootContext;            
 
             try
-            {
-                
-                Clause e = new Clause(BracketType.None);
+            {                
+                Clause e = new Clause(false);  // Start parsing an open Clause.
                 _Parse(e);
-                return e;
-            }catch (NestingMismatchException nme)
+                return (e.Contents[0] is Clause eSub) ? eSub : e;
+            }catch (NestingSyntaxException nme)
             {
                 Array.Resize(ref splits, splitIdx+1);
                 string msg = string.Join("", splits);
@@ -116,84 +81,60 @@ namespace Dependency
                         }
                         dot = false;
                         continue;
-                    }                    
+                    }
+
+                    // Handle literals
+                    else if (Number.TryParse(token, out Number n)) { inputs.AddLast(n); continue; }                    
+
+                    else if (bool.TryParse(token, out bool b)) { inputs.AddLast(Dependency.Boolean.FromBool(b)); continue; }
+
+                    else if (String.IsQuotedString(token)) { inputs.AddLast(new Dependency.String(token.Substring(1, token.Length - 2))); continue; }
+
+
+                    // Handle nesting
                     switch (token)
                     {
-                        case string _ when Number.TryParse(token, out Number n):
-                            inputs.AddLast(n); continue;
-                        case string _ when bool.TryParse(token, out bool b):
-                            inputs.AddLast(Dependency.Boolean.FromBool(b)); continue;
-                        case string _ when token.StartsWith("\"") && token.EndsWith("\"") && token.Count((chr) => chr == '\"') == 2:
-                            inputs.AddLast(new Dependency.String(token)); continue;
-
                         case "(":
-                            if (inputs.Count > 0)
-                            {
-                                if (inputs.Last is NamedFunction nf) _Parse(nf);
-
-                            }
                             __ImpliedScalar();
-                            inputs.AddLast(_Parse(new Clause(BracketType.Paren)));
-                            continue;                        
-                        case "{": inputs.AddLast(_Parse(new Clause(BracketType.Curly))); continue;
-                        case "[":
-                            if (inputs.Count == 0) throw new NestingMismatchException("No base to index.");
-                            if (inputs.Last is Function) throw new NestingMismatchException("Cannot index a function or operator.");
-                            Indexing idxing = new Indexing();
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.INDEXING, inputs.AddLast(_Parse(idxing))));
-                            continue;                        
-                        case ")":
-                        case "}":
-                            if (!(exp is Clause c)) throw new NestingMismatchException();
-                            if (c.Closer != token) throw new NestingMismatchException();
-                            c.Contents = __Pushdown();
-                            return exp;
-                        case "]":
-                            if (!(exp is Indexing i)) throw new NestingMismatchException();
-                            i.Contents = __Pushdown();
-                            return exp;
-                        case ",": continue;
-                        case ";": throw new NotImplementedException();
-
-                        case "-":
-                            if (inputs.Any() && !(inputs.Last is Operator))
-                                operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.SUBTRACTION, inputs.AddLast(new Subtraction())));
+                            if (inputs.Count==0 || !(inputs.Last is NamedFunction))
+                                inputs.AddLast(_Parse(new Clause(true)));
                             else
-                                operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.NEGATION, inputs.AddLast(new Negation())));
+                                throw new NotImplementedException
                             continue;
-                        case "!":
-                        case "~":
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.NEGATION, inputs.AddLast(new Negation()))); continue;
-                        case "+":
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.ADDITION, inputs.AddLast(new Addition()))); continue;
-                        case "*":
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.MULTIPLICATION, inputs.AddLast(new Multiplication()))); continue;
-                        case "/":
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.DIVISION, inputs.AddLast(new Division()))); continue;
-                        case "^":
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.EXPONENTIATION, inputs.AddLast(new Exponentiation()))); continue;
-                        case "&":
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.AND, inputs.AddLast(new And()))); continue;
-                        case "|":
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.OR, inputs.AddLast(new Or()))); continue;
-                        case ":":
-                            operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.RANGE, inputs.AddLast(new Range()))); continue;
-
-                        case string _ when functions != null && functions.TryCreate(token, out NamedFunction nf):
-                            __ImpliedScalar();
-                            inputs.AddLast(_Parse(nf));
+                        case "{":
+                            if (inputs.Count == 0) throw new NestingSyntaxException("No base to index.");
+                            Indexing idxing = new Indexing();
+                            operatorNodes.Enqueue(new PrioritizedToken(inputs.AddLast(idxing)));
+                            inputs.AddLast(_Parse(new Clause(false, '}')));
                             continue;
+                        case "[":
+                            inputs.AddLast(_Parse(new Clause(false, ']')));
+                            throw new NotImplementedException();
+                        //continue;
+                        case ")":
 
-                        case string _ when ctxt != null && ctxt.TryGetSubcontext(token, out ctxt):
-                            __ImpliedScalar();
-                            continue;                                
+                            if (clause.Closer != token[0]) throw new NestingSyntaxException("Clause closer '" + token[0] + "' does not match expected: '" + clause.Closer + "'. ");
+                            clause.Contents = __Pushdown();
+                            if (clause.Contents.Length != 1) throw new NestingSyntaxException("Parenthetical clause cannot contain a vector.");
+                            return clause;
+                        case "}":
+                        case "]":
+                            if (clause.Closer != token[0]) throw new NestingSyntaxException("Clause closer '" + token[0] + "' does not match expected: '" + clause.Closer + "'. ");
+                            clause.Contents = __Pushdown();
+                            return clause;
+                    }
 
-                        case string _ when ctxt != null && ctxt.TryGetVariable(token, out IVariable var):
-                            __ImpliedScalar();
-                            inputs.AddLast(var);
-                            continue;
+                    // An operator?
+                    if (Operator.TryCreate(token, out Operator oper))
+                    {
+                        operatorNodes.Enqueue(new PrioritizedToken(inputs.AddLast(oper)));
+                        inputs.AddLast(oper);
+                        continue;
+                    }
 
-                        default: throw new SyntaxException("Unrecognized token: ", token, null);
+                    if (functions.TryCreate(token, out NamedFunction f))
+                    {
+                        inputs.AddLast(f);
                     }
 
                     splitIdx++;
@@ -204,8 +145,11 @@ namespace Dependency
                         switch (inputs.Last) 
                         {
                             case Number _:
-                            case Clause c when c.Brackets == BracketType.Paren:
-                                operatorNodes.Enqueue(new PrioritizedToken(Operator.Priorities.MULTIPLICATION, inputs.AddLast(new Multiplication())));
+                            case NamedFunction _:
+                            case Clause _:
+                                Multiplication m = new Multiplication();
+                                operatorNodes.Enqueue(new PrioritizedToken(m));
+                                inputs.AddLast(m);
                                 return true;
                         }
                         return false;
@@ -213,7 +157,7 @@ namespace Dependency
                     
                 }
 
-                return exp;
+                return clause;
 
                 IEvaluateable[] __Pushdown()
                 {
@@ -233,23 +177,49 @@ namespace Dependency
         }
 
 
-        public override string ToString()
+        private string Opener()
         {
-            switch (Brackets)
+            switch (Closer)
             {
-                case BracketType.Paren: return "(" + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + ")";
-                case BracketType.Curly: return "{" + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + "}";
-                default:return string.Join(",", (IEnumerable<IEvaluateable>)Contents);
+                case ')': return "(";
+                case ']': return "[";
+                case '}': return "{";
+                default: return "";
+            }
+        }
+        public override string ToString() => Opener() + string.Join(",", (IEnumerable<IEvaluateable>)Contents) + Closer;
+
+
+
+
+        private struct PrioritizedToken 
+        {
+            private static Dictionary<Type, int> _Priorities = new Dictionary<Type, int> {
+                { typeof(Or), 200 },
+                { typeof(And), 300 },
+                { typeof(Exponentiation), 400 },
+                { typeof(Negation), 500 },
+                { typeof(Multiplication), 600 },
+                { typeof(Division), 700 },
+                { typeof(Addition), 800 },
+                { typeof(Subtraction), 900 },
+                { typeof(Range), 1000 },
+                { typeof(Indexing), 1100 }
+            };
+
+            public readonly DynamicLinkedList<IEvaluateable>.Node Node;
+            public readonly int Priority;
+            public PrioritizedToken(DynamicLinkedList<IEvaluateable>.Node node)
+            {
+                this.Node = node;
+                if (!_Priorities.TryGetValue( node.Contents.GetType(), out int priority)) throw new NotImplementedException();
+                this.Priority = priority;
             }
         }
 
-        IEvaluateable IEvaluateable.Evaluate()
-        {
-            throw new NotImplementedException();
-        }
+
 
         #region Expression RegEx members
-        private const string StringPattern = "(?<stringPattern>\".*\")";
         private const string OpenerPattern = @"(?<openerPattern>[\(\[{])";
         private const string CloserPattern = @"(?<closerPattern>[\)\]}])";
         private const string OperPattern = @"(?<operPattern>[+-/*&|^~!])";
@@ -257,8 +227,8 @@ namespace Dependency
         private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
         private const string SpacePattern = @"(?<spacePattern>\s+)";
 
-        private static string Pattern = string.Join(" | ", StringPattern, OpenerPattern, CloserPattern, OperPattern, VarPattern, NumPattern, SpacePattern);
-        private static Regex Regex = new Regex(Pattern, RegexOptions.IgnorePatternWhitespace);
+        private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, VarPattern, NumPattern, SpacePattern);
+        private static Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);
 
         public class SyntaxException : Exception
         {
@@ -276,10 +246,10 @@ namespace Dependency
             public ReferenceException(string message) : base(message) { }
         }
 
-        internal class NestingMismatchException : Exception
+        internal class NestingSyntaxException : Exception
         {
-            public NestingMismatchException() { }
-            public NestingMismatchException(string message) : base(message)            {            }            
+            public NestingSyntaxException() { }
+            public NestingSyntaxException(string message) : base(message)            {            }            
         }
         #endregion
     }

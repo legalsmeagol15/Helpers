@@ -13,7 +13,7 @@ namespace Dependency
 
         public Fraction (Number numerator, Number denominator) { this._Numerator = numerator; this._Denominator = denominator; }
 
-        IEvaluateable IEvaluateable.Evaluate() => this;
+        IEvaluateable IEvaluateable.Value() => this;
 
         public override string ToString() => _Numerator + " / " + _Denominator;
 

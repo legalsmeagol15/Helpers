@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Dependency
@@ -9,10 +10,12 @@ namespace Dependency
     [Serializable]
     public struct String : IEvaluateable
     {
+        internal const string PARSE_PATTERN = "\"[^\"]*\"";  // Any string bracketed by two "s and containing no " in between.
+        private static Regex _Regex = new Regex(PARSE_PATTERN);
         internal readonly string Value;
 
         public String(string str) { this.Value = str; }
-        IEvaluateable IEvaluateable.Evaluate() => this;
+        IEvaluateable IEvaluateable.Value => this;
 
         public static implicit operator String(string str) => new String(str);
         public static implicit operator string(String s) => s.Value;
@@ -27,11 +30,30 @@ namespace Dependency
         public override bool Equals(object obj)
         {
             if (obj is String n) return this.Value == n.Value;
+            if (obj is string s) return this.Value == s;
             return false;
         }
 
         public override int GetHashCode() => Value.GetHashCode();
 
+        public static bool IsQuotedString(string token) => _Regex.IsMatch(token);
+
         public override string ToString() => this.Value;
+
+        internal static string QueensJoin<T>(IEnumerable<T> items, string lastJoiner = "or") => QueensJoin(items.ToArray(), lastJoiner);
+        internal static string QueensJoin<T>(T[] items, string lastJoiner = "or")
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append(items[0].ToString());
+            if (items.Length == 1) return sb.ToString();
+            for (int i = 1; i < items.Length - 1; i++)
+            {
+                sb.Append(", ");
+                sb.Append(items[i].ToString());
+            }
+            if (items.Length > 2) sb.Append(","); // The Oxford comma
+            sb.Append(" " + lastJoiner + " " + items[items.Length - 1].ToString());
+            return sb.ToString();
+        }
     }
 }

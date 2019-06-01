@@ -15,13 +15,13 @@ namespace Dependency
         public static readonly Number E = new Number((decimal)Math.E);
 
         
-
+        
         internal readonly decimal Value;
 
         public Number(decimal m) { this.Value = m; }
         public Number(double d) { this.Value = (decimal)d; }
         public Number(int i) { this.Value = (decimal)i; }
-        IEvaluateable IEvaluateable.Evaluate() => this;
+        IEvaluateable IEvaluateable.Value => this;
 
         public static implicit operator Number(int i) => new Number((decimal)i);
         public static implicit operator int(Number n) => (int)n.Value;

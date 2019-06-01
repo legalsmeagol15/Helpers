@@ -25,34 +25,36 @@ namespace Dependency
         }
 
         IEvaluateable IEvaluateable.Value => this;
-
-        IEvaluateable IEvaluateable.Evaluate() => this;
     }
 
     public class InputCountError : EvaluationError
     {
-        public readonly int CorrectCount;
+        internal IEnumerable<TypesAllowed[]> Constraints;
 
-        public InputCountError(object complainant, IEnumerable<IEvaluateable> inputs, int correctCount)
-            : base(complainant, inputs, "Incorrect number of inputs.  Should be " + correctCount + ".")
+        internal InputCountError(object complainant, IEnumerable<IEvaluateable> inputs, IEnumerable<TypesAllowed[]> constraints)
+            : base(complainant, inputs, "Incorrect number of inputs.  Should be " + String.QueensJoin(constraints.Select(c => c.Length)) + "." )
         {
-            this.CorrectCount = correctCount;
+            this.Constraints = constraints;
         }
     }
 
     public class TypeMismatchError : EvaluationError 
     {
+
         public readonly int InputIndex;
+        public readonly int ConstraintIndex;
+        internal IEnumerable<TypesAllowed[]> Constraints;
 
-        public readonly IEnumerable<Type> ValidTypes;
-
-        public TypeMismatchError(object complainant, IEnumerable<IEvaluateable> inputs, int inputIndex, params Type[] validTypes)
+        internal TypeMismatchError(object complainant, IEnumerable<IEvaluateable> inputs, int constraintIdx, int inputIndex, IEnumerable<TypesAllowed[]> constraints)
             : base(complainant, inputs)
         {
+            this.ConstraintIndex = constraintIdx;
             this.InputIndex = inputIndex;
-            this.ValidTypes = validTypes;
+            this.Constraints = constraints;
         }
     }
+
+    
 
     public sealed class IndexingError : EvaluationError
     {
