@@ -19,6 +19,7 @@ namespace Dependency
         Vector = 1 << 20,
         NonEmptyString = 1 << 25,
         String = ZeroNullEmpty | NonEmptyString,
+        Indexable = Vector,
         Other = 1 << 31,
             Any = ~0
     }
@@ -27,6 +28,8 @@ namespace Dependency
     {
         /// <summary>Updates and returns the new value of this <see cref="IEvaluateable"/>.</summary>
         IEvaluateable Value { get; }
+
+        IEvaluateable UpdateValue();
 
     }
 

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DataStructures;
+using System.Diagnostics;
 
 namespace Dependency
 {
@@ -63,8 +64,10 @@ namespace Dependency
         
     }
 
+    
     public sealed class Addition : Operator
     {
+
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs)
         {
             if (!inputs.Any()) return new InputCountError(this, inputs, 2);
@@ -142,34 +145,58 @@ namespace Dependency
         public override string ToString() => string.Join(" ^ ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
-
-    [InputTypeConstraint(0, true, TypesAllowed.Vector, TypesAllowed.IntegerNumber | TypesAllowed.PositiveNumber)]
-    [InputTypeConstraint(1, false, TypesAllowed.Vector, TypesAllowed.Vector)]
-    public sealed class Indexing : Operator, IIndexable
+    public sealed class Indexing : Operator, IExpression
     {
-        IEvaluateable IIndexable.this[params Number[] indices] => throw new NotImplementedException();
+        //This is unique: an operator that is also a left-to-right expression.
 
-        IEvaluateable IIndexable.MaxIndex => throw new NotImplementedException();
+        internal IEvaluateable Base => Inputs[0];
 
-        IEvaluateable IIndexable.MinIndex => throw new NotImplementedException();
+        /// <summary>The vector that this bracket object contains.</summary>
+        internal IEvaluateable Ordinal { get => Inputs[1]; set { Inputs[1] = value; } }
 
         protected override IEvaluateable Evaluate(int constraintIndex, IEvaluateable[] inputs)
         {
-            throw new NotImplementedException();
+            if (inputs.Length < 2) return new InputCountError(this, inputs, null);
+            IEvaluateable b = inputs[0];
+            IIndexable bi = b as IIndexable;
+            if (bi == null)
+                return new IndexingError(this, inputs, "An object of type " + b.GetType().Name + " is not indexable.");
+            Number[] ordinals;
+            switch (constraintIndex)
+            {
+                case 0:
+                    ordinals = new Number[inputs.Length - 1];
+                    for (int i = 1; i < inputs.Length; i++) ordinals[i - 1] = (Number)inputs[i];
+                case 1:
+                    if (!(inputs[1] is Vector))
+                        return new IndexingError(this, inputs, "Index must be a set of numbers or a vector.");
+                    Vector v = (Vector)inputs[1];
+                    if (!v.TryOrdinalize(out ordinals))
+                        return new IndexingError(this, inputs, "A vector index must evaluate to a set of numbers.");
+            }
+            IEvaluateable o = Ordinal.Value;
+            
+            switch (o)
+            {
+                case Number n: return bi[n];
+                case Vector v:
+                    if (v.TryOrdinalize(out Number[] ns)) return bi[ns];
+                    return new IndexingError(this, new IEvaluateable[] { b, o }, "Vector ordinal cannot be converted to number indices.");
+                default:
+                    return new IndexingError(this, new IEvaluateable[] { b, o }, "An object of type " + o.GetType().Name + " cannot index.");
+            }
         }
+        
 
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
+        public void SetContents(IEvaluateable @base, IEvaluateable contents) { Inputs = new IEvaluateable[] { @base, Ordinal }; }
+        void IExpression.SetContents(params IEvaluateable[] contents)
         {
-            if (!ParseBinary(node)) return false;
-            Clause curly = this.Inputs[1] as Clause;
-            if (curly == null) throw new Exception("Should be impossible.");
-            this.Inputs[1] = curly.Contents;
-            return true;
+            Debug.Assert(contents.Length == 2);
+            SetContents(contents[0], contents[1]);
         }
 
-        public override string ToString() => Inputs[0].ToString() + "{ " + Inputs[1].ToString() + " }";
+        public override string ToString() => Base.ToString() + "{" + Ordinal.ToString() + "}";
     }
-
 
 
     public sealed class Multiplication : Operator
