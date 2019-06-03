@@ -145,6 +145,7 @@ namespace Dependency
         public override string ToString() => string.Join(" ^ ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
+
     public sealed class Indexing : Operator, IExpression
     {
         //This is unique: an operator that is also a left-to-right expression.
@@ -156,35 +157,8 @@ namespace Dependency
 
         protected override IEvaluateable Evaluate(int constraintIndex, IEvaluateable[] inputs)
         {
-            if (inputs.Length < 2) return new InputCountError(this, inputs, null);
-            IEvaluateable b = inputs[0];
-            IIndexable bi = b as IIndexable;
-            if (bi == null)
-                return new IndexingError(this, inputs, "An object of type " + b.GetType().Name + " is not indexable.");
-            Number[] ordinals;
-            switch (constraintIndex)
-            {
-                case 0:
-                    ordinals = new Number[inputs.Length - 1];
-                    for (int i = 1; i < inputs.Length; i++) ordinals[i - 1] = (Number)inputs[i];
-                case 1:
-                    if (!(inputs[1] is Vector))
-                        return new IndexingError(this, inputs, "Index must be a set of numbers or a vector.");
-                    Vector v = (Vector)inputs[1];
-                    if (!v.TryOrdinalize(out ordinals))
-                        return new IndexingError(this, inputs, "A vector index must evaluate to a set of numbers.");
-            }
-            IEvaluateable o = Ordinal.Value;
             
-            switch (o)
-            {
-                case Number n: return bi[n];
-                case Vector v:
-                    if (v.TryOrdinalize(out Number[] ns)) return bi[ns];
-                    return new IndexingError(this, new IEvaluateable[] { b, o }, "Vector ordinal cannot be converted to number indices.");
-                default:
-                    return new IndexingError(this, new IEvaluateable[] { b, o }, "An object of type " + o.GetType().Name + " cannot index.");
-            }
+
         }
         
 

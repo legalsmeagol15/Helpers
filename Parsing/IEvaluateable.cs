@@ -37,6 +37,8 @@ namespace Dependency
     {
         bool TryGetSubcontext(string token, out IContext ctxt);
         bool TryGetVariable(string token, out IVariable var);
+        bool TryGetConstant(string token, out IEvaluateable k);
+
         IContext Parent { get; }
     }
 

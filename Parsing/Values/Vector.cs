@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Dependency
 {
-    public class Vector : Function, IEvaluateable, IIndexable
+    public class Vector : Function, IEvaluateable, IIndexable, IContext
     {
         internal Vector(IEvaluateable[] contents) { Inputs = contents; }
 
@@ -32,6 +32,8 @@ namespace Dependency
 
         public IEvaluateable MinIndex => Number.Zero;
 
+        IContext IContext.Parent => throw new NotImplementedException();
+
         internal bool TryOrdinalize(out Number[] ordinals)
         {
             ordinals = new Number[this.Inputs.Length];
@@ -45,5 +47,19 @@ namespace Dependency
         }
 
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs) { return new Vector(inputs); }
+
+        bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
+
+        bool IContext.TryGetVariable(string token, out IVariable var) { var = null; return false; }
+
+        bool IContext.TryGetConstant(string token, out IEvaluateable k)
+        {
+            switch (token.ToLower())
+            {
+                case "size":
+                case "length": k = new Number(Inputs.Length); return true;
+                default: k = null; return false;
+            }
+        }
     }
 }
