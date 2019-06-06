@@ -7,34 +7,64 @@ using System.Threading.Tasks;
 
 namespace Dependency
 {
-    
+
     public interface IFunction : IEvaluateable
     {
-        IEvaluateable[] Inputs { get; }        
-
+        IEvaluateable[] Inputs { get; }
     }
-    
-    
+
+
 
     public abstract class Function : IFunction
     {
         private IEvaluateable _Value = null;
+
         IEvaluateable IEvaluateable.Value => _Value ?? (_Value = ((IFunction)this).UpdateValue());
-        IEvaluateable IEvaluateable.UpdateValue() => (_Value = Evaluate(Inputs.Select(i => i.UpdateValue()).ToArray()));
-        protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs);
+
+        IEvaluateable IEvaluateable.UpdateValue()
+        {
+            IEvaluateable[] evaluatedInputs = new IEvaluateable[Inputs.Length];
+            for (int i = 0; i < Inputs.Length; i++)
+            {
+                evaluatedInputs[i] = Inputs[i].UpdateValue();
+                if (evaluatedInputs[i] is EvaluationError err) return err;
+            }
+
+            if (this is IValidateValue ivv)
+            {
+                int constraintMatch = -1;
+                int inputNonMatch = -1;
+
+                for (int i = 0; i < ivv.GetConstraints().Length; i++)
+                {
+                    InputConstraint c = ivv.GetConstraints()[i];
+                    if (!c.MatchesCount(Inputs.Length)) continue;
+                    int match = c.MatchesTypes(evaluatedInputs);
+                    if (match >= evaluatedInputs.Length) return Evaluate(evaluatedInputs, i);
+                    else if (match > inputNonMatch) { inputNonMatch = match; constraintMatch = i; }
+                }
+                if (constraintMatch < 0) return new InputCountError(this, evaluatedInputs, ivv.GetConstraints());
+                return new TypeMismatchError(this, evaluatedInputs, constraintMatch, inputNonMatch, ivv.GetConstraints());
+            }
+            else
+                return Evaluate(evaluatedInputs, -1);
+        }
+
+        protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
 
         protected internal IEvaluateable[] Inputs { get; internal set; } = null;
         IEvaluateable[] IFunction.Inputs => Inputs;
-        
 
+        
     }
+
+
 
     public abstract class NamedFunction : Function, IExpression
     {
-        public string Name { get; }        
+        public string Name { get; }
     }
 
-    
 
 
     /// <summary>Creates <see cref="NamedFunction"/> objects based on the given string name.</summary>

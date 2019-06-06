@@ -17,20 +17,39 @@ namespace Dependency
     }
 
 
-    /// <summary>
-    /// A square-bracket clause.  The only legal contents of a <see cref="Bracket"/> would be a 
-    /// <seealso cref="Vector"/>.
-    /// </summary>
-    public sealed class Bracket : IExpression
+    public sealed class Reference : IExpression
     {
-        /// <summary>The vector that this bracket object contains.</summary>
-        internal IIndexable Vector { get; set; }
+        internal IVariable Variable { get; set; }
+
+        /// <summary>
+        /// TODO:  implement an immobiles structure.
+        /// </summary>
+        public object Immobiles_TODO;
 
         private IEvaluateable _Value = null;
-        IEvaluateable IEvaluateable.Value => _Value ?? (_Value = Vector.UpdateValue());
-        IEvaluateable IEvaluateable.UpdateValue() => _Value = Vector.UpdateValue();        
+        IEvaluateable IEvaluateable.Value => _Value ?? (_Value = Variable.Value);
+        IEvaluateable IEvaluateable.UpdateValue() => _Value = Variable.Value;
 
-        public override string ToString() => '[' + Vector.ToString() + ']';
+        public Reference (IVariable var, object immobiles = null) { this.Variable = var; this.Immobiles_TODO = immobiles; }
+
+        public override string ToString() => Variable.Name;
+    }
+
+    /// <summary>
+    /// A curly-bracket clause.  The only legal contents of a <see cref="Curly"/> would be a 
+    /// <seealso cref="Reference"/>.  The value of a <see cref="Curly"/> is the contents of the 
+    /// <seealso cref="IVariable"/> indicated by the <seealso cref="Reference"/>.
+    /// </summary>
+    public sealed class Curly : IExpression
+    {
+        /// <summary>The vector that this bracket object contains.</summary>
+        internal Reference Reference { get; set; }
+
+        private IEvaluateable _Value = null;
+        IEvaluateable IEvaluateable.Value => _Value ?? (_Value = Reference.Variable.Contents);
+        IEvaluateable IEvaluateable.UpdateValue() => _Value = Reference.Variable.Contents;
+
+        public override string ToString() => '{' + Reference.ToString() + '}';
 
     }
 
@@ -93,14 +112,10 @@ namespace Dependency
                             continue;
                         }
                         else if (!dot)
-                            throw new ReferenceException("References path items must be separated by dot '.' operators.");
-                        else if (ctxt.TryGetSubcontext(token, out IContext next_ctxt))
-                            ctxt = next_ctxt;
-                        else if (ctxt.TryGetVariable(token, out IVariable var))
-                        {
-                            inputs.AddLast(var);
-                            ctxt = rootContext;
-                        }
+                            throw new ReferenceException("Reference path items must be separated by dot '.' operators.");
+                        else if (ctxt.TryGetSubcontext(token, out IContext next_ctxt)) ctxt = next_ctxt;
+                        else if (ctxt.TryGetVariable(token, out IVariable var)) { inputs.AddLast(var); ctxt = rootContext; }
+                        else if (ctxt is IRangeable ir && ir.TryGetImmobile(token, out Reference r)) { inputs.AddLast(r); ctxt = rootContext; }
                         else
                             throw new ReferenceException("Reference path termination must be an evaluateable variable.");
                         dot = false;
@@ -127,14 +142,14 @@ namespace Dependency
                             else
                                 inputs.AddLast(_Parse(new Parenthetical()));
                             continue;
-                        case "{":
-                            if (inputs.Count == 0) throw new NestingSyntaxException("No base to index.");
-                            Indexing curly = new Indexing();
-                            _Parse(curly);
-                            __AddOperator(operatorNodes, inputs, curly);
-                            continue;
                         case "[":
-                            inputs.AddLast(_Parse(new Bracket()));
+                            if (inputs.Count == 0) throw new NestingSyntaxException("No base to index.");
+                            Indexing brckt = new Indexing();
+                            _Parse(brckt);
+                            __AddOperator(operatorNodes, inputs, brckt);
+                            continue;
+                        case "{":
+                            inputs.AddLast(_Parse(new Curly()));
                             continue;
                         case ")":
                             IEvaluateable[] pushedDown = __Pushdown(operatorNodes, inputs);
@@ -150,23 +165,27 @@ namespace Dependency
                                 default:
                                     throw new NestingSyntaxException("Invalid closure ')' of parenthetical without matching '('.");
                             }
-                        case "}":
+                        case "]":
                             if (exp is Indexing idxing)
                             {
                                 pushedDown = __Pushdown(operatorNodes, inputs);
-                                idxing.Inputs = new IEvaluateable[pushedDown.Length + 1];
-                                idxing.Inputs[0] = null;
-                                pushedDown.CopyTo(idxing.Inputs, 1);
+                                idxing.Inputs = new IEvaluateable[2];
+                                idxing.Base = null;  // This will be assigned at the operator parse.
+                                idxing.Ordinal = (pushedDown.Length == 1) ? pushedDown[0] : new Vector(pushedDown);
                                 return exp;
                             }
-                            throw new NestingSyntaxException("Invalid closure '}' of indexing bracket without matching '{'.");
-                        case "]":
-                            if (exp is Bracket br)
+                            throw new NestingSyntaxException("Invalid closure ']' of indexing bracket without matching '['.");
+                        case "}":
+                            if (exp is Curly curly)
                             {
-                                br.Vector = new Vector(__Pushdown(operatorNodes, inputs));
-                                return br;
+                                if (inputs.Count != 1)
+                                    throw new NestingSyntaxException("A curly-bracketed clause may contain only a single variable reference.");
+                                if (!(inputs.First is Reference r) )
+                                    throw new NestingSyntaxException("A curly-bracketed clause may contain only a variable reference.");
+                                curly.Reference = r;
+                                return exp;
                             }
-                            throw new NestingSyntaxException("Invalid closure ']' of vector bracket without matching ']'.");
+                            throw new NestingSyntaxException("Invalid closure '}' of vector bracket without matching '{'.");
                     }
 
                     // An operator?
@@ -187,19 +206,9 @@ namespace Dependency
                     // A starting subcontext or a variable?
                     if (ctxt != null)
                     {
-                        if (ctxt.TryGetSubcontext(token, out IContext next_ctxt))
-                        {
-                            ctxt = next_ctxt;
-                            dot = false;
-                            continue;
-                        }
-
-                        else if (ctxt.TryGetVariable(token, out IVariable var))
-                        {
-                            inputs.AddLast(var);
-                            dot = false;
-                            ctxt = rootContext;
-                        }
+                        if (ctxt.TryGetSubcontext(token, out IContext next_ctxt)) { ctxt = next_ctxt; continue; }
+                        else if (ctxt.TryGetVariable(token, out IVariable var)) { inputs.AddLast(new Reference(var)); ctxt = rootContext; continue; }
+                        else if (ctxt is IRangeable ir && ir.TryGetImmobile(token, out Reference r)) { inputs.AddLast(r); ctxt = rootContext; continue; }
                     }
 
                     splitIdx++;
@@ -239,7 +248,7 @@ namespace Dependency
                     return list.ToArray();
                 }
             }
-            
+
         }
 
 

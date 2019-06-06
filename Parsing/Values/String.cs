@@ -14,7 +14,9 @@ namespace Dependency
         private static Regex _Regex = new Regex(PARSE_PATTERN);
         internal readonly string Value;
 
-        public String(string str) { this.Value = str; }
+        internal readonly TypeFlags TypeFlags;
+
+        public String(string str) { this.Value = str; TypeFlags = TypeFlags.String | (str == "" ? TypeFlags.ZeroNullEmpty : 0); }
         IEvaluateable IEvaluateable.Value => this;
 
         public static implicit operator String(string str) => new String(str);

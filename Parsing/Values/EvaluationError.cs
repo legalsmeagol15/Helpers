@@ -25,32 +25,58 @@ namespace Dependency
         }
 
         IEvaluateable IEvaluateable.Value => this;
+
+        IEvaluateable IEvaluateable.UpdateValue() => this;
     }
 
     public class InputCountError : EvaluationError
     {
-        internal IEnumerable<TypesAllowed[]> Constraints;
+        internal IEnumerable<InputConstraint> Constraints;
 
-        internal InputCountError(object complainant, IEnumerable<IEvaluateable> inputs, IEnumerable<TypesAllowed[]> constraints)
-            : base(complainant, inputs, "Incorrect number of inputs.  Should be " + String.QueensJoin(constraints.Select(c => c.Length)) + "." )
+        internal InputCountError(object complainant, IEnumerable<IEvaluateable> inputs, IEnumerable<InputConstraint> constraints)
+            : base(complainant, inputs, "Incorrect number of inputs.  Should be " + String.QueensJoin(constraints.Select(c => c.Allowed.Length + (c.IsVariadic ? "+" : ""))) + ".")
         {
             this.Constraints = constraints;
         }
     }
 
-    public class TypeMismatchError : EvaluationError 
+    public class TypeMismatchError : EvaluationError
     {
 
         public readonly int InputIndex;
         public readonly int ConstraintIndex;
-        internal IEnumerable<TypesAllowed[]> Constraints;
+        internal IEnumerable<InputConstraint> Constraints;
+        internal readonly TypeFlags AllowedFlags;
+        internal readonly TypeFlags GivenFlags;
 
-        internal TypeMismatchError(object complainant, IEnumerable<IEvaluateable> inputs, int constraintIdx, int inputIndex, IEnumerable<TypesAllowed[]> constraints)
-            : base(complainant, inputs)
+        /// <summary>
+        /// Represents an error which occurred when a function could not match the type of the evaluated inputs to its 
+        /// requirements.
+        /// </summary>
+        /// <param name="complainant">The function that failed to evaluate.</param>
+        /// <param name="inputs">The inputs that the function failed to evaluate.</param>
+        /// <param name="constraintIdx">The 0-based constraint index that represented the best fit (if one existed with that allowed the given number of inputs).</param>
+        /// <param name="inputIndex">The 0-based index of the first input whose type did not match requirements.</param>
+        /// <param name="constraints">The constraint set used to evaluate the given inputs.</param>
+        /// <param name="message">The message.</param>
+        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, int constraintIdx, int inputIndex, InputConstraint[] constraints, string message = null)
+            : base(complainant, inputs, message)
         {
             this.ConstraintIndex = constraintIdx;
             this.InputIndex = inputIndex;
             this.Constraints = constraints;
+            this.AllowedFlags = constraints[constraintIdx].Allowed[inputIndex];
+            this.GivenFlags = (inputs[inputIndex] is ITypeFlag itf) ? itf.Flags : TypeFlags.Any;
+        }
+
+        internal TypeMismatchError(object complainant, IEnumerable<IEvaluateable> inputs, TypeFlags typeAllowed, object given, string message = null)
+            : base(complainant, inputs, message)
+        {
+            this.ConstraintIndex = -1;
+            this.InputIndex = -1;
+            this.Constraints = null;
+            this.AllowedFlags = typeAllowed;
+            this.GivenFlags = (given is ITypeFlag itf) ? itf.Flags : TypeFlags.Any;
         }
     }
 

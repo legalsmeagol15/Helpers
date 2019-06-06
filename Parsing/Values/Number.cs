@@ -14,13 +14,23 @@ namespace Dependency
         public static readonly Number Pi = new Number((decimal)Math.PI);
         public static readonly Number E = new Number((decimal)Math.E);
 
-        
+        internal readonly TypeFlags TypeFlags;
         
         internal readonly decimal Value;
 
-        public Number(decimal m) { this.Value = m; }
-        public Number(double d) { this.Value = (decimal)d; }
-        public Number(int i) { this.Value = (decimal)i; }
+        public Number(decimal m) { this.Value = m; this.TypeFlags = TypeFlags.Number | GetValueFlags(m); }
+
+        internal static TypeFlags GetValueFlags(decimal m)
+        {
+            TypeFlags tf = _IsInteger(m) ? 0 : TypeFlags.NonInteger;
+            if (m > 0) tf |= TypeFlags.Positive;
+            else if (m < 0) tf |= TypeFlags.Negative;
+            else tf |= TypeFlags.ZeroNullEmpty;
+            return tf;
+        }
+
+        public Number(double d) : this((decimal)d) { }
+        public Number(int i) : this((decimal)i) { }
         IEvaluateable IEvaluateable.Value => this;
 
         public static implicit operator Number(int i) => new Number((decimal)i);
@@ -36,7 +46,8 @@ namespace Dependency
         public static implicit operator Number(Boolean b) => b.Value ? Number.One : Number.Zero;
 
 
-        public bool IsInteger => (decimal)((int)Value) == Value;
+        private static bool _IsInteger(decimal m) => (decimal)((int)m) ==  m;
+        public bool IsInteger => _IsInteger(Value);
 
         public static Number operator +(Number a, Number b) => new Number(a.Value + b.Value);
         public static Number operator -(Number n) => new Number(-n.Value);

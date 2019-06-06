@@ -88,6 +88,7 @@
     <Compile Include="Parsing\Properties\AssemblyInfo.cs" />
     <Compile Include="Parsing\Transaction.cs" />
     <Compile Include="Parsing\Values\Boolean.cs" />
+    <Compile Include="Parsing\Values\Complex.cs" />
     <Compile Include="Parsing\Values\EvaluationError.cs" />
     <Compile Include="Parsing\Values\Fraction.cs" />
     <Compile Include="Parsing\Values\Null.cs" />
