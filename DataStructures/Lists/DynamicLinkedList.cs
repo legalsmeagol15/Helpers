@@ -217,7 +217,7 @@ namespace DataStructures
             /// <summary>
             /// 
             /// </summary>
-            public Node(T contents) { Contents = contents; }
+            public Node(T contents = null) { Contents = contents; }
 
 
             /// <summary>
