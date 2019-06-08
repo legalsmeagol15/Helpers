@@ -15,9 +15,9 @@ namespace DataStructures
     /// <summary>
     /// A linked list that allows insertions and deletions mid-list.  Each such insertion or deletion is potentially an O(N) operation.
     /// <para/>
-    [DebuggerDisplay("Count = {Count}")]    
+    [DebuggerDisplay("Count = {Count}")]
     [DefaultMember("Item")]
-    public class DynamicLinkedList<T> : IEnumerable<T>
+    public class DynamicLinkedList<T> : IEnumerable<T>, ICollection<T>
     {
 
         //TODO:  validate DynamicLinkedList
@@ -29,12 +29,12 @@ namespace DataStructures
 
         /// <summary>The last item in the list.</summary>
         public T Last => _LastNode.Contents;
-        
+
 
 
         public DynamicLinkedList()
         {
-            
+
         }
 
         public DynamicLinkedList(IEnumerable<T> source)
@@ -45,6 +45,8 @@ namespace DataStructures
 
         #region DynamicLinkedList contents management
 
+        void ICollection<T>.Add(T item) => AddLast(item);
+
         /// <summary>Adds a new item to the list at the head position.</summary>
         public Node AddFirst(T item)
         {
@@ -52,7 +54,7 @@ namespace DataStructures
             {
                 _FirstNode = new Node(item, this, null, null);
                 _LastNode = _FirstNode;
-                Count = 1;                
+                Count = 1;
             }
             else
             {
@@ -70,8 +72,6 @@ namespace DataStructures
             node.List.Count = this.Count;
             throw new NotImplementedException();
         }
-
-
         /// <summary>Adds a new item to the list at the tail position.</summary>
         public Node AddLast(T item)
         {
@@ -79,14 +79,14 @@ namespace DataStructures
             {
                 _FirstNode = new Node(item, this, null, null);
                 _LastNode = _FirstNode;
-                Count = 1;                
+                Count = 1;
             }
             else
             {
                 _LastNode = new Node(item, this, _LastNode, null);
                 _LastNode.Previous.Next = _LastNode;
                 Count++;
-            }            
+            }
             return _LastNode;
         }
 
@@ -102,8 +102,14 @@ namespace DataStructures
             Count = 0;
         }
 
-        
 
+        bool ICollection<T>.Remove(T item)
+        {
+            Node n = GetNodes().FirstOrDefault(node => node.Contents.Equals(item));
+            if (n == null) return false;
+            n.Remove();
+            return true;
+        }
         public T RemoveFirst()
         {
             if (Count == 0) return default(T);
@@ -116,7 +122,7 @@ namespace DataStructures
         }
         public T RemoveLast()
         {
-            if (Count==0) return default(T);
+            if (Count == 0) return default(T);
             T result = _LastNode.Contents;
             _LastNode = _LastNode.Next;
             if (_LastNode != null) _LastNode.Next = null;
@@ -146,11 +152,32 @@ namespace DataStructures
         public Node FirstNode => _FirstNode;
         public Node LastNode => _LastNode;
 
+
+        bool ICollection<T>.IsReadOnly => false;
+
         public IEnumerable<Node> GetNodes()
         {
             Node n = FirstNode;
             while (n != null) { yield return n; n = n.Next; }
         }
+
+
+
+        /// <summary>This is an O(n) operation.</summary>
+        public bool Contains(T item) => (item != null) ? this.Any(existing => existing.Equals(item)) : this.Any(existing => existing == null);
+
+        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
+        {
+            if (arrayIndex < 0) return;
+            foreach (T item in this)
+            {
+                if (arrayIndex >= array.Length) return;
+                array[arrayIndex] = item;
+            }
+        }
+
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
 
         #endregion
 
@@ -327,6 +354,6 @@ namespace DataStructures
         }
 
 
-        
+
     }
 }
