@@ -50,44 +50,52 @@ namespace DataStructures
         /// <summary>Adds a new item to the list at the head position.</summary>
         public Node AddFirst(T item)
         {
+            Node n = new Node(item);
+            AddFirst(n);
+            return n;
+        }
+        public void AddFirst(Node node)
+        {
+            node.Remove();  // Ensure that the node is not a part of another list.
+            node.List = this;
             if (_FirstNode == null)
-            {
-                _FirstNode = new Node(item, this, null, null);
+            {   
+                _FirstNode = node;
                 _LastNode = _FirstNode;
                 Count = 1;
             }
             else
             {
-                _FirstNode = new Node(item, this, null, _FirstNode);
-                _FirstNode.Next.Previous = _FirstNode;
+                node.Next = _FirstNode;
+                _FirstNode.Previous = node;
+                this._FirstNode = node;
                 Count++;
             }
-            return _FirstNode;
         }
-        public Node AddFirst(Node node)
-        {
-            if (ReferenceEquals(this, node.List))
-                throw new InvalidOperationException("A list's nodes cannot be concatenated with the same list.");
-            this.Count += node.List.Count;
-            node.List.Count = this.Count;
-            throw new NotImplementedException();
-        }
+        
         /// <summary>Adds a new item to the list at the tail position.</summary>
         public Node AddLast(T item)
         {
-            if (_FirstNode == null)
+            Node n = new Node(item);
+            AddLast(n);
+            return n;
+        }
+        public void AddLast(Node node)
+        {
+            node.Remove();
+            node.List = this;
+            if (_LastNode == null)
             {
-                _FirstNode = new Node(item, this, null, null);
-                _LastNode = _FirstNode;
+                _LastNode = node;
+                _FirstNode = _LastNode;
                 Count = 1;
-            }
-            else
+            }else
             {
-                _LastNode = new Node(item, this, _LastNode, null);
-                _LastNode.Previous.Next = _LastNode;
+                node.Previous = _LastNode;
+                _LastNode.Next = node;
+                this._LastNode = node;
                 Count++;
             }
-            return _LastNode;
         }
 
 
@@ -204,18 +212,13 @@ namespace DataStructures
             /// <summary>
             /// 
             /// </summary>
-            public DynamicLinkedList<T> List { get; private set; }
+            public DynamicLinkedList<T> List { get; internal set; }
 
             /// <summary>
             /// 
             /// </summary>
-            public Node(T contents, DynamicLinkedList<T> list, Node previous, Node next)
-            {
-                Contents = contents;
-                List = list;
-                Previous = previous;
-                Next = next;
-            }
+            public Node(T contents) { Contents = contents; }
+
 
             /// <summary>
             /// Removes the item associated with this node from the list, by removing the node.  Returns the item removed.
@@ -224,17 +227,17 @@ namespace DataStructures
             {
                 T result = Contents;
 
-                //Update the host list to reflect this item is removed.
-                if (Previous != null) Previous.Next = Next;
-                else List._FirstNode = Next;
+                // If this node exists in a host, update the host list to reflect this item is removed.
+                if (List != null)
+                {
+                    if (Previous != null) Previous.Next = Next;
+                    else List._FirstNode = Next;
 
-                if (Next != null) Next.Previous = Previous;
-                else List._LastNode = Previous;
-
-                List.Count--;
-
-                //Update this node to reflect it has no list.
-                List = null;
+                    if (Next != null) Next.Previous = Previous;
+                    else List._LastNode = Previous;
+                    List.Count--;
+                    List = null;
+                }
                 Previous = null;
                 Next = null;
 
@@ -256,20 +259,43 @@ namespace DataStructures
             /// </summary>
             public Node InsertAfter(T item)
             {
-                Node newNode = new Node(item, List, this, Next);
-                if (Next == null)
-                {
-                    Next = newNode;
-                    List._LastNode = newNode;
-                }
-                else
-                {
-                    newNode.Next.Previous = newNode;
-                    Next = newNode;
-                }
-                List.Count++;
+                Node newNode = new Node(item) { List = this.List, Previous = this };
+                InsertAfter(newNode);
                 return newNode;
             }
+            public void InsertAfter(Node newNode)
+            {
+                newNode.Remove();
+                if (Next != null)
+                    Next.Previous = newNode;
+                else if (List != null)
+                    List._LastNode = newNode;
+                Next = newNode;
+                if (List != null)
+                    List.Count++;
+            }
+
+            /// <summary>
+            /// Inserts the item immediately before this node, and returns the node of the newly-added item.
+            /// </summary>
+            public Node InsertBefore (T item)
+            {
+                Node newNode = new Node(item) { List = this.List, Next = this };
+                InsertBefore(newNode);
+                return newNode;
+            }
+            public void InsertBefore(Node newNode)
+            {
+                newNode.Remove();
+                if (Previous != null)
+                    Previous.Next = newNode;
+                else if (List != null)
+                    List._FirstNode = newNode;
+                Previous = newNode;
+                if (List != null)
+                    List.Count++;
+            }
+
             /// <summary>
             /// Inserts the set of items immediately before this item node, and returns the node of the earliest (most head-ward) item added.
             /// </summary>
@@ -280,27 +306,7 @@ namespace DataStructures
                 foreach (T item in items) InsertBefore(item);
                 return previous == null ? List._FirstNode : previous.Next;
             }
-            /// <summary>
-            /// Inserts the item immediately before this node, and returns the node of the newly-added item.
-            /// </summary>
-            public Node InsertBefore(T item)
-            {
-                Node newNode = new Node(item, List, Previous, this);
-                if (Previous == null)
-                {
-                    Previous = newNode;
-                    List._FirstNode = newNode;
-                }
-                else
-                {
-                    newNode.Previous.Next = newNode;
-                    Previous = newNode;
-                }
-                List.Count++;
-                return newNode;
-            }
-
-
+            
 
 
 
