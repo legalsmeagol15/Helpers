@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Dependency.TypeControl;
 
 namespace Dependency
 {
@@ -31,9 +32,9 @@ namespace Dependency
 
     public class InputCountError : EvaluationError
     {
-        internal IEnumerable<InputConstraint> Constraints;
+        internal IEnumerable<TypeConstraint> Constraints;
 
-        internal InputCountError(object complainant, IEnumerable<IEvaluateable> inputs, IEnumerable<InputConstraint> constraints)
+        internal InputCountError(object complainant, IEnumerable<IEvaluateable> inputs, IEnumerable<TypeConstraint> constraints)
             : base(complainant, inputs, "Incorrect number of inputs.  Should be " + String.QueensJoin(constraints.Select(c => c.Allowed.Length + (c.IsVariadic ? "+" : ""))) + ".")
         {
             this.Constraints = constraints;
@@ -45,7 +46,7 @@ namespace Dependency
 
         public readonly int InputIndex;
         public readonly int ConstraintIndex;
-        internal IEnumerable<InputConstraint> Constraints;
+        internal IEnumerable<TypeConstraint> Constraints;
         internal readonly TypeFlags AllowedFlags;
         internal readonly TypeFlags GivenFlags;
 
@@ -59,7 +60,7 @@ namespace Dependency
         /// <param name="inputIndex">The 0-based index of the first input whose type did not match requirements.</param>
         /// <param name="constraints">The constraint set used to evaluate the given inputs.</param>
         /// <param name="message">The message.</param>
-        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, int constraintIdx, int inputIndex, InputConstraint[] constraints, string message = null)
+        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, int constraintIdx, int inputIndex, TypeConstraint[] constraints, string message = null)
             : base(complainant, inputs, message)
         {
             this.ConstraintIndex = constraintIdx;

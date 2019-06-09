@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using static Dependency.TypeControl;
 
 namespace Dependency
 {
@@ -38,11 +39,11 @@ namespace Dependency
                 int constraintMatch = -1;
                 int inputNonMatch = -1;
 
-                InputConstraint[] constraints = ivv.GetConstraints();
+                TypeConstraint[] constraints = ivv.GetConstraints();
                 for (int i = 0; i < constraints.Length; i++)
                 {
-                    InputConstraint c = constraints[i];
-                    if (!c.MatchesCount(Inputs.Count)) continue;
+                    TypeConstraint c = constraints[i];
+                    if (!c.MatchesCount(evaluatedInputs.Length)) continue;
                     int match = c.MatchesTypes(evaluatedInputs);
                     if (match >= evaluatedInputs.Length) return Evaluate(evaluatedInputs, i);
                     else if (match > inputNonMatch) { inputNonMatch = match; constraintMatch = i; }

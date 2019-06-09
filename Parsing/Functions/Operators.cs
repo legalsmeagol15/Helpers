@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DataStructures;
 using System.Diagnostics;
+using static Dependency.TypeControl;
 
 namespace Dependency
 {
@@ -14,9 +15,9 @@ namespace Dependency
 
     internal abstract class ComparisonOperator : Function, IOperator, IValidateValue
     {
-        protected static readonly InputConstraint[] Constraints = new InputConstraint[] { InputConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.NumberAny) };
+        protected static readonly TypeConstraint[] Constraints = new TypeConstraint[] { TypeConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.NumberAny) };
 
-        InputConstraint[] IValidateValue.GetConstraints() => Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => Constraints;
 
         protected abstract bool Compare(Number a, Number b);
 
@@ -27,12 +28,12 @@ namespace Dependency
 
     public sealed class Addition : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
+                TypeConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
         {
@@ -54,12 +55,12 @@ namespace Dependency
 
     public sealed class And : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Variadic(TypeFlags.Boolean)
+                TypeConstraint.Variadic(TypeFlags.Boolean)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
         {
@@ -80,12 +81,12 @@ namespace Dependency
 
     public sealed class Division : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.Number | TypeFlags.Positive | TypeFlags.Negative)
+                TypeConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.Number | TypeFlags.Positive | TypeFlags.Negative)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIndex)
         {
@@ -113,8 +114,8 @@ namespace Dependency
 
     public sealed class Evaluation : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints = new InputConstraint[] { InputConstraint.Nonvariadic(TypeFlags.Any) };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        private static readonly TypeConstraint[] _Constraints = new TypeConstraint[] { TypeConstraint.Nonvariadic(TypeFlags.Any) };
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex) => evaluatedInputs[0].Value;    // One more layer of evaluation
 
@@ -122,13 +123,13 @@ namespace Dependency
 
     public sealed class Exponentiation : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny),
-                InputConstraint.Variadic(TypeFlags.Boolean, TypeFlags.Boolean)
+                TypeConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny),
+                TypeConstraint.Variadic(TypeFlags.Boolean, TypeFlags.Boolean)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIndex)
         {
@@ -164,12 +165,12 @@ namespace Dependency
     {
         //This is unique: an operator that is also a left-to-right expression.
 
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Nonvariadic(TypeFlags.Indexable, TypeFlags.Vector | TypeFlags.Number | TypeFlags.Positive | TypeFlags.Zero)
+                TypeConstraint.Nonvariadic(TypeFlags.Indexable, TypeFlags.Vector | TypeFlags.Number | TypeFlags.Positive | TypeFlags.Zero)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         internal IEvaluateable Base { get => Inputs[0]; set { Inputs[0] = value; } }
 
@@ -211,12 +212,12 @@ namespace Dependency
 
     public sealed class Multiplication : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
+                TypeConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
         {
@@ -239,12 +240,12 @@ namespace Dependency
 
     public sealed class Negation : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Nonvariadic(TypeFlags.NumberAny)
+                TypeConstraint.Nonvariadic(TypeFlags.NumberAny)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
         {
             switch (constraintIdx)
@@ -273,12 +274,12 @@ namespace Dependency
 
     public sealed class Or : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Variadic(TypeFlags.Boolean)
+                TypeConstraint.Variadic(TypeFlags.Boolean)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
         {
             switch (constraintIdx)
@@ -298,12 +299,12 @@ namespace Dependency
 
     public sealed class Range : Function, IOperator, IIndexable, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Nonvariadic(TypeFlags.IntegerAny, TypeFlags.IntegerAny)
+                TypeConstraint.Nonvariadic(TypeFlags.IntegerAny, TypeFlags.IntegerAny)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         public readonly IEvaluateable Start;
         public readonly IEvaluateable End;
@@ -323,12 +324,12 @@ namespace Dependency
 
     public sealed class Subtraction : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints
-            = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints
+            = new TypeConstraint[]
             {
-                InputConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
+                TypeConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
             };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
         {
@@ -348,11 +349,11 @@ namespace Dependency
 
     public sealed class Ternary : Function, IOperator, IValidateValue
     {
-        private static readonly InputConstraint[] _Constraints = new InputConstraint[]
+        private static readonly TypeConstraint[] _Constraints = new TypeConstraint[]
         {
-            InputConstraint.Nonvariadic(TypeFlags.Boolean, TypeFlags.Any, TypeFlags.Any)
+            TypeConstraint.Nonvariadic(TypeFlags.Boolean, TypeFlags.Any, TypeFlags.Any)
         };
-        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+        TypeConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
