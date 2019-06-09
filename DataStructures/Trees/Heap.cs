@@ -192,7 +192,7 @@ namespace DataStructures
             table[indexB] = temp;
         }
 
-        public override string ToString() => "Count=" + Count;
+        public sealed override string ToString() => "Count=" + Count;
     }
 
     /// <summary>

@@ -10,21 +10,24 @@ namespace Dependency
 
     public interface IFunction : IEvaluateable
     {
-        IEvaluateable[] Inputs { get; }
+        IList<IEvaluateable> Inputs { get; }
     }
 
 
 
     public abstract class Function : IFunction
     {
+        protected internal IList<IEvaluateable> Inputs { get; internal set; }
+        IList<IEvaluateable> IFunction.Inputs => Inputs;
+
         private IEvaluateable _Value = null;
 
         IEvaluateable IEvaluateable.Value => _Value ?? (_Value = ((IFunction)this).UpdateValue());
 
         IEvaluateable IEvaluateable.UpdateValue()
         {
-            IEvaluateable[] evaluatedInputs = new IEvaluateable[Inputs.Length];
-            for (int i = 0; i < Inputs.Length; i++)
+            IEvaluateable[] evaluatedInputs = new IEvaluateable[Inputs.Count];
+            for (int i = 0; i < Inputs.Count; i++)
             {
                 evaluatedInputs[i] = Inputs[i].UpdateValue();
                 if (evaluatedInputs[i] is EvaluationError err) return err;
@@ -38,7 +41,7 @@ namespace Dependency
                 for (int i = 0; i < ivv.GetConstraints().Length; i++)
                 {
                     InputConstraint c = ivv.GetConstraints()[i];
-                    if (!c.MatchesCount(Inputs.Length)) continue;
+                    if (!c.MatchesCount(Inputs.Count)) continue;
                     int match = c.MatchesTypes(evaluatedInputs);
                     if (match >= evaluatedInputs.Length) return Evaluate(evaluatedInputs, i);
                     else if (match > inputNonMatch) { inputNonMatch = match; constraintMatch = i; }
@@ -52,8 +55,6 @@ namespace Dependency
 
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
 
-        protected internal IEvaluateable[] Inputs { get; internal set; } = null;
-        IEvaluateable[] IFunction.Inputs => Inputs;
 
         
     }

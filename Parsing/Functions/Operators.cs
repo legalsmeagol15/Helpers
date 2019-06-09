@@ -12,56 +12,7 @@ namespace Dependency
     {
 
         protected Operator() { }
-
-        public static bool TryCreate(string token, out Operator oper)
-        {
-            switch (token)
-            {
-                case "-": oper = new Subtraction(); return true; // Might still end up a negation
-                case "!":
-                case "~": oper = new Negation(); return true;
-                case "+": oper = new Addition(); return true;
-                case "*": oper = new Multiplication(); return true;
-                case "/": oper = new Division(); return true;
-                case "^": oper = new Exponentiation(); return true;
-                case "&": oper = new And(); return true;
-                case "|": oper = new Or(); return true;
-                case ":": oper = new Range(); return true;
-                default: oper = null; return false;
-            }
-        }
-
-        internal abstract bool Parse(DataStructures.DynamicLinkedList<IEvaluateable>.Node node);
-
-        protected bool ParseMany<T>(DataStructures.DynamicLinkedList<IEvaluateable>.Node node) where T : IEvaluateable
-        {
-            if (node.Previous == null || node.Next == null) return false;
-            IEvaluateable prev = node.Previous.Remove(), next = node.Next.Remove();
-            LinkedList<IEvaluateable> list = new LinkedList<IEvaluateable>();
-            list.AddLast(prev);
-            list.AddLast(next);
-            while (node.Previous != null && node.Previous is T)
-            {
-                node.Previous.Remove();
-                if (node.Previous == null) return false;
-                list.AddFirst(node.Previous.Remove());
-            }
-            while (node.Next != null && node.Next is T)
-            {
-                node.Next.Remove();
-                if (node.Next == null) return false;
-                list.AddLast(node.Next.Remove());
-            }
-            this.Inputs = list.ToArray();
-            return true;
-        }
-        protected bool ParseBinary(DataStructures.DynamicLinkedList<IEvaluateable>.Node node)
-        {
-            if (node.Previous == null || node.Next == null) return false;
-            this.Inputs = new IEvaluateable[] { node.Previous.Remove(), node.Next.Remove() };
-            return true;
-        }
-
+        
     }
 
 
