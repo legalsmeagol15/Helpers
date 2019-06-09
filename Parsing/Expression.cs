@@ -195,6 +195,7 @@ namespace Dependency
 
                 }
 
+                __Parse();
                 if (exp is Function function) { function.Inputs = inputs.ToArray(); }
                 else if (inputs.Count == 1)
                 {
