@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,50 +35,80 @@ namespace Dependency
 
     public static class TypeControl
     {
+        /// <summary>
+        /// Returns whether the given types match any of the constraint set.  If so, the <paramref name="bestIndex"/> 
+        /// out variable will contain the index (and <paramref name="unmatchedArg"/> will be -1).  If at least one 
+        /// constraint matched the type count
+        /// </summary>
+        /// <param name="constraints"></param>
+        /// <param name="types"></param>
+        /// <param name="bestIndex"></param>
+        /// <param name="unmatchedArg"></param>
+        /// <returns></returns>
+        internal static bool TryMatch(IEnumerable<TypeConstraint> constraints, IList<TypeFlags> types, out int bestIndex, out int unmatchedArg)
+        {
+            bestIndex = -1;
+            unmatchedArg = -1;
+            if (!constraints.Any())
+                return true;
+            int constraintIdx = 0;
+            foreach (TypeConstraint constraint in constraints)
+            {
+                if (!constraint.MatchesCount(types.Count)) continue;
+                
+                int i;
+                for (i = 0; i < types.Count; i++)
+                {
+                    TypeFlags inputType = types[i];
+                    if ((constraint[i] & inputType) != inputType)
+                    {
+                        if (i <= unmatchedArg) continue;
+                        unmatchedArg = i;
+                        bestIndex = constraintIdx;
+                        break;
+                    }
+                    else
+                    {
+                        bestIndex = constraintIdx;
+                        unmatchedArg = -1;
+                        return true;
+                    }
+                }
+                constraintIdx++;
+            }
+            return false;            
+        }
 
-
-        public class TypeConstraint
+        public class TypeConstraint : IEnumerable<TypeFlags>
         {
             public readonly bool IsVariadic;
 
-            internal readonly TypeFlags[] Allowed;
+            private readonly TypeFlags[] _Allowed;
 
-            private TypeConstraint(bool isVariadic, params TypeFlags[] flags) { this.IsVariadic = isVariadic; this.Allowed = flags; }
+            private TypeConstraint(bool isVariadic, params TypeFlags[] flags) { this.IsVariadic = isVariadic; this._Allowed = flags; }
             internal static TypeConstraint Variadic(params TypeFlags[] flags) => new TypeConstraint(true, flags);
             internal static TypeConstraint Nonvariadic(params TypeFlags[] flags) => new TypeConstraint(false, flags);
 
             public bool MatchesCount(int count)
-                => IsVariadic ? count >= Allowed.Length : count == Allowed.Length;
-
-            /// <summary>Returns the non-matching constraint index.  If all match, returns the count of matching types.</summary>
-            internal int MatchesTypes(IEnumerable<TypeFlags> flags)
+                => IsVariadic ? count >= _Allowed.Length : count == _Allowed.Length;
+            internal TypeFlags this[int index]
             {
-                int idx = 0;
-                foreach (TypeFlags cf in flags)
-                    if ((cf & ~Allowed[idx++]) != TypeFlags.Zero)
-                        break;
-                return idx;
-            }
-
-            /// <summary>Returns the non-matching constraint idx.  If all match, returns the count of matching types.</summary>
-            public int MatchesTypes(IEnumerable<IEvaluateable> items)
-            {
-                int idx = 0;
-                foreach (IEvaluateable iev in items)
+                get
                 {
-                    if (iev is ITypeFlag itf)
-                    {
-                        TypeFlags itemFlags = itf.Flags;
-                        if ((itemFlags & Allowed[idx]) != itemFlags)
-                            break;
-                    }
-                    else
-                        break;
-                    idx++;
+                    if (index < _Allowed.Length) return _Allowed[index];
+                    else if (IsVariadic) return _Allowed[_Allowed.Length - 1];
+                    throw new IndexOutOfRangeException();
                 }
-                return idx;
             }
 
+            private IEnumerable<TypeFlags> Allowed()
+            {
+                foreach (TypeFlags flag in _Allowed) yield return flag;
+                if (IsVariadic) yield return _Allowed[_Allowed.Length - 1];
+                else yield break;
+            }
+            IEnumerator<TypeFlags> IEnumerable<TypeFlags>.GetEnumerator() => Allowed().GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => Allowed().GetEnumerator();
         }
     }
 
