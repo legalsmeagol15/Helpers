@@ -8,20 +8,29 @@ using System.Diagnostics;
 
 namespace Dependency
 {
-    public abstract class Operator : Function
-    {
+    /// <summary>Operators cannot come consecutively when an expression is read left-to-right(with limited exception 
+    /// for negations).</summary>
+    internal interface IOperator { }
 
-        protected Operator() { }
-        
+    internal abstract class ComparisonOperator : Function, IOperator, IValidateValue
+    {
+        protected static readonly InputConstraint[] Constraints = new InputConstraint[] { InputConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.NumberAny) };
+
+        InputConstraint[] IValidateValue.GetConstraints() => Constraints;
+
+        protected abstract bool Compare(Number a, Number b);
+
+        protected sealed override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
+            => Compare((Number)evaluatedInputs[0], (Number)evaluatedInputs[1]) ? Dependency.Boolean.True : Dependency.Boolean.False;
+
     }
 
-
-    public sealed class Addition : Operator, IValidateValue
+    public sealed class Addition : Function, IOperator, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(true, TypeFlags.NumberAny, TypeFlags.NumberAny)
+                InputConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
@@ -40,18 +49,15 @@ namespace Dependency
             }
         }
 
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Addition>(node);
-
         public override string ToString() => string.Join(" + ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
-
-    public sealed class And : Operator, IValidateValue
+    public sealed class And : Function, IOperator, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(true, TypeFlags.Boolean)
+                InputConstraint.Variadic(TypeFlags.Boolean)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
@@ -69,18 +75,15 @@ namespace Dependency
             }
         }
 
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<And>(node);
-
         public override string ToString() => string.Join(" & ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
-
-    public sealed class Division : Operator, IValidateValue
+    public sealed class Division : Function, IOperator, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(false, TypeFlags.NumberAny, TypeFlags.Number | TypeFlags.Positive | TypeFlags.Negative)
+                InputConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.Number | TypeFlags.Positive | TypeFlags.Negative)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
@@ -95,18 +98,35 @@ namespace Dependency
             }
         }
 
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
-
         public override string ToString() => string.Join(" / ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
+    public sealed class Equality : Function
+    {
+        protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
+        {
+            IEvaluateable iev = evaluatedInputs[0];
+            for (int i = 1; i < evaluatedInputs.Length; i++) if (iev != evaluatedInputs[i]) return Boolean.False;
+            return Boolean.True;
+        }
+    }
 
-    public sealed class Exponentiation : Operator, IValidateValue
+    public sealed class Evaluation : Function, IOperator, IValidateValue
+    {
+        private static readonly InputConstraint[] _Constraints = new InputConstraint[] { InputConstraint.Nonvariadic(TypeFlags.Any) };
+        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+
+        protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex) => evaluatedInputs[0].Value;    // One more layer of evaluation
+
+    }
+
+    public sealed class Exponentiation : Function, IOperator, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(true, TypeFlags.NumberAny, TypeFlags.NumberAny)
+                InputConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny),
+                InputConstraint.Variadic(TypeFlags.Boolean, TypeFlags.Boolean)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
@@ -119,24 +139,35 @@ namespace Dependency
                     for (int i = 1; i < inputs.Length; i++)
                         d = Math.Pow(d, (double)((Number)inputs[i]).Value);
                     return new Number(d);
+                case 1:
+                    bool val = (Dependency.Boolean)inputs[0];
+                    for (int i = 1; i < inputs.Length; i++)
+                        val ^= (Dependency.Boolean)inputs[i];
+                    return val ? Dependency.Boolean.True : Dependency.Boolean.False;
                 default:
                     return new EvaluationError(this, inputs, "Have not implemented evaluation for constraint " + constraintIndex);
             }
         }
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseBinary(node);
-
         public override string ToString() => string.Join(" ^ ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
+    internal sealed class GreaterThan : ComparisonOperator
+    {
+        protected override bool Compare(Number a, Number b) => a > b;
+    }
+    internal sealed class GreaterThanOrEquals : ComparisonOperator
+    {
+        protected override bool Compare(Number a, Number b) => a >= b;
+    }
 
-    public sealed class Indexing : Operator, IExpression, IValidateValue
+    public sealed class Indexing : Function, IOperator, Parse.IExpression, IValidateValue
     {
         //This is unique: an operator that is also a left-to-right expression.
 
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(false, TypeFlags.Indexable, TypeFlags.Vector | TypeFlags.Number | TypeFlags.Positive | TypeFlags.ZeroNullEmpty)
+                InputConstraint.Nonvariadic(TypeFlags.Indexable, TypeFlags.Vector | TypeFlags.Number | TypeFlags.Positive | TypeFlags.Zero)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
@@ -165,24 +196,25 @@ namespace Dependency
             }
         }
 
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
-        {
-            // The ordinal inputs were already parsed left-to-right as an expression.  Just need to parse the base.
-            if (node.Previous == null) return false;
-            this.Base = node.Previous.Remove();
-            return true;
-        }
 
         public override string ToString() => Base.ToString() + "{" + Ordinal.ToString() + "}";
     }
 
+    internal sealed class LessThan : ComparisonOperator
+    {
+        protected override bool Compare(Number a, Number b) => a < b;
+    }
+    internal sealed class LessThanOrEquals : ComparisonOperator
+    {
+        protected override bool Compare(Number a, Number b) => a <= b;
+    }
 
-    public sealed class Multiplication : Operator, IValidateValue
+    public sealed class Multiplication : Function, IOperator, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(true, TypeFlags.NumberAny, TypeFlags.NumberAny)
+                InputConstraint.Variadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
@@ -200,18 +232,17 @@ namespace Dependency
 
             }
         }
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Multiplication>(node);
+
 
         public override string ToString() => string.Join(" * ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
-
-    public sealed class Negation : Operator, IValidateValue
+    public sealed class Negation : Function, IOperator, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(false, TypeFlags.NumberAny)
+                InputConstraint.Nonvariadic(TypeFlags.NumberAny)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
@@ -225,23 +256,27 @@ namespace Dependency
 
             }
         }
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
-        {
-            if (node.Next == null) return false;
-            Inputs = new IEvaluateable[] { node.Next.Remove() };
-            return true;
-        }
+
 
         public override string ToString() => "-" + Inputs[0].ToString();
     }
 
+    public sealed class NotEquality : Function
+    {
+        protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
+        {
+            IEvaluateable iev = evaluatedInputs[0];
+            for (int i = 1; i < evaluatedInputs.Length; i++) if (iev != evaluatedInputs[i]) return Boolean.False;
+            return Boolean.True;
+        }
+    }
 
-    public sealed class Or : Operator, IValidateValue
+    public sealed class Or : Function, IOperator, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(true, TypeFlags.Boolean)
+                InputConstraint.Variadic(TypeFlags.Boolean)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
         protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
@@ -257,18 +292,16 @@ namespace Dependency
 
             }
         }
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node) => ParseMany<Or>(node);
 
         public override string ToString() => string.Join(" | ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
-
-    public sealed class Range : Operator, IIndexable, IValidateValue
+    public sealed class Range : Function, IOperator, IIndexable, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(false, TypeFlags.IntegerNatural, TypeFlags.IntegerNatural)
+                InputConstraint.Nonvariadic(TypeFlags.IntegerNatural, TypeFlags.IntegerNatural)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
@@ -286,19 +319,14 @@ namespace Dependency
             throw new NotImplementedException();
         }
 
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
-        {
-            throw new NotImplementedException();
-        }
     }
 
-
-    public sealed class Subtraction : Operator, IValidateValue
+    public sealed class Subtraction : Function, IOperator, IValidateValue
     {
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                new InputConstraint(false, TypeFlags.NumberAny, TypeFlags.NumberAny)
+                InputConstraint.Nonvariadic(TypeFlags.NumberAny, TypeFlags.NumberAny)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 
@@ -314,18 +342,22 @@ namespace Dependency
             }
         }
 
-        internal override bool Parse(DynamicLinkedList<IEvaluateable>.Node node)
-        {
-            if (node.Previous == null || node.Previous.Contents is Operator)
-            {
-                Negation n = new Negation();
-                node.Contents = n;
-                return n.Parse(node);
-            }
-            return ParseBinary(node);
-        }
 
         public override string ToString() => string.Join(" - ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
+    public sealed class Ternary : Function, IOperator, IValidateValue
+    {
+        private static readonly InputConstraint[] _Constraints = new InputConstraint[]
+        {
+            InputConstraint.Nonvariadic(TypeFlags.Boolean, TypeFlags.Any, TypeFlags.Any)
+        };
+        InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
+
+        protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
+        {
+            if (evaluatedInputs[0] is Dependency.Boolean b && b.Value) return evaluatedInputs[1];
+            return evaluatedInputs[2];
+        }
+    }
 }

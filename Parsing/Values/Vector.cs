@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 
 namespace Dependency
 {
-    public class Vector : Function, IEvaluateable, IIndexable, IContext
+    public sealed class Vector : Function, IEvaluateable, IIndexable, IContext, ILiteral<object[]>
     {
         internal Vector(IEvaluateable[] contents) { Inputs = contents; }
+        public Vector() : this(new IEvaluateable[0]) { }
+
 
         public IEvaluateable this[params Number[] indices]
         {
@@ -26,18 +28,18 @@ namespace Dependency
 
         
 
-        public int Size => Inputs.Length;
+        public int Size => Inputs.Count;
 
-        public IEvaluateable MaxIndex => new Number(Inputs.Length - 1);
+        public IEvaluateable MaxIndex => new Number(Inputs.Count - 1);
 
         public IEvaluateable MinIndex => Number.Zero;
 
-        IContext IContext.Parent => throw new NotImplementedException();
+        public IContext Parent { get; internal set; } = null;
 
         internal bool TryOrdinalize(out Number[] ordinals)
         {
-            ordinals = new Number[this.Inputs.Length];
-            for (int i = 0; i < this.Inputs.Length; i++)
+            ordinals = new Number[this.Inputs.Count];
+            for (int i = 0; i < this.Inputs.Count; i++)
             {
                 IEvaluateable iev = this.Inputs[i].Value;
                 if (iev is Number n) ordinals[i] = n;
@@ -46,7 +48,7 @@ namespace Dependency
             return true;
         }
 
-        protected override IEvaluateable Evaluate(IEvaluateable[] inputs) { return new Vector(inputs); }
+        protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx) => (inputs.Length == 1) ? inputs[0] : new Vector(inputs);
 
         bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
 
@@ -57,9 +59,20 @@ namespace Dependency
             switch (token.ToLower())
             {
                 case "size":
-                case "length": k = new Number(Inputs.Length); return true;
+                case "length": k = new Number(Inputs.Count); return true;
                 default: k = null; return false;
             }
         }
+
+        public static bool operator ==(Vector a, Vector b)
+        {
+            if (a.Inputs.Count != b.Inputs.Count) return false;
+            for (int i = 0; i < a.Inputs.Count; i++) if (a != b) return false;
+            return true;
+        }
+        public static bool operator !=(Vector a, Vector b) => !(a == b);
+
+        TypeFlags ILiteral<object[]>.Types => TypeFlags.Vector;
+        object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
     }
 }

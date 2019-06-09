@@ -7,32 +7,32 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct Number : IEvaluateable
+    public struct Number : ILiteral<decimal> //: AbstractLiteral<decimal>
     {
         public static readonly Number Zero = new Number(0m);        
         public static readonly Number One = new Number(1m);
         public static readonly Number Pi = new Number((decimal)Math.PI);
         public static readonly Number E = new Number((decimal)Math.E);
 
-        internal readonly TypeFlags TypeFlags;
-        
-        internal readonly decimal Value;
+        private readonly TypeFlags _TypeFlags;
 
-        public Number(decimal m) { this.Value = m; this.TypeFlags = TypeFlags.Number | GetValueFlags(m); }
+        internal TypeFlags TypeFlags => _TypeFlags;
+        internal decimal Value;
+
+        public Number(decimal m) { this.Value = m; this._TypeFlags = TypeFlags.Number | GetValueFlags(m); }
 
         internal static TypeFlags GetValueFlags(decimal m)
         {
-            TypeFlags tf = _IsInteger(m) ? 0 : TypeFlags.NonInteger;
+            TypeFlags tf = _IsInteger(m) ? TypeFlags.Integer : TypeFlags.NonInteger;
             if (m > 0) tf |= TypeFlags.Positive;
             else if (m < 0) tf |= TypeFlags.Negative;
-            else tf |= TypeFlags.ZeroNullEmpty;
+            else tf |= TypeFlags.Zero;
             return tf;
         }
 
         public Number(double d) : this((decimal)d) { }
         public Number(int i) : this((decimal)i) { }
-        IEvaluateable IEvaluateable.Value => this;
-
+        
         public static implicit operator Number(int i) => new Number((decimal)i);
         public static implicit operator int(Number n) => (int)n.Value;
 
@@ -48,6 +48,8 @@ namespace Dependency
 
         private static bool _IsInteger(decimal m) => (decimal)((int)m) ==  m;
         public bool IsInteger => _IsInteger(Value);
+
+        
 
         public static Number operator +(Number a, Number b) => new Number(a.Value + b.Value);
         public static Number operator -(Number n) => new Number(-n.Value);
@@ -99,5 +101,9 @@ namespace Dependency
         public override int GetHashCode() => Value.GetHashCode();
         public override string ToString() => Value.ToString();
         
+        TypeFlags ILiteral<decimal>.Types => _TypeFlags;
+        decimal ILiteral<decimal>.CLRValue => Value;
+        IEvaluateable IEvaluateable.UpdateValue() => this;
+        IEvaluateable IEvaluateable.Value => this;
     }
 }

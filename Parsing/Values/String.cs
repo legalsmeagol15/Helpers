@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct String : IEvaluateable
+    public struct String : ILiteral<string>
     {
         internal const string PARSE_PATTERN = "\"[^\"]*\"";  // Any string bracketed by two "s and containing no " in between.
         private static Regex _Regex = new Regex(PARSE_PATTERN);
@@ -16,8 +16,7 @@ namespace Dependency
 
         internal readonly TypeFlags TypeFlags;
 
-        public String(string str) { this.Value = str; TypeFlags = TypeFlags.String | (str == "" ? TypeFlags.ZeroNullEmpty : 0); }
-        IEvaluateable IEvaluateable.Value => this;
+        public String(string str) { this.Value = str; TypeFlags = TypeFlags.String | (str == "" ? TypeFlags.Zero : 0); }        
 
         public static implicit operator String(string str) => new String(str);
         public static implicit operator string(String s) => s.Value;
@@ -57,5 +56,11 @@ namespace Dependency
             sb.Append(" " + lastJoiner + " " + items[items.Length - 1].ToString());
             return sb.ToString();
         }
+
+        TypeFlags ILiteral<string>.Types => TypeFlags.String;
+        string ILiteral<string>.CLRValue => Value;
+        IEvaluateable IEvaluateable.UpdateValue() => this;
+        IEvaluateable IEvaluateable.Value => this;
+
     }
 }

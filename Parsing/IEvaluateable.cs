@@ -8,26 +8,30 @@ namespace Dependency
 {
     internal enum TypeFlags
     {
-        ZeroNullEmpty = 0,
+        Zero = 0,
         Number = 1 << 0,
         Positive = 1 << 1,
         Negative = 1 << 2,
         NonInteger = 1 << 3,
-        IntegerNatural = Number | ZeroNullEmpty | Positive | Negative,
-        NumberAny = Number | ZeroNullEmpty | Positive | Negative | NonInteger,
+        Integer = 1 << 4,
+        IntegerNatural = Number | Zero | Positive | Negative | Integer,
+        NumberAny = Number | Zero | Positive | Negative | NonInteger | Integer,
         String = 1 << 16,
-        StringAny = String | ZeroNullEmpty,
+        StringAny = String | Zero,
         Vector = 1 << 17,
         Boolean = 1 << 18,
         Imaginary = 1 << 19,
         Complex = NumberAny | Imaginary,
-        Indexable = 20,
-        Range = 21,
+        Indexable = 1 << 20,
+        Range = 1 << 21,
+        Empty = 1 << 28,
+        Null = 1 << 29,
+        ZeroNullEmpty = Zero |  Null  | Empty,
         Formula = 1 << 30,
         Error = 1 << 31,
-        Any = ~ZeroNullEmpty
+        Any = ~Zero
     }
-
+    
 
     public interface IEvaluateable
     {
@@ -37,6 +41,13 @@ namespace Dependency
         IEvaluateable UpdateValue();
 
         
+    }
+
+    internal interface ILiteral<TClr> : IEvaluateable
+    {
+        TypeFlags Types { get; }
+
+        TClr CLRValue { get; }
     }
 
     internal interface ITypeFlag
@@ -53,9 +64,9 @@ namespace Dependency
         IContext Parent { get; }
     }
 
-    public interface IRangeable : IContext
+    internal interface IRangeable : IContext
     {
-        bool TryGetImmobile(string token, out Reference r);
+        bool TryGetImmobile(string token, out Parse.Reference r);
     }
 
     internal interface IValidateValue { InputConstraint[] GetConstraints(); }
@@ -86,7 +97,9 @@ namespace Dependency
 
         internal readonly TypeFlags[] Allowed;
 
-        internal InputConstraint(bool isVariadic, params TypeFlags[] flags) { this.IsVariadic = isVariadic; this.Allowed = flags; }
+        private InputConstraint(bool isVariadic, params TypeFlags[] flags) { this.IsVariadic = isVariadic; this.Allowed = flags; }
+        internal static InputConstraint Variadic(params TypeFlags[] flags) => new InputConstraint(true, flags);
+        internal static InputConstraint Nonvariadic(params TypeFlags[] flags) => new InputConstraint(false, flags);
 
         public bool MatchesCount(int count)
             => IsVariadic ? count >= Allowed.Length : count == Allowed.Length;
@@ -96,7 +109,7 @@ namespace Dependency
         {
             int idx = 0;
             foreach (TypeFlags cf in flags)
-                if ((cf & ~Allowed[idx++]) != TypeFlags.ZeroNullEmpty)
+                if ((cf & ~Allowed[idx++]) != TypeFlags.Zero)
                     break;
             return idx;
         }

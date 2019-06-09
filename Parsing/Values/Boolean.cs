@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct Boolean : IEvaluateable
+    public struct Boolean : ILiteral<bool>
     {
         public static readonly Boolean False = false;
         public static readonly Boolean True = true;
@@ -15,8 +15,7 @@ namespace Dependency
         internal readonly bool Value;
 
         private Boolean(bool b) { this.Value = b; }
-        IEvaluateable IEvaluateable.Value() => this;
-
+        
         public static implicit operator Boolean(bool b) => new Boolean(b);
         public static implicit operator bool(Boolean n) => n.Value;
 
@@ -36,6 +35,11 @@ namespace Dependency
         }
 
         public override int GetHashCode() => Value.GetHashCode();
-        
+
+        TypeFlags ILiteral<bool>.Types => TypeFlags.Boolean;
+        bool ILiteral<bool>.CLRValue => Value;
+        IEvaluateable IEvaluateable.UpdateValue() => this;
+        IEvaluateable IEvaluateable.Value => this;
+
     }
 }

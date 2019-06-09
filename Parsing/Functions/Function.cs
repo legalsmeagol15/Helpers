@@ -61,7 +61,7 @@ namespace Dependency
 
 
 
-    public abstract class NamedFunction : Function, IExpression
+    public abstract class NamedFunction : Function, Parse.IExpression
     {
         public string Name { get; }
     }
