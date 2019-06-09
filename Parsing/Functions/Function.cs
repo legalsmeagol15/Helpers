@@ -36,20 +36,13 @@ namespace Dependency
 
             if (this is IValidateValue ivv)
             {
-                int constraintMatch = -1;
-                int inputNonMatch = -1;
-
                 TypeConstraint[] constraints = ivv.GetConstraints();
-                for (int i = 0; i < constraints.Length; i++)
-                {
-                    TypeConstraint c = constraints[i];
-                    if (!c.MatchesCount(evaluatedInputs.Length)) continue;
-                    int match = c.MatchesTypes(evaluatedInputs);
-                    if (match >= evaluatedInputs.Length) return Evaluate(evaluatedInputs, i);
-                    else if (match > inputNonMatch) { inputNonMatch = match; constraintMatch = i; }
-                }
-                if (constraintMatch < 0) return new InputCountError(this, evaluatedInputs, ivv.GetConstraints());
-                return new TypeMismatchError(this, evaluatedInputs, constraintMatch, inputNonMatch, ivv.GetConstraints());
+                if (TypeControl.TryMatch(ivv.GetConstraints(), evaluatedInputs, out int bestConstraint, out int unmatchedArg))
+                    return _Value = Evaluate(evaluatedInputs, bestConstraint);
+                else if (bestConstraint < 0)
+                    return new InputCountError(this, evaluatedInputs, constraints);
+                else
+                    return new TypeMismatchError(this, evaluatedInputs, bestConstraint, unmatchedArg, constraints);                
             }
             else
                 return _Value = Evaluate(evaluatedInputs, -1);

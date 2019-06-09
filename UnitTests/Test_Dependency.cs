@@ -16,11 +16,12 @@ namespace UnitTests
     public class Test_Dependency
     {
         [TestMethod]
-        public void TestParsing_Parsing()
+        public void TestDependency_Parsing()
         {
-            //Parenthetical.FromString("(3x2+(2/y1)*-7)");
-            //Expression.FromString("3x+7");
+            IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7)");  // -16
 
+            IEvaluateable val = exp1.UpdateValue();
+            Assert.AreEqual(val, -16);
         }
     }
 

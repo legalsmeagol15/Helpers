@@ -34,8 +34,8 @@ namespace Dependency
     {
         internal IEnumerable<TypeConstraint> Constraints;
 
-        internal InputCountError(object complainant, IEnumerable<IEvaluateable> inputs, IEnumerable<TypeConstraint> constraints)
-            : base(complainant, inputs, "Incorrect number of inputs.  Should be " + String.QueensJoin(constraints.Select(c => c.Allowed.Length + (c.IsVariadic ? "+" : ""))) + ".")
+        internal InputCountError(object complainant, IList<IEvaluateable> inputs, IEnumerable<TypeConstraint> constraints)
+            : base(complainant, inputs, "Incorrect number of inputs (" + inputs.Count + ")")
         {
             this.Constraints = constraints;
         }
@@ -47,7 +47,6 @@ namespace Dependency
         public readonly int InputIndex;
         public readonly int ConstraintIndex;
         internal IEnumerable<TypeConstraint> Constraints;
-        internal readonly TypeFlags AllowedFlags;
         internal readonly TypeFlags GivenFlags;
 
         /// <summary>
@@ -66,19 +65,8 @@ namespace Dependency
             this.ConstraintIndex = constraintIdx;
             this.InputIndex = inputIndex;
             this.Constraints = constraints;
-            this.AllowedFlags = constraints[constraintIdx].Allowed[inputIndex];
             this.GivenFlags = (inputs[inputIndex] is ITypeFlag itf) ? itf.Flags : TypeFlags.Any;
-        }
-
-        internal TypeMismatchError(object complainant, IEnumerable<IEvaluateable> inputs, TypeFlags typeAllowed, object given, string message = null)
-            : base(complainant, inputs, message)
-        {
-            this.ConstraintIndex = -1;
-            this.InputIndex = -1;
-            this.Constraints = null;
-            this.AllowedFlags = typeAllowed;
-            this.GivenFlags = (given is ITypeFlag itf) ? itf.Flags : TypeFlags.Any;
-        }
+        }        
     }
 
     

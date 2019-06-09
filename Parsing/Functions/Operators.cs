@@ -189,7 +189,7 @@ namespace Dependency
                         if (inputs[i] is Number n)
                             ns[i - 1] = n;
                         else
-                            return new TypeMismatchError(this, inputs.Skip(1), TypeFlags.IntegerAny, inputs[i], "Indexable ordinal must evaluate to a number or vector of numbers.");
+                            return new TypeMismatchError(this, inputs.Skip(1).ToArray(), 0, 1, _Constraints, "Indexable ordinal must evaluate to a number or vector of numbers.");
                     }
                     return idxable[ns];
                 default:
