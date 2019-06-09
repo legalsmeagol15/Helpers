@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct Number : ILiteral<decimal> //: AbstractLiteral<decimal>
+    public struct Number : ILiteral<decimal>, ITypeFlag
     {
         public static readonly Number Zero = new Number(0m);        
         public static readonly Number One = new Number(1m);
@@ -101,9 +101,10 @@ namespace Dependency
         public override int GetHashCode() => Value.GetHashCode();
         public override string ToString() => Value.ToString();
         
-        TypeFlags ILiteral<decimal>.Types => _TypeFlags;
+        
         decimal ILiteral<decimal>.CLRValue => Value;
         IEvaluateable IEvaluateable.UpdateValue() => this;
         IEvaluateable IEvaluateable.Value => this;
+        TypeFlags ITypeFlag.Flags => _TypeFlags;
     }
 }

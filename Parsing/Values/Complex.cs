@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Dependency
 {
-    public struct Complex : IEvaluateable
+    public struct Complex : IEvaluateable, ITypeFlag
     {
         internal readonly TypeFlags TypeFlags;
         internal decimal Real;
@@ -23,6 +23,8 @@ namespace Dependency
         }
 
         IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
+
+        TypeFlags ITypeFlag.Flags => TypeFlags.ComplexAny;
 
         IEvaluateable IEvaluateable.UpdateValue()
         {

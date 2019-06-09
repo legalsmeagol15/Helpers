@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct Boolean : ILiteral<bool>
+    public struct Boolean : ILiteral<bool>, ITypeFlag
     {
         public static readonly Boolean False = false;
         public static readonly Boolean True = true;
@@ -28,18 +28,13 @@ namespace Dependency
         public static Boolean operator |(Boolean a, Boolean b) => new Boolean(a.Value | b.Value);
         public static Boolean operator &(Boolean a, Boolean b) => new Boolean(a.Value & b.Value);
 
-        public override bool Equals(object obj)
-        {
-            if (obj is Boolean n) return this.Value == n.Value;
-            return false;
-        }
-
+        public override bool Equals(object obj) => (obj is Boolean n) ? this.Value == n.Value : false;        
         public override int GetHashCode() => Value.GetHashCode();
+        public override string ToString() => Value ? "True" : "False";
 
-        TypeFlags ILiteral<bool>.Types => TypeFlags.Boolean;
         bool ILiteral<bool>.CLRValue => Value;
         IEvaluateable IEvaluateable.UpdateValue() => this;
         IEvaluateable IEvaluateable.Value => this;
-
+        TypeFlags ITypeFlag.Flags => TypeFlags.Boolean;
     }
 }

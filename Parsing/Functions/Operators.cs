@@ -188,7 +188,7 @@ namespace Dependency
                         if (inputs[i] is Number n)
                             ns[i - 1] = n;
                         else
-                            return new TypeMismatchError(this, inputs.Skip(1), TypeFlags.IntegerNatural, inputs[i], "Indexable ordinal must evaluate to a number or vector of numbers.");
+                            return new TypeMismatchError(this, inputs.Skip(1), TypeFlags.IntegerAny, inputs[i], "Indexable ordinal must evaluate to a number or vector of numbers.");
                     }
                     return idxable[ns];
                 default:
@@ -301,7 +301,7 @@ namespace Dependency
         private static readonly InputConstraint[] _Constraints
             = new InputConstraint[]
             {
-                InputConstraint.Nonvariadic(TypeFlags.IntegerNatural, TypeFlags.IntegerNatural)
+                InputConstraint.Nonvariadic(TypeFlags.IntegerAny, TypeFlags.IntegerAny)
             };
         InputConstraint[] IValidateValue.GetConstraints() => _Constraints;
 

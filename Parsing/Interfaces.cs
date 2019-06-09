@@ -14,14 +14,14 @@ namespace Dependency
         Negative = 1 << 2,
         NonInteger = 1 << 3,
         Integer = 1 << 4,
-        IntegerNatural = Number | Zero | Positive | Negative | Integer,
+        IntegerAny = Number | Zero | Positive | Negative | Integer,
         NumberAny = Number | Zero | Positive | Negative | NonInteger | Integer,
         String = 1 << 16,
         StringAny = String | Zero,
         Vector = 1 << 17,
         Boolean = 1 << 18,
         Imaginary = 1 << 19,
-        Complex = NumberAny | Imaginary,
+        ComplexAny = NumberAny | Imaginary,
         Indexable = 1 << 20,
         Range = 1 << 21,
         Empty = 1 << 28,
@@ -45,8 +45,6 @@ namespace Dependency
 
     internal interface ILiteral<TClr> : IEvaluateable
     {
-        TypeFlags Types { get; }
-
         TClr CLRValue { get; }
     }
 

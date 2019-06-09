@@ -17,7 +17,7 @@ namespace Dependency
         /// <summary>Readable left-to-right.</summary>
         public interface IExpression : IEvaluateable
         {
-            // Not sure if this is useful.  Just in case I end up adding members, I'm keeping this for now.
+            
         }
 
         public static IEvaluateable FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
@@ -46,14 +46,14 @@ namespace Dependency
 
             string __ComposeLexed() => string.Join("", splits.Take(splitIdx));
 
-            IExpression _TokenizeAndParse(IExpression exp)
+            IEvaluateable _TokenizeAndParse(IExpression exp)
             {
                 DynamicLinkedList<IEvaluateable> inputs = new DynamicLinkedList<IEvaluateable>();
                 Heap<Token> heap = new Heap<Token>();
-                bool dot = false;
+                bool dot = false;                
                 while (splitIdx < splits.Length)
                 {
-                    string token = splits[splitIdx];
+                    string token = splits[splitIdx++];
                     if (string.IsNullOrWhiteSpace(token)) continue;
 
                     // If a reference has been started, parse as a reference.
@@ -74,12 +74,11 @@ namespace Dependency
                             throw new ReferenceException(__ComposeLexed(), token, "Reference path termination must be an evaluateable variable.");
                         dot = false;
                         continue;
-                    }
-
-                    if (dot) throw new Exception("This should be impossible.");
+                    }                    
+                    Debug.Assert(!dot, "It should be impossible to see a dot at this point.");                    
 
                     // Handle literals
-                    else if (Number.TryParse(token, out Number n)) { inputs.AddLast(n); continue; }
+                    if (Number.TryParse(token, out Number n)) { inputs.AddLast(n); continue; }
 
                     else if (bool.TryParse(token, out bool b)) { inputs.AddLast(Dependency.Boolean.FromBool(b)); continue; }
 
@@ -90,71 +89,80 @@ namespace Dependency
                     switch (token)
                     {
                         case "(":
-                            __CheckImpliedScalar();
-                            if (inputs.Count > 0 && inputs.Last is NamedFunction prev)
-                                inputs.AddLast(_TokenizeAndParse(prev));
-                            else
-                                inputs.AddLast(_TokenizeAndParse(new Parenthetical()));
-                            continue;
-                        case "[":
-                            if (inputs.Count == 0) throw new NestingSyntaxException(__ComposeLexed(), token, "No base to index.");
-                            
-                            // Create the indexing operator.
-                            Token implied = new TokenIndex();
-                            heap.Enqueue(implied);
-                            implied.Node = inputs.AddLast(implied);
-
-                            // Create the indexed clause.
-                            Indexing brckt = new Indexing();
-                            _TokenizeAndParse(brckt);
-                            inputs.AddLast(brckt);
-                            continue;
-                        case "{":
-                            inputs.AddLast(_TokenizeAndParse(new Curly()));
-                            continue;
-                        case ")":
-                            IEvaluateable[] parsed = __Parse();
-                            switch (exp)
                             {
-                                case NamedFunction nf:
-                                    nf.Inputs = parsed;
-                                    return nf;
-                                case Parenthetical p:
-                                    if (parsed.Length != 1)
-                                        throw new SyntaxException(__ComposeLexed(), token, "Invalid structure for a parenthetical clause.");
-                                    p.Head = parsed[0];
-                                    return p;
-                                default:
-                                    throw new NestingSyntaxException(__ComposeLexed(), token, "Invalid closure ')' of parenthetical without matching '('.");
+                                __CheckImpliedScalar();
+                                if (inputs.Count > 0 && inputs.Last is NamedFunction prev)
+                                    inputs.AddLast(_TokenizeAndParse(prev));
+                                else
+                                    inputs.AddLast(_TokenizeAndParse(new Parenthetical()));
+                                continue;
+                            }
+                        case "[":
+                            {
+                                if (inputs.Count == 0) throw new NestingSyntaxException(__ComposeLexed(), token, "No base to index.");
+
+                                // Create the indexing operator.
+                                __EnlistAndEnqueue(new TokenIndex());
+
+                                // Create the indexed clause.
+                                Indexing brckt = new Indexing();
+                                _TokenizeAndParse(brckt);
+                                inputs.AddLast(brckt);
+                                continue;
+                            }
+                        case "{":
+                            {
+                                inputs.AddLast(_TokenizeAndParse(new Curly()));
+                                continue;
+                            }
+                        case ")":
+                            {
+                                IEvaluateable[] parsed = __Parse();
+                                switch (exp)
+                                {
+                                    case NamedFunction nf:
+                                        nf.Inputs = parsed;
+                                        return nf;
+                                    case Parenthetical p:
+                                        if (parsed.Length != 1)
+                                            throw new SyntaxException(__ComposeLexed(), token, "Invalid structure for a parenthetical clause.");
+                                        p.Head = parsed[0];
+                                        return p;
+                                    default:
+                                        throw new NestingSyntaxException(__ComposeLexed(), token, "Invalid closure ')' of parenthetical without matching '('.");
+                                }
                             }
                         case "]":
-                            if (exp is Indexing idxing)
                             {
-                                parsed = __Parse();
-                                idxing.Inputs = new IEvaluateable[2];
-                                idxing.Base = null;  // This will be assigned at the operator parse.
-                                idxing.Ordinal = (parsed.Length == 1) ? parsed[0] : new Vector(parsed);
-                                return exp;
+                                if (exp is Indexing idxing)
+                                {
+                                    IEvaluateable[] parsed = __Parse();
+                                    idxing.Inputs = new IEvaluateable[2];
+                                    idxing.Base = null;  // This will be assigned at the operator parse.
+                                    idxing.Ordinal = (parsed.Length == 1) ? parsed[0] : new Vector(parsed);
+                                    return exp;
+                                }
+                                throw new NestingSyntaxException(__ComposeLexed(), token, "Invalid closure ']' of indexing bracket without matching '['.");
                             }
-                            throw new NestingSyntaxException(__ComposeLexed(), token, "Invalid closure ']' of indexing bracket without matching '['.");
                         case "}":
-                            if (exp is Curly curly)
                             {
-                                if (inputs.Count != 1)
-                                    throw new NestingSyntaxException(__ComposeLexed(), token, "A curly-bracketed clause may contain only a single variable reference.");
-                                if (!(inputs.First is Reference r))
-                                    throw new NestingSyntaxException(__ComposeLexed(), token, "A curly-bracketed clause may contain only a variable reference.");
-                                curly.Reference = r;
-                                return exp;
+                                if (exp is Curly curly)
+                                {
+                                    if (inputs.Count != 1)
+                                        throw new NestingSyntaxException(__ComposeLexed(), token, "A curly-bracketed clause may contain only a single variable reference.");
+                                    if (!(inputs.First is Reference r))
+                                        throw new NestingSyntaxException(__ComposeLexed(), token, "A curly-bracketed clause may contain only a variable reference.");
+                                    curly.Reference = r;
+                                    return exp;
+                                }
+                                throw new NestingSyntaxException(__ComposeLexed(), token, "Invalid closure '}' of vector bracket without matching '{'.");
                             }
-                            throw new NestingSyntaxException( __ComposeLexed(), token, "Invalid closure '}' of vector bracket without matching '{'.");
                     }
 
                     // An operator?
-                    if (Token.FromString(token, out Token t))
+                    if (Token.FromString(token, splitIdx-1, out Token t))
                     {
-                        heap.Enqueue(t);
-                        inputs.AddLast(t.Node);
+                        __EnlistAndEnqueue(t);                        
                         continue;
                     }
                     
@@ -172,8 +180,6 @@ namespace Dependency
                         else if (ctxt.TryGetVariable(token, out IVariable var)) { inputs.AddLast(new Reference(var)); ctxt = rootContext; continue; }
                         else if (ctxt is IRangeable ir && ir.TryGetImmobile(token, out Reference r)) { inputs.AddLast(r); ctxt = rootContext; continue; }
                     }
-
-                    splitIdx++;
                     
                     bool __CheckImpliedScalar()
                     {
@@ -189,7 +195,13 @@ namespace Dependency
 
                 }
 
-                return exp;
+                if (exp is Function function) { function.Inputs = inputs.ToArray(); }
+                else if (inputs.Count == 1)
+                {
+                    if (exp is Parenthetical p) { p.Head = inputs.First; return p; }
+                    else if (exp is Curly c && inputs.First is Reference r) { c.Reference = r; return c; }
+                }
+                throw new ParsingException(__ComposeLexed(), splits[splitIdx - 1], "Failed to parse " + exp.GetType().Name);
 
                 void __EnlistAndEnqueue(Token token)
                 {
@@ -231,10 +243,10 @@ namespace Dependency
                 NotEquals = 202,
                 Range = 250,
                 Exponentiation = 300,
+                Multiplication = 400,
+                Division =401,
                 Addition = 500,
-                Subtraction = 501,
-                Multiplication = 700,
-                Division = 701,
+                Subtraction = 501,                
                 Ternary = 800,
                 GreaterThan = 900,
                 LessThan = 901,
@@ -243,41 +255,45 @@ namespace Dependency
                 Equals = 1000,
                 Semicolon = 5000,
                 Comma = 10000
-
             }
 
             public const string BRACKET_STRING = "!bracket!";
-            public static bool FromString (string str, out Token token)
+            public static bool FromString (string str, int index, out Token token)
             {
                 switch (str)
                 {
-                    case "-": token = new TokenMinus(); return true;
-                    case "!": token = new TokenBang(); return true;
-                    case "~": token = new TokenTilde(); return true;
-                    case "+": token = new TokenPlus(); return true;
-                    case "*": token = new TokenStar(); return true;
-                    case "/": token = new TokenSlash(); return true;
-                    case "^": token = new TokenHat();return true;
-                    case "&": token = new TokenAmpersand(); return true;
-                    case "|": token = new TokenPipe(); return true;
-                    case ":": token = new TokenColon(); return true;
-                    case "$": token = new TokenDollar(); return true;
-                    case "?": token = new TokenQuestion(); return true;
-                    case ">": token = new TokenGreaterThan(); return true;
-                    case "<": token = new TokenLessThan(); return true;
-                    case "=": token = new TokenEquals(); return true;
+                    case "-": token = new TokenMinus() { Index = index }; return true;
+                    case "!": token = new TokenBang() { Index = index }; return true;
+                    case "~": token = new TokenTilde() { Index = index }; return true;
+                    case "+": token = new TokenPlus() { Index = index }; return true;
+                    case "*": token = new TokenStar() { Index = index }; return true;
+                    case "/": token = new TokenSlash() { Index = index }; return true;
+                    case "^": token = new TokenHat() { Index = index }; return true;
+                    case "&": token = new TokenAmpersand() { Index = index }; return true;
+                    case "|": token = new TokenPipe() { Index = index }; return true;
+                    case ":": token = new TokenColon() { Index = index }; return true;
+                    case "$": token = new TokenDollar() { Index = index }; return true;
+                    case "?": token = new TokenQuestion() { Index = index }; return true;
+                    case ">": token = new TokenGreaterThan() { Index = index }; return true;
+                    case "<": token = new TokenLessThan() { Index = index }; return true;
+                    case "=": token = new TokenEquals() { Index = index }; return true;
                     default: token = null; return false;
                 }
             }
             internal static void Parse (Heap<Token> prioritized)
             {
                 while (prioritized.Count > 0)
-                {   
+                {
                     Token token = prioritized.Dequeue();
-                    if (!token.TryParse(out Token substitute)) { prioritized.Enqueue(substitute);continue; }
+                    if (token.TryParse(out Token replacement)) continue;
+                    replacement.Node = token.Node;
+                    replacement.Node.Contents = replacement;
+                    prioritized.Enqueue(replacement);
                 }
             }
-            internal protected abstract bool TryParse(out Token substituted);
+            /// <summary>The left-to-right index.</summary>
+            protected internal int Index { get; internal set; }
+            internal protected abstract bool TryParse(out Token replacement);
             protected abstract Priorities Priority { get; }
             
             internal DynamicLinkedList<IEvaluateable>.Node Node;            
@@ -318,22 +334,37 @@ namespace Dependency
                 return true;
             }
 
-            protected bool ParsePrevious<T>(out Token _) where T : Function, new()
+            protected bool ParseNext<T>(out Token _) where T : Function, new()
             {
                 Debug.Assert(Node != null);
                 Debug.Assert(Node.List != null);
-                if (Node.Previous == null) throw new ParsingException("", "", "Failed to parse " + typeof(T).Name);
-                Function newFunc = new T { Inputs = new IEvaluateable[] { Node.Previous.Remove() } };
+                if (Node.Next == null) throw new ParsingException("", "", "Failed to parse " + typeof(T).Name);
+                Function newFunc = new T { Inputs = new IEvaluateable[] { Node.Next.Remove() } };
                 Node.Contents = newFunc;
                 _ = null;
                 return true;
             }
 
-            int IComparable<Token>.CompareTo(Token other) => Priority.CompareTo(other.Priority);
+            internal virtual int CompareTo(Token other)
+            {
+                int c = this.Priority.CompareTo(other.Priority);
+                if (c == 0) c = this.Index.CompareTo(other.Index);
+                return c;
+            }
+            int IComparable<Token>.CompareTo(Token other) => CompareTo(other);
 
             // The Token is made IEvaluateable only so it can be put into the DynamicLinkedList as a place holder.
             IEvaluateable IEvaluateable.Value => this;
             IEvaluateable IEvaluateable.UpdateValue() => this;
+
+            public sealed override string ToString()
+            {
+                StringBuilder sb = new StringBuilder();
+                if (Node.Previous != null) sb.Append(Node.Previous.Contents.GetType().Name + "..");
+                sb.Append(GetType().Name);
+                if (Node.Next != null) sb.Append(".." + Node.Next.Contents.GetType().Name);
+                return sb.ToString();
+            }
         }
 
 
@@ -352,7 +383,7 @@ namespace Dependency
             {
                 if (Node.Next != null && Node.Next.Contents is TokenEquals)
                 {
-                    substituted = new TokenNotEquals() { Node = Node };
+                    substituted = new TokenNotEquals() { Node = Node, Index = Index };
                     Node.Contents = substituted;
                     return false;
                 }
@@ -404,14 +435,14 @@ namespace Dependency
                     if (Node.Previous.Contents is TokenLessThan)
                     {
                         Node.Previous.Remove();
-                        substituted = new TokenLessThanOrEquals { Node = Node };
+                        substituted = new TokenLessThanOrEquals { Node = Node, Index = Index };
                         Node.Contents = substituted;
                         return false;
                     }
                     else if (Node.Previous.Contents is TokenGreaterThan)
                     {
                         Node.Previous.Remove();
-                        substituted = new TokenGreaterThanOrEquals { Node = Node };
+                        substituted = new TokenGreaterThanOrEquals { Node = Node, Index = Index };
                         Node.Contents = substituted;
                         return false;
                     }                   
@@ -513,7 +544,7 @@ namespace Dependency
                 if (Node.Next != null && Node.Next.Next != null && Node.Next.Next.Contents is TokenColon)
                 {
                     Node.Next.Next.Remove();
-                    substituted = new TokenTernary() { Node = Node };
+                    substituted = new TokenTernary() { Node = Node, Index = Index };
                     Node.Contents = substituted;
                     return false;
                 }
@@ -559,7 +590,7 @@ namespace Dependency
         internal class TokenTilde : Token
         {
             protected override Priorities Priority => Priorities.Negation;
-            protected internal override bool TryParse(out Token _) => ParsePrevious<Negation>(out _);
+            protected internal override bool TryParse(out Token _) => ParseNext<Negation>(out _);
         }
         
         internal class TokenMinus : Token
@@ -568,9 +599,19 @@ namespace Dependency
 
             protected internal override bool TryParse(out Token substituted)
             {
-                if (Node.Previous == null || Node.Previous.Contents is IOperator) return ParsePrevious<Negation>(out substituted);
+                if (Node.Previous == null ||  Node.Previous.Contents is Token)
+                    return ParseNext<Negation>(out substituted);
+                else if (Node.Next != null && Node.Next.Contents is TokenMinus nextMinus)
+                    return nextMinus.TryParse(out substituted);
                 substituted = new TokenSubtraction();
                 return false;
+            }
+
+            internal override int CompareTo(Token other)
+            {
+                // Minus is the one case where repeated instances should be read right-to-left.
+                // For example, 7- -1, if it were read left
+                return base.CompareTo(other);
             }
         }
 
@@ -626,7 +667,7 @@ namespace Dependency
 
         #region Parser LR expressions
 
-        internal sealed class Reference : IExpression
+        internal sealed class Reference : IEvaluateable
         {
             internal IVariable Variable { get; set; }
 
@@ -636,7 +677,7 @@ namespace Dependency
             public object Immobiles_TODO;
 
             private IEvaluateable _Value = null;
-            IEvaluateable IEvaluateable.Value => _Value ?? (_Value = Variable.Value);
+            IEvaluateable IEvaluateable.Value => _Value;
             IEvaluateable IEvaluateable.UpdateValue() => _Value = Variable.Value;
 
             public Reference(IVariable var, object immobiles = null) { this.Variable = var; this.Immobiles_TODO = immobiles; }
@@ -655,7 +696,7 @@ namespace Dependency
             internal Reference Reference { get; set; }
 
             private IEvaluateable _Value = null;
-            IEvaluateable IEvaluateable.Value => _Value ?? (_Value = Reference.Variable.Contents);
+            IEvaluateable IEvaluateable.Value => _Value;
             IEvaluateable IEvaluateable.UpdateValue() => _Value = Reference.Variable.Contents;
 
             public override string ToString() => '{' + Reference.ToString() + '}';
@@ -674,7 +715,7 @@ namespace Dependency
             public IEvaluateable Head { get; internal set; }
 
             private IEvaluateable _Value = null;
-            IEvaluateable IEvaluateable.Value => _Value ?? (_Value = Head.UpdateValue());
+            IEvaluateable IEvaluateable.Value => _Value;
             IEvaluateable IEvaluateable.UpdateValue() => _Value = Head.UpdateValue();
 
 

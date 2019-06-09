@@ -22,7 +22,7 @@ namespace Dependency
 
         private IEvaluateable _Value = null;
 
-        IEvaluateable IEvaluateable.Value => _Value ?? (_Value = ((IFunction)this).UpdateValue());
+        IEvaluateable IEvaluateable.Value => _Value;
 
         IEvaluateable IEvaluateable.UpdateValue()
         {
@@ -38,9 +38,10 @@ namespace Dependency
                 int constraintMatch = -1;
                 int inputNonMatch = -1;
 
-                for (int i = 0; i < ivv.GetConstraints().Length; i++)
+                InputConstraint[] constraints = ivv.GetConstraints();
+                for (int i = 0; i < constraints.Length; i++)
                 {
-                    InputConstraint c = ivv.GetConstraints()[i];
+                    InputConstraint c = constraints[i];
                     if (!c.MatchesCount(Inputs.Count)) continue;
                     int match = c.MatchesTypes(evaluatedInputs);
                     if (match >= evaluatedInputs.Length) return Evaluate(evaluatedInputs, i);
@@ -50,7 +51,7 @@ namespace Dependency
                 return new TypeMismatchError(this, evaluatedInputs, constraintMatch, inputNonMatch, ivv.GetConstraints());
             }
             else
-                return Evaluate(evaluatedInputs, -1);
+                return _Value = Evaluate(evaluatedInputs, -1);
         }
 
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);

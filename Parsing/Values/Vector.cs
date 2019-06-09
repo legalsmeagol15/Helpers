@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Dependency
 {
-    public sealed class Vector : Function, IEvaluateable, IIndexable, IContext, ILiteral<object[]>
+    public sealed class Vector : Function, IEvaluateable, IIndexable, IContext, ILiteral<object[]>, ITypeFlag
     {
         internal Vector(IEvaluateable[] contents) { Inputs = contents; }
         public Vector() : this(new IEvaluateable[0]) { }
@@ -71,8 +71,8 @@ namespace Dependency
             return true;
         }
         public static bool operator !=(Vector a, Vector b) => !(a == b);
-
-        TypeFlags ILiteral<object[]>.Types => TypeFlags.Vector;
+        
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
+        TypeFlags ITypeFlag.Flags => TypeFlags.Vector;
     }
 }

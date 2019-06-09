@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public class EvaluationError : IEvaluateable
+    public class EvaluationError : IEvaluateable, ITypeFlag
     {
         public readonly string Message;
         public readonly object Complainant;
@@ -25,8 +25,8 @@ namespace Dependency
         }
 
         IEvaluateable IEvaluateable.Value => this;
-
         IEvaluateable IEvaluateable.UpdateValue() => this;
+        TypeFlags ITypeFlag.Flags => TypeFlags.Error;
     }
 
     public class InputCountError : EvaluationError
