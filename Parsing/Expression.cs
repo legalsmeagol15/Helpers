@@ -7,17 +7,16 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DataStructures;
 using System.Diagnostics;
+using Dependency.Functions;
 
 namespace Dependency
 {
-    
-
     public sealed class Parse
     {
         /// <summary>Readable left-to-right.</summary>
         public interface IExpression : IEvaluateable
         {
-            
+
         }
 
         public static IEvaluateable FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
@@ -50,7 +49,7 @@ namespace Dependency
             {
                 DynamicLinkedList<IEvaluateable> inputs = new DynamicLinkedList<IEvaluateable>();
                 Heap<Token> heap = new Heap<Token>();
-                bool dot = false;                
+                bool dot = false;
                 while (splitIdx < splits.Length)
                 {
                     string token = splits[splitIdx++];
@@ -74,8 +73,8 @@ namespace Dependency
                             throw new ReferenceException(__ComposeLexed(), token, "Reference path termination must be an evaluateable variable.");
                         dot = false;
                         continue;
-                    }                    
-                    Debug.Assert(!dot, "It should be impossible to see a dot at this point.");                    
+                    }
+                    Debug.Assert(!dot, "It should be impossible to see a dot at this point.");
 
                     // Handle literals
                     if (Number.TryParse(token, out Number n)) { inputs.AddLast(n); continue; }
@@ -160,12 +159,12 @@ namespace Dependency
                     }
 
                     // An operator?
-                    if (Token.FromString(token, splitIdx-1, out Token t))
+                    if (Token.FromString(token, splitIdx - 1, out Token t))
                     {
-                        __EnlistAndEnqueue(t);                        
+                        __EnlistAndEnqueue(t);
                         continue;
                     }
-                    
+
                     // A named function?
                     if (functions != null && functions.TryCreate(token, out NamedFunction f))
                     {
@@ -180,7 +179,7 @@ namespace Dependency
                         else if (ctxt.TryGetVariable(token, out IVariable var)) { inputs.AddLast(new Reference(var)); ctxt = rootContext; continue; }
                         else if (ctxt is IRangeable ir && ir.TryGetImmobile(token, out Reference r)) { inputs.AddLast(r); ctxt = rootContext; continue; }
                     }
-                    
+
                     bool __CheckImpliedScalar()
                     {
                         if (inputs.Count == 0) return false;
@@ -214,7 +213,7 @@ namespace Dependency
                 IEvaluateable[] __Parse()
                 {
                     Token.Parse(heap);
-                    return inputs.ToArray();                    
+                    return inputs.ToArray();
                 }
             }
 
@@ -230,7 +229,7 @@ namespace Dependency
 
         #region Parser Tokens parsing
 
-        
+
         internal abstract class Token : IComparable<Token>, IEvaluateable
         {
             protected enum Priorities
@@ -248,7 +247,7 @@ namespace Dependency
                 Multiplication = 400,
                 Division = Multiplication,
                 Addition = 500,
-                Subtraction = Addition,                
+                Subtraction = Addition,
                 Ternary = 800,
                 GreaterThan = 900,
                 LessThan = 901,
@@ -260,7 +259,7 @@ namespace Dependency
             }
 
             public const string BRACKET_STRING = "!bracket!";
-            public static bool FromString (string str, int index, out Token token)
+            public static bool FromString(string str, int index, out Token token)
             {
                 switch (str)
                 {
@@ -282,7 +281,7 @@ namespace Dependency
                     default: token = null; return false;
                 }
             }
-            internal static void Parse (Heap<Token> prioritized)
+            internal static void Parse(Heap<Token> prioritized)
             {
                 while (prioritized.Count > 0)
                 {
@@ -297,9 +296,9 @@ namespace Dependency
             protected internal int Index { get; internal set; }
             internal protected abstract bool TryParse(out Token replacement);
             protected abstract Priorities Priority { get; }
-            
-            internal DynamicLinkedList<IEvaluateable>.Node Node;            
-            
+
+            internal DynamicLinkedList<IEvaluateable>.Node Node;
+
             /// <summary>Parse tokens in the form of "5 / 7".</summary>
             protected bool ParseBinary<T>(out Token _) where T : Function, new()
             {
@@ -312,9 +311,9 @@ namespace Dependency
                 return true;
             }
 
-            protected bool ParseSeries<TResult, TToken> (out Token _) where TResult:Function, new() where TToken : Token
+            protected bool ParseSeries<TResult, TToken>(out Token _) where TResult : Function, new() where TToken : Token
             {
-                
+
                 Deque<IEvaluateable> deque = new Deque<IEvaluateable>();
                 while (true)
                 {
@@ -425,7 +424,7 @@ namespace Dependency
 
             protected internal override bool TryParse(out Token substituted) { throw new NotImplementedException(); }
         }
-        
+
         internal class TokenEquals : Token
         {
             protected override Priorities Priority => Priorities.Equals;
@@ -447,9 +446,9 @@ namespace Dependency
                         substituted = new TokenGreaterThanOrEquals { Node = Node, Index = Index };
                         Node.Contents = substituted;
                         return false;
-                    }                   
+                    }
                 }
-                return ParseBinary<Equality>(out substituted);                
+                return ParseBinary<Equality>(out substituted);
             }
 
         }
@@ -477,7 +476,7 @@ namespace Dependency
 
             protected internal override bool TryParse(out Token _) => ParseBinary<GreaterThanOrEquals>(out _);
         }
-        
+
         internal class TokenHat : Token
         {
             protected override Priorities Priority => Priorities.Exponentiation;
@@ -498,7 +497,7 @@ namespace Dependency
 
             protected internal override bool TryParse(out Token _) => ParseBinary<Indexing>(out _);
         }
-        
+
         internal class TokenLessThan : Token
         {
             protected override Priorities Priority => Priorities.LessThan;
@@ -512,7 +511,7 @@ namespace Dependency
                     Node.Contents = substituted;
                     return false;
                 }
-                return ParseBinary<LessThan>(out substituted);                
+                return ParseBinary<LessThan>(out substituted);
             }
         }
 
@@ -522,14 +521,14 @@ namespace Dependency
 
             protected internal override bool TryParse(out Token _) => ParseBinary<LessThanOrEquals>(out _);
         }
-        
+
         internal class TokenPipe : Token
         {
             protected override Priorities Priority => Priorities.Or;
 
             protected internal override bool TryParse(out Token _) => ParseBinary<Or>(out _);
         }
-        
+
         internal class TokenPlus : Token
         {
             protected override Priorities Priority => Priorities.Addition;
@@ -555,7 +554,7 @@ namespace Dependency
                 return true;
             }
         }
-        
+
         internal class TokenSlash : Token
         {
             protected override Priorities Priority => Priorities.Division;
@@ -582,26 +581,26 @@ namespace Dependency
 
             protected internal override bool TryParse(out Token substituted)
             {
-                if (Node.Previous == null || Node.Next == null || Node.Next == null) throw new SyntaxException("","","Failure to parse Ternary.");
+                if (Node.Previous == null || Node.Next == null || Node.Next == null) throw new SyntaxException("", "", "Failure to parse Ternary.");
                 Node.Contents = new Ternary() { Inputs = new IEvaluateable[] { Node.Previous.Remove(), Node.Next.Remove(), Node.Next.Remove() } };
                 substituted = null;
                 return true;
             }
         }
-        
+
         internal class TokenTilde : Token
         {
             protected override Priorities Priority => Priorities.Negation;
             protected internal override bool TryParse(out Token _) => ParseNext<Negation>(out _);
         }
-        
+
         internal class TokenMinus : Token
         {
             protected override Priorities Priority => Priorities.Minus;
 
             protected internal override bool TryParse(out Token substituted)
             {
-                if (Node.Previous == null ||  Node.Previous.Contents is Token)
+                if (Node.Previous == null || Node.Previous.Contents is Token)
                     return ParseNext<Negation>(out substituted);
                 else if (Node.Next != null && Node.Next.Contents is TokenMinus nextMinus)
                     return nextMinus.TryParse(out substituted);
@@ -659,7 +658,7 @@ namespace Dependency
         }
 
         internal class NestingSyntaxException : SyntaxException
-        {   
+        {
             internal NestingSyntaxException(string parsed, string failedToken, string message) : base(parsed, failedToken, message) { }
         }
 

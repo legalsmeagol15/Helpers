@@ -82,7 +82,10 @@
     <Compile Include="Networking.cs" />
     <Compile Include="Parsing\DependencyManager.cs" />
     <Compile Include="Parsing\Expression.cs" />
+    <Compile Include="Parsing\Functions\Factory.cs" />
     <Compile Include="Parsing\Functions\Function.cs" />
+    <Compile Include="Parsing\Functions\Named\Arithmetic.cs" />
+    <Compile Include="Parsing\Functions\Named\NamedFunction.cs" />
     <Compile Include="Parsing\Functions\Operators.cs" />
     <Compile Include="Parsing\Interfaces.cs" />
     <Compile Include="Parsing\Properties\AssemblyInfo.cs" />

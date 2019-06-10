@@ -32,12 +32,12 @@ namespace Dependency
 
     public class InputCountError : EvaluationError
     {
-        internal IEnumerable<TypeConstraint> Constraints;
+        internal TypeControl TypeControl;        
 
-        internal InputCountError(object complainant, IList<IEvaluateable> inputs, IEnumerable<TypeConstraint> constraints)
+        internal InputCountError(object complainant, IList<IEvaluateable> inputs, TypeControl typeControl)
             : base(complainant, inputs, "Incorrect number of inputs (" + inputs.Count + ")")
         {
-            this.Constraints = constraints;
+            this.TypeControl = typeControl;
         }
     }
 
@@ -46,7 +46,7 @@ namespace Dependency
 
         public readonly int InputIndex;
         public readonly int ConstraintIndex;
-        internal IEnumerable<TypeConstraint> Constraints;
+        internal readonly TypeControl TypeControl;
         internal readonly TypeFlags GivenFlags;
 
         /// <summary>
@@ -57,14 +57,14 @@ namespace Dependency
         /// <param name="inputs">The inputs that the function failed to evaluate.</param>
         /// <param name="constraintIdx">The 0-based constraint index that represented the best fit (if one existed with that allowed the given number of inputs).</param>
         /// <param name="inputIndex">The 0-based index of the first input whose type did not match requirements.</param>
-        /// <param name="constraints">The constraint set used to evaluate the given inputs.</param>
+        /// <param name="typeControl">The constraint set used to evaluate the given inputs.</param>
         /// <param name="message">The message.</param>
-        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, int constraintIdx, int inputIndex, TypeConstraint[] constraints, string message = null)
+        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, int constraintIdx, int inputIndex, TypeControl typeControl, string message = null)
             : base(complainant, inputs, message)
         {
             this.ConstraintIndex = constraintIdx;
             this.InputIndex = inputIndex;
-            this.Constraints = constraints;
+            this.TypeControl = typeControl;
             this.GivenFlags = (inputs[inputIndex] is ITypeFlag itf) ? itf.Flags : TypeFlags.Any;
         }        
     }

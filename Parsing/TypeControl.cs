@@ -2,12 +2,13 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Dependency
 {
-    internal enum TypeFlags
+    public enum TypeFlags
     {
         Zero = 0,
         Number = 1 << 0,
@@ -16,13 +17,13 @@ namespace Dependency
         NonInteger = 1 << 3,
         Integer = 1 << 4,
         IntegerAny = Number | Zero | Positive | Negative | Integer,
-        NumberAny = Number | Zero | Positive | Negative | NonInteger | Integer,
+        RealAny = Number | Zero | Positive | Negative | NonInteger | Integer,
         String = 1 << 16,
         StringAny = String | Zero,
         Vector = 1 << 17 | Indexable,
         Boolean = 1 << 18,
         Imaginary = 1 << 19,
-        ComplexAny = NumberAny | Imaginary,
+        ComplexAny = RealAny | Imaginary,
         Indexable = 1 << 20,
         Range = 1 << 21 | Indexable,
         Empty = 1 << 28,
@@ -33,8 +34,40 @@ namespace Dependency
         Any = ~Zero
     }
 
-    public static class TypeControl
+    public sealed class TypeControl
     {
+        internal static readonly IDictionary<Type, TypeControl> Catalogue = new Dictionary<Type, TypeControl>();
+        public static TypeControl GetConstraints(Type type)
+        {
+            // If it's already in the catalogue, just return that.
+            if (Catalogue.TryGetValue(type, out TypeControl tc))
+                return tc;
+
+            // Otherwise, find all the possible constraints and build a new TypeControl, then add to the catalogue.
+            List<Constraint> constraints = new List<Constraint>();
+            foreach (Attribute attr in type.GetCustomAttributes(true))
+            {
+                if (attr is VariadicAttribute vAttr)
+                    constraints.Add(new Constraint(vAttr.Index, true, vAttr.TypeFlags));
+                else if (attr is NonVariadicAttribute nAttr)
+                    constraints.Add(new Constraint(nAttr.Index, false, nAttr.TypeFlags));
+            }
+            tc = new TypeControl(type, constraints);
+            Catalogue[type] = tc;
+            return tc;
+        }
+
+        /// <summary>The function with which these constraints are associated.</summary>
+        public readonly Type FunctionType;
+        private readonly List<Constraint> _Constraints;
+
+        private TypeControl(Type functionType, List<Constraint> constraints)
+        {
+            this.FunctionType = functionType;
+            constraints.Sort((a, b) => a.Index.CompareTo(b.Index));
+            _Constraints = constraints;
+        }
+
         /// <summary>
         /// Returns whether the given types match any of the constraint set.  If so, the <paramref name="bestIndex"/> 
         /// out variable will contain the index (and <paramref name="unmatchedArg"/> will be -1).  If at least one 
@@ -42,58 +75,77 @@ namespace Dependency
         /// be signalled in <paramref name="unmatchedArg"/>.  If not constraints matched the <paramref name="objects"/>
         /// count, then both <paramref name="bestIndex"/> and <paramref name="unmatchedArg"/> will be -1.
         /// </summary>
-        internal static bool TryMatch(IList<TypeConstraint> constraints, IList<object> objects, out int bestIndex, out int unmatchedArg)
+        internal bool TryMatch(IList<object> objects, out int bestIndex, out int unmatchedArg)
         {
             bestIndex = -1;
             unmatchedArg = -1;
-            if (!constraints.Any())
-                return true;
-            for (int constraintIdx = 0; constraintIdx < constraints.Count; constraintIdx++)
-            {
-                foreach (TypeConstraint constraint in constraints)
-                {
-                    if (!constraint.MatchesCount(objects.Count))
-                        continue;
 
-                    for (int argIdx = 0; argIdx < objects.Count; argIdx++)
+            if (_Constraints.Count == 0) return true;
+
+
+            foreach (Constraint constraint in _Constraints)
+            {
+                if (!constraint.MatchesCount(objects.Count))
+                    continue;
+
+                for (int argIdx = 0; argIdx < objects.Count; argIdx++)
+                {
+                    TypeFlags allowed = constraint[argIdx];
+                    if (objects[argIdx] is ITypeFlag itf)
                     {
-                        TypeFlags allowed = constraint[argIdx];
-                        if (objects[argIdx] is ITypeFlag itf)
+                        TypeFlags objType = itf.Flags;
+                        if ((allowed & objType) != objType)
                         {
-                            TypeFlags objType = itf.Flags;
-                            if ((allowed & objType) != objType)
-                            {
-                                if (argIdx <= unmatchedArg) continue;
-                                unmatchedArg = argIdx;
-                                bestIndex = constraintIdx;
-                                break;
-                            }
-                            else
-                            {
-                                bestIndex = constraintIdx;
-                                unmatchedArg = -1;
-                                return true;
-                            }
-                        }
-                        else if (allowed != TypeFlags.Any)
+                            if (argIdx <= unmatchedArg) continue;
+                            unmatchedArg = argIdx;
+                            bestIndex = constraint.Index;
                             break;
+                        }
+                        else
+                        {
+                            bestIndex = constraint.Index;
+                            unmatchedArg = -1;
+                            return true;
+                        }
                     }
-                    constraintIdx++;
+                    else if (allowed != TypeFlags.Any)
+                        break;
                 }
             }
-            return false;                  
+            return false;
         }
 
-        public class TypeConstraint : IEnumerable<TypeFlags>
+        [AttributeUsage(validOn: AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true, Inherited = true)]
+        public sealed class VariadicAttribute : Attribute
         {
-            public readonly bool IsVariadic;
+            public readonly int Index;
+            public TypeFlags[] TypeFlags;
+            public VariadicAttribute(int index, params TypeFlags[] typeFlags) { this.Index = index; this.TypeFlags = typeFlags; }
+            public VariadicAttribute(params TypeFlags[] typeFlags) : this(0, typeFlags) { }
+        }
 
+        [AttributeUsage(validOn: AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true, Inherited = true)]
+        public sealed class NonVariadicAttribute : Attribute
+        {
+            public readonly int Index;
+            public TypeFlags[] TypeFlags;
+            public NonVariadicAttribute(int index, params TypeFlags[] typeFlags) { this.Index = index; this.TypeFlags = typeFlags; }
+            public NonVariadicAttribute(params TypeFlags[] typeFlags) : this(0, typeFlags) { }
+        }
+        
+        private class Constraint : IEnumerable<TypeFlags>, IComparable<Constraint>
+        {
+            public readonly int Index;
+            public readonly bool IsVariadic;
             private readonly TypeFlags[] _Allowed;
 
-            private TypeConstraint(bool isVariadic, params TypeFlags[] flags) { this.IsVariadic = isVariadic; this._Allowed = flags; }
-            internal static TypeConstraint Variadic(params TypeFlags[] flags) => new TypeConstraint(true, flags);
-            internal static TypeConstraint Nonvariadic(params TypeFlags[] flags) => new TypeConstraint(false, flags);
-
+            internal Constraint(int index, bool isVariadic, params TypeFlags[] flags)
+            {
+                this.Index = index;
+                this.IsVariadic = isVariadic;
+                this._Allowed = flags;
+            }
+            
             public bool MatchesCount(int count) => IsVariadic ? count >= _Allowed.Length : count == _Allowed.Length;
             internal TypeFlags this[int index]
             {
@@ -105,23 +157,23 @@ namespace Dependency
                 }
             }
 
-            private IEnumerable<TypeFlags> Allowed()
+            private IEnumerable<TypeFlags> EnumerateAllowed()
             {
                 foreach (TypeFlags flag in _Allowed) yield return flag;
                 if (IsVariadic) yield return _Allowed[_Allowed.Length - 1];
                 else yield break;
             }
-            IEnumerator<TypeFlags> IEnumerable<TypeFlags>.GetEnumerator() => Allowed().GetEnumerator();
-            IEnumerator IEnumerable.GetEnumerator() => Allowed().GetEnumerator();
+            IEnumerator<TypeFlags> IEnumerable<TypeFlags>.GetEnumerator() => EnumerateAllowed().GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => EnumerateAllowed().GetEnumerator();
 
             public sealed override string ToString()
             {
                 if (_Allowed.Length == 0) return "()";
                 return string.Join(",", _Allowed.Select(tf => tf.ToString())) + (IsVariadic ? ".." : "");
             }
+
+            int IComparable<Constraint>.CompareTo(Constraint other) => Index.CompareTo(other.Index);
         }
+
     }
-
-    
-
 }

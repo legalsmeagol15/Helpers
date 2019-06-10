@@ -33,8 +33,8 @@ namespace UnitTests
             Assert.AreEqual(exp3.UpdateValue(), -17);
             Assert.AreEqual(exp3.Value, -17);
 
-            //var timings = DoTiming(() => exp1.UpdateValue(), 512, 6);
-            //PrintTimings(timings);
+            var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
+            PrintTimings(timings);
         }
 
         [TestMethod]
@@ -53,13 +53,18 @@ namespace UnitTests
 
         private static void PrintTimings(double[] timings)
         {
+            double sum = 0d;
             for (int i = 0; i < timings.Length; i++)
             {
                 Console.Write(i + ":\t" + timings[i].ToString("0.00000"));
                 if (i > 0)
                     Console.Write("\t" + ( timings[i] / timings[i - 1]));
                 Console.Write("\n");
+                sum += timings[i];
             }
+
+            Console.WriteLine("Average: " + (sum / timings.Length));
+            
         }
 
         [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]

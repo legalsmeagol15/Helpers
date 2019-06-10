@@ -6,16 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using static Dependency.TypeControl;
 
-namespace Dependency
+namespace Dependency.Functions
 {
-
-    public interface IFunction : IEvaluateable
-    {
-        IList<IEvaluateable> Inputs { get; }
-    }
-
-
-
     public abstract class Function : IFunction
     {
         protected internal IList<IEvaluateable> Inputs { get; internal set; }
@@ -34,78 +26,18 @@ namespace Dependency
                 if (evaluatedInputs[i] is EvaluationError err) return err;
             }
 
-            if (this is IValidateValue ivv)
-            {
-                TypeConstraint[] constraints = ivv.GetConstraints();
-                if (TypeControl.TryMatch(ivv.GetConstraints(), evaluatedInputs, out int bestConstraint, out int unmatchedArg))
-                    return _Value = Evaluate(evaluatedInputs, bestConstraint);
-                else if (bestConstraint < 0)
-                    return new InputCountError(this, evaluatedInputs, constraints);
-                else
-                    return new TypeMismatchError(this, evaluatedInputs, bestConstraint, unmatchedArg, constraints);                
-            }
+            TypeControl tc;
+            if (this is ICacheValidator icv) tc = icv.TypeControl ?? (icv.TypeControl = TypeControl.GetConstraints(this.GetType()));
+            else tc = TypeControl.GetConstraints(this.GetType());
+            if (tc.TryMatch(evaluatedInputs, out int bestConstraint, out int unmatchedArg))
+                return _Value = Evaluate(evaluatedInputs, bestConstraint);
+            else if (bestConstraint < 0)
+                return new InputCountError(this, evaluatedInputs, tc);
             else
-                return _Value = Evaluate(evaluatedInputs, -1);
+                return new TypeMismatchError(this, evaluatedInputs, bestConstraint, unmatchedArg, tc);
         }
 
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
-
-
         
     }
-
-
-
-    public abstract class NamedFunction : Function, Parse.IExpression
-    {
-        public string Name { get; }
-    }
-
-
-
-    /// <summary>Creates <see cref="NamedFunction"/> objects based on the given string name.</summary>
-    public interface IFunctionFactory
-    {
-        /// <summary>
-        /// Tries to create a <see cref="NamedFunction"/> based on the given token, from the catalogue available to 
-        /// the <see cref="IFunctionFactory"/>.
-        /// </summary>
-        /// <returns>Returns true in the case of success, false if not.  If true, the given parameter 
-        /// <paramref name="nf"/> will contain the <see cref="NamedFunction"/>; otherwise, the parameter will be 
-        /// null.</returns>
-        bool TryCreate(string token, out NamedFunction nf);
-    }
-
-
-
-    public sealed class ReflectedFunctionFactory
-    {
-        private readonly IDictionary<string, Func<NamedFunction>> _Catalogue;
-
-        public ReflectedFunctionFactory()
-        {
-            _Catalogue = GetReflectedFunctionCreators();
-        }
-
-        public static IDictionary<string, Func<NamedFunction>> GetReflectedFunctionCreators()
-        {
-            Dictionary<string, Func<NamedFunction>> result = new Dictionary<string, Func<NamedFunction>>();
-            foreach (Type t in GetDefaultTypes())
-            {
-                NamedFunction specimen = CreateFunction(t);
-                string name = specimen.Name.ToUpper();
-                if (result.ContainsKey(name)) throw new Exception("Duplicate function name: " + name);
-                result.Add(name, () => CreateFunction(t));
-            }
-            return result;
-        }
-
-        private static NamedFunction CreateFunction(Type type)
-            => (NamedFunction)Activator.CreateInstance(type);
-
-        private static IEnumerable<Type> GetDefaultTypes(Assembly assembly = null)
-            => (assembly ?? Assembly.GetAssembly(typeof(NamedFunction))).GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(NamedFunction)));
-    }
-
-
 }
