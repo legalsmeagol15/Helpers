@@ -15,6 +15,12 @@ namespace Dependency
     {
         TypeControl TypeControl { get; set; }
     }
+
+    public interface ICategorized
+    {
+        IList<string> Categories { get; }
+    }
+
     public interface IContext
     {
         bool TryGetSubcontext(string token, out IContext ctxt);
