@@ -201,6 +201,7 @@ namespace Dependency
                 {
                     if (exp is Parenthetical p) { p.Head = inputs.First; return p; }
                     else if (exp is Curly c && inputs.First is Reference r) { c.Reference = r; return c; }
+                    return inputs.First;
                 }
                 throw new ParsingException(__ComposeLexed(), splits[splitIdx - 1], "Failed to parse " + exp.GetType().Name);
 
@@ -720,7 +721,7 @@ namespace Dependency
             IEvaluateable IEvaluateable.UpdateValue() => _Value = Head.UpdateValue();
 
 
-            public override string ToString() => '(' + Head.ToString() + ')';
+            public override string ToString() => "( " + Head.ToString() + " )";
         }
 
 

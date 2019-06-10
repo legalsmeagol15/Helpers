@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Collections;
 using Dependency;
+using System.Runtime.CompilerServices;
 
 namespace UnitTests
 {
@@ -18,16 +19,36 @@ namespace UnitTests
         [TestMethod]
         public void TestDependency_Parsing()
         {
-            IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7)");  // -16
-            IEvaluateable exp2 = Parse.FromString("(3-5+(2^3)/4*-7"); // Still -16
-            
-            Assert.AreEqual(exp1.UpdateValue(), -16);
-            Assert.AreEqual(exp1.Value, -16);
-            Assert.AreEqual(exp2.UpdateValue(), -16);
-            Assert.AreEqual(exp2.Value, -16);
+            IEvaluateable exp0 = Parse.FromString("3-5+2^3/4*-7-1");    // -17
+            IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7-1)");  // Still -17
+            IEvaluateable exp2 = Parse.FromString("(3-5+(2^3)/4*-7-1"); // Still -17
+            IEvaluateable exp3 = Parse.FromString("(3-5+(((2^3)/4)*-7-1)"); // Still -17
 
-            var timings = DoTiming(() => exp1.UpdateValue(), 512, 6);
-            PrintTimings(timings);
+            Assert.AreEqual(exp0.UpdateValue(), -17);
+            Assert.AreEqual(exp0.Value, -17);
+            Assert.AreEqual(exp1.UpdateValue(), -17);
+            Assert.AreEqual(exp1.Value, -17);
+            Assert.AreEqual(exp2.UpdateValue(), -17);
+            Assert.AreEqual(exp2.Value, -17);
+            Assert.AreEqual(exp3.UpdateValue(), -17);
+            Assert.AreEqual(exp3.Value, -17);
+
+            //var timings = DoTiming(() => exp1.UpdateValue(), 512, 6);
+            //PrintTimings(timings);
+        }
+
+        [TestMethod]
+        public void TestDependency_ToString()
+        {
+            IEvaluateable exp0 = Parse.FromString("3-5+2^3/4*-7-1");
+            IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7-1)"); 
+            IEvaluateable exp2 = Parse.FromString("(3-5+(2^3)/4*-7-1");
+            IEvaluateable exp3 = Parse.FromString("(3-5+(((2^3)/4)*-7-1)");
+
+            Assert.AreEqual("3 - 5 + 2 ^ 3 / 4 * -7 - 1", exp0.ToString());
+            Assert.AreEqual("( 3 - 5 + 2 ^ 3 / 4 * -7 - 1 )", exp1.ToString());
+            Assert.AreEqual("( 3 - 5 + ( 2 ^ 3 ) / 4 * -7 - 1 )", exp2.ToString());
+            Assert.AreEqual("( 3 - 5 + ( ( ( 2 ^ 3 ) / 4 ) * -7 - 1 ) )", exp3.ToString());
         }
 
         private static void PrintTimings(double[] timings)
@@ -40,6 +61,8 @@ namespace UnitTests
                 Console.Write("\n");
             }
         }
+
+        [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
         private static double[] DoTiming(Action action, int runs = 16, int doublings = 8)
         {
             double[] results = new double[doublings];
