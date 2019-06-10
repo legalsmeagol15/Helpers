@@ -13,7 +13,7 @@ namespace Dependency.Functions
         NamedFunction Create();
     }
 
-    public sealed class ReflectedFunctionFactory
+    public sealed class ReflectedFunctionFactory : IFunctionFactory
     {
         private readonly IDictionary<string, Func<NamedFunction>> _Catalogue;
 
@@ -50,6 +50,13 @@ namespace Dependency.Functions
                                          && !t.IsAbstract
                                          && typeof(NamedFunction).IsAssignableFrom(t) 
                                          && t.GetConstructor(Type.EmptyTypes) != null);
+
+        public bool TryCreate(string token, out NamedFunction nf)
+        {
+            if (_Catalogue.TryGetValue(token.ToUpper(), out Func<NamedFunction> emitter)) { nf = emitter(); return true; }
+            nf = null;
+            return false;
+        }
     }
 
 

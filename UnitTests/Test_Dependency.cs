@@ -17,6 +17,16 @@ namespace UnitTests
     public class Test_Dependency
     {
         [TestMethod]
+        public void TestDependency_Named_Functions()
+        {
+            IFunctionFactory functions = new Dependency.Functions.ReflectedFunctionFactory();
+            IEvaluateable exp0 = Parse.FromString("ABS(11)", functions);
+            IEvaluateable exp1 = Parse.FromString("ABS(-7)", functions);
+            Assert.AreEqual(exp0.UpdateValue(), 11);
+            Assert.AreEqual(exp1.UpdateValue(), 7);
+        }
+
+        [TestMethod]
         public void TestDependency_Parsing()
         {
             IEvaluateable exp0 = Parse.FromString("3-5+2^3/4*-7-1");    // -17
@@ -33,8 +43,8 @@ namespace UnitTests
             Assert.AreEqual(exp3.UpdateValue(), -17);
             Assert.AreEqual(exp3.Value, -17);
 
-            var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
-            PrintTimings(timings);
+            //var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
+            //PrintTimings(timings);
         }
 
         [TestMethod]

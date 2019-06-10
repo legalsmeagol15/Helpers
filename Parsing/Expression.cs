@@ -88,12 +88,14 @@ namespace Dependency
                     switch (token)
                     {
                         case "(":
-                            {
-                                __CheckImpliedScalar();
+                            {                                
                                 if (inputs.Count > 0 && inputs.Last is NamedFunction prev)
-                                    inputs.AddLast(_TokenizeAndParse(prev));
+                                    _TokenizeAndParse(prev);
                                 else
+                                {
+                                    __CheckImpliedScalar();
                                     inputs.AddLast(_TokenizeAndParse(new Parenthetical()));
+                                }   
                                 continue;
                             }
                         case "[":
