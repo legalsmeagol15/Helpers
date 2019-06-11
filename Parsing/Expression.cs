@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using DataStructures;
 using System.Diagnostics;
 using Dependency.Functions;
+using Dependency.Operators;
 
 namespace Dependency
 {
