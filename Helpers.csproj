@@ -98,6 +98,7 @@
     <Compile Include="Parsing\Values\Number.cs" />
     <Compile Include="Parsing\Values\String.cs" />
     <Compile Include="Parsing\Values\Vector.cs" />
+    <Compile Include="Parsing\Variables.cs" />
     <Compile Include="Time.cs" />
     <Compile Include="Undo\IUndoable.cs" />
     <Compile Include="Undo\IUndoStack.cs" />

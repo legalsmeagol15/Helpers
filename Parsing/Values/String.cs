@@ -11,7 +11,7 @@ namespace Dependency
     public struct String : ILiteral<string>, ITypeFlag
     {
         internal const string PARSE_PATTERN = "\"[^\"]*\"";  // Any string bracketed by two "s and containing no " in between.
-        private static Regex _Regex = new Regex(PARSE_PATTERN);
+        
         internal readonly string Value;
 
         private readonly TypeFlags _TypeFlags;

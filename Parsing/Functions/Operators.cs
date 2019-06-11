@@ -169,7 +169,7 @@ namespace Dependency
             }
 
 
-            public override string ToString() => Base.ToString() + "{" + Ordinal.ToString() + "}";
+            public override string ToString() => Base.ToString() + " [ " + Ordinal.ToString() + " ] ";            
         }
 
         internal sealed class LessThan : ComparisonOperator
@@ -182,11 +182,11 @@ namespace Dependency
         }
 
         [TypeControl.Variadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
-        public sealed class Multiplication : Function, IOperator, ICacheValidator
+        public class Multiplication : Function, IOperator, ICacheValidator
         {
             TypeControl ICacheValidator.TypeControl { get; set; }
-
-            protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
+            
+            protected sealed override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
             {
                 switch (constraintIdx)
                 {
@@ -197,14 +197,17 @@ namespace Dependency
 
                     default:
                         return new EvaluationError(this, inputs, "Have not implemented evaluation for constraint " + constraintIdx);
-
                 }
             }
-
 
             public override string ToString() => string.Join(" * ", (IEnumerable<IEvaluateable>)Inputs);
         }
 
+        public sealed class ImpliedMultiplication  : Multiplication
+        {
+            public override string ToString() => string.Join("", (IEnumerable<IEvaluateable>)Inputs);
+        }
+        
         [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
         public sealed class Negation : Function, IOperator, ICacheValidator
         {

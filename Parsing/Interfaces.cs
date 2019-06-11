@@ -21,12 +21,13 @@ namespace Dependency
         IList<string> Categories { get; }
     }
 
+    
+
     public interface IContext
     {
         bool TryGetSubcontext(string token, out IContext ctxt);
-        bool TryGetVariable(string token, out IVariable var);
-        bool TryGetConstant(string token, out IEvaluateable k);
-
+        bool TryGetVariable(string token, out IVariable var, out Mobility immobiles);
+        
         IContext Parent { get; }
     }
 
@@ -36,6 +37,8 @@ namespace Dependency
         IEvaluateable Value { get; }
 
         IEvaluateable UpdateValue();
+
+        string ToExpression(IContext perspective);
     }
 
     public interface IFunction : IEvaluateable
@@ -56,8 +59,7 @@ namespace Dependency
         /// null.</returns>
         bool TryCreate(string token, out NamedFunction nf);
     }
-
-
+    
     internal interface IIndexable : IEvaluateable
     {
         IEvaluateable MaxIndex { get; }
@@ -70,10 +72,18 @@ namespace Dependency
         TClr CLRValue { get; }
     }
 
+    internal interface INamed
+    {
+        string Name { get; }
+    }
+
+   
+
     internal interface ITypeFlag
     {
         TypeFlags Flags { get; }
     }
+
 
 
     internal interface IRangeable : IContext

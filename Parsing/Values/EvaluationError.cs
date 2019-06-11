@@ -66,9 +66,7 @@ namespace Dependency
             this.GivenFlags = (inputs[inputIndex] is ITypeFlag itf) ? itf.Flags : TypeFlags.Any;
         }
     }
-
-
-
+    
     public sealed class IndexingError : EvaluationError
     {
         public IndexingError(object complainant, IEnumerable<IEvaluateable> inputs, string msg) : base(complainant, inputs, msg) { }
