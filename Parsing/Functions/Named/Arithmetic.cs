@@ -137,7 +137,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.IntegerAny)]
+    [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
     public class Round : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)

@@ -10,31 +10,23 @@ namespace Dependency
 {
     public enum TypeFlags
     {
-        Zero = 0,
-        Number = 1 << 0,
-        Positive = 1 << 1,
-        Negative = 1 << 2,
-        NonInteger = 1 << 3,
-        Integer = 1 << 4,
-        IntegerAny = Number | Zero | Positive | Negative | Integer,
-        RealAny = Number | Zero | Positive | Negative | NonInteger | Integer,
-        String = 1 << 16,
-        StringAny = String | Zero,
-        Vector = 1 << 17 | Indexable,
-        Boolean = 1 << 18,
-        Imaginary = 1 << 19,
-        ComplexAny = RealAny | Imaginary,
-        Indexable = 1 << 20,
-        Range = 1 << 21 | Indexable,
-        Empty = 1 << 28,
-        Null = 1 << 29,
-        ZeroNullEmpty = Zero | Null | Empty,
+        Null = 1<<0,        
+        Integer = 1<< 1,
+        RealAny = 1 <<2 | Integer,
+        String = 1 << 10,
+        VectorInteger = 1 << 16 | Indexable,
+        VectorReal = 1 << 17 | VectorInteger,
+        VectorAny = 1 << 18 | VectorReal,
+        Boolean = 1 << 19,
+        ComplexAny = 1<<20 | RealAny,
+        Range = 1 << 22 | Indexable,        
+        Indexable = 1 << 29,
         Formula = 1 << 30,
         Error = 1 << 31,
-        Any = ~Zero
+        Any = ~0
     }
-
-    public sealed class TypeControl
+        
+    public sealed class TypeControl 
     {
         internal static readonly IDictionary<Type, TypeControl> Catalogue = new Dictionary<Type, TypeControl>();
         public static TypeControl GetConstraints(Type type)
@@ -75,7 +67,7 @@ namespace Dependency
         /// be signalled in <paramref name="unmatchedArg"/>.  If not constraints matched the <paramref name="objects"/>
         /// count, then both <paramref name="bestIndex"/> and <paramref name="unmatchedArg"/> will be -1.
         /// </summary>
-        internal bool TryMatch(IList<object> objects, out int bestIndex, out int unmatchedArg)
+        public bool TryMatchType(IList<object> objects, out int bestIndex, out int unmatchedArg)
         {
             bestIndex = -1;
             unmatchedArg = -1;

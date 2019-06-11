@@ -29,7 +29,7 @@ namespace Dependency.Functions
             TypeControl tc;
             if (this is ICacheValidator icv) tc = icv.TypeControl ?? (icv.TypeControl = TypeControl.GetConstraints(this.GetType()));
             else tc = TypeControl.GetConstraints(this.GetType());
-            if (tc.TryMatch(evaluatedInputs, out int bestConstraint, out int unmatchedArg))
+            if (tc.TryMatchType(evaluatedInputs, out int bestConstraint, out int unmatchedArg))
                 return _Value = Evaluate(evaluatedInputs, bestConstraint);
             else if (bestConstraint < 0)
                 return new InputCountError(this, evaluatedInputs, tc);

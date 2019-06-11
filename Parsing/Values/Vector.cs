@@ -74,6 +74,6 @@ namespace Dependency
         public static bool operator !=(Vector a, Vector b) => !(a == b);
         
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
-        TypeFlags ITypeFlag.Flags => TypeFlags.Vector;
+        TypeFlags ITypeFlag.Flags => TypeFlags.VectorReal;
     }
 }

@@ -67,7 +67,7 @@ namespace Dependency
         public override string ToString() => string.Join(" & ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.Number| TypeFlags.Positive | TypeFlags.Negative)]
+    [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
     public sealed class Division : Function, IOperator, ICacheValidator
     {
         TypeControl ICacheValidator.TypeControl { get; set; }
@@ -138,7 +138,7 @@ namespace Dependency
         protected override bool Compare(Number a, Number b) => a >= b;
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.Indexable, TypeFlags.Vector | TypeFlags.Number | TypeFlags.Positive | TypeFlags.Zero)]
+    [TypeControl.NonVariadic(0, TypeFlags.Indexable,  TypeFlags.VectorInteger | TypeFlags.RealAny)]
     public sealed class Indexing : Function, IOperator, Parse.IExpression
     { 
         internal IEvaluateable Base { get => Inputs[0]; set { Inputs[0] = value; } }
@@ -254,7 +254,7 @@ namespace Dependency
         public override string ToString() => string.Join(" | ", (IEnumerable<IEvaluateable>)Inputs);
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.IntegerAny, TypeFlags.IntegerAny)]
+    [TypeControl.NonVariadic(0, TypeFlags.Integer, TypeFlags.Integer)]
     public sealed class Range : Function, IOperator, IIndexable
     { 
         public readonly IEvaluateable Start;
