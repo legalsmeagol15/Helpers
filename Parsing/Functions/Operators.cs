@@ -10,6 +10,7 @@ using Dependency.Functions;
 
 namespace Dependency
 {
+
     namespace Operators
     {
         /// <summary>Operators cannot come consecutively when an expression is read left-to-right(with limited exception 
@@ -23,7 +24,6 @@ namespace Dependency
 
             protected sealed override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
                 => Compare((Number)evaluatedInputs[0], (Number)evaluatedInputs[1]) ? Dependency.Boolean.True : Dependency.Boolean.False;
-
         }
 
         [TypeControl.Variadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]

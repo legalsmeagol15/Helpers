@@ -16,11 +16,9 @@ namespace Dependency
         public readonly int Start;
         public readonly int End;
 
-        public EvaluationError(object complainant, IEnumerable<IEvaluateable> inputs, string message = "Failed to evaluate inputs", int startIdx = -1, int endIdx = -1)
+        public EvaluationError(object complainant, IEnumerable<IEvaluateable> inputs, string message = null)
         {
-            this.Message = message;
-            this.Start = startIdx;
-            this.End = endIdx;
+            this.Message = message ?? "Failed to evaluate inputs on " + complainant.GetType().Name + ".";
             this.Complainant = complainant;
             this.Inputs = inputs;
         }
@@ -32,7 +30,7 @@ namespace Dependency
 
     public class InputCountError : EvaluationError
     {
-        internal TypeControl TypeControl;        
+        internal TypeControl TypeControl;
 
         internal InputCountError(object complainant, IList<IEvaluateable> inputs, TypeControl typeControl)
             : base(complainant, inputs, "Incorrect number of inputs (" + inputs.Count + ")")
@@ -66,10 +64,10 @@ namespace Dependency
             this.InputIndex = inputIndex;
             this.TypeControl = typeControl;
             this.GivenFlags = (inputs[inputIndex] is ITypeFlag itf) ? itf.Flags : TypeFlags.Any;
-        }        
+        }
     }
 
-    
+
 
     public sealed class IndexingError : EvaluationError
     {
