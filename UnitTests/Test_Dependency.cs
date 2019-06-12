@@ -31,8 +31,8 @@ namespace UnitTests
         {
             IEvaluateable exp0 = Parse.FromString("3-5+2^3/4*-7-1");    // -17
             IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7-1)");  // Still -17
-            IEvaluateable exp2 = Parse.FromString("(3-5+(2^3)/4*-7-1"); // Still -17
-            IEvaluateable exp3 = Parse.FromString("(3-5+(((2^3)/4)*-7-1)"); // Still -17
+            IEvaluateable exp2 = Parse.FromString("(3-5+(2^3)/4*-7-1)"); // Still -17
+            IEvaluateable exp3 = Parse.FromString("(3-5+( ( (2^3) /4) *-7)-1)"); // Still -17
 
             Assert.AreEqual(exp0.UpdateValue(), -17);
             Assert.AreEqual(exp0.Value, -17);
@@ -50,15 +50,15 @@ namespace UnitTests
         [TestMethod]
         public void TestDependency_ToString()
         {
-            IEvaluateable exp0 = Parse.FromString("3-5+2^3/4*-7-1");
-            IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7-1)"); 
-            IEvaluateable exp2 = Parse.FromString("(3-5+(2^3)/4*-7-1");
-            IEvaluateable exp3 = Parse.FromString("(3-5+(((2^3)/4)*-7-1)");
+            IEvaluateable exp0 = Parse.FromString("3-5+2^3/4*-7-1");    // -17
+            IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7-1)");  // Still -17
+            IEvaluateable exp2 = Parse.FromString("(3-5+(2^3)/4*-7-1)"); // Still -17
+            IEvaluateable exp3 = Parse.FromString("(3-5+( ( (2^3) /4) *-7)-1)"); // Still -17
 
             Assert.AreEqual("3 - 5 + 2 ^ 3 / 4 * -7 - 1", exp0.ToString());
             Assert.AreEqual("( 3 - 5 + 2 ^ 3 / 4 * -7 - 1 )", exp1.ToString());
             Assert.AreEqual("( 3 - 5 + ( 2 ^ 3 ) / 4 * -7 - 1 )", exp2.ToString());
-            Assert.AreEqual("( 3 - 5 + ( ( ( 2 ^ 3 ) / 4 ) * -7 - 1 ) )", exp3.ToString());
+            Assert.AreEqual("( 3 - 5 + ( ( ( 2 ^ 3 ) / 4 ) * -7 ) - 1 )", exp3.ToString());
         }
 
         private static void PrintTimings(double[] timings)

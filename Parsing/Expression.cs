@@ -20,7 +20,7 @@ namespace Dependency
 
         }
 
-        public static IEvaluateable FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
+        public static Expression FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
         {
 
             string[] splits = _Regex.Split(str);
@@ -28,16 +28,15 @@ namespace Dependency
             
             try
             {
-                Parenthetical p = new Parenthetical();
-                _TokenizeAndParse(p);
-                return p.Head;
+                Expression e = new Expression();                
+                _TokenizeAndParse(e);
+                return e;
             }
             catch (SyntaxException s)
             {
                 // This is a normal exception occurring due to a bad input string.
                 // Nobody else is allowed to throw a non-child SyntaxException.
-                throw new SyntaxException(_ComposeParsed(), splits[splitIdx], s.Message, s);                
-                throw;
+                throw new SyntaxException(s.Parsed ?? _ComposeParsed(), s.Token, s.Message, s);
             }
             catch (Exception e)
             {
@@ -76,7 +75,7 @@ namespace Dependency
                     // A named function?
                     if (functions != null && functions.TryCreate(token, out NamedFunction f))
                     {
-                        inputs.AddLast(f);
+                        inputs.AddLast(_TokenizeAndParse(f));
                         continue;
                     }
 
@@ -93,12 +92,20 @@ namespace Dependency
                 else if (fullParsed.Length == 1) e.Result = fullParsed[0];
                 else e.Result = new Vector(fullParsed);
                 return exp;
-
-
                 
                 IEvaluateable[] __Parse()
                 {
-                    Debug.Assert(heap.Count == 0);  // The heap should be empty.
+                    while (heap.Count > 0)
+                    {
+                        Token token = heap.Dequeue();
+                        if (token.TryParse(out Token replacement))
+                            continue;
+                        replacement.Node = token.Node;
+                        replacement.Node.Contents = replacement;
+                        if (token != replacement)
+                            heap.Enqueue(replacement);
+                    }
+                    
                     Debug.Assert(inputs.Count > 0);
                     
                     // Look for implied multiplications and break as vectors.
@@ -106,7 +113,7 @@ namespace Dependency
                     var node = inputs.FirstNode;
                     List<List<IEvaluateable>> allLegs = new List<List<IEvaluateable>>();
                     List<IEvaluateable> thisLeg = new List<IEvaluateable>();
-                    while (node != null && node.Next != null)
+                    while (node != null)
                     {
                         if (node.Contents is TokenComma tc) throw new ParsingException(tc, "Arguments must succeed and follow every comment.");
                         if (node.Contents is TokenSemicolon ts0) throw new ParsingException(ts0, "Arguments must succeed and follow every semicolon.");
@@ -164,9 +171,9 @@ namespace Dependency
                 {
                     switch (token)
                     {
-                        case "(":                            
+                        case "(":
                             if (exp is NamedFunction nf)
-                                inputs.AddLast(_TokenizeAndParse(nf));
+                                return true;
                             else
                                 inputs.AddLast(_TokenizeAndParse(new Parenthetical()));
                             return true;
@@ -184,16 +191,16 @@ namespace Dependency
                             var parsed = __Parse();
                             if (exp is Parenthetical p) { p.Head = (parsed.Length != 1) ? new Vector(parsed) : parsed[0]; return true; }
                             else if (exp is NamedFunction nf) { nf.Inputs = (parsed.Length == 1 && parsed[0] is Vector v) ? v.Inputs : parsed; return true; }
-                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " must be closed by ')'.");
+                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " cannot be closed by ')'.");
                         case "]":
                             if (exp is Indexing) return true;
-                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " must be closed by ']'.");
+                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " cannot be closed by ']'.");
                         case "}":
                             if (exp is Curly) return true;
-                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " must be closed by '}'.");
+                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " cannot be closed by '}'.");
                         case "":
                             if (exp is Expression) return true;
-                            throw new NestingSyntaxException(_ComposeParsed(), token, "Only an " + exp.GetType().Name + " can be closed without a token.");
+                            throw new NestingSyntaxException(_ComposeParsed(), token, "Only general " + typeof(Expression).Name + "s can be closed without a token.");
                     }
                     return false;
                 }
@@ -267,21 +274,7 @@ namespace Dependency
                     default: token = null; return false;
                 }
             }
-            internal static void Parse(Heap<Token> prioritized)
-            {                
-                while (prioritized.Count > 0)
-                {
-                    Token token = prioritized.Dequeue();
-                    if (token.TryParse(out Token replacement))
-                        continue;
-                    replacement.Node = token.Node;
-                    replacement.Node.Contents = replacement;
-                    if (token != replacement)
-                        prioritized.Enqueue(replacement);
-                }
-                
-            }
-           
+            
 
             internal DynamicLinkedList<IEvaluateable>.Node Node;
 
@@ -717,6 +710,8 @@ namespace Dependency
             IEvaluateable IEvaluateable.Value => Result.Value;
             
             IEvaluateable IEvaluateable.UpdateValue() => Result.UpdateValue();
+
+            public override string ToString() => Result.ToString();
         }
 
         internal sealed class Reference : IEvaluateable
