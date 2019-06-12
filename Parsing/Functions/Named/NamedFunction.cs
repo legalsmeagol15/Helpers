@@ -13,10 +13,6 @@ namespace Dependency.Functions
         public virtual string Name { get => _CachedNamed; }
         protected NamedFunction() { _CachedNamed = this.GetType().Name.ToUpper(); }
         
-        void Parse.IExpression.Finish(IList<IEvaluateable> inputs, string token)
-        {
-            throw new NotImplementedException();
-        }
     }
 
 }

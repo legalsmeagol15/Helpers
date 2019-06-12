@@ -8,7 +8,7 @@ using static Dependency.TypeControl;
 namespace Dependency
 {
     [Serializable]
-    public class EvaluationError : IEvaluateable, ITypeFlag
+    public class EvaluationError : IEvaluateable, ITypeGuarantee
     {
         public readonly string Message;
         public readonly object Complainant;
@@ -25,7 +25,7 @@ namespace Dependency
 
         IEvaluateable IEvaluateable.Value => this;
         IEvaluateable IEvaluateable.UpdateValue() => this;
-        TypeFlags ITypeFlag.Flags => TypeFlags.Error;
+        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Error;
     }
 
     public class InputCountError : EvaluationError
@@ -63,7 +63,7 @@ namespace Dependency
             this.ConstraintIndex = constraintIdx;
             this.InputIndex = inputIndex;
             this.TypeControl = typeControl;
-            this.GivenFlags = (inputs[inputIndex] is ITypeFlag itf) ? itf.Flags : TypeFlags.Any;
+            this.GivenFlags = (inputs[inputIndex] is ITypeGuarantee itf) ? itf.TypeGuarantee : TypeFlags.Any;
         }
     }
     

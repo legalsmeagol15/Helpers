@@ -36,9 +36,7 @@ namespace Dependency
         /// <summary>Updates and returns the new value of this <see cref="IEvaluateable"/>.</summary>
         IEvaluateable Value { get; }
 
-        IEvaluateable UpdateValue();
-
-        string ToExpression(IContext perspective);
+        IEvaluateable UpdateValue();        
     }
 
     public interface IFunction : IEvaluateable
@@ -79,9 +77,9 @@ namespace Dependency
 
    
 
-    internal interface ITypeFlag
+    internal interface ITypeGuarantee
     {
-        TypeFlags Flags { get; }
+        TypeFlags TypeGuarantee { get; }
     }
 
 

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct Number : ILiteral<decimal>, ITypeFlag
+    public struct Number : ILiteral<decimal>, ITypeGuarantee
     {
         public static readonly Number Zero = new Number(0m);        
         public static readonly Number One = new Number(1m);
@@ -19,17 +19,8 @@ namespace Dependency
         internal TypeFlags TypeFlags => _TypeFlags;
         internal decimal Value;
 
-        public Number(decimal m) { this.Value = m; this._TypeFlags = TypeFlags.Number | GetValueFlags(m); }
-
-        internal static TypeFlags GetValueFlags(decimal m)
-        {
-            TypeFlags tf = _IsInteger(m) ? TypeFlags.Integer : TypeFlags.NonInteger;
-            if (m > 0) tf |= TypeFlags.Positive;
-            else if (m < 0) tf |= TypeFlags.Negative;
-            else tf |= TypeFlags.Zero;
-            return tf;
-        }
-
+        public Number(decimal m) { this.Value = m; this._TypeFlags = (_IsInteger(m)) ? TypeFlags.Integer : TypeFlags.RealAny; }
+        
         public Number(double d) : this((decimal)d) { }
         public Number(int i) : this((decimal)i) { }
         
@@ -105,6 +96,6 @@ namespace Dependency
         decimal ILiteral<decimal>.CLRValue => Value;
         IEvaluateable IEvaluateable.UpdateValue() => this;
         IEvaluateable IEvaluateable.Value => this;
-        TypeFlags ITypeFlag.Flags => _TypeFlags;
+        TypeFlags ITypeGuarantee.TypeGuarantee => _TypeFlags;
     }
 }

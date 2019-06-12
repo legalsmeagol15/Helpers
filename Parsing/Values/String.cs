@@ -8,15 +8,15 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct String : ILiteral<string>, ITypeFlag
+    public struct String : ILiteral<string>, ITypeGuarantee
     {
         internal const string PARSE_PATTERN = "\"[^\"]*\"";  // Any string bracketed by two "s and containing no " in between.
-        
+
         internal readonly string Value;
 
-        private readonly TypeFlags _TypeFlags;
+        public TypeFlags TypeGuarantee => TypeFlags.String;
 
-        public String(string str) { this.Value = str; _TypeFlags = TypeFlags.String | (str == "" ? TypeFlags.Zero : 0); }        
+        public String(string str) { this.Value = str; }
 
         public static implicit operator String(string str) => new String(str);
         public static implicit operator string(String s) => s.Value;
@@ -37,7 +37,17 @@ namespace Dependency
 
         public override int GetHashCode() => Value.GetHashCode();
 
-        public static bool IsQuotedString(string token) => _Regex.IsMatch(token);
+        public static bool TryUnquote(string str, out string result)
+        {
+            if (str.Length < 2) { result = null; return false; }
+            if (str[0] == '"' && str[str.Length - 1] == '"')
+            {
+                result = str.Substring(1, str.Length - 2);
+                return true;
+            }
+            result = null;
+            return false;
+        }
 
         public override string ToString() => this.Value;
 
@@ -56,11 +66,10 @@ namespace Dependency
             sb.Append(" " + lastJoiner + " " + items[items.Length - 1].ToString());
             return sb.ToString();
         }
-                
+
         string ILiteral<string>.CLRValue => Value;
         IEvaluateable IEvaluateable.UpdateValue() => this;
         IEvaluateable IEvaluateable.Value => this;
-
-        TypeFlags ITypeFlag.Flags => _TypeFlags;
+        
     }
 }

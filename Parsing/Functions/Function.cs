@@ -38,8 +38,6 @@ namespace Dependency.Functions
         }
 
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
-
-        protected string ToExpression(IContext perspective) => this.ToString();
-        string IEvaluateable.ToExpression(IContext perspective) => ToExpression(perspective);
+        
     }
 }

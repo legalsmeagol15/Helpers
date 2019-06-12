@@ -22,10 +22,8 @@ namespace Dependency
         public string Name { get; private set; }
 
         IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
-
-        string IEvaluateable.ToExpression(IContext perspective) => GetExpressionString(perspective);
-
-        private string GetExpressionString(IContext perspective)
+        
+        internal string GetExpressionString(IContext perspective)
         {
             // Find the perspective's ancestry.
             List<IContext> perspectiveAncestry = new List<IContext>();  // Chose a list not a hashset because not expected to be huge.

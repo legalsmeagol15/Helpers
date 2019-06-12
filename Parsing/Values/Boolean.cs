@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct Boolean : ILiteral<bool>, ITypeFlag
+    public struct Boolean : ILiteral<bool>, ITypeGuarantee
     {
         public static readonly Boolean False = false;
         public static readonly Boolean True = true;
@@ -34,7 +34,8 @@ namespace Dependency
 
         bool ILiteral<bool>.CLRValue => Value;
         IEvaluateable IEvaluateable.UpdateValue() => this;
+        
         IEvaluateable IEvaluateable.Value => this;
-        TypeFlags ITypeFlag.Flags => TypeFlags.Boolean;
+        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Boolean;
     }
 }

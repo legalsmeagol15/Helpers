@@ -83,9 +83,9 @@ namespace Dependency
                 for (int argIdx = 0; argIdx < objects.Count; argIdx++)
                 {
                     TypeFlags allowed = constraint[argIdx];
-                    if (objects[argIdx] is ITypeFlag itf)
+                    if (objects[argIdx] is ITypeGuarantee itg)
                     {
-                        TypeFlags objType = itf.Flags;
+                        TypeFlags objType = itg.TypeGuarantee;
                         if ((allowed & objType) != objType)
                         {
                             if (argIdx <= unmatchedArg) continue;

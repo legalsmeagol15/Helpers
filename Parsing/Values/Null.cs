@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public sealed class Null  : ILiteral<object>, ITypeFlag
+    public sealed class Null  : ILiteral<object>, ITypeGuarantee
     {        
         public static readonly Null Instance = new Null();
         
@@ -22,6 +22,6 @@ namespace Dependency
         object ILiteral<object>.CLRValue => null;
         IEvaluateable IEvaluateable.UpdateValue() => this;
         IEvaluateable IEvaluateable.Value => this;
-        TypeFlags ITypeFlag.Flags => TypeFlags.Null;
+        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Null;
     }
 }

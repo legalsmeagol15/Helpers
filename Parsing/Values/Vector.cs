@@ -7,7 +7,7 @@ using Dependency.Functions;
 
 namespace Dependency
 {
-    public sealed class Vector : Function, IEvaluateable, IIndexable, IContext, ILiteral<object[]>, ITypeFlag
+    public sealed class Vector : Function, IEvaluateable, IIndexable, IContext, ILiteral<object[]>, ITypeGuarantee
     {
         internal Vector(IEvaluateable[] contents) { Inputs = contents; }
         public Vector() : this(new IEvaluateable[0]) { }
@@ -53,17 +53,8 @@ namespace Dependency
 
         bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
 
-        bool IContext.TryGetVariable(string token, out IVariable var) { var = null; return false; }
-
-        bool IContext.TryGetConstant(string token, out IEvaluateable k)
-        {
-            switch (token.ToLower())
-            {
-                case "size":
-                case "length": k = new Number(Inputs.Count); return true;
-                default: k = null; return false;
-            }
-        }
+        bool IContext.TryGetVariable(string token, out IVariable var, out Mobility m) { var = null; m = Mobility.None; return false; }
+        
 
         public static bool operator ==(Vector a, Vector b)
         {
@@ -74,6 +65,6 @@ namespace Dependency
         public static bool operator !=(Vector a, Vector b) => !(a == b);
         
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
-        TypeFlags ITypeFlag.Flags => TypeFlags.VectorReal;
+        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.VectorReal;
     }
 }
