@@ -57,19 +57,41 @@ namespace Dependency
         
         public IContext Parent { get; }
 
-        public readonly IDictionary<string, IContext> Contexts = new Dictionary<string, IContext>();
-        public readonly IDictionary<string, ISource> Sources = new Dictionary<string, ISource>();
+        private readonly IDictionary<string, IContext> _TypedContexts = new Dictionary<string, IContext>();
+        private readonly IDictionary<string, ISource> _TypedSources = new Dictionary<string, ISource>();
+        private readonly IDictionary<string, IListener> _TypedListeners = new Dictionary<string, IListener>();
+        private readonly IDictionary<Type, AutoProfile> _Profiles = new Dictionary<Type, AutoProfile>();
 
+        public bool Add(object obj, string name)
+        {
+            if (obj is IContext ic)
+            {
+                if (_TypedContexts.ContainsKey(name)) return false;
+                _TypedContexts[name] = ic;
+                return true;
+            }
+            else if (obj is ISource isrc)
+            {
+                if (_TypedSources.ContainsKey(name)) return false;
+                _TypedSources[name] = isrc;
+                return true;
+            }
+            else if (_Profiles.TryGetValue(obj.GetType(), out AutoProfile prof))
+            {
+
+            }
+        }
 
         public AutoContext(IContext parent = null) { this.Parent = parent; }
 
         bool IContext.TryGetSource(string token, out ISource source, out Mobility mobility)
         {
             ExtractMobility(token, out token, out mobility);
-            if (Sources.TryGetValue(token, out source)) return true;
+            if (_TypedSources.TryGetValue(token, out source)) return true;
+
         }
 
-        bool IContext.TryGetSubcontext(string token, out IContext ctxt) => this.Contexts.TryGetValue(token, out ctxt);
+        bool IContext.TryGetSubcontext(string token, out IContext ctxt) => this._TypedContexts.TryGetValue(token, out ctxt);
 
         private void ExtractMobility(string token, out string stripped, out Mobility mobility)
         {
@@ -91,6 +113,11 @@ namespace Dependency
 
         [AttributeUsage(validOn: AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = false)]
         public sealed class SubContextAttribute : Attribute { }
+
+        internal sealed class AutoProfile : IContext
+        {
+
+        }
     }
 
 
