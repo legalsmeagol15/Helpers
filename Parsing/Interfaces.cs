@@ -11,7 +11,7 @@ namespace Dependency
     {
         bool TryExtract(string token, out string stripped, out Mobility mobility);
     }
-    
+
     /// <summary>
     /// A function which caches its <seealso cref="TypeControl"/> input validator may validate just a little faster 
     /// than a function which must retrieve the validator from the cached catalogue.
@@ -26,13 +26,13 @@ namespace Dependency
         IList<string> Categories { get; }
     }
 
-    
+
 
     public interface IContext
     {
         bool TryGetSubcontext(string token, out IContext ctxt);
         bool TryGetSource(string token, out ISource source, out Mobility mobility);
-        
+
         IContext Parent { get; }
     }
 
@@ -64,14 +64,14 @@ namespace Dependency
         /// null.</returns>
         bool TryCreate(string token, out NamedFunction nf);
     }
-    
+
     internal interface IIndexable : IEvaluateable
     {
         IEvaluateable MaxIndex { get; }
         IEvaluateable MinIndex { get; }
         IEvaluateable this[params Number[] indices] { get; }
     }
-    
+
     public interface IListener
     {
         IEnumerable<ISource> Sources { get; }
@@ -88,17 +88,17 @@ namespace Dependency
         TClr CLRValue { get; }
     }
 
-    internal interface INamed
+    public interface INamed
     {
         string Name { get; }
     }
 
-    internal interface ITerms :IEvaluateable
+    internal interface ITerms : IEvaluateable
     {
         IEnumerable<ISource> GetTerms();
     }
 
-   
+
 
     internal interface ITypeGuarantee
     {
@@ -107,24 +107,19 @@ namespace Dependency
 
 
 
-    internal interface IRangeable : IContext
-    {
-        bool TryGetImmobile(string token, out Parse.Reference r);
-    }
-    
+
     public interface ISource : IEvaluateable
     {
         IEnumerable<IListener> Listeners { get; }
+
+        IEvaluateable Contents { get; set; }
     }
 
 
-    public interface IVariable : IEvaluateable
+    public interface IVariable : IEvaluateable, ISource, IListener, INamed
     {
         IContext Context { get; }
 
-        IEvaluateable Contents { get; }
-
-        string Name { get; }
     }
 
 

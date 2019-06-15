@@ -12,6 +12,8 @@ using Dependency.Operators;
 
 namespace Dependency
 {
+
+
     internal static class Helpers
     {
 
@@ -24,6 +26,19 @@ namespace Dependency
 
         public static IEnumerable<ISource> GetTerms(this IEnumerable<IEvaluateable> ievals) => ievals.SelectMany((e) => e.GetTerms());
 
+        public static IEvaluateable Obj2Eval(object obj)
+        {
+            switch (obj)
+            {
+                case IEvaluateable iev: return iev;
+                case null: return Null.Instance;
+                case double d: return new Number(d);
+                case int i: return new Number(i);
+                case decimal m: return new Number(m);
+                case bool b: return Boolean.FromBool(b);
+                default: return new Dependency.String(obj.ToString()); 
+            }
+        }
     }
 
     public sealed class Parse
