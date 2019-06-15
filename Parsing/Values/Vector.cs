@@ -53,7 +53,7 @@ namespace Dependency
 
         bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
 
-        bool IContext.TryGetVariable(string token, out IVariable var, out Mobility m) { var = null; m = Mobility.None; return false; }
+        bool IContext.TryGetSource(string token, out ISource src, out Mobility m) { src = null; m = Mobility.None; return false; }
         
 
         public static bool operator ==(Vector a, Vector b)

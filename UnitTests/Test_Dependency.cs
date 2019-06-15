@@ -43,8 +43,8 @@ namespace UnitTests
             Assert.AreEqual(exp3.UpdateValue(), -17);
             Assert.AreEqual(exp3.Value, -17);
 
-            //var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
-            //PrintTimings(timings);
+            var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
+            PrintTimings(timings);
         }
 
         [TestMethod]

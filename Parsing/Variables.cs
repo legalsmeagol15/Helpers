@@ -13,16 +13,21 @@ namespace Dependency
         Row = 2,
         All = ~0
     }
-    public class Variables : IVariable
+    public class Variables : IVariable, ISource, IListener  // NOT an ITerms, otherwise this variable's terms will be added to an variable this is a term of.
     {
         public IContext Context { get; private set; }
 
-        IEvaluateable IVariable.Contents => throw new NotImplementedException();
+        public IEvaluateable Contents { get; set; }
 
         public string Name { get; private set; }
 
-        IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
-        
+        public IEvaluateable Value => Contents.Value;
+        IEvaluateable IEvaluateable.UpdateValue() => Contents.UpdateValue();
+
+        IEnumerable<IListener> ISource.Listeners => throw new NotImplementedException();
+
+        IEnumerable<ISource> IListener.Sources => throw new NotImplementedException();
+
         internal string GetExpressionString(IContext perspective)
         {
             // Find the perspective's ancestry.
@@ -43,9 +48,6 @@ namespace Dependency
             return string.Join(".", names) + "." + Name;
         }
 
-        IEvaluateable IEvaluateable.UpdateValue()
-        {
-            throw new NotImplementedException();
-        }
+        
     }
 }

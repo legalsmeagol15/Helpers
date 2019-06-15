@@ -26,7 +26,7 @@ namespace Dependency
     public interface IContext
     {
         bool TryGetSubcontext(string token, out IContext ctxt);
-        bool TryGetVariable(string token, out IVariable var, out Mobility immobiles);
+        bool TryGetSource(string token, out ISource source, out Mobility immobiles);
         
         IContext Parent { get; }
     }
@@ -36,7 +36,9 @@ namespace Dependency
         /// <summary>Updates and returns the new value of this <see cref="IEvaluateable"/>.</summary>
         IEvaluateable Value { get; }
 
-        IEvaluateable UpdateValue();        
+        IEvaluateable UpdateValue();
+
+
     }
 
     public interface IFunction : IEvaluateable
@@ -64,6 +66,17 @@ namespace Dependency
         IEvaluateable MinIndex { get; }
         IEvaluateable this[params Number[] indices] { get; }
     }
+    
+    public interface IListener
+    {
+        IEnumerable<ISource> Sources { get; }
+
+    }
+    public interface ICLRListener<T> : IListener
+    {
+
+        Action<T> UpdateValue { get; }
+    }
 
     internal interface ILiteral<TClr> : IEvaluateable
     {
@@ -73,6 +86,11 @@ namespace Dependency
     internal interface INamed
     {
         string Name { get; }
+    }
+
+    internal interface ITerms :IEvaluateable
+    {
+        IEnumerable<ISource> GetTerms();
     }
 
    
@@ -89,6 +107,10 @@ namespace Dependency
         bool TryGetImmobile(string token, out Parse.Reference r);
     }
     
+    public interface ISource : IEvaluateable
+    {
+        IEnumerable<IListener> Listeners { get; }
+    }
 
 
     public interface IVariable : IEvaluateable

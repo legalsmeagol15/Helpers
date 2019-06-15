@@ -12,12 +12,26 @@ using Dependency.Operators;
 
 namespace Dependency
 {
+    internal static class Helpers
+    {
+
+        public static IEnumerable<ISource> GetTerms(this IEvaluateable ieval)
+        {
+            if (ieval is ITerms it) return it.GetTerms();
+            else if (ieval is ISource src) return new ISource[] { src };
+            return new ISource[0];
+        }
+
+        public static IEnumerable<ISource> GetTerms(this IEnumerable<IEvaluateable> ievals) => ievals.SelectMany((e) => e.GetTerms());
+
+    }
+
     public sealed class Parse
     {
         /// <summary>Readable left-to-right.</summary>
-        internal interface IExpression : IEvaluateable
+        internal interface IExpression : IEvaluateable, ITerms
         {
-
+           
         }
 
         public static Expression FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
@@ -88,9 +102,9 @@ namespace Dependency
                 __TryFinish("");
                 Expression e = (Expression)exp;
                 var fullParsed = __Parse();
-                if (fullParsed.Length == 0) e.Result = Null.Instance;
-                else if (fullParsed.Length == 1) e.Result = fullParsed[0];
-                else e.Result = new Vector(fullParsed);
+                if (fullParsed.Length == 0) e.Contents = Null.Instance;
+                else if (fullParsed.Length == 1) e.Contents = fullParsed[0];
+                else e.Contents = new Vector(fullParsed);
                 return exp;
                 
                 IEvaluateable[] __Parse()
@@ -135,28 +149,32 @@ namespace Dependency
 
                 bool __TryCreateReference(string token, out Reference result)
                 {
+                    result = null;
                     // If there is no context, then of course there can be no reference.
-                    if (rootContext == null) { result = null; return false; }
+                    if (rootContext == null) return false;
 
+                    IContext ctxt = null;
+                    
                     // If the token refers to a variable then we've already nailed down a reference.
-                    if (rootContext.TryGetVariable(token, out IVariable var, out Mobility m)) { result = new Reference(var, m); return true; }
+                    if (rootContext.TryGetSource(token, out ISource src, out Mobility m)) { result = new Reference(src, m); }
 
                     // Once a context-to-subcontext chain starts, any failure will be an exception.
-                    if (!rootContext.TryGetSubcontext(token, out IContext ctxt)) { result = null; return false; }
+                    else if (!rootContext.TryGetSubcontext(token, out ctxt)) { result = null; return false; }
 
                     // Maintain a list for purposes of error report.
                     List<IContext> traversed = new List<IContext>();
 
                     // Traverse through the contexts till we either find a variable, or run out of subcontexts.
                     bool dot = false;
+                    
                     while (splitIdx < splits.Length)
                     {
                         traversed.Add(ctxt);
                         token = splits[splitIdx];
-                        if (ctxt.TryGetVariable(token, out var, out m)) { result = new Reference(var, m); return true; }
+                        if (ctxt.TryGetSource(token, out src, out m)) { result = new Reference(src, m); }
                         else if (token == ".")
                         {
-                            if (dot) throw new ReferenceException(_ComposeParsed(), ".", "Only a single dot may separate edges in a reference path.");
+                            if (dot) break;
                             dot = true;
                             splitIdx++;
                         }
@@ -164,7 +182,8 @@ namespace Dependency
                         else throw new ReferenceException(_ComposeParsed(), token, "Invalid token '" + token + "' in reference hierarchy.");
                     }
 
-                    throw new ReferenceException(_ComposeParsed(), "", "Incomplete reference: " + string.Join(".", traversed.Select(c => c is INamed cn ? cn.Name : ".")));
+                    if (result != null) { splitIdx--; return true; }
+                    throw new ReferenceException(_ComposeParsed(), token, "Invalid token '" + token + "' in reference.");                    
                 }
 
                 bool __TryStartSubExpression(string token)
@@ -214,6 +233,7 @@ namespace Dependency
         {
             throw new NotImplementedException();
         }
+
 
         
 
@@ -698,34 +718,42 @@ namespace Dependency
 
             private IEvaluateable _Value = null;
             IEvaluateable IEvaluateable.Value => _Value;
-            IEvaluateable IEvaluateable.UpdateValue() => _Value = Reference.Variable.Contents;
+            IEvaluateable IEvaluateable.UpdateValue() => _Value = Reference.Source is IVariable ivar ? ivar.Contents : Reference.Source.Value;
 
             public override string ToString() => '{' + Reference.ToString() + '}';
+
+            IEnumerable<ISource> ITerms.GetTerms() => new ISource[] { Reference.Source };
         }
 
 
         public sealed class Expression : IExpression
         {
-            internal IEvaluateable Result { get; set; }
-            IEvaluateable IEvaluateable.Value => Result.Value;
+            internal IEvaluateable Contents { get; set; }
+            IEvaluateable IEvaluateable.Value => Contents.Value;
             
-            IEvaluateable IEvaluateable.UpdateValue() => Result.UpdateValue();
+            IEvaluateable IEvaluateable.UpdateValue() => Contents.UpdateValue();
 
-            public override string ToString() => Result.ToString();
+            public override string ToString() => Contents.ToString();
+
+            IEnumerable<ISource> ITerms.GetTerms() => Contents.GetTerms();
         }
 
-        internal sealed class Reference : IEvaluateable
+        internal sealed class Reference : IEvaluateable, ITerms
         {
 
-            public IVariable Variable { get; internal set; }
+            public ISource Source { get; internal set; }
             public Mobility Mobility { get; internal set; }
             
             private IEvaluateable _Value = null;
             IEvaluateable IEvaluateable.Value => _Value;
-            IEvaluateable IEvaluateable.UpdateValue() => _Value = Variable.Value;
-            
+            IEvaluateable IEvaluateable.UpdateValue() => _Value = Source.Value;
+
+            IEnumerable<ISource> ITerms.GetTerms() => new ISource[] { Source };
+
             public Reference() { }
-            public Reference(IVariable head, Mobility immobiles) { Variable = head; Mobility = immobiles; }
+            public Reference(ISource head, Mobility immobiles) { Source = head; Mobility = immobiles; }
+
+
             
         }
 
@@ -733,7 +761,7 @@ namespace Dependency
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Head"/> of a 
         /// <see cref="Parenthetical"/>.</summary>
-        internal sealed class Parenthetical : IExpression
+        internal sealed class Parenthetical : IExpression, ITerms
         {
 
             /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
@@ -746,7 +774,8 @@ namespace Dependency
 
 
             public override string ToString() => "( " + Head.ToString() + " )";
-            
+
+            IEnumerable<ISource> ITerms.GetTerms() => Head.GetTerms();
         }
 
 
