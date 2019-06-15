@@ -7,6 +7,11 @@ using Dependency.Functions;
 
 namespace Dependency
 {
+    public interface IAllowReferenceMobility
+    {
+        bool TryExtract(string token, out string stripped, out Mobility mobility);
+    }
+    
     /// <summary>
     /// A function which caches its <seealso cref="TypeControl"/> input validator may validate just a little faster 
     /// than a function which must retrieve the validator from the cached catalogue.
@@ -26,7 +31,7 @@ namespace Dependency
     public interface IContext
     {
         bool TryGetSubcontext(string token, out IContext ctxt);
-        bool TryGetSource(string token, out ISource source, out Mobility immobiles);
+        bool TryGetSource(string token, out ISource source, out Mobility mobility);
         
         IContext Parent { get; }
     }
