@@ -39,6 +39,11 @@ namespace Dependency
                 default: return new Dependency.String(obj.ToString()); 
             }
         }
+
+        public static void NotifyListeners(this ISource source)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public sealed class Parse

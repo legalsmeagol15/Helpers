@@ -30,8 +30,7 @@ namespace Dependency
         IEvaluateable IEvaluateable.UpdateValue() => Contents.UpdateValue();
 
         IEnumerable<IListener> ISource.Listeners => throw new NotImplementedException();
-
-        IEnumerable<ISource> IListener.Sources => throw new NotImplementedException();
+        
 
         internal string GetExpressionString(IContext perspective)
         {
@@ -76,7 +75,7 @@ namespace Dependency
         private readonly IDictionary<string, ISource> _DirectSources = new Dictionary<string, ISource>();
         // No point in having direct listeners.
 
-        private readonly IDictionary<Type, AutoProfile> _Profiles = new Dictionary<Type, AutoProfile>();
+        
         private readonly IDictionary<object, WeakReference< WeakContext>> _InternalContexts = new Dictionary<object, WeakReference<WeakContext>>();
 
         public AutoContext(StandardizeTokenDelegate tokenStandardizer)
@@ -97,6 +96,19 @@ namespace Dependency
         {   
             if (_DirectSubcontexts.ContainsKey(name)) return false;
             _DirectSubcontexts[name] = ctxt;
+            return true;
+        }
+        /// <summary>Adds a weak reference to the context.</summary>
+        public bool AddContext(object obj, string name)
+        {
+            if (obj is IContext ic) return AddContext(ic, name);
+            if (!_InternalContexts.TryGetValue(name, out var weakRef))
+                _InternalContexts[name] = (weakRef = new WeakReference<WeakContext>(null));
+            if (weakRef.TryGetTarget(out var _)) return false;
+
+            AutoProfile prof = AutoProfile.FromType(obj.GetType(), StandardizeToken);
+            WeakContext wc = new WeakContext(this, prof);
+            weakRef.SetTarget(wc);
             return true;
         }
         
@@ -137,9 +149,12 @@ namespace Dependency
             if (!TryGetExistingSource(context, sourceName, out ISource src)) return false;
             if (src is WeakSource weakSrc)
             {                
-                src.Contents = Helpers.Obj2Eval(weakSrc.Read());
-                src.UpdateValue();
+                weakSrc.UpdateValue();
                 return true;
+            } else
+            {
+                
+                src.NotifyListeners();
             }
             return false;
         }
@@ -163,24 +178,15 @@ namespace Dependency
         }
 
 
+        
 
-        /// <summary>
-        /// A source attribute can be applied to any property that is not write-only.  Note that if the property's CLR 
-        /// type cannot be readily converted into an <seealso cref="IEvaluateable"/> object, the value of the source 
-        /// will be the property's ToString() value.  Also, note that updating the value will require a call to the 
-        /// host <see cref="AutoContext"/>'s <seealso cref="AutoContext.UpdateSource(object, string)"/> method.
-        /// </summary>
-        [AttributeUsage(validOn: AttributeTargets.Property , AllowMultiple = false, Inherited = false)]
-        public sealed class SourceAttribute : Attribute {
+        [AttributeUsage(validOn: AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
+        public sealed class VariableAttribute : Attribute
+        {
+            public readonly bool Source;
+            public readonly bool Listener;
+            public VariableAttribute(bool source, bool listener) { this.Source = source; this.Listener = listener; }
         }
-
-        /// <summary>
-        /// A listener attribute can be applied to any property that is not read-only.  Note that if the dependency 
-        /// system attempts to set the value of the property to something that cannot be accommodated by its CLR type, 
-        /// an exception will be thrown.
-        /// </summary>
-        [AttributeUsage(validOn: AttributeTargets.Property , AllowMultiple = false, Inherited = false)]
-        public sealed class ListenerAttribute : Attribute { }
 
         /// <summary>
         /// The subcontext attribute can be applied to any member class 
@@ -192,6 +198,7 @@ namespace Dependency
         {
             
             public IContext Parent { get; private set; }
+            public readonly object Host;
             private readonly AutoProfile Profile;
             private readonly StandardizeTokenDelegate StandardizeToken;
 
@@ -209,22 +216,44 @@ namespace Dependency
             {
                 StandardizeToken(token, out token, out mobility);
                 source = null;
-                return Sources.TryGetValue(token, out var weakRef) && weakRef.TryGetTarget(out source);
-            }
-            bool IContext.TryGetSource(string token, out ISource source, out Mobility mobility) => this.TryGetSource(token, out source, out mobility);
-
-            bool IContext.TryGetSubcontext(string token, out IContext ctxt)
-            {
-                ctxt = null;
-                return Subcontexts.TryGetValue(token, out var weakRef) && weakRef.TryGetTarget(out ctxt);
+                if (!Sources.TryGetValue(token, out var weakRef))
+                    Sources[token] = (weakRef = new WeakReference<ISource>(null));
+                if (!weakRef.TryGetTarget(out source))
+                {
+                    if (!Profile.SourceProperties.TryGetValue(token, out PropertyInfo pInfo)) return false;
+                    WeakSource ws = new WeakSource(this, () => Helpers.Obj2Eval(pInfo.GetValue(Host)));
+                }
+                return true;
             }
             
+            bool IContext.TryGetSource(string token, out ISource source, out Mobility mobility) => this.TryGetSource(token, out source, out mobility);
+
+            bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return Subcontexts.TryGetValue(token, out var weakRef) && weakRef.TryGetTarget(out ctxt); }
+
         }
         private sealed class WeakSource : ISource
         {
-            public readonly Func<object> Read;
+            private readonly Func<IEvaluateable> _ReadFromCLR;
             public readonly IContext Context;
-            public WeakSource(IContext context, Func<object> clr_reader) { this.Context = context; this.Read = clr_reader; }
+            public WeakSource(IContext context, Func<IEvaluateable> clr_reader)
+            {
+                this.Context = context;
+                this._ReadFromCLR = clr_reader;
+                this.Value = _ReadFromCLR();
+            }
+
+            public IEnumerable<IListener> Listeners { get; } = new HashSet<IListener>();
+
+            public IEvaluateable Value { get; private set; }
+
+            IEnumerable<IListener> ISource.Listeners => throw new NotImplementedException();
+
+            IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
+
+            public IEvaluateable Contents { get => Value; set { Value = Contents; this.NotifyListeners(); } }
+
+            public IEvaluateable UpdateValue() { Value = _ReadFromCLR(); this.NotifyListeners(); return Value; }
+            
         }
 
         private sealed class WeakListener : IListener
@@ -232,11 +261,31 @@ namespace Dependency
             public readonly Action<object> Write;
             public readonly IContext Context;
             public WeakListener(IContext context, Action<object> clr_writer) { this.Context = context; this.Write = clr_writer; }
+
+            IEvaluateable IListener.Contents => throw new NotImplementedException();
         }
         private sealed class WeakVariable : IVariable
         {
             public IContext Context { get; private set; }
+
+            IContext IVariable.Context => throw new NotImplementedException();
+
+            IEnumerable<IListener> ISource.Listeners => throw new NotImplementedException();
+            
+            IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
+
+            string INamed.Name => throw new NotImplementedException();
+
+            IEvaluateable IListener.Contents => throw new NotImplementedException();
+
+            IEvaluateable ISource.Contents { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
             public WeakVariable(IContext context) { this.Context = context; }
+
+            IEvaluateable IEvaluateable.UpdateValue()
+            {
+                throw new NotImplementedException();
+            }
         }
 
 
@@ -262,15 +311,13 @@ namespace Dependency
                 {
                     string name = pInfo.Name;
                     standardizeToken(name, out name, out Mobility _);
-                    if (pInfo.GetCustomAttribute<SourceAttribute>() != null)
-                    {                        
-                        result.SourceProperties[name] = pInfo;
+                    var vAttr = pInfo.GetCustomAttribute<VariableAttribute>();
+                    if (vAttr != null)
+                    {
+                        if (vAttr.Source) result.SourceProperties[name] = pInfo;
+                        if (vAttr.Listener) result.ListenerProperties[name] = pInfo;
                     }
-                    if (pInfo.GetCustomAttribute<ListenerAttribute>() != null)
-                    {                        
-                        result.ListenerProperties[name] = pInfo;
-                    }
-
+                    
                     if (pInfo.GetCustomAttribute<SubContextAttribute>() != null)
                     {
                         AutoProfile subProfile = FromType(pInfo.PropertyType, standardizeToken);

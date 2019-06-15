@@ -14,6 +14,67 @@ using System.Runtime.CompilerServices;
 namespace UnitTests
 {
     [TestClass]
+    public class Test_AutoContext
+    {
+        [TestMethod]
+        public void TestAutoContext_Creation()
+        {
+            AutoContext ac = new AutoContext(StandardizeToUpper);
+
+            Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = 4, Y2 = 3 };
+
+            ac.AddContext(line0, "line0");
+            
+        }
+
+        private static void StandardizeToUpper(string token, out string stripped, out Mobility mobility)
+        {
+            mobility = Mobility.None;
+            stripped = token.ToUpper();
+        }
+
+        
+        private class Line
+        {
+            // Using this class to test the AutoContext
+
+            private double _X1, _Y1, _X2, _Y2;
+
+            [AutoContext.Variable(source: true, listener: true)]
+            public double X1 { get => _X1; set { _X1 = value; Length = GetLength(); } }
+
+            [AutoContext.Variable(source: false, listener: true)]
+            public double X2 { get => _X2; set { _X2 = value; Length = GetLength(); } }
+
+            [AutoContext.Variable(source: true, listener: false)]
+            public double Y1 { get => _Y1; set { _Y1 = value; Length = GetLength(); } }
+
+            [AutoContext.Variable(source: true, listener: true)]
+            public double Y2 { get => _Y2; set { _Y2 = value; Length = GetLength(); } }
+
+            [AutoContext.Variable(source: true, listener: false)]
+            public double Length { get; private set; }
+
+            private double GetLength() => Math.Sqrt(Math.Pow(_X2 - _X1, 2) + Math.Pow(_Y2 - _Y1, 2));
+
+            [AutoContext.SubContext]
+            public Color Color { get; }
+        }
+
+        private class Color
+        {
+            [AutoContext.Variable(source: true, listener: true)]
+            public double R { get; set; }
+
+            [AutoContext.Variable(source: true, listener: true)]
+            public double G { get; set; }
+
+            [AutoContext.Variable(source: true, listener: true)]
+            public double B { get; set; }
+        }
+    }
+
+    [TestClass]
     public class Test_Dependency
     {
         [TestMethod]
@@ -43,8 +104,8 @@ namespace UnitTests
             Assert.AreEqual(exp3.UpdateValue(), -17);
             Assert.AreEqual(exp3.Value, -17);
 
-            var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
-            PrintTimings(timings);
+            //var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
+            //PrintTimings(timings);
         }
 
         [TestMethod]

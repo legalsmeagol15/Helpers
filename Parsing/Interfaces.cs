@@ -74,7 +74,8 @@ namespace Dependency
 
     public interface IListener
     {
-        IEnumerable<ISource> Sources { get; }
+
+        IEvaluateable Contents { get; }
 
     }
     public interface ICLRListener<T> : IListener
@@ -109,9 +110,8 @@ namespace Dependency
 
 
     public interface ISource : IEvaluateable
-    {
+    {        
         IEnumerable<IListener> Listeners { get; }
-
         IEvaluateable Contents { get; set; }
     }
 
