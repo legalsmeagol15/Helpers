@@ -7,10 +7,7 @@ using Dependency.Functions;
 
 namespace Dependency
 {
-    public interface IAllowReferenceMobility
-    {
-        bool TryExtract(string token, out string stripped, out Mobility mobility);
-    }
+   
 
     /// <summary>
     /// A function which caches its <seealso cref="TypeControl"/> input validator may validate just a little faster 
@@ -31,19 +28,24 @@ namespace Dependency
     public interface IContext
     {
         bool TryGetSubcontext(string token, out IContext ctxt);
-        bool TryGetSource(string token, out ISource source, out Mobility mobility);
+        
+        bool TryGetProperty(string token, out IEvaluateable source);
 
-        IContext Parent { get; }
+        
+    }
+
+    public interface ISubcontext : IContext
+    {
+        IContext Parent { get; set; }
     }
 
     public interface IEvaluateable
     {
-        /// <summary>Updates and returns the new value of this <see cref="IEvaluateable"/>.</summary>
+        /// <summary>Returns the most recently-updated value of this <see cref="IEvaluateable"/>.</summary>
         IEvaluateable Value { get; }
 
+        /// <summary>Caches the updated value of this <see cref="IEvaluateable"/>, and notifies any listeners of changes.</summary>
         IEvaluateable UpdateValue();
-
-
     }
 
     public interface IFunction : IEvaluateable
@@ -71,20 +73,10 @@ namespace Dependency
         IEvaluateable MinIndex { get; }
         IEvaluateable this[params Number[] indices] { get; }
     }
+    
 
-    public interface IListener
-    {
-
-        IEvaluateable Contents { get; }
-
-    }
-    public interface ICLRListener<T> : IListener
-    {
-
-        Action<T> UpdateValue { get; }
-    }
-
-    internal interface ILiteral<TClr> : IEvaluateable
+    internal interface ILiteral : IEvaluateable { }
+    internal interface ILiteral<TClr> : ILiteral
     {
         TClr CLRValue { get; }
     }
@@ -94,33 +86,14 @@ namespace Dependency
         string Name { get; }
     }
 
-    internal interface ITerms : IEvaluateable
-    {
-        IEnumerable<ISource> GetTerms();
-    }
-
+    
 
 
     internal interface ITypeGuarantee
     {
         TypeFlags TypeGuarantee { get; }
     }
-
-
-
-
-    public interface ISource : IEvaluateable
-    {        
-        IEnumerable<IListener> Listeners { get; }
-        IEvaluateable Contents { get; set; }
-    }
-
-
-    public interface IVariable : IEvaluateable, ISource, IListener, INamed
-    {
-        IContext Context { get; }
-
-    }
-
+    
+    
 
 }

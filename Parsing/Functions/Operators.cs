@@ -169,7 +169,9 @@ namespace Dependency
             }
 
 
-            public override string ToString() => Base.ToString() + " [ " + Ordinal.ToString() + " ] ";            
+            public override string ToString() => Base.ToString() + " [ " + Ordinal.ToString() + " ] ";
+
+            IEvaluateable Parse.IExpression.GetGuts() => new Vector(Inputs.ToArray());
         }
 
         internal sealed class LessThan : ComparisonOperator

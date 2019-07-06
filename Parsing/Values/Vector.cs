@@ -35,7 +35,7 @@ namespace Dependency
 
         public IEvaluateable MinIndex => Number.Zero;
 
-        public IContext Parent { get; internal set; } = null;
+        public IContext Parent { get; } = null;
 
         internal bool TryOrdinalize(out Number[] ordinals)
         {
@@ -53,7 +53,7 @@ namespace Dependency
 
         bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
 
-        bool IContext.TryGetSource(string token, out ISource src, out Mobility m) { src = null; m = Mobility.None; return false; }
+        bool IContext.TryGetProperty(string token, out IEvaluateable src) { src = null; return false; }
         
 
         public static bool operator ==(Vector a, Vector b)

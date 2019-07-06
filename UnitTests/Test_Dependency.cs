@@ -19,18 +19,19 @@ namespace UnitTests
         [TestMethod]
         public void TestAutoContext_Creation()
         {
-            AutoContext ac = new AutoContext(StandardizeToUpper);
+            DependencyContext root = new DependencyContext();
 
             Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = 4, Y2 = 3 };
 
-            ac.AddContext(line0, "line0");
+            root.Add(line0, "line0");
             
         }
 
-        private static void StandardizeToUpper(string token, out string stripped, out Mobility mobility)
+        private static bool StandardizeToUpper(string token, out string stripped, out Mobility mobility)
         {
             mobility = Mobility.None;
             stripped = token.ToUpper();
+            return true;
         }
 
         
@@ -40,36 +41,36 @@ namespace UnitTests
 
             private double _X1, _Y1, _X2, _Y2;
 
-            [AutoContext.Variable(source: true, listener: true)]
+            [Property(source: true, listener: true)]
             public double X1 { get => _X1; set { _X1 = value; Length = GetLength(); } }
 
-            [AutoContext.Variable(source: false, listener: true)]
+            [Property(source: false, listener: true)]
             public double X2 { get => _X2; set { _X2 = value; Length = GetLength(); } }
 
-            [AutoContext.Variable(source: true, listener: false)]
+            [Property(source: true, listener: false)]
             public double Y1 { get => _Y1; set { _Y1 = value; Length = GetLength(); } }
 
-            [AutoContext.Variable(source: true, listener: true)]
+            [Property(source: true, listener: true)]
             public double Y2 { get => _Y2; set { _Y2 = value; Length = GetLength(); } }
 
-            [AutoContext.Variable(source: true, listener: false)]
+            [Property(source: true, listener: false)]
             public double Length { get; private set; }
 
             private double GetLength() => Math.Sqrt(Math.Pow(_X2 - _X1, 2) + Math.Pow(_Y2 - _Y1, 2));
 
-            [AutoContext.SubContext]
+            [SubContext]
             public Color Color { get; }
         }
 
         private class Color
         {
-            [AutoContext.Variable(source: true, listener: true)]
+            [Property(source: true, listener: true)]
             public double R { get; set; }
 
-            [AutoContext.Variable(source: true, listener: true)]
+            [Property(source: true, listener: true)]
             public double G { get; set; }
 
-            [AutoContext.Variable(source: true, listener: true)]
+            [Property(source: true, listener: true)]
             public double B { get; set; }
         }
     }

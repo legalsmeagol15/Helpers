@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Helpers
 {
     /// <summary>To be invoked whenever a value changes.</summary>
-    public delegate void ValueChangedHandler<T>(object sender, ValueChangedArgs<long> e);
+    public delegate void ValueChangedHandler<T>(object sender, ValueChangedArgs<T> e);
 
     /// <summary>A simple, generic class representing a change from one value to another.</summary>
     public class ValueChangedArgs<T> : EventArgs

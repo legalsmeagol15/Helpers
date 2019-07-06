@@ -12,7 +12,11 @@ namespace Dependency.Functions
         private string _CachedNamed;
         public virtual string Name { get => _CachedNamed; }
         protected NamedFunction() { _CachedNamed = this.GetType().Name.ToUpper(); }
-        
+
+        IEvaluateable Parse.IExpression.GetGuts() => new Vector(Inputs.ToArray());
+
+
+
     }
 
 }

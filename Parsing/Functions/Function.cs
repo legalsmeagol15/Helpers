@@ -8,14 +8,10 @@ using static Dependency.TypeControl;
 
 namespace Dependency.Functions
 {
-    public abstract class Function : IFunction, ITerms
+    public abstract class Function : IFunction
     {
         private IList<IEvaluateable> _Inputs;
-        protected internal IList<IEvaluateable> Inputs
-        {
-            get => _Inputs;
-            internal set { _Inputs = value; _Terms = new HashSet<ISource>(_Inputs.SelectMany(i => i.GetTerms())); }
-        }
+        protected internal IList<IEvaluateable> Inputs { get; internal set; }
         IList<IEvaluateable> IFunction.Inputs => Inputs;
 
         private IEvaluateable _Value = null;
@@ -43,10 +39,6 @@ namespace Dependency.Functions
         }
 
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
-
-        private ISet<ISource> _Terms;
         
-        IEnumerable<ISource> ITerms.GetTerms() => _Terms;
-
     }
 }

@@ -16,16 +16,7 @@ namespace Dependency
 
     internal static class Helpers
     {
-
-        public static IEnumerable<ISource> GetTerms(this IEvaluateable ieval)
-        {
-            if (ieval is ITerms it) return it.GetTerms();
-            else if (ieval is ISource src) return new ISource[] { src };
-            return new ISource[0];
-        }
-
-        public static IEnumerable<ISource> GetTerms(this IEnumerable<IEvaluateable> ievals) => ievals.SelectMany((e) => e.GetTerms());
-
+        
         public static IEvaluateable Obj2Eval(object obj)
         {
             switch (obj)
@@ -40,18 +31,38 @@ namespace Dependency
             }
         }
 
-        public static void NotifyListeners(this ISource source)
+        public static bool IsSource(this Role role) => (role & Role.Source) == Role.Source;
+        public static bool IsListener(this Role role) => (role & Role.Listener) == Role.Listener;
+        public static bool IsConstant(this Role role) => (role & Role.Constant) == Role.Constant;
+        public static bool IsNone(this Role role) => role == Role.None;
+
+        public static string GetMinimalString(ISubcontext target, ISubcontext perspective)
         {
             throw new NotImplementedException();
         }
+        
     }
+
+
+    public sealed class Expression : Parse.IExpression
+    {
+        internal IEvaluateable Contents { get; set; }
+        IEvaluateable IEvaluateable.Value => Contents.Value;
+
+        IEvaluateable IEvaluateable.UpdateValue() => Contents.UpdateValue();
+
+        public override string ToString() => Contents.ToString();
+
+        IEvaluateable Parse.IExpression.GetGuts() => Contents;
+    }
+
 
     public sealed class Parse
     {
         /// <summary>Readable left-to-right.</summary>
-        internal interface IExpression : IEvaluateable, ITerms
+        internal interface IExpression : IEvaluateable
         {
-           
+            IEvaluateable GetGuts();
         }
 
         public static Expression FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
@@ -176,7 +187,8 @@ namespace Dependency
                     IContext ctxt = null;
                     
                     // If the token refers to a variable then we've already nailed down a reference.
-                    if (rootContext.TryGetSource(token, out ISource src, out Mobility m)) { result = new Reference(src, m); }
+                    if (rootContext.TryGetProperty(token, out IEvaluateable prop))
+                        result = new Reference( prop, Mobility.All);
 
                     // Once a context-to-subcontext chain starts, any failure will be an exception.
                     else if (!rootContext.TryGetSubcontext(token, out ctxt)) { result = null; return false; }
@@ -191,7 +203,8 @@ namespace Dependency
                     {
                         traversed.Add(ctxt);
                         token = splits[splitIdx];
-                        if (ctxt.TryGetSource(token, out src, out m)) { result = new Reference(src, m); }
+                        if (ctxt.TryGetProperty(token, out prop))
+                            result = new Reference(prop, Mobility.All);
                         else if (token == ".")
                         {
                             if (dot) break;
@@ -203,7 +216,9 @@ namespace Dependency
                     }
 
                     if (result != null) { splitIdx--; return true; }
-                    throw new ReferenceException(_ComposeParsed(), token, "Invalid token '" + token + "' in reference.");                    
+                    throw new ReferenceException(_ComposeParsed(), token, "Invalid token '" + token + "' in reference.");   
+                    
+                    
                 }
 
                 bool __TryStartSubExpression(string token)
@@ -738,40 +753,28 @@ namespace Dependency
 
             private IEvaluateable _Value = null;
             IEvaluateable IEvaluateable.Value => _Value;
-            IEvaluateable IEvaluateable.UpdateValue() => _Value = Reference.Source is IVariable ivar ? ivar.Contents : Reference.Source.Value;
+            IEvaluateable IEvaluateable.UpdateValue() => _Value = Reference.Source;
 
             public override string ToString() => '{' + Reference.ToString() + '}';
 
-            IEnumerable<ISource> ITerms.GetTerms() => new ISource[] { Reference.Source };
+            IEvaluateable IExpression.GetGuts() => Reference;
         }
-
-
-        public sealed class Expression : IExpression
+        
+        internal sealed class Reference : IEvaluateable, IExpression
         {
-            internal IEvaluateable Contents { get; set; }
-            IEvaluateable IEvaluateable.Value => Contents.Value;
-            
-            IEvaluateable IEvaluateable.UpdateValue() => Contents.UpdateValue();
+            public bool IsVariable => Source != null && Source is Variable;
 
-            public override string ToString() => Contents.ToString();
-
-            IEnumerable<ISource> ITerms.GetTerms() => Contents.GetTerms();
-        }
-
-        internal sealed class Reference : IEvaluateable, ITerms
-        {
-
-            public ISource Source { get; internal set; }
+            public IEvaluateable Source { get; internal set; }
             public Mobility Mobility { get; internal set; }
             
             private IEvaluateable _Value = null;
             IEvaluateable IEvaluateable.Value => _Value;
             IEvaluateable IEvaluateable.UpdateValue() => _Value = Source.Value;
 
-            IEnumerable<ISource> ITerms.GetTerms() => new ISource[] { Source };
+            IEvaluateable IExpression.GetGuts() => Source;
 
             public Reference() { }
-            public Reference(ISource head, Mobility immobiles) { Source = head; Mobility = immobiles; }
+            public Reference(IEvaluateable head, Mobility immobiles) { Source = head; Mobility = immobiles; }
 
 
             
@@ -781,7 +784,7 @@ namespace Dependency
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Head"/> of a 
         /// <see cref="Parenthetical"/>.</summary>
-        internal sealed class Parenthetical : IExpression, ITerms
+        internal sealed class Parenthetical : IExpression
         {
 
             /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
@@ -795,7 +798,7 @@ namespace Dependency
 
             public override string ToString() => "( " + Head.ToString() + " )";
 
-            IEnumerable<ISource> ITerms.GetTerms() => Head.GetTerms();
+            IEvaluateable IExpression.GetGuts() => Head;
         }
 
 
