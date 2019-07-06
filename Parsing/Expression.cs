@@ -12,7 +12,71 @@ using Dependency.Operators;
 
 namespace Dependency
 {
+    public sealed class Reference : IEvaluateable, Parse.IExpression
+    {
+        public readonly Mobility Mobility;
+        private readonly Reference Prior;
+        private readonly string Segment;
+        public readonly IContext Context;
+        public readonly IEvaluateable Source;
 
+        public bool IsComplete => Source != null;
+
+        IEvaluateable IEvaluateable.Value => Source.Value;
+        IEvaluateable IEvaluateable.UpdateValue() => Source.Value;
+        IEvaluateable Parse.IExpression.GetGuts() => Source;
+
+        public Reference this[string segment]
+        {
+            get
+            {
+                if (Context.TryGetSubcontext(segment, out IContext sub_ctxt))
+                    return new Reference(this, sub_ctxt, segment);
+                else if (Context.TryGetProperty(segment, out IEvaluateable src))
+                    return new Reference(this, null, segment, src);
+                throw new Parse.ReferenceException(this, "Invalid reference '" + segment + "' in reference path.");
+            }
+        }
+        
+        private Reference(Reference prior, IContext context, string segment, IEvaluateable head = null, Mobility mobility = Mobility.All)
+        { 
+            this.Prior = prior;
+            this.Context = context;
+            this.Segment = segment;
+            this.Source = head;
+            this.Mobility = mobility;
+        }
+        public static Reference FromPath(IContext root, params string[] segments)
+        {
+            Reference result = new Reference(null, root, "", (root as IEvaluateable));
+            int i;
+            for (i = 0; i <  segments.Length; i++)
+            {
+                string segment = segments[i];
+                result = result[segment];
+                if (result.Context == null) break;
+            }
+            if (i < segments.Length - 1)
+                throw new Parse.ReferenceException(result, "Premature completion of path at index " + i + ".");
+            return result;
+        }
+
+
+        public string  ToString(IContext perspective)
+        {
+            if (perspective == null) return this.ToString();
+            throw new NotImplementedException();
+        }
+        public override string ToString()
+        {
+            Deque<string> steps = new Deque<string>();
+            Reference root = this;
+            while (root != null) { steps.AddFirst(root.Segment); root = root.Prior; }
+            return string.Join(".", steps);
+        }
+
+        
+    }
 
     internal static class Helpers
     {
@@ -35,11 +99,7 @@ namespace Dependency
         public static bool IsListener(this Role role) => (role & Role.Listener) == Role.Listener;
         public static bool IsConstant(this Role role) => (role & Role.Constant) == Role.Constant;
         public static bool IsNone(this Role role) => role == Role.None;
-
-        public static string GetMinimalString(ISubcontext target, ISubcontext perspective)
-        {
-            throw new NotImplementedException();
-        }
+        
         
     }
 
@@ -177,48 +237,21 @@ namespace Dependency
                     allLegs.Add(thisLeg);
                     return allLegs.Select(leg => leg.Count == 1 ? leg[0] : new Vector(leg.ToArray())).ToArray();
                 }
-
+                
                 bool __TryCreateReference(string token, out Reference result)
                 {
-                    result = null;
                     // If there is no context, then of course there can be no reference.
-                    if (rootContext == null) return false;
-
-                    IContext ctxt = null;
+                    if (rootContext == null) { result = null; return false; }
                     
-                    // If the token refers to a variable then we've already nailed down a reference.
-                    if (rootContext.TryGetProperty(token, out IEvaluateable prop))
-                        result = new Reference( prop, Mobility.All);
-
-                    // Once a context-to-subcontext chain starts, any failure will be an exception.
-                    else if (!rootContext.TryGetSubcontext(token, out ctxt)) { result = null; return false; }
-
-                    // Maintain a list for purposes of error report.
-                    List<IContext> traversed = new List<IContext>();
-
-                    // Traverse through the contexts till we either find a variable, or run out of subcontexts.
-                    bool dot = false;
-                    
-                    while (splitIdx < splits.Length)
+                    try
                     {
-                        traversed.Add(ctxt);
-                        token = splits[splitIdx];
-                        if (ctxt.TryGetProperty(token, out prop))
-                            result = new Reference(prop, Mobility.All);
-                        else if (token == ".")
-                        {
-                            if (dot) break;
-                            dot = true;
-                            splitIdx++;
-                        }
-                        else if (ctxt.TryGetSubcontext(token, out IContext sub_ctxt)) { ctxt = sub_ctxt; splitIdx++; dot = false; }
-                        else throw new ReferenceException(_ComposeParsed(), token, "Invalid token '" + token + "' in reference hierarchy.");
+                        result = Reference.FromPath(rootContext, token.Split('.'));
+                        return true;
+                    } catch (ReferenceException)
+                    {
+                        result = null;
+                        return false;
                     }
-
-                    if (result != null) { splitIdx--; return true; }
-                    throw new ReferenceException(_ComposeParsed(), token, "Invalid token '" + token + "' in reference.");   
-                    
-                    
                 }
 
                 bool __TryStartSubExpression(string token)
@@ -679,8 +712,9 @@ namespace Dependency
         private const string RefPattern = @"(?<refPattern> \$? _? (?:_* \$? \w _* (?:_*\$? \d_*)*)*)";
         private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
         private const string SpacePattern = @"(?<spacePattern>\s+)";
+        private const string ReferencePattern = @"(?<referencePattern>[_a-zA-Z][_a-zA-Z0-9]*(\.[_a-zA-Z0-9])*)";
 
-        private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, RefPattern, NumPattern, SpacePattern);
+        private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, RefPattern, NumPattern, SpacePattern, ReferencePattern);
         private static Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);
 
         #endregion
@@ -698,6 +732,7 @@ namespace Dependency
                 this.Parsed = parsed;
                 this.Token = failedToken;
             }
+            public SyntaxException(string message, Exception inner = null) : base(message, inner) { }
         }
 
         public class EmptySyntaxException : SyntaxException
@@ -721,7 +756,8 @@ namespace Dependency
 
         public class ReferenceException : SyntaxException
         {
-            internal ReferenceException(string parsed, string failedToken, string message) : base(parsed, failedToken, message) { }
+            public readonly Reference Incomplete;
+            internal ReferenceException(Reference incomplete, string message) : base( message) { this.Incomplete = incomplete; }
         }
 
         public class UnrecognizedTokenException : SyntaxException
@@ -760,26 +796,6 @@ namespace Dependency
             IEvaluateable IExpression.GetGuts() => Reference;
         }
         
-        internal sealed class Reference : IEvaluateable, IExpression
-        {
-            public bool IsVariable => Source != null && Source is Variable;
-
-            public IEvaluateable Source { get; internal set; }
-            public Mobility Mobility { get; internal set; }
-            
-            private IEvaluateable _Value = null;
-            IEvaluateable IEvaluateable.Value => _Value;
-            IEvaluateable IEvaluateable.UpdateValue() => _Value = Source.Value;
-
-            IEvaluateable IExpression.GetGuts() => Source;
-
-            public Reference() { }
-            public Reference(IEvaluateable head, Mobility immobiles) { Source = head; Mobility = immobiles; }
-
-
-            
-        }
-
 
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Head"/> of a 

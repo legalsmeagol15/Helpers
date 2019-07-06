@@ -14,7 +14,7 @@ using System.Runtime.CompilerServices;
 namespace UnitTests
 {
     [TestClass]
-    public class Test_AutoContext
+    public class Test_ManagedContext
     {
         [TestMethod]
         public void TestAutoContext_Creation()
@@ -22,57 +22,23 @@ namespace UnitTests
             DependencyContext root = new DependencyContext();
 
             Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = 4, Y2 = 3 };
-
             root.Add(line0, "line0");
+            Assert.IsTrue(root.TryGetSubcontext("line0", out IContext ctxt) && ctxt.GetType().Name == "ManagedContext");
+            Brush brush0 = new Brush();
+            root.Add(brush0, "brush0");
+            Assert.IsTrue(root.TryGetSubcontext("brush0", out ctxt) && ctxt is Brush);
+            Assert.IsFalse(root.TryGetSubcontext("nonexistent", out _));
+            Assert.IsFalse(ctxt.TryGetProperty("missing", out _));
+
+            IEvaluateable e = null;
+            Assert.IsTrue(root.TryGetSubcontext("line0", out ctxt) && ctxt.TryGetProperty("X1", out e));
+            Assert.IsTrue(e is Variable v);
+            Assert.AreEqual(e.Value, 0);
+
             
         }
 
-        private static bool StandardizeToUpper(string token, out string stripped, out Mobility mobility)
-        {
-            mobility = Mobility.None;
-            stripped = token.ToUpper();
-            return true;
-        }
-
         
-        private class Line
-        {
-            // Using this class to test the AutoContext
-
-            private double _X1, _Y1, _X2, _Y2;
-
-            [Property(source: true, listener: true)]
-            public double X1 { get => _X1; set { _X1 = value; Length = GetLength(); } }
-
-            [Property(source: false, listener: true)]
-            public double X2 { get => _X2; set { _X2 = value; Length = GetLength(); } }
-
-            [Property(source: true, listener: false)]
-            public double Y1 { get => _Y1; set { _Y1 = value; Length = GetLength(); } }
-
-            [Property(source: true, listener: true)]
-            public double Y2 { get => _Y2; set { _Y2 = value; Length = GetLength(); } }
-
-            [Property(source: true, listener: false)]
-            public double Length { get; private set; }
-
-            private double GetLength() => Math.Sqrt(Math.Pow(_X2 - _X1, 2) + Math.Pow(_Y2 - _Y1, 2));
-
-            [SubContext]
-            public Color Color { get; }
-        }
-
-        private class Color
-        {
-            [Property(source: true, listener: true)]
-            public double R { get; set; }
-
-            [Property(source: true, listener: true)]
-            public double G { get; set; }
-
-            [Property(source: true, listener: true)]
-            public double B { get; set; }
-        }
     }
 
     [TestClass]
@@ -108,6 +74,23 @@ namespace UnitTests
             //var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
             //PrintTimings(timings);
         }
+
+
+        [TestMethod]
+        public void TestDependency_Reference()
+        {
+            DependencyContext context = new DependencyContext();
+            Line line0 = new Line();
+            context.Add(line0, "line0");
+
+            // There are two different ways of building a reference - make sure they end up at the same result.
+            Reference refA = Reference.FromPath(context, "line0", "Color", "red");            
+            Assert.IsTrue(refA.Source != null && refA.Source is Variable);
+            Reference refB = Reference.FromPath(context)["line0"]["Color"]["red"];
+            Assert.IsTrue(refB.Source != null && refB.Source is Variable);
+            Assert.IsTrue(ReferenceEquals(refA.Source, refB.Source));
+        }
+
 
         [TestMethod]
         public void TestDependency_ToString()
@@ -169,6 +152,66 @@ namespace UnitTests
 
             return results;
         }
+    }
+
+
+
+
+
+    internal class Brush : ISubcontext
+    {
+        IContext ISubcontext.Parent { get; set; }
+
+        bool IContext.TryGetProperty(string token, out IEvaluateable source)
+        {
+            switch (token)
+            {
+                case "width": source = new Number(2); return true;
+                case "pattern": source = new Number(0.25); return true;
+                default: source = null; return false;
+            }
+        }
+
+        bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
+    }
+
+    internal class Line
+    {
+        // Using this class to test the AutoContext
+
+        private double _X1, _Y1, _X2, _Y2;
+
+        [Property(source: true, listener: true)]
+        public double X1 { get => _X1; set { _X1 = value; Length = GetLength(); } }
+
+        [Property(source: false, listener: true)]
+        public double X2 { get => _X2; set { _X2 = value; Length = GetLength(); } }
+
+        [Property(source: true, listener: false)]
+        public double Y1 { get => _Y1; set { _Y1 = value; Length = GetLength(); } }
+
+        [Property(source: true, listener: true)]
+        public double Y2 { get => _Y2; set { _Y2 = value; Length = GetLength(); } }
+
+        [Property(source: true, listener: false)]
+        public double Length { get; private set; }
+
+        private double GetLength() => Math.Sqrt(Math.Pow(_X2 - _X1, 2) + Math.Pow(_Y2 - _Y1, 2));
+
+        [SubContext]
+        public Color Color { get; } = new Color();
+    }
+
+    internal class Color
+    {
+        [Property(true, true, "red", "R")]
+        public double R { get; set; }
+
+        [Property(source: true, listener: true)]
+        public double G { get; set; }
+
+        [Property(source: true, listener: true)]
+        public double B { get; set; }
     }
 
 }

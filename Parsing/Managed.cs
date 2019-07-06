@@ -47,6 +47,7 @@ namespace Dependency
                 throw new ManagedDependencyException("Duplicate name '" + name + "' with existing subcontext.");
             ISubcontext isc = (subcontext is ISubcontext) ? (ISubcontext)subcontext : new ManagedContext(this, subcontext);
             _Subcontexts[name] = isc;
+            if (isc.Parent == null) isc.Parent = this;
         }
 
         bool IContext.TryGetProperty(string token, out IEvaluateable source) { source = null; return false; }
@@ -68,7 +69,11 @@ namespace Dependency
         internal readonly Dictionary<string, WeakReference<IEvaluateable>> ManagedProperties = new Dictionary<string, WeakReference<IEvaluateable>>();
         
         public IContext Parent { get; set; }
-        internal ManagedContext(IContext parent, object host) { this.Parent = parent; this.Host = host; this.Profile = ManagedProfile.FromType(host.GetType()); }
+        internal ManagedContext(IContext parent, object host) {
+            this.Parent = parent;
+            this.Host = host;
+            this.Profile = ManagedProfile.FromType(host.GetType());
+        }
         
         public bool TryGetProperty(string token, out IEvaluateable source)
         {
@@ -124,6 +129,8 @@ namespace Dependency
             }
 
             object currentObj = template.Info.GetValue(Host);
+            if (currentObj == null)
+                throw new ManagedDependencyException("Subcontext must refer to an instantiated object.");
             sub_ctxt = (currentObj is ISubcontext) ? (ISubcontext)currentObj : new ManagedContext(this, currentObj);
             foreach (string alias in template.Aliases)
             {
@@ -153,7 +160,7 @@ namespace Dependency
                 if (ContextTemplate.TryCreate(pInfo, out ContextTemplate ctxt))
                 {
                     foreach (string alias in ctxt.Aliases)
-                    {
+                    {                        
                         if (!aliases.Add(alias)) throw new ManagedDependencyException("Duplicate alias '" + alias + ";.");
                         mp.ContextTemplates.Add(alias, ctxt);
                     }
@@ -184,7 +191,10 @@ namespace Dependency
 
                 // Every subcontext object MUST have a parent.
                 if (typeof(IContext).IsAssignableFrom(pInfo.PropertyType) && !(typeof(ISubcontext).IsAssignableFrom(pInfo.PropertyType)))
-                    throw new ManagedDependencyException("Object subcontexts cannot implement " + typeof(IContext).Name + " unless they inherit " + typeof(ISubcontext).Name + ".");
+                    throw new ManagedDependencyException("Object managed subcontexts cannot implement " + typeof(IContext).Name + " unless they inherit " + typeof(ISubcontext).Name + ".");
+
+                if (pInfo.CanWrite)
+                    throw new ManagedDependencyException("Object managed subcontexts must be read-only.");
 
                 string[] aliases = (scAttr.Aliases != null && scAttr.Aliases.Length > 0) ? scAttr.Aliases : new string[] { pInfo.Name };
                 context = new ContextTemplate(pInfo, aliases);
