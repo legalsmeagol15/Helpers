@@ -10,7 +10,6 @@ namespace Dependency.Functions
 {
     public abstract class Function : IFunction
     {
-        private IList<IEvaluateable> _Inputs;
         protected internal IList<IEvaluateable> Inputs { get; internal set; }
         IList<IEvaluateable> IFunction.Inputs => Inputs;
 

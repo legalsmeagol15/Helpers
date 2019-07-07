@@ -48,6 +48,12 @@ namespace Dependency
         IEvaluateable UpdateValue();
     }
 
+    /// <summary>Readable left-to-right.</summary>
+    internal interface IExpression : IEvaluateable
+    {
+        IEvaluateable GetGuts();
+    }
+
     public interface IFunction : IEvaluateable
     {
         IList<IEvaluateable> Inputs { get; }

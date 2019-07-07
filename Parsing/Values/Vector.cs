@@ -63,7 +63,9 @@ namespace Dependency
             return true;
         }
         public static bool operator !=(Vector a, Vector b) => !(a == b);
-        
+        public override bool Equals(object obj) => (obj is Vector other) && this == other;
+        public override int GetHashCode() { unchecked { return Inputs.Sum(i => i.GetHashCode()); } }
+
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.VectorReal;
     }

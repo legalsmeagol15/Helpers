@@ -15,12 +15,18 @@ namespace Dependency
     [AttributeUsage(validOn: AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
     public sealed class PropertyAttribute :  Attribute 
     {
+        internal readonly string Contents;
         internal readonly Role Role;
         public readonly string[] Aliases;
         public bool IsSource => (Role & Role.Source) != Role.None;
         public bool IsListener => (Role & Role.Listener) != Role.None;
-        internal PropertyAttribute(Role role, params string[] aliases) { this.Role = role; this.Aliases = aliases; }
-        public PropertyAttribute(bool source, bool listener, params string[] aliases) : this((source ? Role.Source : 0) | (listener ? Role.Listener : 0), aliases) { }
+        internal PropertyAttribute(Role role, string initialContents, params string[] aliases) {
+            this.Role = role;
+            this.Aliases = aliases;
+            this.Contents = initialContents;
+        }
+        public PropertyAttribute(bool source, bool listener, string initialContents, params string[] aliases) 
+            : this((source ? Role.Source : 0) | (listener ? Role.Listener : 0), initialContents, aliases) { }
     }
 
 
@@ -63,6 +69,8 @@ namespace Dependency
 
     internal sealed class ManagedContext : ISubcontext
     {
+        internal static readonly Dictionary<object, WeakReference<IContext>> HostContexts = new Dictionary<object, WeakReference<IContext>>();
+
         internal readonly object Host;
         internal readonly ManagedProfile Profile;        
         internal readonly Dictionary<string, WeakReference<ISubcontext>> ManagedSubcontexts = new Dictionary<string, WeakReference<ISubcontext>>();
@@ -105,7 +113,8 @@ namespace Dependency
             }
 
             // Otherwise, time to create a new variable from the template.
-            source = (currentVal is Variable v) ? v : new Variable(this, token, Obj2Eval(currentVal));
+            source = (currentVal is Variable v) ? v : (v = new Variable(this, token, Obj2Eval(currentVal)));
+            v.Contents = Parse.FromString(template.Contents,null , this);  // TODO:  What about functions factory?
             foreach (string alias in template.Aliases)
             {
                 if (ManagedProperties.TryGetValue(alias, out weakRef)) weakRef.SetTarget(source);
@@ -132,6 +141,7 @@ namespace Dependency
             if (currentObj == null)
                 throw new ManagedDependencyException("Subcontext must refer to an instantiated object.");
             sub_ctxt = (currentObj is ISubcontext) ? (ISubcontext)currentObj : new ManagedContext(this, currentObj);
+            HostContexts[Host] = new WeakReference<IContext>(sub_ctxt);
             foreach (string alias in template.Aliases)
             {
                 if (ManagedSubcontexts.TryGetValue(alias, out weakRef)) weakRef.SetTarget(sub_ctxt);
@@ -206,15 +216,19 @@ namespace Dependency
             public readonly PropertyInfo Info;
             public readonly Role Role;
             public readonly string[] Aliases;
+            public readonly string Contents;
 
-            private PropertyTemplate(PropertyInfo info, Role role, string[] aliases) { this.Info = info; this.Role = role; this.Aliases = aliases; }
+            private PropertyTemplate(PropertyInfo info, Role role, string contents, string[] aliases) { this.Info = info;
+                this.Role = role;
+                this.Contents = contents;
+                this.Aliases = aliases; }
 
             public static bool TryCreate(PropertyInfo pInfo, out PropertyTemplate property)
             {
                 PropertyAttribute vAttr = pInfo.GetCustomAttribute<PropertyAttribute>();
                 if (vAttr == null) { property = null; return false; }
                 string[] aliases = (vAttr.Aliases != null && vAttr.Aliases.Length > 0) ? vAttr.Aliases : new string[] { pInfo.Name };
-                property = new PropertyTemplate(pInfo, vAttr.Role, aliases);
+                property = new PropertyTemplate(pInfo, vAttr.Role, vAttr.Contents, aliases);
                 return true;
             }
         }

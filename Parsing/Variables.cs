@@ -29,7 +29,22 @@ namespace Dependency
 
         public IEvaluateable Value { get; private set; }
         private IEvaluateable _Contents;
-        public IEvaluateable Contents { get => _Contents; set => SetContents(value); }
+        public IEvaluateable Contents
+        {
+            get => _Contents;
+            set
+            {
+                ISet<Variable> newTerms = Helpers.GetTerms(value);
+                _Contents = value;
+                IEvaluateable oldValue = Value;
+                Value = value.UpdateValue();
+                if (oldValue != Value)
+                {
+                    NotifyListeners();
+                    ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, Value));
+                }
+            }
+        }
 
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
         public Variable(IContext context, string name, IEvaluateable contents = null) {
@@ -37,19 +52,7 @@ namespace Dependency
             this.Name = name;
             this.Contents = contents ?? Dependency.Null.Instance;
         }
-
-        internal void SetContents(IEvaluateable newContents)
-        {
-            _Contents = newContents;
-            IEvaluateable oldValue = Value;
-            Value = newContents.UpdateValue();
-            if (oldValue != Value)
-            {
-                NotifyListeners();
-                ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, Value));
-            }
-        }
-
+        
         void NotifyListeners()
         {
             Task.Run(() => NotifyListenersAsync());

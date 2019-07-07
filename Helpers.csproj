@@ -90,6 +90,7 @@
     <Compile Include="Parsing\Interfaces.cs" />
     <Compile Include="Parsing\Managed.cs" />
     <Compile Include="Parsing\Properties\AssemblyInfo.cs" />
+    <Compile Include="Parsing\Reference.cs" />
     <Compile Include="Parsing\TypeControl.cs" />
     <Compile Include="Parsing\Values\Boolean.cs" />
     <Compile Include="Parsing\Values\Complex.cs" />

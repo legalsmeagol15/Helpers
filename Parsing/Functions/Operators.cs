@@ -141,7 +141,7 @@ namespace Dependency
         }
 
         [TypeControl.NonVariadic(0, TypeFlags.Indexable, TypeFlags.VectorInteger | TypeFlags.RealAny)]
-        public sealed class Indexing : Function, IOperator, Parse.IExpression
+        public sealed class Indexing : Function, IOperator, IExpression
         {
             internal IEvaluateable Base { get => Inputs[0]; set { Inputs[0] = value; } }
 
@@ -171,7 +171,7 @@ namespace Dependency
 
             public override string ToString() => Base.ToString() + " [ " + Ordinal.ToString() + " ] ";
 
-            IEvaluateable Parse.IExpression.GetGuts() => new Vector(Inputs.ToArray());
+            IEvaluateable IExpression.GetGuts() => new Vector(Inputs.ToArray());
         }
 
         internal sealed class LessThan : ComparisonOperator

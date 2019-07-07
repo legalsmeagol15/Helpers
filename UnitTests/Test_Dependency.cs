@@ -181,20 +181,21 @@ namespace UnitTests
 
         private double _X1, _Y1, _X2, _Y2;
 
-        [Property(source: true, listener: true)]
+        [Property(source: true, listener: true, initialContents:"10")]
         public double X1 { get => _X1; set { _X1 = value; Length = GetLength(); } }
 
-        [Property(source: false, listener: true)]
+        [Property(source: false, listener: true, initialContents: "12")]
         public double X2 { get => _X2; set { _X2 = value; Length = GetLength(); } }
 
-        [Property(source: true, listener: false)]
+        [Property(source: true, listener: false, initialContents: "14")]
         public double Y1 { get => _Y1; set { _Y1 = value; Length = GetLength(); } }
 
-        [Property(source: true, listener: true)]
+        [Property(source: true, listener: true, initialContents: "16")]
         public double Y2 { get => _Y2; set { _Y2 = value; Length = GetLength(); } }
 
-        [Property(source: true, listener: false)]
-        public double Length { get; private set; }
+        private double _Length;
+        [Property(source: true, listener: false, initialContents: "")]
+        public double Length { get => _Length; private set { _Length = value; Reference.FromPath(this, "Length").Contents = _Length; } }
 
         private double GetLength() => Math.Sqrt(Math.Pow(_X2 - _X1, 2) + Math.Pow(_Y2 - _Y1, 2));
 
@@ -204,13 +205,13 @@ namespace UnitTests
 
     internal class Color
     {
-        [Property(true, true, "red", "R")]
+        [Property(true, true, "1.0", "red", "R")]
         public double R { get; set; }
 
-        [Property(source: true, listener: true)]
+        [Property(source: true, listener: true, initialContents: "0.8")]
         public double G { get; set; }
 
-        [Property(source: true, listener: true)]
+        [Property(source: true, listener: true, initialContents: "0.5")]
         public double B { get; set; }
     }
 

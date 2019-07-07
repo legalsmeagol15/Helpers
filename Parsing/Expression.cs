@@ -12,75 +12,10 @@ using Dependency.Operators;
 
 namespace Dependency
 {
-    public sealed class Reference : IEvaluateable, Parse.IExpression
-    {
-        public readonly Mobility Mobility;
-        private readonly Reference Prior;
-        private readonly string Segment;
-        public readonly IContext Context;
-        public readonly IEvaluateable Source;
-
-        public bool IsComplete => Source != null;
-
-        IEvaluateable IEvaluateable.Value => Source.Value;
-        IEvaluateable IEvaluateable.UpdateValue() => Source.Value;
-        IEvaluateable Parse.IExpression.GetGuts() => Source;
-
-        public Reference this[string segment]
-        {
-            get
-            {
-                if (Context.TryGetSubcontext(segment, out IContext sub_ctxt))
-                    return new Reference(this, sub_ctxt, segment);
-                else if (Context.TryGetProperty(segment, out IEvaluateable src))
-                    return new Reference(this, null, segment, src);
-                throw new Parse.ReferenceException(this, "Invalid reference '" + segment + "' in reference path.");
-            }
-        }
-        
-        private Reference(Reference prior, IContext context, string segment, IEvaluateable head = null, Mobility mobility = Mobility.All)
-        { 
-            this.Prior = prior;
-            this.Context = context;
-            this.Segment = segment;
-            this.Source = head;
-            this.Mobility = mobility;
-        }
-        public static Reference FromPath(IContext root, params string[] segments)
-        {
-            Reference result = new Reference(null, root, "", (root as IEvaluateable));
-            int i;
-            for (i = 0; i <  segments.Length; i++)
-            {
-                string segment = segments[i];
-                result = result[segment];
-                if (result.Context == null) break;
-            }
-            if (i < segments.Length - 1)
-                throw new Parse.ReferenceException(result, "Premature completion of path at index " + i + ".");
-            return result;
-        }
-
-
-        public string  ToString(IContext perspective)
-        {
-            if (perspective == null) return this.ToString();
-            throw new NotImplementedException();
-        }
-        public override string ToString()
-        {
-            Deque<string> steps = new Deque<string>();
-            Reference root = this;
-            while (root != null) { steps.AddFirst(root.Segment); root = root.Prior; }
-            return string.Join(".", steps);
-        }
-
-        
-    }
 
     internal static class Helpers
     {
-        
+
         public static IEvaluateable Obj2Eval(object obj)
         {
             switch (obj)
@@ -91,20 +26,69 @@ namespace Dependency
                 case int i: return new Number(i);
                 case decimal m: return new Number(m);
                 case bool b: return Boolean.FromBool(b);
-                default: return new Dependency.String(obj.ToString()); 
+                default: return new Dependency.String(obj.ToString());
             }
+        }
+
+        /// <summary>
+        /// Returns the nearest common ancestry of the two contexts.  Returns null if no ancestry is shared.
+        /// </summary>
+        public static IContext GetCommonAncestor(this IContext a, IContext b)
+        {
+            HashSet<IContext> ancestorsA = new HashSet<IContext>();
+            while (a != null)
+            {
+                if (!ancestorsA.Add(a)) break;
+                else if (a is ISubcontext isc) a = isc.Parent;
+                else break;
+            }
+            while (b != null)
+            {
+                if (ancestorsA.Contains(b)) return b;
+                else if (b is ISubcontext isc) b = isc.Parent;
+                else break;
+            }
+            return null;
+        }
+        /// <summary>
+        /// Returns the nearest common ancestry of the context and variable.  Returns null if no ancestry is shared.
+        /// </summary>
+        public static IContext GetCommonAncestor(this Variable a, IContext b) => GetCommonAncestor(a.Context, b);
+        /// <summary>
+        /// Returns the nearest common ancestry of the two variables.  Returns null if no ancestry is shared.
+        /// </summary>
+        public static IContext GetCommonAncestor(this Variable a, Variable b) => GetCommonAncestor(a.Context, b.Context);
+        
+
+        public static ISet<Variable> GetTerms(IEvaluateable e)
+        {
+            HashSet<Variable> result = new HashSet<Variable>();
+            Stack<IEvaluateable> stack = new Stack<IEvaluateable>();
+            stack.Push(e);
+            while (stack.Count > 0)
+            {
+                switch (stack.Pop())
+                {
+                    case Variable v: result.Add(v); continue;
+                    case IExpression x: stack.Push(x.GetGuts()); continue;
+                    case IFunction f: foreach (var input in f.Inputs) stack.Push(input); continue;
+                    case ILiteral l: continue;
+                    default: throw new NotImplementedException();
+                }
+            }
+            return result;
         }
 
         public static bool IsSource(this Role role) => (role & Role.Source) == Role.Source;
         public static bool IsListener(this Role role) => (role & Role.Listener) == Role.Listener;
         public static bool IsConstant(this Role role) => (role & Role.Constant) == Role.Constant;
         public static bool IsNone(this Role role) => role == Role.None;
-        
-        
+
+
     }
 
 
-    public sealed class Expression : Parse.IExpression
+    public sealed class Expression : IExpression
     {
         internal IEvaluateable Contents { get; set; }
         IEvaluateable IEvaluateable.Value => Contents.Value;
@@ -113,27 +97,23 @@ namespace Dependency
 
         public override string ToString() => Contents.ToString();
 
-        IEvaluateable Parse.IExpression.GetGuts() => Contents;
+        IEvaluateable IExpression.GetGuts() => Contents;
     }
 
 
     public sealed class Parse
     {
-        /// <summary>Readable left-to-right.</summary>
-        internal interface IExpression : IEvaluateable
-        {
-            IEvaluateable GetGuts();
-        }
+        
 
         public static Expression FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
         {
 
             string[] splits = _Regex.Split(str);
             int splitIdx = 0;
-            
+
             try
             {
-                Expression e = new Expression();                
+                Expression e = new Expression();
                 _TokenizeAndParse(e);
                 return e;
             }
@@ -150,7 +130,7 @@ namespace Dependency
             }
 
             string _ComposeParsed() => string.Join("", splits.Take(splitIdx));
-            
+
             IEvaluateable _TokenizeAndParse(IExpression exp)
             {
                 DynamicLinkedList<IEvaluateable> inputs = new DynamicLinkedList<IEvaluateable>();
@@ -168,7 +148,7 @@ namespace Dependency
                     if (Number.TryParse(token, out Number n)) { inputs.AddLast(n); continue; }
                     if (bool.TryParse(token, out bool b)) { inputs.AddLast(Dependency.Boolean.FromBool(b)); continue; }
                     if (String.TryUnquote(token, out string s)) { inputs.AddLast(new Dependency.String(s)); continue; }
-                    
+
                     // An operator?
                     if (Token.FromString(token, splitIdx - 1, out Token t))
                     {
@@ -188,7 +168,7 @@ namespace Dependency
 
                     throw new UnrecognizedTokenException(_ComposeParsed(), token, "The token '" + token + "' is not recognized.");
                 }
-                
+
                 // We're out of tokens.
                 __TryFinish("");
                 Expression e = (Expression)exp;
@@ -197,7 +177,7 @@ namespace Dependency
                 else if (fullParsed.Length == 1) e.Contents = fullParsed[0];
                 else e.Contents = new Vector(fullParsed);
                 return exp;
-                
+
                 IEvaluateable[] __Parse()
                 {
                     while (heap.Count > 0)
@@ -210,11 +190,11 @@ namespace Dependency
                         if (token != replacement)
                             heap.Enqueue(replacement);
                     }
-                    
+
                     Debug.Assert(inputs.Count > 0);
-                    
+
                     // Look for implied multiplications and break as vectors.
-                    List<TokenSemicolon> semiColons = new List<TokenSemicolon>();                    
+                    List<TokenSemicolon> semiColons = new List<TokenSemicolon>();
                     var node = inputs.FirstNode;
                     List<List<IEvaluateable>> allLegs = new List<List<IEvaluateable>>();
                     List<IEvaluateable> thisLeg = new List<IEvaluateable>();
@@ -237,17 +217,18 @@ namespace Dependency
                     allLegs.Add(thisLeg);
                     return allLegs.Select(leg => leg.Count == 1 ? leg[0] : new Vector(leg.ToArray())).ToArray();
                 }
-                
+
                 bool __TryCreateReference(string token, out Reference result)
                 {
                     // If there is no context, then of course there can be no reference.
                     if (rootContext == null) { result = null; return false; }
-                    
+
                     try
                     {
                         result = Reference.FromPath(rootContext, token.Split('.'));
                         return true;
-                    } catch (ReferenceException)
+                    }
+                    catch (ReferenceException)
                     {
                         result = null;
                         return false;
@@ -303,7 +284,7 @@ namespace Dependency
         }
 
 
-        
+
 
         #region Parser Tokens parsing
 
@@ -331,11 +312,11 @@ namespace Dependency
                 LessThan = 901,
                 GreaterThanOrEquals = 902,
                 LessThanOrEquals = 903,
-                Equals = 1000,                
+                Equals = 1000,
                 Comma = 10000,
                 Semicolon = 10000
             }
-            
+
             /// <summary>The left-to-right index.</summary>
             protected internal int Index { get; internal set; }
             internal protected abstract bool TryParse(out Token replacement);
@@ -348,7 +329,7 @@ namespace Dependency
                     case "!": token = new TokenBang() { Index = index }; return true;
                     case "~": token = new TokenTilde() { Index = index }; return true;
                     case "+": token = new TokenPlus() { Index = index }; return true;
-                    case "*": token = new TokenStar() { Index = index}; return true;
+                    case "*": token = new TokenStar() { Index = index }; return true;
                     case "/": token = new TokenSlash() { Index = index }; return true;
                     case "^": token = new TokenHat() { Index = index }; return true;
                     case "&": token = new TokenAmpersand() { Index = index }; return true;
@@ -362,7 +343,7 @@ namespace Dependency
                     default: token = null; return false;
                 }
             }
-            
+
 
             internal DynamicLinkedList<IEvaluateable>.Node Node;
 
@@ -433,7 +414,7 @@ namespace Dependency
                 sb.Append(GetType().Name);
                 if (Node.Next != null) sb.Append(".." + Node.Next.Contents.GetType().Name);
                 return sb.ToString();
-            }            
+            }
         }
 
 
@@ -479,8 +460,8 @@ namespace Dependency
             protected internal override Priorities Priority => Priorities.Comma;
             protected internal override bool TryParse(out Token keepIt)
             {
-                if (Node.Previous == null) throw new ParsingException(this,"A comma ',' must follow an expression.");
-                if (Node.Next == null) throw new ParsingException(this, "A comma ',' must precede an expression.");                
+                if (Node.Previous == null) throw new ParsingException(this, "A comma ',' must follow an expression.");
+                if (Node.Next == null) throw new ParsingException(this, "A comma ',' must precede an expression.");
                 keepIt = this;
                 return false;
             }
@@ -722,7 +703,7 @@ namespace Dependency
 
 
         #region Parser Exceptions
-        
+
         public class SyntaxException : Exception
         {
             public string Parsed { get; protected set; }
@@ -757,14 +738,14 @@ namespace Dependency
         public class ReferenceException : SyntaxException
         {
             public readonly Reference Incomplete;
-            internal ReferenceException(Reference incomplete, string message) : base( message) { this.Incomplete = incomplete; }
+            internal ReferenceException(Reference incomplete, string message) : base(message) { this.Incomplete = incomplete; }
         }
 
         public class UnrecognizedTokenException : SyntaxException
         {
             internal UnrecognizedTokenException(string parsed, string failedToken, string message) : base(parsed, failedToken, message) { }
         }
-        
+
         #endregion
 
 
@@ -795,7 +776,7 @@ namespace Dependency
 
             IEvaluateable IExpression.GetGuts() => Reference;
         }
-        
+
 
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Head"/> of a 
