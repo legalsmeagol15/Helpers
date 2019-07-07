@@ -34,6 +34,7 @@ namespace Dependency
                 v.UpdateValue();                
             }
         }
+        
 
         public Reference this[string segment]
         {
@@ -84,6 +85,7 @@ namespace Dependency
                 throw new Parse.ReferenceException(null, "Given root is an invalid context.");
             return FromPath(ic, segments);
         }
+        
 
 
         public string ToString(IContext perspective)

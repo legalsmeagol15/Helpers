@@ -15,7 +15,9 @@ namespace Dependency
 
     internal static class Helpers
     {
-
+        /// <summary>
+        /// Converts a non-<seealso cref="IEvaluateable"/> object into an <seealso cref="IEvaluateable"/> object.
+        /// </summary>
         public static IEvaluateable Obj2Eval(object obj)
         {
             switch (obj)
@@ -690,12 +692,11 @@ namespace Dependency
         private const string OpenerPattern = @"(?<openerPattern>[\(\[{])";
         private const string CloserPattern = @"(?<closerPattern>[\)\]}])";
         private const string OperPattern = @"(?<operPattern>[+-/*&|^~!><=])";
-        private const string RefPattern = @"(?<refPattern> \$? _? (?:_* \$? \w _* (?:_*\$? \d_*)*)*)";
         private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
         private const string SpacePattern = @"(?<spacePattern>\s+)";
-        private const string ReferencePattern = @"(?<referencePattern>[_a-zA-Z][_a-zA-Z0-9]*(\.[_a-zA-Z0-9])*)";
+        private const string RefPattern = @"(?<referencePattern>[_a-zA-Z][_a-zA-Z0-9]*(\.[_a-zA-Z0-9])*)";
 
-        private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, RefPattern, NumPattern, SpacePattern, ReferencePattern);
+        private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, NumPattern, SpacePattern, RefPattern);
         private static Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);
 
         #endregion

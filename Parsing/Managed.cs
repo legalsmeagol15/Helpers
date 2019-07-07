@@ -43,7 +43,7 @@ namespace Dependency
     public sealed class DependencyContext : IContext
     {
         // This is the context that can handle subcontexts not known at compile time.
-
+        public static bool IsManaged(object obj) => ManagedContext.HostContexts.ContainsKey(obj);
         
         private readonly Dictionary<string, ISubcontext> _Subcontexts = new Dictionary<string, ISubcontext>();
                 

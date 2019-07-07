@@ -33,7 +33,7 @@ namespace UnitTests
             IEvaluateable e = null;
             Assert.IsTrue(root.TryGetSubcontext("line0", out ctxt) && ctxt.TryGetProperty("X1", out e));
             Assert.IsTrue(e is Variable v);
-            Assert.AreEqual(e.Value, 0);
+            Assert.AreEqual(e.Value, 10);
 
             
         }
@@ -195,7 +195,15 @@ namespace UnitTests
 
         private double _Length;
         [Property(source: true, listener: false, initialContents: "")]
-        public double Length { get => _Length; private set { _Length = value; Reference.FromPath(this, "Length").Contents = _Length; } }
+        public double Length
+        {
+            get => _Length; private set
+            {
+                _Length = value;
+                if (DependencyContext.IsManaged(this))
+                    Reference.FromPath(this, "Length").Contents = _Length;
+            }
+        }
 
         private double GetLength() => Math.Sqrt(Math.Pow(_X2 - _X1, 2) + Math.Pow(_Y2 - _Y1, 2));
 
