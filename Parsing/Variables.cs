@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Helpers;
+using System.Runtime.CompilerServices;
 
 namespace Dependency
 {
@@ -21,28 +22,48 @@ namespace Dependency
     
     public sealed class Variable : IEvaluateable
     {
+        
         public readonly IContext Context;
 
         public readonly string Name;
 
-        public readonly List<WeakReference<Variable>> Listeners = new List<WeakReference<Variable>>();
+        
+        private ISet<Variable> _Terms;
 
-        public IEvaluateable Value { get; private set; }
+        private IEvaluateable _Value;
+        public IEvaluateable Value
+        {
+            get => _Value;
+            private set
+            {
+                IEvaluateable oldValue = Value;
+                Value = value;
+                if (oldValue != Value)
+                {
+                    NotifyListeners();
+                    ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, Value));
+                }
+            }
+        }
         private IEvaluateable _Contents;
         public IEvaluateable Contents
         {
             get => _Contents;
             set
             {
-                ISet<Variable> newTerms = Helpers.GetTerms(value);
-                _Contents = value;
-                IEvaluateable oldValue = Value;
-                Value = value.UpdateValue();
-                if (oldValue != Value)
+                if (_Terms == null)
+                    _Terms = Helpers.GetTerms(value);
+                else
                 {
-                    NotifyListeners();
-                    ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, Value));
+                    ISet<Variable> newTerms = Helpers.GetTerms(value);
+                    foreach (Variable oldTerm in _Terms.Except(newTerms))
+                        RemoveListener(this);
+                    foreach (Variable newTerm in newTerms.Except(_Terms))
+                        AddListener(this);
+                    this._Terms = newTerms;
                 }
+                _Contents = value;
+                Value = value.UpdateValue();
             }
         }
 
@@ -71,6 +92,22 @@ namespace Dependency
         }
 
         public IEvaluateable UpdateValue() => Value = _Contents.UpdateValue();
+
+        public IEnumerable<Variable> GetTerms()
+        {
+            throw new NotImplementedException();
+        }
+
+        private readonly ConditionalWeakTable<Variable, object> Listeners = new ConditionalWeakTable<Variable, object>();
+       
+        private bool RemoveListener(Variable listener)
+        {
+            
+        }
+        private bool AddListener(Variable listener)
+        {
+
+        }
     }
 
 

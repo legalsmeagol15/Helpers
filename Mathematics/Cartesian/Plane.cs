@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Helpers.Mathematics.Cartesian
+namespace Mathematics.Cartesian
 {
     public class Plane3
     {

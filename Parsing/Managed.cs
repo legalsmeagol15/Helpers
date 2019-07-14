@@ -25,7 +25,7 @@ namespace Dependency
             this.Aliases = aliases;
             this.Contents = initialContents;
         }
-        public PropertyAttribute(bool source, bool listener, string initialContents, params string[] aliases) 
+        public PropertyAttribute(bool source, bool listener, string initialContents = null, params string[] aliases) 
             : this((source ? Role.Source : 0) | (listener ? Role.Listener : 0), initialContents, aliases) { }
     }
 
@@ -42,10 +42,17 @@ namespace Dependency
     
     public sealed class DependencyContext : IContext
     {
+        internal static readonly IDictionary<DependencyContext, IFunctionFactory> Functions 
+            = new Dictionary<DependencyContext, IFunctionFactory>();
+        private readonly Dictionary<string, ISubcontext> _Subcontexts = new Dictionary<string, ISubcontext>();
+
         // This is the context that can handle subcontexts not known at compile time.
         public static bool IsManaged(object obj) => ManagedContext.HostContexts.ContainsKey(obj);
         
-        private readonly Dictionary<string, ISubcontext> _Subcontexts = new Dictionary<string, ISubcontext>();
+        public DependencyContext(IFunctionFactory functionFactory = null)
+        {
+            Functions[this] = functionFactory;
+        }
                 
         public void Add(object subcontext, string name)
         {    
@@ -70,7 +77,6 @@ namespace Dependency
     internal sealed class ManagedContext : ISubcontext
     {
         internal static readonly Dictionary<object, WeakReference<IContext>> HostContexts = new Dictionary<object, WeakReference<IContext>>();
-
         internal readonly object Host;
         internal readonly ManagedProfile Profile;        
         internal readonly Dictionary<string, WeakReference<ISubcontext>> ManagedSubcontexts = new Dictionary<string, WeakReference<ISubcontext>>();
@@ -114,7 +120,25 @@ namespace Dependency
 
             // Otherwise, time to create a new variable from the template.
             source = (currentVal is Variable v) ? v : (v = new Variable(this, token, Obj2Eval(currentVal)));
-            v.Contents = Parse.FromString(template.Contents,null , this);  // TODO:  What about functions factory?
+            if (template.Contents == null)
+            {
+                object clrValue = template.Info.GetValue(this.Host);
+                v.Contents = Helpers.Obj2Eval(clrValue);
+            }   
+            else
+            {
+                IContext temp = this;
+                IFunctionFactory fac = null;
+                while (temp != null)
+                {
+                    if (temp is DependencyContext dc) { fac = DependencyContext.Functions[dc]; break; }
+                    else if (temp is ISubcontext isc) temp = isc.Parent;
+                    else break;
+                }
+                v.Contents = Parse.FromString(template.Contents, fac, this);  // TODO:  What about functions factory?
+            }
+                
+
             foreach (string alias in template.Aliases)
             {
                 if (ManagedProperties.TryGetValue(alias, out weakRef)) weakRef.SetTarget(source);

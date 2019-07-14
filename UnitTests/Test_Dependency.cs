@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Collections;
 using Dependency;
+using static UnitTests.Common;
 using System.Runtime.CompilerServices;
 
 namespace UnitTests
@@ -17,25 +18,59 @@ namespace UnitTests
     public class Test_ManagedContext
     {
         [TestMethod]
-        public void TestAutoContext_Creation()
+        public void TestManagedContext_Creation()
         {
             DependencyContext root = new DependencyContext();
 
-            Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = 4, Y2 = 3 };
+            // The line class does not implement IContext, so it will have to be a managed context.
+            Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = -20, Y2 = 3 };
             root.Add(line0, "line0");
             Assert.IsTrue(root.TryGetSubcontext("line0", out IContext ctxt) && ctxt.GetType().Name == "ManagedContext");
+
+            // The Brush class DOES implement IContext, so it will NOT be a managed context.
             Brush brush0 = new Brush();
             root.Add(brush0, "brush0");
             Assert.IsTrue(root.TryGetSubcontext("brush0", out ctxt) && ctxt is Brush);
+
+            // Test that non-existent properties don't create something dysfunctional.
             Assert.IsFalse(root.TryGetSubcontext("nonexistent", out _));
             Assert.IsFalse(ctxt.TryGetProperty("missing", out _));
 
+            // check that the reference to the line's X1 property returns a Variable with the proper value.
             IEvaluateable e = null;
             Assert.IsTrue(root.TryGetSubcontext("line0", out ctxt) && ctxt.TryGetProperty("X1", out e));
             Assert.IsTrue(e is Variable v);
             Assert.AreEqual(e.Value, 10);
-
             
+            e = Reference.FromPath(root, "line0", "X2").Source;
+            Assert.IsTrue(e is Variable);
+            Assert.AreEqual(e.Value, -20);
+
+            AssertThrows<Parse.ReferenceException>(() => e = Reference.FromPath(root, "line0", "Y1").Source);
+
+            Variable varY2 = Reference.FromPath(root, "line0", "Y2").Source as Variable;
+            Assert.IsNotNull(varY2);
+            Assert.AreEqual(varY2.Name, "Y2");
+            Assert.AreEqual(varY2.Value, 10); // If reference works, this will work.
+        }
+
+        [TestMethod]
+        public void TestManagedContext_Interdependency()
+        {
+            DependencyContext root = new DependencyContext();
+            Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = -20, Y2 = 3 };
+            root.Add(line0, "line0");
+            Variable varX1 = Reference.FromPath(root, "line0", "X1").Source as Variable;
+            Variable varY1 = Reference.FromPath(root, "line0", "Y1").Source as Variable;
+            Assert.IsNotNull(varX1);
+            Assert.IsNotNull(varY1);
+
+            varX1.Contents = Parse.FromString( "Y1", null , root);
+            Assert.AreNotEqual(varX1, varY1);
+            Assert.IsTrue(varX1.Contents is Expression);
+            Assert.IsTrue(varX1.GetTerms().Contains(varY1));
+
+
         }
 
         
@@ -184,13 +219,13 @@ namespace UnitTests
         [Property(source: true, listener: true, initialContents:"10")]
         public double X1 { get => _X1; set { _X1 = value; Length = GetLength(); } }
 
-        [Property(source: false, listener: true, initialContents: "12")]
+        [Property(source: true, listener: false)]
         public double X2 { get => _X2; set { _X2 = value; Length = GetLength(); } }
 
-        [Property(source: true, listener: false, initialContents: "14")]
+        [Property(source: false, listener: true, initialContents: "14")]
         public double Y1 { get => _Y1; set { _Y1 = value; Length = GetLength(); } }
 
-        [Property(source: true, listener: true, initialContents: "16")]
+        [Property(source: true, listener: true, initialContents: "X1")]
         public double Y2 { get => _Y2; set { _Y2 = value; Length = GetLength(); } }
 
         private double _Length;
