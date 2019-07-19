@@ -20,14 +20,19 @@ namespace Helpers.DataStructures.Sets
         /// <summary>Iterates through and counts the items in this set.  This is always an O(n) operation.</summary>
         public int Count => this.Count();
 
-        bool ICollection<T>.IsReadOnly => throw new NotImplementedException();
-
+        bool ICollection<T>.IsReadOnly => false;
+        
         public bool Add(T item)
         {
             _Root = _Root.Add(item, item.GetHashCode(), out bool changed);
             return changed;
         }
         
+
+        void ICollection<T>.Add(T item)
+        {
+            throw new NotImplementedException();
+        }
 
         void ICollection<T>.Clear()
         {
@@ -198,7 +203,15 @@ namespace Helpers.DataStructures.Sets
             {
                 int active = 0;
                 List.RemoveAll(wr => { if (!wr.TryGetTarget(out T existing)) return true; else active++; return false; });
-                return active;
+                activeItems = active;
+                if (List.Count == 0) return null;
+                if (List.Count == 1)
+                {
+                    if (List[0].TryGetTarget(out T existing)) return new SingletonNode(existing);
+                    activeItems = 0;
+                    return null;
+                }
+                return this;
             }
 
             public override bool Contains(T item, int hashCode)
@@ -265,6 +278,11 @@ namespace Helpers.DataStructures.Sets
                 foreach (var item in items) Add(item, item.GetHashCode(), out _);
             }
 
+            /// <summary>
+            /// 
+            /// </summary>
+            /// <param name="bits"></param>
+            /// <returns></returns>
             private static int GetBitMask_Little(int bits)
             {
                 int result = 0;
@@ -301,7 +319,6 @@ namespace Helpers.DataStructures.Sets
                 }
                 else
                 {
-                    // A Node never converts itself.
                     _Children[index] = _Children[index].Remove(item, hashCode >> Bits, out changed);
                     if (_Children[index] == null) _Occupied.Remove(index);
                     if (_Occupied.Count == 0) return null;
