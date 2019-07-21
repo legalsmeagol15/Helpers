@@ -36,5 +36,21 @@ namespace Mathematics
             }
             return result;
         }
+
+        /// <summary>Returns the log base 2 of the given number.</summary> 
+        public static int Log_2(int number)
+        {
+            if (number < 1) throw new ArgumentException("The log of a negative number is undefined.");
+            // Uses a binary search to find the log_2 of the number.
+            int result = 0;
+            int step = 32;
+            while (step > 0)
+            {
+                int stepped = number >> step;
+                if (stepped != 0) { result += step; number = stepped; }
+                step <<= 1;
+            }
+            return result;
+        }
     }
 }

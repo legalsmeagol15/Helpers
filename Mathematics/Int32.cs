@@ -29,14 +29,18 @@ namespace Mathematics
         /// <summary>Returns the log base 2 of the given number.</summary> 
         public static int Log_2(int number)
         {
-            if (number < 1) throw new ArithmeticException("There is no integer log_2 of an int whose value is less than 1.");
-            int highest1 = -1;
-            while (number !=0)
+            if (number < 1) throw new ArgumentException("The log of a negative number is undefined.");
+
+            // Uses a binary search to find the log_2 of the number.
+            int result = 0;
+            int step = 16;
+            while (step > 0)
             {
-                number >>= 1;
-                highest1++;
-            }            
-            return highest1;
+                int stepped = number >> step;
+                if (stepped != 0) { result += step; number = stepped; }
+                step <<= 1;
+            }
+            return result;
         }
         public static int Log(int number, double newBase)
         {
@@ -47,6 +51,8 @@ namespace Mathematics
         {            
             return 1 << number;
         }
+        public static bool GetBit(int number, int bit) => (number & (1 << bit)) != 0;
+
         public static bool IsEven(int number)
         {
             return (number & 1) == 0;
