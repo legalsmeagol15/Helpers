@@ -58,10 +58,10 @@ namespace Dependency
                 else
                 {
                     ISet<Variable> newTerms = Helpers.GetTerms(value);
-                    foreach (Variable oldTerm in _Terms.Except(newTerms))
-                        RemoveListener(this);
-                    foreach (Variable newTerm in newTerms.Except(_Terms))
-                        AddListener(this);
+                    //foreach (Variable oldTerm in _Terms.Except(newTerms))
+                    //    RemoveListener(this);
+                    //foreach (Variable newTerm in newTerms.Except(_Terms))
+                    //    AddListener(this);
                     this._Terms = newTerms;
                 }
                 _Contents = value;

@@ -322,7 +322,7 @@ namespace DataStructures
                 //Clean up refs to the start of the removed part.
                 var list = List;
                 if (Previous != null)
-                    Previous.Next = (endNode == null) ? null : endNode.Next;
+                    Previous.Next = endNode?.Next;
                 if (list._FirstNode == this) list._FirstNode = endNode.Next;
 
                 //Removes the range.

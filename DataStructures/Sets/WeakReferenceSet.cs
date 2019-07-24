@@ -9,166 +9,174 @@ namespace Helpers.DataStructures.Sets
 {
     public sealed class WeakReferenceSet<T> : ICollection<T> where T:class
     {
+        private readonly List<Node> _Head = new List<Node>();
         private static readonly Random _Random = new Random();
+        
 
         public bool Add(T item)
         {
-            if (GetNode(item, out Node node, out Node[] traversals)) return false;
+            if (GetNode(item, out Node[] prevNodes)) return false;
+
             Node newNode = new Node(item);
-            while (Head.Links.Count < newNode.Links.Count)
-                Head.Links.Add(null);
-            int i = 0;
-            for (; i < newNode.Links.Count && i < Head.Links.Count; i++)
+            while (newNode.Next.Length > _Head.Count) _Head.Add(null);
+            for (int i = 0; i < newNode.Next.Length; i++)
             {
-                newNode.Links[i] = Head.Links[i];
-                Head.Links[i] = newNode;
-            }
-            for (;  i < traversals.Length && i < newNode.Links.Count; i++)
-            {
-                newNode.Links[i] = traversals[i].Links[i];
-                traversals[i] = newNode;
+                Node prevAtLevel = prevNodes[i];
+                if (prevAtLevel == null)
+                {
+                    // It was a tall insertion after an empty or emptied _Head
+                    newNode.Prev[i] = null;
+                    newNode.Next[i] = null;
+                    _Head[i] = newNode;
+                }
+                else if (prevAtLevel.Next[i] == null)
+                {
+                    // It was an insertion higher preceding node.
+                    newNode.Prev[i] = prevNodes[i];
+                    newNode.Next[i] = null;
+                    prevAtLevel.Next[i] = newNode;
+                }
+                else
+                {
+                    // It was an insertion between two nodes.
+                    newNode.Prev[i] = prevAtLevel;
+                    newNode.Next[i] = prevAtLevel.Next[i];
+                    prevAtLevel.Next[i].Prev[i] = newNode;
+                    prevAtLevel.Next[i] = newNode;
+                }
             }
             Count++;
             return true;
         }
 
-        void ICollection<T>.Add(T item) => this.Add(item);
-
         public void Clear()
         {
-            for (int i = 0; i < Head.Links.Count; i++) Head.Links[i] = null;
+            _Head.Clear();
             Count = 0;
         }
 
-        public bool Contains(T item) => GetNode(item, out _, out _);
+        public bool Contains(T item) => GetNode(item, out _);
 
         public int Count { get; private set; }
 
-        bool ICollection<T>.IsReadOnly => false;
+        
 
         public bool Remove(T item)
         {
-            if (!GetNode(item, out Node node, out Node[] traversals)) return false;
-            Remove(node, traversals);
+            if (!GetNode(item, out Node[] prev)) return false;
+            Compact(prev[0]);
             return true;
         }
 
-        /// <summary>Obtains the containing node, and traversal set used to obtain this node.</summary>
-        /// <param name="item">The item whose node is sought.</param>
-        /// <param name="node">Guaranteed to be either the containing node, or null if none contained the item.</param>
-        /// <param name="traversedLinks">The links that may require updating if a node is removed or changed at this 
-        /// item's hash.</param>
-        /// <returns>Returns true of a containing node is identified (which will be stored in the 
-        /// <paramref name="node"/> out variable).</returns>
-        private bool GetNode(T item, out Node node, out Node[] traversedLinks)
+        /// <summary>
+        /// Returns true if a node matching the given item exists.  In that case, prev[0] will be that node.  
+        /// Otherwise, prev will be populated with the preceding nodes at each level.
+        /// </summary>
+        private bool GetNode(T item, out Node[] prev)
         {
-            int itemHash = item.GetHashCode();
-            traversedLinks = new Node[Head.Links.Count];
-            node = Head;
-           
-            // Find the first level that Head doesn't point at the end.
-            int level = traversedLinks.Length - 1;
-            for (; level >= 0; level--)
-            {
-                traversedLinks[level] = Head;
-                if (Head.Links[level] != null) { node = Head.Links[level]; break; }
-            }
+            prev = _Head.ToArray();
 
-            // Do the skipping.
-            while (level >= 0 && node != null)
+            int level = _Head.Count - 1;
+            int itemHash = item.GetHashCode();
+
+            Node node = _Head[level];
+            while (true)
             {
-                // On a hash-match, either return this node's contents or walk to the next node.
+                while (node == null || node.HashCode > itemHash)
+                {
+                    if (--level < 0) return false;
+                    node = prev[level];
+                }
                 if (node.HashCode == itemHash)
                 {
-                    // If we must remove, delete and then go back to the prior node.  A WeakReference is guaranteed to 
-                    // exist because Head has been ruled out.
-                    if (!node.WeakReference.TryGetTarget(out T target))
+                    if (!node.Data.TryGetTarget(out T existing))
                     {
-                        Remove(node, traversedLinks);
-                        node = traversedLinks[level];
+                        Node toRemove = node;
+                        if ((node = node.Prev[level]) == null)
+                        {
+                            while (_Head[level] == null) if (--level < 0) return false;
+                            node = _Head[level];
+                        }
+                        Compact(toRemove);
                     }
-
-                    // If this is a genuine match, return success.
-                    else if (target.Equals(item)) return true;
-
-                    // Otherwise, this is a hash match, but not a genuine match.  This node would fill all above 
-                    // traversals, and allow for walk at level 0.
-                    for (; level > 0; level--) traversedLinks[level] = node;                    
+                    else if (existing.Equals(item)) return true;
+                    else { node = node.Next[level = 0]; prev[level] = node; }
                 }
-                // If this level would point at the end, go down a level yet.
-                else if (node.Links[level] == null)
-                    level--;
-                // Time to skip
                 else
                 {
-                    traversedLinks[level] = node;
-                    node = node.Links[level];
+                    while (node.Next[level] == null || node.Next[level].HashCode > itemHash) if (--level < 0) return false;
+                    node = node.Next[level];
+                    prev[level] = node;
                 }
-                
             }
-            node = null;
-            return false;
         }
-        private void Remove(Node node)
+
+        private void Compact(Node node)
         {
-            for (int  i = 0; i < node.Next.Count; i++)
+            for (int  i = 0; i < node.Next.Length; i++)
             {
-                Node next = node.Next[i], prev = node.Prev[i];
-                if (next != null) next.Prev[i] = prev;
-                if (prev != null) prev.Next[i] = next;                
-            }            
+                Node next = node.Next[i];
+                Node prev = node.Prev[i];
+                if (next != null) next.Prev[i] = node.Prev[i];
+                if (prev != null) prev.Next[i] = node.Next[i];
+            }
             Count--;
         }
-        
+
+        void ICollection<T>.Add(T item) => this.Add(item);
+
+        bool ICollection<T>.IsReadOnly => false;
 
         void ICollection<T>.CopyTo(T[] array, int arrayIndex)
         {
-            throw new NotImplementedException();
+            foreach (T item in this)
+            {
+                if (arrayIndex >= array.Length) return;
+                array[arrayIndex++] = item;
+            }
         }
         
+
         public IEnumerator<T> GetEnumerator()
         {
-            // Must have both a next and a prior link set to do compacting iteration.
-
-            Node node = Head.Links[0];
-            while (node != null)
+            Node n = _Head[0];
+            while (n != null)
             {
-                if (!node.WeakReference.TryGetTarget(out _))
+                if (!n.Data.TryGetTarget(out T existing))
                 {
-                    Node nextNode = node.Links[0];
-                    
+                    Node toRemove = n;
+                    n = n.Next[0];
+                    Compact(toRemove);
+                }
+                else
+                {
+                    yield return existing;
+                    n = n.Next[0];
                 }
             }
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        private class Node
         {
-            throw new NotImplementedException();
-        }
-
-        private sealed class Node
-        {
-            internal readonly int HashCode;
-            internal int Skip; // TODO:  implement indexing.
-            internal readonly WeakReference<T> WeakReference;
-            internal readonly IList<Node> Next;
-            internal readonly IList<Node> Prev;
-
-            
-            internal Node() { this.Skip = 0; this.WeakReference = null; this.Next = new List<Node>(); }
-            internal Node(T item)
-            {
-                this.HashCode = item.GetHashCode();
-                this.WeakReference = new WeakReference<T>(item);
-                this.Skip = 0;
-
+            public readonly WeakReference<T> Data;
+            public readonly int HashCode;
+            public Node[] Prev, Next;
+            public Node(T data) {
+                this.Data = new WeakReference<T>(data);
+                this.HashCode = this.GetHashCode();
                 int linkSize = 0;
-                while (_Random.Next(2) == 1) linkSize++;
-                this.Next = new Node[linkSize];
-                this.Prev = new Node[linkSize];
+                while ((_Random.Next() & 1) == 1) linkSize++;
+                Prev = new Node[linkSize];
+                Next = new Node[linkSize];
             }
-            public override int GetHashCode() => HashCode;
-            
+
+            public override string ToString()
+            {
+                if (!Data.TryGetTarget(out T existing)) return HashCode + " / null";
+                return HashCode + " / " + existing.ToString();
+            }
         }
     }
 }
