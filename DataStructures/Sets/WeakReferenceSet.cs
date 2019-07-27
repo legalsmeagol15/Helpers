@@ -9,9 +9,8 @@ using System.Threading.Tasks;
 namespace DataStructures
 {
     /// <summary>
-    /// A set of <seealso cref="WeakReference"/> objects of type <typeparamref name="T"/>.  Existing on this set will 
-    /// not prevent an object from being garbage-collected, but will allow users to iterate through the surviving 
-    /// references.
+    /// A set of <seealso cref="WeakReference{T}"/> objects.  Existing on this set will not prevent an object from 
+    /// being garbage-collected, but will allow users to iterate through the surviving references.
     /// </summary>
     /// <remarks>Under the hood, this collection is based on a skip list which prunes dead references during 
     /// collection modification  and iteration.  Note that a <seealso cref="WeakReference"/>'s expiration will not 
