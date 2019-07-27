@@ -67,6 +67,8 @@
     <Compile Include="Test_DynamicLinkedList.cs" />
     <Compile Include="Test_Heap.cs" />
     <Compile Include="Test_Dependency.cs" />
+    <Compile Include="Test_WeakReferenceSet.cs" />
+    <Compile Include="Test_Number_Methods.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Helpers.csproj">

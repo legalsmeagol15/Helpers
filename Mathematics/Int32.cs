@@ -29,7 +29,7 @@ namespace Mathematics
         /// <summary>Returns the log base 2 of the given number.</summary> 
         public static int Log_2(int number)
         {
-            if (number < 1) throw new ArgumentException("The log of a negative number is undefined.");
+            if (number < 1) throw new ArgumentException("The log of a number less than 1 is undefined.");
 
             // Uses a binary search to find the log_2 of the number.
             int result = 0;
@@ -38,7 +38,7 @@ namespace Mathematics
             {
                 int stepped = number >> step;
                 if (stepped != 0) { result += step; number = stepped; }
-                step <<= 1;
+                step >>= 1;
             }
             return result;
         }

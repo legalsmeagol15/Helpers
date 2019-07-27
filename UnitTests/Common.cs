@@ -34,5 +34,17 @@ namespace UnitTests
 
         [DebuggerStepThrough]
         public static void AssertThrows(Action action) => AssertThrows<Exception>(action);
+
+        public static void Permute<T> (IList<T> items, int seed = 0)
+        {
+            Random rng = new Random(0);
+            for(int i = 0; i < items.Count; i++)
+            {
+                int j = rng.Next(0, items.Count);
+                T temp = items[j];
+                items[j] = items[i];
+                items[i] = temp;
+            }
+        }
     }
 }

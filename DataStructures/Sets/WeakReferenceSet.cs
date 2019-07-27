@@ -1,51 +1,53 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Helpers.DataStructures.Sets
+namespace DataStructures
 {
-    public sealed class WeakReferenceSet<T> : ICollection<T> where T:class
+    public sealed class WeakReferenceSet<T> : ICollection<T> where T : class
     {
         private readonly List<Node> _Head = new List<Node>();
-        private static readonly Random _Random = new Random();
-        
+        private readonly Random _Random = new Random(0);
+        private int _MaxLinks;
+
+        public WeakReferenceSet(int capacity = 0, int seed = 0)
+        {
+            this._MaxLinks = (capacity < 1) ? 1 : Mathematics.Int32.Log_2(capacity);
+            this._Random = new Random(seed);
+        }
 
         public bool Add(T item)
         {
-            if (GetNode(item, out Node[] prevNodes)) return false;
-
-            Node newNode = new Node(item);
+            int linkSize = 1;
+            for (int i = 1; i < _MaxLinks && (_Random.Next() & 1) != 1; i++) linkSize++;
+            Node newNode = new Node(item, item.GetHashCode(), linkSize);
             while (newNode.Next.Length > _Head.Count) _Head.Add(null);
-            for (int i = 0; i < newNode.Next.Length; i++)
+
+            if (GetNode(item, out Node[] prevNodes, newNode.HashCode)) return false;
+
+            for (int lvl = 0; lvl < newNode.Next.Length; lvl++)
             {
-                Node prevAtLevel = prevNodes[i];
+                Node prevAtLevel = prevNodes[lvl];
+                newNode.Prev[lvl] = prevAtLevel;
+                Node oldNext;
                 if (prevAtLevel == null)
                 {
-                    // It was a tall insertion after an empty or emptied _Head
-                    newNode.Prev[i] = null;
-                    newNode.Next[i] = null;
-                    _Head[i] = newNode;
-                }
-                else if (prevAtLevel.Next[i] == null)
-                {
-                    // It was an insertion higher preceding node.
-                    newNode.Prev[i] = prevNodes[i];
-                    newNode.Next[i] = null;
-                    prevAtLevel.Next[i] = newNode;
+                    oldNext = _Head[lvl];
+                    _Head[lvl] = newNode;
                 }
                 else
                 {
-                    // It was an insertion between two nodes.
-                    newNode.Prev[i] = prevAtLevel;
-                    newNode.Next[i] = prevAtLevel.Next[i];
-                    prevAtLevel.Next[i].Prev[i] = newNode;
-                    prevAtLevel.Next[i] = newNode;
+                    oldNext = prevAtLevel.Next[lvl];
+                    prevAtLevel.Next[lvl] = newNode;
                 }
+
+                if (oldNext != null) { oldNext.Prev[lvl] = newNode; newNode.Next[lvl] = oldNext; }
             }
-            Count++;
+            if (++Count > (1 << _MaxLinks)) _MaxLinks++;
             return true;
         }
 
@@ -53,13 +55,12 @@ namespace Helpers.DataStructures.Sets
         {
             _Head.Clear();
             Count = 0;
+            _MaxLinks = 1;
         }
 
         public bool Contains(T item) => GetNode(item, out _);
 
         public int Count { get; private set; }
-
-        
 
         public bool Remove(T item)
         {
@@ -68,24 +69,23 @@ namespace Helpers.DataStructures.Sets
             return true;
         }
 
-        /// <summary>
-        /// Returns true if a node matching the given item exists.  In that case, prev[0] will be that node.  
-        /// Otherwise, prev will be populated with the preceding nodes at each level.
-        /// </summary>
-        private bool GetNode(T item, out Node[] prev)
+        private bool GetNode(T item, out Node[] prev, int itemHash = int.MinValue)
         {
             prev = _Head.ToArray();
+            if (prev.Length == 0) return false;
 
-            int level = _Head.Count - 1;
-            int itemHash = item.GetHashCode();
+            if (itemHash == int.MinValue) itemHash = item.GetHashCode();
 
-            Node node = _Head[level];
+            int level = prev.Length - 1;
+
+            while (prev[level] != null && prev[level].HashCode > itemHash) { prev[level] = null; if (--level < 0) return false; }
+            Node node = prev[level];
             while (true)
             {
                 while (node == null || node.HashCode > itemHash)
                 {
-                    if (--level < 0) return false;
-                    node = prev[level];
+                    if (level <= 0) return false;
+                    node = prev[--level];
                 }
                 if (node.HashCode == itemHash)
                 {
@@ -94,17 +94,29 @@ namespace Helpers.DataStructures.Sets
                         Node toRemove = node;
                         if ((node = node.Prev[level]) == null)
                         {
-                            while (_Head[level] == null) if (--level < 0) return false;
+                            while (_Head[level] == null)
+                            {
+                                prev[level] = null;
+                                if (--level < 0) return false;
+                            }
                             node = _Head[level];
                         }
                         Compact(toRemove);
                     }
                     else if (existing.Equals(item)) return true;
-                    else { node = node.Next[level = 0]; prev[level] = node; }
+                    else
+                    {
+                        for (; level > 0; level--) prev[level] = node;
+                        node = node.Next[0];
+                    }
                 }
                 else
                 {
-                    while (node.Next[level] == null || node.Next[level].HashCode > itemHash) if (--level < 0) return false;
+                    while (node.Next[level] == null || node.Next[level].HashCode > itemHash)
+                    {
+                        prev[level] = node;
+                        if (--level < 0) return false;
+                    }
                     node = node.Next[level];
                     prev[level] = node;
                 }
@@ -113,14 +125,16 @@ namespace Helpers.DataStructures.Sets
 
         private void Compact(Node node)
         {
-            for (int  i = 0; i < node.Next.Length; i++)
+            for (int i = 0; i < node.Next.Length; i++)
             {
                 Node next = node.Next[i];
                 Node prev = node.Prev[i];
                 if (next != null) next.Prev[i] = node.Prev[i];
                 if (prev != null) prev.Next[i] = node.Next[i];
             }
-            Count--;
+            if (--Count < (1 << (_MaxLinks - 1)))
+                if (--_MaxLinks < 1)
+                    _MaxLinks = 1;
         }
 
         void ICollection<T>.Add(T item) => this.Add(item);
@@ -135,10 +149,11 @@ namespace Helpers.DataStructures.Sets
                 array[arrayIndex++] = item;
             }
         }
-        
+
 
         public IEnumerator<T> GetEnumerator()
         {
+            if (_Head.Count == 0) yield break;
             Node n = _Head[0];
             while (n != null)
             {
@@ -163,20 +178,22 @@ namespace Helpers.DataStructures.Sets
             public readonly WeakReference<T> Data;
             public readonly int HashCode;
             public Node[] Prev, Next;
-            public Node(T data) {
+            [DebuggerStepThrough]
+            public Node(T data, int hashCode, int linkSize)
+            {
                 this.Data = new WeakReference<T>(data);
-                this.HashCode = this.GetHashCode();
-                int linkSize = 0;
-                while ((_Random.Next() & 1) == 1) linkSize++;
+                this.HashCode = hashCode;
                 Prev = new Node[linkSize];
                 Next = new Node[linkSize];
             }
 
             public override string ToString()
             {
-                if (!Data.TryGetTarget(out T existing)) return HashCode + " / null";
-                return HashCode + " / " + existing.ToString();
+                if (!Data.TryGetTarget(out T existing)) return "null";
+                return existing.ToString();
             }
+
         }
+
     }
 }
