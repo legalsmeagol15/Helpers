@@ -77,19 +77,19 @@ namespace DataStructures
             trail = new Node[_Head.Count];
             if (trail.Length == 0) return false;
 
-            // Find the topmost node referenced in Head.
-            while (_Head[level] == null)
-                if (--level < 0) return false;
-
-            // Continue descending while Head's references are higher than the item.
+            // Descend while Head's references are higher than the item.
             Node node;
             T nodeData;
             while (true)
             {
                 node = _Head[level];
-                if (!node.Data.TryGetTarget(out nodeData)) Remove(node);
-                else if (node.HashCode <= itemHash) break;
-                else if (--level < 0) return false;
+                if (node != null)
+                {
+                    if (!node.Data.TryGetTarget(out nodeData))
+                    { Remove(node); continue; }
+                    else if (node.HashCode <= itemHash) break;
+                }
+                if (--level < 0) return false;
             }
 
             // Okay, there's now a node to hang our hat on.
@@ -107,7 +107,6 @@ namespace DataStructures
 
         private void Remove(Node node)
         {
-            
             for (int i = 0; i < node.Next.Length; i++)
             {
                 Node next = node.Next[i];
@@ -172,7 +171,7 @@ namespace DataStructures
 
             public override string ToString()
             {
-                if (!Data.TryGetTarget(out T existing)) return "null";
+                if (!Data.TryGetTarget(out T existing)) return "->null";
                 return existing.ToString();
             }
 

@@ -55,7 +55,33 @@ namespace UnitTests
         [TestMethod]
         public void Test_Compaction()
         {
-            throw new NotImplementedException();
+            WeakReferenceSet<Integer> wrsA = new WeakReferenceSet<Integer>(0);
+            for (int i = 0; i < _Integers.Count; i++)
+            {
+                Assert.IsTrue(wrsA.Add(_Integers[i]));
+            }
+
+            Random rng = new Random(120938);  // arbitrary seed
+            HashSet<Integer> removed = new HashSet<Integer>();
+            for (int i = 0; i <_Integers.Count/2; i++)
+            {
+                int idx = rng.Next(0, wrsA.Count);                
+                removed.Add(new Integer(idx));
+            }
+
+            // Nothing is removed yet, so everything from 'removed' should still be there.
+            foreach (Integer r in removed) Assert.IsTrue(wrsA.Contains(r));
+            
+            // Now, kill the strong references.
+            foreach (Integer r in removed)
+            {
+                _Integers[r.Value] = null;
+            }
+            GC.Collect();
+
+            // Since the garbage collector did its thing, the 'removed' items should be gone.
+            foreach (Integer r in removed) Assert.IsFalse(wrsA.Contains(r));
+            Assert.AreEqual(_Integers.Count - removed.Count, wrsA.Count);
         }
 
         [TestMethod]
@@ -141,7 +167,7 @@ namespace UnitTests
             [DebuggerStepThrough]
             public override int GetHashCode() => Value;
             [DebuggerStepThrough]
-            public override bool Equals(object obj) => base.Equals(obj);
+            public override bool Equals(object obj) => obj is Integer i && i.Value == this.Value;
         }
     }
 }
