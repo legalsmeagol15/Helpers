@@ -8,16 +8,32 @@ using System.Threading.Tasks;
 
 namespace DataStructures
 {
+    /// <summary>
+    /// A set of <seealso cref="WeakReference"/> objects of type <typeparamref name="T"/>.  Existing on this set will 
+    /// not prevent an object from being garbage-collected, but will allow users to iterate through the surviving 
+    /// references.
+    /// </summary>
+    /// <remarks>Under the hood, this collection is based on a skip list which prunes dead references during 
+    /// collection modification  and iteration.  Note that a <seealso cref="WeakReference"/>'s expiration will not 
+    /// automatically remove the reference from this collection, so the collection's <see cref="Count"/> may reflect 
+    /// more valid references than actually exist.  This is so until the collection is iterated over or some 
+    /// modification points out the dead reference.
+    /// <para/>This collection is not thread-safe.</remarks>
+    /// <author>Wesley Oates</author>
+    /// <date>Validated 7/27/19</date>
     public sealed class WeakReferenceSet<T> : ICollection<T> where T : class
     {
         private readonly List<Node> _Head = new List<Node> { null };
         private readonly Random _Random = new Random(0);
 
-        public WeakReferenceSet( int seed = 0)
-        {   
-            this._Random = new Random(seed);
-        }
+        /// <summary>Create a new <see cref="WeakReferenceSet{T}"/>.</summary>
+        /// <param name="seed"></param>
+        public WeakReferenceSet(int seed = 0) { this._Random = new Random(seed); }
 
+        /// <summary>Adds a weak reference to the given item to this collection.</summary>
+        /// <param name="item">The item to be added.</param>
+        /// <returns>Returns true if the item is added to the collection.  If the item already existed (meaning its 
+        /// hash code and the Equals() method reflects equivalency), false is returned.</returns>
         public bool Add(T item)
         {
             int itemHash = item.GetHashCode();
@@ -53,6 +69,7 @@ namespace DataStructures
             return true;
         }
 
+        /// <summary>Removes all items from this collection.</summary>
         public void Clear()
         {
             _Head.Clear();
@@ -60,17 +77,39 @@ namespace DataStructures
             Count = 0;
         }
 
+        /// <summary>Force the collection to remove all dead references.</summary>
+        public void Compact()
+        {
+            Node n = _Head[0];
+            while (n != null)
+            {
+                Node next = n.Next[0];
+                if (!n.Data.TryGetTarget(out _)) Remove(n);
+                n = next;
+            }
+        }
+
+        /// <summary>Returns whether the given item is contained in this collection.</summary>
         public bool Contains(T item) => GetNode(item, item.GetHashCode(), out _);
 
+        /// <summary>
+        /// The count of live or dead references remaining on this collection.  Because expired 
+        /// <seealso cref="WeakReference{T}"/> objects do not automatically fall off this collection, it is possible 
+        /// for dead references to be counted with the living.  Such references will remain until the collection is 
+        /// iterated over, or until some modification alerts the collection to the dead reference.
+        /// </summary>
         public int Count { get; private set; }
 
+        /// <summary>Removes the given item from the collection.</summary>
+        /// <returns>Returns true if the item was removed.  If the item did not exist on the collection (or if its 
+        /// reference had somehow expired) returns false.</returns>
         public bool Remove(T item)
         {
             if (!GetNode(item, item.GetHashCode(), out Node[] prev)) return false;
             Remove(prev[0]);
             return true;
         }
-        
+
         private bool GetNode(T item, int itemHash, out Node[] trail)
         {
             int level = _Head.Count - 1;
@@ -99,7 +138,7 @@ namespace DataStructures
 
                 Node next = node.Next[level];
                 if (next == null || next.HashCode > itemHash) trail[level--] = node;
-                else if (!next.Data.TryGetTarget(out T nextData)) Remove(next);                
+                else if (!next.Data.TryGetTarget(out T nextData)) Remove(next);
                 else { node = next; nodeData = nextData; }
             }
             return nodeData.Equals(item);
@@ -117,7 +156,7 @@ namespace DataStructures
             }
             Count--;
         }
-       
+
 
         void ICollection<T>.Add(T item) => this.Add(item);
 
@@ -132,24 +171,19 @@ namespace DataStructures
             }
         }
 
-
+        /// <summary>Returns an enumerator which steps through the existing items on this collection.</summary>
         public IEnumerator<T> GetEnumerator()
         {
             if (_Head.Count == 0) yield break;
             Node n = _Head[0];
             while (n != null)
             {
+                Node next = n.Next[0];
                 if (!n.Data.TryGetTarget(out T existing))
-                {
-                    Node toRemove = n;
-                    n = n.Next[0];
-                    Remove(toRemove);
-                }
+                    Remove(n);
                 else
-                {
                     yield return existing;
-                    n = n.Next[0];
-                }
+                n = next;
             }
         }
 
