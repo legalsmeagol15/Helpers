@@ -20,12 +20,41 @@ namespace UnitTests
     [TestClass]
     public class Test_Dependency
     {
+        /// <summary>
+        /// Returns the elapsed time that results from updating the dependency tree that begins at 
+        /// <paramref name="vStart"/>, by updating the variables's <see cref="Variable.Contents"/> 
+        /// the given number of times.
+        /// </summary>
+        private static  TimeSpan Time(Variable vStart, int timings)
+        {
+            vStart.Contents = new Number(-100);  // Warmup
+
+            // Do the indicated number of timings
+            DateTime start = DateTime.Now;
+            for (int i = 0; i < timings; i++)
+            {
+                Number num = new Number(i);
+                vStart.Contents = num;
+            }
+            DateTime end = DateTime.Now;
+
+            // Take out the overhead.
+            DateTime overheadStart = DateTime.Now;
+            for (int i = 0; i < timings; i++)
+            {
+                Number num = new Number(i);
+            }
+            DateTime overheadEnd = DateTime.Now;
+
+            return (end - start) - (overheadEnd - overheadStart);
+        }
+
         [TestMethod]
-        public void TestDependency_Linear()
+        public void Test_Linear()
         {
             int numVars = 100;
-            int timings = 100;
-            int timingSizes = 11;
+            int timings = 1000;
+            int timingSizes = 13;
 
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(null, "vStart", Dependency.Number.One);
@@ -59,36 +88,63 @@ namespace UnitTests
                     keepItAlive.Add(vNext);
                     vEnd = vNext;
                 }
-
-                // Warmup
-                vBegin.Contents = new Number(-1);
-
-                // Do the indicated number of timings
-                DateTime start = DateTime.Now;
-                for (int i = 0; i < timings; i++)
-                {
-                    Number num = new Number(i);
-                    vStart.Contents = num;
-                }
-                DateTime end = DateTime.Now;
-
-                // Take out the overhead.
-                DateTime overheadStart = DateTime.Now;
-                for (int  i = 0; i < timings; i++)
-                {
-                    Number num = new Number(i);
-                }
-                DateTime overheadEnd = DateTime.Now;
-
-                var duration = (end - start) - (overheadEnd - overheadStart);
+                
+                var duration = Time(vBegin, timings);
                 Console.WriteLine("n=" + n + ", duration=" + duration + " for " + timings + " runs.");
                 timingSizes--;
-            }
-            
+            }            
         }
 
         [TestMethod]
-        public void TestDependency_Named_Functions()
+        public void Test_Pancake()
+        {
+
+            int numVars = 100;
+            int timings = 1000;
+            int timingSizes = 13;
+
+            Variable vStart = new Variable(null, "vStart");
+            List<Variable> noGC = new List<Variable>();
+            for (int i = 0; i < numVars; i++)
+            {
+                noGC.Add(new Variable(null, "v" + i, vStart));
+            }
+
+            for (int i = 0; i < numVars; i++)
+            {
+                Assert.AreEqual(Dependency.Null.Instance, noGC[i].Value);
+                Assert.AreNotEqual(Dependency.Number.One, noGC[i].Value);
+            }
+
+            vStart.Contents = Dependency.Number.One;
+
+            for (int i = 0; i < numVars; i++)
+            {
+                Assert.AreNotEqual(Dependency.Null.Instance, noGC[i].Value);
+                Assert.AreEqual(Dependency.Number.One, noGC[i].Value);
+            }
+
+
+            // Do a timing
+            while (timingSizes > 0 && timings > 0)
+            {
+                // Set up a chain to experiment on.
+                Variable vBegin = new Variable(null, "vBegin");
+                int n = Mathematics.Int32.Exp_2(timingSizes);
+                List<Variable> keepItAlive = new List<Variable>();
+                for (int i = 0; i < n; i++)
+                {
+                    keepItAlive.Add(new Variable(null, "v" + i, vBegin));
+                }
+
+                var duration = Time(vBegin, timings);
+                Console.WriteLine("n=" + n + ", duration=" + duration + " for " + timings + " runs.");
+                timingSizes--;
+            }
+        }
+
+        [TestMethod]
+        public void Test_Named_Functions()
         {
             IFunctionFactory functions = new Dependency.Functions.ReflectedFunctionFactory();
             IEvaluateable exp0 = Parse.FromString("ABS(11)", functions);
@@ -98,7 +154,7 @@ namespace UnitTests
         }
 
         [TestMethod]
-        public void TestDependency_Parsing()
+        public void Test_Parsing()
         {
             IEvaluateable exp0 = Parse.FromString("3-5+2^3/4*-7-1");    // -17
             IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7-1)");  // Still -17
@@ -120,7 +176,7 @@ namespace UnitTests
 
 
         [TestMethod]
-        public void TestDependency_Reference()
+        public void Test_Reference()
         {
             DependencyContext context = new DependencyContext();
             Line line0 = new Line();
@@ -136,7 +192,7 @@ namespace UnitTests
 
 
         [TestMethod]
-        public void TestDependency_ToString()
+        public void Test_ToString()
         {
             IEvaluateable exp0 = Parse.FromString("3-5+2^3/4*-7-1");    // -17
             IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7-1)");  // Still -17
