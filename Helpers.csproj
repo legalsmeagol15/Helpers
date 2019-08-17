@@ -60,7 +60,6 @@
     <Compile Include="DataStructures\Lists.cs" />
     <Compile Include="DataStructures\Maps\CompositeKeyDictionary.cs" />
     <Compile Include="DataStructures\Sets\WeakReferenceSet.cs" />
-    <Compile Include="DataStructures\Trees\DependencyGraph.cs" />
     <Compile Include="DataStructures\Sets\DisjointSet.cs" />
     <Compile Include="DataStructures\Lists\DurationList.cs" />
     <Compile Include="DataStructures\Trees\DynamicHeap.cs" />
