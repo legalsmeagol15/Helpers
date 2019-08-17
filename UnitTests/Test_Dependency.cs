@@ -14,71 +14,79 @@ using System.Runtime.CompilerServices;
 
 namespace UnitTests
 {
-    [TestClass]
-    public class Test_ManagedContext
-    {
-        [TestMethod]
-        public void TestManagedContext_Creation()
-        {
-            DependencyContext root = new DependencyContext();
+   
 
-            // The line class does not implement IContext, so it will have to be a managed context.
-            Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = -20, Y2 = 3 };
-            root.Add(line0, "line0");
-            Assert.IsTrue(root.TryGetSubcontext("line0", out IContext ctxt) && ctxt.GetType().Name == "ManagedContext");
-
-            // The Brush class DOES implement IContext, so it will NOT be a managed context.
-            Brush brush0 = new Brush();
-            root.Add(brush0, "brush0");
-            Assert.IsTrue(root.TryGetSubcontext("brush0", out ctxt) && ctxt is Brush);
-
-            // Test that non-existent properties don't create something dysfunctional.
-            Assert.IsFalse(root.TryGetSubcontext("nonexistent", out _));
-            Assert.IsFalse(ctxt.TryGetProperty("missing", out _));
-
-            // check that the reference to the line's X1 property returns a Variable with the proper value.
-            IEvaluateable e = null;
-            Assert.IsTrue(root.TryGetSubcontext("line0", out ctxt) && ctxt.TryGetProperty("X1", out e));
-            Assert.IsTrue(e is Variable v);
-            Assert.AreEqual(e.Value, 10);
-            
-            e = Reference.FromPath(root, "line0", "X2").Source;
-            Assert.IsTrue(e is Variable);
-            Assert.AreEqual(e.Value, -20);
-
-            AssertThrows<Parse.ReferenceException>(() => e = Reference.FromPath(root, "line0", "Y1").Source);
-
-            Variable varY2 = Reference.FromPath(root, "line0", "Y2").Source as Variable;
-            Assert.IsNotNull(varY2);
-            Assert.AreEqual(varY2.Name, "Y2");
-            Assert.AreEqual(varY2.Value, 10); // If reference works, this will work.
-        }
-
-        [TestMethod]
-        public void TestManagedContext_Interdependency()
-        {
-            DependencyContext root = new DependencyContext();
-            Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = -20, Y2 = 3 };
-            root.Add(line0, "line0");
-            Variable varX1 = Reference.FromPath(root, "line0", "X1").Source as Variable;
-            Variable varY1 = Reference.FromPath(root, "line0", "Y1").Source as Variable;
-            Assert.IsNotNull(varX1);
-            Assert.IsNotNull(varY1);
-
-            varX1.Contents = Parse.FromString( "Y1", null , root);
-            Assert.AreNotEqual(varX1, varY1);
-            Assert.IsTrue(varX1.Contents is Expression);
-            Assert.IsTrue(varX1.GetTerms().Contains(varY1));
-
-
-        }
-
-        
-    }
 
     [TestClass]
     public class Test_Dependency
     {
+        [TestMethod]
+        public void TestDependency_Linear()
+        {
+            int numVars = 100;
+            int timings = 100;
+            int timingSizes = 11;
+
+            // Test linear transmission  of a value by changing contents.
+            Variable vStart = new Variable(null, "vStart", Dependency.Number.One);
+            Assert.AreEqual(Dependency.Number.One, vStart.Contents);
+            Assert.AreEqual(Dependency.Number.One, vStart.Value);
+            
+            Variable vLast = vStart;
+            List<Variable> vars = new List<Variable>();
+            for (int i = 0; i < numVars; i++)
+            {
+                Variable vNext = new Variable(null, "v" + i, vLast);
+                vars.Add(vNext);
+                vLast = vNext;
+            }
+
+            Number n4 = new Number(4);
+            vStart.Contents = n4;
+            Assert.AreEqual(n4, vLast.Value);
+
+            // Do a timing
+            while (timingSizes > 0 && timings > 0)
+            {
+                // Set up a chain to experiment on.
+                Variable vBegin = new Variable(null, "vBegin");
+                int n = Mathematics.Int32.Exp_2(timingSizes);
+                Variable vEnd = vBegin;
+                List<Variable> keepItAlive = new List<Variable>();
+                for (int i = 0; i < n; i++)
+                {
+                    Variable vNext = new Variable(null, "v" + i, vEnd);
+                    keepItAlive.Add(vNext);
+                    vEnd = vNext;
+                }
+
+                // Warmup
+                vBegin.Contents = new Number(-1);
+
+                // Do the indicated number of timings
+                DateTime start = DateTime.Now;
+                for (int i = 0; i < timings; i++)
+                {
+                    Number num = new Number(i);
+                    vStart.Contents = num;
+                }
+                DateTime end = DateTime.Now;
+
+                // Take out the overhead.
+                DateTime overheadStart = DateTime.Now;
+                for (int  i = 0; i < timings; i++)
+                {
+                    Number num = new Number(i);
+                }
+                DateTime overheadEnd = DateTime.Now;
+
+                var duration = (end - start) - (overheadEnd - overheadStart);
+                Console.WriteLine("n=" + n + ", duration=" + duration + " for " + timings + " runs.");
+                timingSizes--;
+            }
+            
+        }
+
         [TestMethod]
         public void TestDependency_Named_Functions()
         {
@@ -209,6 +217,69 @@ namespace UnitTests
 
         bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
     }
+
+    [TestClass]
+    public class Test_ManagedContext
+    {
+        [TestMethod]
+        public void TestManagedContext_Creation()
+        {
+            DependencyContext root = new DependencyContext();
+
+            // The line class does not implement IContext, so it will have to be a managed context.
+            Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = -20, Y2 = 3 };
+            root.Add(line0, "line0");
+            Assert.IsTrue(root.TryGetSubcontext("line0", out IContext ctxt) && ctxt.GetType().Name == "ManagedContext");
+
+            // The Brush class DOES implement IContext, so it will NOT be a managed context.
+            Brush brush0 = new Brush();
+            root.Add(brush0, "brush0");
+            Assert.IsTrue(root.TryGetSubcontext("brush0", out ctxt) && ctxt is Brush);
+
+            // Test that non-existent properties don't create something dysfunctional.
+            Assert.IsFalse(root.TryGetSubcontext("nonexistent", out _));
+            Assert.IsFalse(ctxt.TryGetProperty("missing", out _));
+
+            // check that the reference to the line's X1 property returns a Variable with the proper value.
+            IEvaluateable e = null;
+            Assert.IsTrue(root.TryGetSubcontext("line0", out ctxt) && ctxt.TryGetProperty("X1", out e));
+            Assert.IsTrue(e is Variable v);
+            Assert.AreEqual(e.Value, 10);
+
+            e = Reference.FromPath(root, "line0", "X2").Source;
+            Assert.IsTrue(e is Variable);
+            Assert.AreEqual(e.Value, -20);
+
+            AssertThrows<Parse.ReferenceException>(() => e = Reference.FromPath(root, "line0", "Y1").Source);
+
+            Variable varY2 = Reference.FromPath(root, "line0", "Y2").Source as Variable;
+            Assert.IsNotNull(varY2);
+            Assert.AreEqual(varY2.Name, "Y2");
+            Assert.AreEqual(varY2.Value, 10); // If reference works, this will work.
+        }
+
+        [TestMethod]
+        public void TestManagedContext_Interdependency()
+        {
+            // Show that a variable in a subcontext can  be found from a root context.
+
+            DependencyContext root = new DependencyContext();
+            Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = -20, Y2 = 3 };
+            root.Add(line0, "line0");
+            Variable varX1 = Reference.FromPath(root, "line0", "X1").Source as Variable;
+            Variable varY1 = Reference.FromPath(root, "line0", "Y1").Source as Variable;
+            Assert.IsNotNull(varX1);
+            Assert.IsNotNull(varY1);
+
+            varX1.Contents = Parse.FromString("Y1", null, root);
+            Assert.AreNotEqual(varX1, varY1);
+            Assert.IsTrue(varX1.Contents is Expression);
+            Assert.IsTrue(varX1.GetTerms().Contains(varY1));
+        }
+
+
+    }
+
 
     internal class Line
     {
