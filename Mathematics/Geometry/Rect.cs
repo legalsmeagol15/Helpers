@@ -12,6 +12,9 @@ namespace Mathematics.Geometry
         T Right { get; }
         T Top { get; }
         T Bottom { get; }
+
+        bool Contains(IRect<T> other);
+        bool IsEmpty { get; }
     }
 
     public struct RectD : IRect<double>
@@ -49,9 +52,18 @@ namespace Mathematics.Geometry
             this.Left = left; this.Right = right; this.Top = top; this.Bottom = bottom;
         }
 
-
+        public bool Contains(IRect<double> other)
+        {
+            if (IsEmpty || other.IsEmpty) return false;
+            if (other.Left < Left) return false;
+            if (other.Right > Right) return false;
+            if (other.Bottom < Bottom) return false;
+            if (other.Top > Top) return false;
+            return true;
+        }
         public bool Intersects(IRect<double> other)
         {
+            if (this.IsEmpty || other.IsEmpty) return false;
             if (Right < other.Left || Left > other.Right) return false;
             if (Top < other.Bottom || Bottom > other.Top) return false;
             return true;
@@ -69,6 +81,9 @@ namespace Mathematics.Geometry
 
         public RectD GetUnion(IRect<double> other) 
         {
+            if (this.IsEmpty) return new RectD(other.Left, other.Right, other.Bottom, other.Top);
+            else if (other.IsEmpty) return this;
+
             double[] horizontal = { Left, Right, other.Left, other.Right };
             double[] vertical = { Top, Bottom, other.Top, other.Bottom };
             Array.Sort(horizontal);
@@ -76,122 +91,5 @@ namespace Mathematics.Geometry
             return new RectD(horizontal[0], horizontal[3], vertical[0], vertical[3]);
         }
     }
-
-    public struct RectI : IRect<int>
-    {
-        public static readonly RectI Empty = new RectI(int.MinValue, int.MinValue, int.MinValue, int.MinValue);
-
-        public readonly int Left, Right, Top, Bottom;
-
-        int IRect<int>.Left => Left;
-
-        int IRect<int>.Right => Right;
-
-        int IRect<int>.Top => Top;
-
-        int IRect<int>.Bottom => Bottom;
-
-        public int Width => Right - Left;
-
-        public int Height => Top - Bottom;
-
-        public int Area => Height * Width;
-
-        public bool IsEmpty => Top == int.MinValue || Bottom == int.MinValue || Right == int.MinValue || Left == int.MinValue;
-
-        public bool IsPoint => Left == Right && Top == Bottom;
-
-        public bool IsLineSegment => (Left == Right) ^ (Top == Bottom);
-
-        public RectI(int left, int right, int bottom, int top)
-        {
-            this.Left = left; this.Right = right; this.Top = top; this.Bottom = bottom;
-        }
-
-
-        public bool Intersects(IRect<int> other)
-        {
-            if (Right < other.Left || Left > other.Right) return false;
-            if (Top < other.Bottom || Bottom > other.Top) return false;
-            return true;
-        }
-
-        public RectI GetIntersection(IRect<int> other)
-        {
-            if (!Intersects(other)) return Empty;
-            int[] horizontal = { Left, Right, other.Left, other.Right };
-            int[] vertical = { Top, Bottom, other.Top, other.Bottom };
-            Array.Sort(horizontal);
-            Array.Sort(vertical);
-            return new RectI(horizontal[1], horizontal[2], vertical[1], vertical[2]);
-        }
-
-        public RectI GetUnion(IRect<int> other)
-        {
-            int[] horizontal = { Left, Right, other.Left, other.Right };
-            int[] vertical = { Top, Bottom, other.Top, other.Bottom };
-            Array.Sort(horizontal);
-            Array.Sort(vertical);
-            return new RectI(horizontal[0], horizontal[3], vertical[0], vertical[3]);
-        }
-    }
-
-    public struct RectM : IRect<decimal>
-    {
-        public static readonly RectM Empty = new RectM(decimal.MinValue, decimal.MinValue, decimal.MinValue, decimal.MinValue);
-
-        public readonly decimal Left, Right, Top, Bottom;
-
-        decimal IRect<decimal>.Left => Left;
-
-        decimal IRect<decimal>.Right => Right;
-
-        decimal IRect<decimal>.Top => Top;
-
-        decimal IRect<decimal>.Bottom => Bottom;
-
-        public decimal Width => Right - Left;
-
-        public decimal Height => Top - Bottom;
-
-        public decimal Area => Height * Width;
-
-        public bool IsEmpty => Top == decimal.MinValue || Bottom == decimal.MinValue || Right == decimal.MinValue || Left == decimal.MinValue;
-
-        public bool IsPoint => Left == Right && Top == Bottom;
-
-        public bool IsLineSegment => (Left == Right) ^ (Top == Bottom);
-
-        public RectM(decimal left, decimal right, decimal bottom, decimal top)
-        {
-            this.Left = left; this.Right = right; this.Top = top; this.Bottom = bottom;
-        }
-
-
-        public bool Intersects(IRect<decimal> other)
-        {
-            if (Right < other.Left || Left > other.Right) return false;
-            if (Top < other.Bottom || Bottom > other.Top) return false;
-            return true;
-        }
-
-        public RectM GetIntersection(IRect<decimal> other)
-        {
-            if (!Intersects(other)) return Empty;
-            decimal[] horizontal = { Left, Right, other.Left, other.Right };
-            decimal[] vertical = { Top, Bottom, other.Top, other.Bottom };
-            Array.Sort(horizontal);
-            Array.Sort(vertical);
-            return new RectM(horizontal[1], horizontal[2], vertical[1], vertical[2]);
-        }
-
-        public RectM GetUnion(IRect<decimal> other)
-        {
-            decimal[] horizontal = { Left, Right, other.Left, other.Right };
-            decimal[] vertical = { Top, Bottom, other.Top, other.Bottom };
-            Array.Sort(horizontal);
-            Array.Sort(vertical);
-            return new RectM(horizontal[0], horizontal[3], vertical[0], vertical[3]);
-        }
-    }
+    
 }
