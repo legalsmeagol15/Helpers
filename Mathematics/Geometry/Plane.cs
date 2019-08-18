@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Mathematics.Functions
+namespace Mathematics.Geometry
 {
-    public interface IVariable<T>
+    public class Plane3
     {
-        T Value { get; }
     }
 }

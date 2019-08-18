@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace Mathematics
 {
-    public class Simple
+    public interface ITransformable<T, TMatrix>
     {
-
+        T GetTransformed(TMatrix matrix);
     }
 }

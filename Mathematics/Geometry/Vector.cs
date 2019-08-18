@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Mathematics.Cartesian
+namespace Mathematics.Geometry
 {
     /// <summary>
     /// A data structure embodying a vector in two-dimensional space.

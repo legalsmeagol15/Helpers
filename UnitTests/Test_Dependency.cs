@@ -378,7 +378,7 @@ namespace UnitTests
         [Property(true, true, "1.0", "red", "R")]
         public double R { get; set; }
 
-        [Property(source: true, listener: true, initialContents: "0.8")]
+        [Property(source: true, listener: true, initialContents: "0.8", aliases: "green")]
         public double G { get; set; }
 
         [Property(source: true, listener: true, initialContents: "0.5")]

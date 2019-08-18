@@ -104,6 +104,7 @@ namespace Dependency
                 _ValueLock.EnterWriteLock();
                 _Value = newValue;
                 _ValueLock.ExitWriteLock();
+                FireValueChanged(oldValue, newValue);
 
                 //Now update the listeners
                 List<Task> tasks = new List<Task>();
@@ -151,6 +152,10 @@ namespace Dependency
         public IEnumerable<Variable> GetTerms() => _Sources;
 
         public override string ToString() => Name + "=" + Value.ToString();
+
+        public event ValueChangedHandler<IEvaluateable> ValueChanged;
+        private void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
+            => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
 
     }
     

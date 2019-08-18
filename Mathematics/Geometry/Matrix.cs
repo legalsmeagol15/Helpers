@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Mathematics.Cartesian
+namespace Mathematics
 {
     /// <summary>Represents an order matrix of values and provides for linear algebra operations.</summary>
     public abstract class Matrix
@@ -223,8 +223,8 @@ namespace Mathematics.Cartesian
             for (int i = 0; i < 9; i++) v[i] = m[i] / d;
             return new Matrix3(v);
         }
-        public static Matrix4 operator +(Matrix3 m, Vector3 v) { return m.NonAffine() + v; }
-        public static Matrix4 operator -(Matrix3 m, Vector3 v) { return m.NonAffine() - v; }
+        public static Matrix4 operator +(Matrix3 m, Geometry.Vector3 v) { return m.NonAffine() + v; }
+        public static Matrix4 operator -(Matrix3 m, Geometry.Vector3 v) { return m.NonAffine() - v; }
         Matrix3 ITransformable<Matrix3, Matrix3>.GetTransformed(Matrix3 other)
         {
             return other * this;
@@ -330,7 +330,7 @@ namespace Mathematics.Cartesian
             for (int i = 0; i < 16; i++) v[i] = m[i] / d;
             return new Matrix4(v);
         }
-        public static Matrix4 operator +(Matrix4 m, Vector3 v)
+        public static Matrix4 operator +(Matrix4 m, Geometry.Vector3 v)
         {
             double[] vals = new double[16];
             m.Values.CopyTo(vals, 0);
@@ -339,7 +339,7 @@ namespace Mathematics.Cartesian
             vals[11] += v.Z;
             return new Matrix4(vals);
         }
-        public static Matrix4 operator -(Matrix4 m, Vector3 v)
+        public static Matrix4 operator -(Matrix4 m, Geometry.Vector3 v)
         {
             double[] vals = new double[16];
             m.Values.CopyTo(vals, 0);
