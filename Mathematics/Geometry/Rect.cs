@@ -20,6 +20,7 @@ namespace Mathematics.Geometry
     public struct RectD : IRect<double>
     {
         public static readonly RectD Empty = new RectD(double.NaN, double.NaN, double.NaN, double.NaN);
+        public static readonly RectD Universal = new RectD(double.NegativeInfinity, double.PositiveInfinity, double.NegativeInfinity, double.PositiveInfinity);
 
         public readonly double Left, Right, Top, Bottom;
 
