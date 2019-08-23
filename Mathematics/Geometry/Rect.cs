@@ -14,6 +14,7 @@ namespace Mathematics.Geometry
         T Bottom { get; }
 
         bool Contains(IRect<T> other);
+        bool Overlaps(IRect<T> other);
         bool IsEmpty { get; }
     }
 
@@ -62,7 +63,7 @@ namespace Mathematics.Geometry
             if (other.Top > Top) return false;
             return true;
         }
-        public bool Intersects(IRect<double> other)
+        public bool Overlaps(IRect<double> other)
         {
             if (this.IsEmpty || other.IsEmpty) return false;
             if (Right < other.Left || Left > other.Right) return false;
@@ -72,7 +73,7 @@ namespace Mathematics.Geometry
 
         public RectD GetIntersection(IRect<double> other)
         {
-            if (!Intersects(other)) return Empty;
+            if (!Overlaps(other)) return Empty;
             double[] horizontal = { Left, Right, other.Left, other.Right };
             double[] vertical = { Top, Bottom, other.Top, other.Bottom };
             Array.Sort(horizontal);

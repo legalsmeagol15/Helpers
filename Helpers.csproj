@@ -59,6 +59,7 @@
     <Compile Include="DataStructures\Interfaces\IVertex.cs" />
     <Compile Include="DataStructures\Lists.cs" />
     <Compile Include="DataStructures\Maps\CompositeKeyDictionary.cs" />
+    <Compile Include="DataStructures\Sets\WeakReferenceDictionary.cs" />
     <Compile Include="DataStructures\Sets\WeakReferenceSet.cs" />
     <Compile Include="DataStructures\Sets\DisjointSet.cs" />
     <Compile Include="DataStructures\Lists\DurationList.cs" />
