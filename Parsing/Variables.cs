@@ -27,6 +27,11 @@ namespace Dependency
 
         public readonly IContext Context;
         public readonly string Name;
+        /// <summary>
+        /// A number the must be given to <seealso cref="SetContents(IEvaluateable, int)"/> to allow contents 
+        /// modification.
+        /// </summary>
+        private readonly int ModLock;
         private ISet<Variable> _Sources = new HashSet<Variable>();
         private WeakReferenceSet<Variable> _Listeners = new WeakReferenceSet<Variable>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null
@@ -55,31 +60,39 @@ namespace Dependency
             }
             set
             {
-                if (value == null) value = Dependency.Null.Instance;
+                // No key is given when Contents is set this way.
+                SetContents(value, 0);
+            }
+        }
+        public void SetContents(IEvaluateable value, int modKey = 0)
+        {
+            if (ModLock != modKey)
+                throw new Exception("This Variable has a modification lock.  The correct modification key must be provided.");
 
-                // First, update the structure-related variables (contents and sources).
-                ISet<Variable> newSources = Helpers.GetTerms(value);
-                _StructureLock.EnterUpgradeableReadLock();  // Lock 'a' because the structure shouldn't change while we examine it.
+            if (value == null) value = Dependency.Null.Instance;
+
+            // First, update the structure-related variables (contents and sources).
+            ISet<Variable> newSources = Helpers.GetTerms(value);
+            _StructureLock.EnterUpgradeableReadLock();  // Lock 'a' because the structure shouldn't change while we examine it.
+            try
+            {
+                if (TryFindCircularity(this, newSources, out Deque<Variable> path)) throw new CircularDependencyException(path);
+                Variable[] oldSources = _Sources.Except(newSources).ToArray();
+                _StructureLock.EnterWriteLock();
                 try
                 {
-                    if (TryFindCircularity(this, newSources, out Deque<Variable> path)) throw new CircularDependencyException(path);
-                    Variable[] oldSources = _Sources.Except(newSources).ToArray();
-                    _StructureLock.EnterWriteLock();
-                    try
-                    {
-                        foreach (Variable oldSrc in oldSources) oldSrc._Listeners.Remove(this);                        
-                        foreach (Variable newSrc in newSources) newSrc._Listeners.Add(this);
-                        _Sources = newSources;
-                        _Contents = value;
-                    }
-                    finally { _StructureLock.ExitWriteLock(); }
+                    foreach (Variable oldSrc in oldSources) oldSrc._Listeners.Remove(this);
+                    foreach (Variable newSrc in newSources) newSrc._Listeners.Add(this);
+                    _Sources = newSources;
+                    _Contents = value;
                 }
-                catch (CircularDependencyException) { throw; }
-                finally { _StructureLock.ExitUpgradeableReadLock(); }
-
-                // Second, update the changed value
-                UpdateValue();
+                finally { _StructureLock.ExitWriteLock(); }
             }
+            catch (CircularDependencyException) { throw; }
+            finally { _StructureLock.ExitUpgradeableReadLock(); }
+
+            // Second, update the changed value
+            UpdateValue();
         }
         
         public IEvaluateable UpdateValue()
@@ -136,12 +149,14 @@ namespace Dependency
             return false;
         }
         
+        
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
-        public Variable(IContext context, string name, IEvaluateable contents = null)
+        public Variable(IContext context, string name, IEvaluateable contents = null, int modLock = 0)
         {
             this.Context = context;
             this.Name = name;
             this.Contents = contents;
+            this.ModLock = modLock;
         }
         
         internal string GetExpressionString(IContext perspective)

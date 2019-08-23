@@ -49,15 +49,7 @@ namespace DataStructures
             }
         }
 
-        /// <summary>Retrieves the data at the indicated delimited path.</summary>
-        /// <exception cref="PathException">Thrown when the indicated path does not exist.</exception>"
-        public T Get(string path)
-        {
-            DataTree<T> focus = this;
-            foreach (string pathSegment in path.Split(new string[] { Delimiter }, StringSplitOptions.None))
-                focus = focus[pathSegment];
-            return focus.Data;
-        }
+        public IEnumerable<DataTree<T>> GetChildren() => _Children.Values;
 
         /// <summary>Sets the value at the indicated deliminated path.</summary>
         /// <param name="path">The path to follow to the appropriate node to hold the new data.</param>
@@ -91,15 +83,42 @@ namespace DataStructures
             focus.Data = data;
             return focus;
         }
-
-        IEnumerator<T> IEnumerable<T>.GetEnumerator()
+        public DataTree<T> Get(string path)
         {
-            throw new NotImplementedException();
+            DataTree<T> focus = this;
+            foreach (string pathSegment in path.Split(new string[] { Delimiter }, StringSplitOptions.None))
+                focus = focus[pathSegment];
+            return focus;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
+        public bool TryGet(string path, out DataTree<T> node)
         {
-            throw new NotImplementedException();
+            node = this;
+            string[] split = path.Split(new string[] { Delimiter }, StringSplitOptions.None);
+            for (int i = 0; i < split.Length; i++)
+            {
+                string pathSegment = split[i];
+                if (!node._Children.TryGetValue(pathSegment, out DataTree<T> child)) return false;
+                node = child;
+            }
+            return true;
+        }
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => Traverse();
+
+        IEnumerator IEnumerable.GetEnumerator() => Traverse();
+
+        private IEnumerator<T> Traverse()
+        {
+            Stack<DataTree<T>> stack = new Stack<DataTree<T>>();
+            stack.Push(this);
+            while (stack.Count > 0)
+            {
+                var focus = stack.Pop();
+                yield return focus.Data;
+                foreach (var child in focus._Children.Values)
+                    stack.Push(child);
+            }
         }
     }
 
@@ -107,8 +126,12 @@ namespace DataStructures
     public sealed class PathException : Exception
     {
         private string _Delimiter;
-        internal readonly Deque<string> paths = new Deque<string>();
-        internal PathException(string delimiter) { this._Delimiter = delimiter; }
-        public override string Message => "Path " +  string.Join(_Delimiter, paths) + " is invalid.";
+        internal readonly Deque<string> paths;
+        internal PathException(string delimiter, IEnumerable<string> segments = null)
+        {
+            this._Delimiter = delimiter;
+            this.paths = (segments == null) ? new Deque<string>() : new Deque<string>(segments);
+        }
+        public override string Message => "Path " + string.Join(_Delimiter, paths) + " is invalid.";
     }
 }
