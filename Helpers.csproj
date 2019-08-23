@@ -76,6 +76,7 @@
     <Compile Include="DataStructures\Maps\TupleDictionary.cs" />
     <Compile Include="DataStructures\Threading\PipelineWorker.cs" />
     <Compile Include="DataStructures\Threading\RedoWorker.cs" />
+    <Compile Include="DataStructures\Trees\DataTree.cs" />
     <Compile Include="DataStructures\Trees\QuadTree.cs" />
     <Compile Include="Events.cs" />
     <Compile Include="Mathematics\Geometry\Rect.cs" />
