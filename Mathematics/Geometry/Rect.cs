@@ -16,82 +16,82 @@ namespace Mathematics.Geometry
         bool Contains(IRect<T> other);
         bool Overlaps(IRect<T> other);
         bool IsEmpty { get; }
+
+        IRect<T> GetUnion(IRect<T> other);
+        IRect<T> GetIntersection(IRect<T> other);
     }
 
-    public struct RectD : IRect<double>
+    public interface IBounded<T> where T: struct
     {
-        public static readonly RectD Empty = new RectD(double.NaN, double.NaN, double.NaN, double.NaN);
-        public static readonly RectD Universal = new RectD(double.NegativeInfinity, double.PositiveInfinity, double.NegativeInfinity, double.PositiveInfinity);
+        IRect<T> Bounds { get; }
+    }
 
-        public readonly double Left, Right, Top, Bottom;
+    public struct Rect<T> : IRect<T> where T: struct, IComparable<T>
+    {
+        public static readonly Rect<T> Empty = new Rect<T>(true);
 
-        double IRect<double>.Left => Left;
+        public bool IsEmpty { get; }
+        public T Left { get; }
+        public T Right { get; }
+        public T Bottom { get; }
+        public T Top { get; }
 
-        double IRect<double>.Right => Right;
+        public bool IsPoint => Left.Equals(Right) && Bottom.Equals(Top);
+        public bool IsEdge => Left.Equals(Right) ^ Bottom.Equals(Top);
 
-        double IRect<double>.Top => Top;
+        /// <summary>Creates an empty <see cref="Rect{T}"/>.</summary>
+        private Rect(bool isEmpty) { IsEmpty = isEmpty; Left = Right = Bottom = Top = default(T); }
 
-        double IRect<double>.Bottom => Bottom;
-
-        public double Width => Right - Left;
-
-        public double Height => Top - Bottom;
-
-        public double Area => Height * Width;
-
-        public bool IsEmpty => double.IsNaN(Top) || double.IsNaN(Bottom) || double.IsNaN(Right) || double.IsNaN(Left);
-
-        public bool IsPoint => Left == Right && Top == Bottom;
-
-        public bool IsLineSegment => (Left == Right) ^ (Top == Bottom);
-
-        public bool IsHorizontalInfinite => double.IsNegativeInfinity(Left) || double.IsPositiveInfinity(Right);
-
-        public bool IsVerticalInfinite => double.IsNegativeInfinity(Bottom) || double.IsPositiveInfinity(Top);
-        
-        public RectD (double left, double right, double bottom,  double top)
+        public Rect(T left, T right, T bottom, T top)
         {
-            this.Left = left; this.Right = right; this.Top = top; this.Bottom = bottom;
+            if (left.CompareTo(right) > 0) throw new ArgumentException("Left must be equal to or less than right.");
+            if (bottom.CompareTo(top) > 0) throw new ArgumentException("Bottom must be equal to or less than top.");
+            this.Left = left;
+            this.Right = right;
+            this.Bottom = bottom;
+            this.Top = top;
+            this.IsEmpty = false;
         }
 
-        public bool Contains(IRect<double> other)
+        public bool Contains(IRect<T> other)
         {
             if (IsEmpty || other.IsEmpty) return false;
-            if (other.Left < Left) return false;
-            if (other.Right > Right) return false;
-            if (other.Bottom < Bottom) return false;
-            if (other.Top > Top) return false;
-            return true;
-        }
-        public bool Overlaps(IRect<double> other)
-        {
-            if (this.IsEmpty || other.IsEmpty) return false;
-            if (Right < other.Left || Left > other.Right) return false;
-            if (Top < other.Bottom || Bottom > other.Top) return false;
-            return true;
+            return Left.CompareTo(other.Left) <= 0
+                    && other.Right.CompareTo(Right) <= 0
+                    && Bottom.CompareTo(other.Bottom) <= 0
+                    && other.Top.CompareTo(Top) <= 0;
         }
 
-        public RectD GetIntersection(IRect<double> other)
+        public bool Overlaps(IRect<T> other)
+        {
+            if (IsEmpty || other.IsEmpty) return false;
+            return !(Right.CompareTo(other.Left) < 0
+                    || Left.CompareTo(other.Right) > 0
+                    || Bottom.CompareTo(other.Top) > 0
+                    || Top.CompareTo(other.Bottom) < 0);
+        }
+
+        public IRect<T> GetIntersection(IRect<T> other)
         {
             if (!Overlaps(other)) return Empty;
-            double[] horizontal = { Left, Right, other.Left, other.Right };
-            double[] vertical = { Top, Bottom, other.Top, other.Bottom };
-            Array.Sort(horizontal);
-            Array.Sort(vertical);
-            return new RectD(horizontal[1], horizontal[2], vertical[1], vertical[2]);
+            T left = (Left.CompareTo(other.Left) > 0) ? Left : other.Left;
+            T right = (Right.CompareTo(other.Right) < 0) ? Right : other.Right;
+            T bottom = (Bottom.CompareTo(other.Bottom) > 0) ? Bottom : other.Bottom;
+            T top = (Top.CompareTo(other.Top) < 0) ? Top: other.Top;
+            return new Rect<T>(left, right, bottom, top);
         }
 
-        public RectD GetUnion(IRect<double> other) 
+        public IRect<T> GetUnion(IRect<T> other)
         {
-            if (this.IsEmpty) return new RectD(other.Left, other.Right, other.Bottom, other.Top);
-            else if (other.IsEmpty) return this;
-
-            double[] horizontal = { Left, Right, other.Left, other.Right };
-            double[] vertical = { Top, Bottom, other.Top, other.Bottom };
-            Array.Sort(horizontal);
-            Array.Sort(vertical);
-            return new RectD(horizontal[0], horizontal[3], vertical[0], vertical[3]);
+            if (!Overlaps(other)) return Empty;
+            T left = (Left.CompareTo(other.Left) < 0) ? Left : other.Left;
+            T right = (Right.CompareTo(other.Right) > 0) ? Right : other.Right;
+            T bottom = (Bottom.CompareTo(other.Bottom) < 0) ? Bottom : other.Bottom;
+            T top = (Top.CompareTo(other.Top) > 0) ? Top : other.Top;
+            return new Rect<T>(left, right, bottom, top);
         }
+
+        
     }
     
 }

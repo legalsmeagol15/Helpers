@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
-    public struct Number : ILiteral<decimal>, ITypeGuarantee
+    public struct Number : ILiteral<decimal>, ITypeGuarantee, IComparable<Number>
     {
         public static readonly Number Zero = new Number(0m);        
         public static readonly Number One = new Number(1m);
@@ -95,6 +95,9 @@ namespace Dependency
         
         decimal ILiteral<decimal>.CLRValue => Value;
         IEvaluateable IEvaluateable.UpdateValue() => this;
+
+        int IComparable<Number>.CompareTo(Number other) => Value.CompareTo(other.Value);
+
         IEvaluateable IEvaluateable.Value => this;
         TypeFlags ITypeGuarantee.TypeGuarantee => _TypeFlags;
     }

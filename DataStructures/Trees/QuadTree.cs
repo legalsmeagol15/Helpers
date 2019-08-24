@@ -5,79 +5,85 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Mathematics.Geometry;
+using Dependency;
 
-namespace Helpers.DataStructures.Trees
+namespace DataStructures
 {
+    public sealed class QuadTreeD<TItem> : AbstractQuadTree<TItem, double> where TItem : IBounded<double>
+    {
+        protected override bool Exclude(double size, IRect<double> rect) => (rect.Right - rect.Left) < size || (rect.Top - rect.Bottom) < size;
 
-    /// <summary>
-    /// A data structure that stores items...
-    /// TODO:  this might not be quite correct, it may be that an item that CAN fit in a quarter node MUST be put in that node.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class QuadTreeD<T> : IEnumerable<T> where T : IRect<double>
+        protected override double GetMid(double a, double b) => (a + b) / 2;        
+    }
+
+    public sealed class QuadTreeN<TItem> : AbstractQuadTree<TItem, Number> where TItem : IBounded<Number>
+    {
+        protected override bool Exclude(Number size, IRect<Number> rect) => (rect.Right - rect.Left) < size || (rect.Top - rect.Bottom) < size;
+
+        protected override Number GetMid(Number a, Number b) => (a + b) / 2;
+    }
+
+    public abstract class AbstractQuadTree<TItem, TNumber> where TItem: IBounded<TNumber>
+                                                               where TNumber: struct, IComparable<TNumber>
     {
         private Node _Root = null;
 
-        /// <summary>The count of content items on this <see cref="QuadTreeD{T}"/>.</summary>
+        /// <summary>The count of content items on this <see cref="AbstractQuadTree{TItem, TNumber}"/>.</summary>
         public int Count { get; private set; }
 
-        /// <summary>Adds the given item to this <see cref="QuadTreeD{T}"/>.</summary>
-        public void Add (T item)
+        /// <summary>Adds the given item to this <see cref="AbstractQuadTree{TItem, TNumber}"/>.</summary>
+        public void Add(TItem item)
         {
+            IRect<TNumber> bounds = item.Bounds;
             if (_Root == null)
-            {
-                _Root = new Node(null, item.Left, item.Right, item.Bottom, item.Top);
+            {   
+                _Root = new Node(this, null, bounds.Left, bounds.Right, bounds.Bottom, bounds.Top);
                 _Root.Items.Add(item);
             }
-            else if (_Root.CanContain(item))
+            else if (_Root.Bounds.Contains(item.Bounds))
             {
                 _Root.Add(item);
             }
             else if (!_Root.HasChildren)
             {
-                _Root.Rect = new RectD(Math.Min(_Root.Rect.Left, item.Left),
-                                       Math.Max(_Root.Rect.Right, item.Right),
-                                       Math.Min(_Root.Rect.Bottom, item.Bottom),
-                                       Math.Max(_Root.Rect.Top, item.Top));
+                _Root.Bounds = bounds;
                 _Root.Add(item);
             }
             else
             {
                 Node oldRoot = _Root;
-                _Root = new Node(null, Math.Min(_Root.Rect.Left, item.Left),
-                                       Math.Max(_Root.Rect.Right, item.Right),
-                                       Math.Min(_Root.Rect.Bottom, item.Bottom),
-                                       Math.Max(_Root.Rect.Top, item.Top));
+                IRect<TNumber> newBounds = _Root.Bounds.GetUnion(item.Bounds);
+                _Root = new Node(this, null, newBounds.Left, newBounds.Right, newBounds.Bottom,  newBounds.Top );
                 _Root.Add(item);
-                foreach (T oldItem in oldRoot.GetContents())
+                foreach (TItem oldItem in oldRoot.GetContents())
                     _Root.Add(oldItem);
             }
             Count++;
         }
 
-        /// <summary>Removes all items from this <see cref="QuadTreeD{T}"/>.</summary>
+        /// <summary>Removes all items from this <see cref="AbstractQuadTree{TItem, TNumber}"/>.</summary>
         public void Clear() { _Root = null; Count = 0; }
 
         /// <summary>
         /// Calculates the furthers extent of the bounds that would contain all the content items of this 
-        /// <see cref="QuadTreeD{T}"/>.  This is an O(n) operation, where n is the number of content items existing.
+        /// <see cref="AbstractQuadTree{TItem, TNumber}"/>.  This is an O(n) operation, where n is the number of content items existing.
         /// </summary>
-        public RectD GetBounds()
+        public Rect<TNumber> GetBounds()
         {
-            RectD result = RectD.Empty;
+            Rect<TNumber> result = Rect<TNumber>.Empty;
             if (_Root != null)
             {
-                foreach (T item in _Root.GetContents())
-                    result = result.GetUnion(item);
+                foreach (TItem item in _Root.GetContents())
+                    result = (Rect<TNumber>)result.GetUnion(item.Bounds);
             }
             return result;
         }
 
         /// <summary>
-        /// Removes the given item from this <see cref="QuadTreeD{T}"/>, if it exists.  Returns true on success.  If 
+        /// Removes the given item from this <see cref="AbstractQuadTree{TItem, TNumber}"/>, if it exists.  Returns true on success.  If 
         /// the item did not exist on the tree to begin with, returns false.
         /// </summary>
-        public bool Remove(T item)
+        public bool Remove(TItem item)
         {
             if (_Root == null)
                 return false;
@@ -88,27 +94,20 @@ namespace Helpers.DataStructures.Trees
             Count--;
             return true;
         }
+        
 
-        IEnumerator<T> IEnumerable<T>.GetEnumerator()
-        {
-            if (_Root == null) yield break;
-            foreach (T item in _Root.GetContents()) yield return item;
-        }
+        protected abstract TNumber GetMid(TNumber a, TNumber b);
+        protected abstract bool Exclude(TNumber size, IRect<TNumber> rect);
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            if (_Root == null) yield break;
-            foreach (T item in _Root.GetContents()) yield return item;
-        }
-
-        private sealed class Node
+        private sealed class Node : IBounded<TNumber>
         {
             public const int NODE_CAPACITY = 16;
             public readonly Node Parent;
-            public double MidX => (Rect.Right - Rect.Left) / 2;
-            public double MidY => (Rect.Top - Rect.Bottom) / 2;
-            public RectD Rect = new RectD();
-            public readonly List<T> Items = new List<T>(NODE_CAPACITY);
+            private readonly AbstractQuadTree<TItem, TNumber> _Tree;
+            public TNumber MidX => _Tree.GetMid(Bounds.Right, Bounds.Left);
+            public TNumber MidY => _Tree.GetMid(Bounds.Top, Bounds.Bottom);
+            public IRect<TNumber> Bounds { get; internal set; } = Rect<TNumber>.Empty;
+            public readonly List<TItem> Items = new List<TItem>(NODE_CAPACITY);
             /// <summary>
             /// Arranged like:
             /// _____________
@@ -121,22 +120,23 @@ namespace Helpers.DataStructures.Trees
             /// 
             /// </summary>
             public Node[] Children;
-            public Node (Node parent, double left, double right, double bottom, double top)
+            public Node(AbstractQuadTree<TItem, TNumber> quadTree, Node parent, TNumber left, TNumber right, TNumber bottom, TNumber top)
             {
+                this._Tree = quadTree;
                 this.Parent = parent;
-                this.Rect = new RectD(left, right, bottom, top);
+                this.Bounds = new Rect<TNumber>(left, right, bottom, top);
             }
             public bool HasChildren => Children[0] != null || Children[1] != null || Children[2] != null || Children[3] != null;
-           
+
             /// <summary>
             /// Adds the given item to this node.  If it won't fit in this node, but could fit  on a child, adds it to 
             /// the child.
             /// </summary>
-            public void Add(T item)
+            public void Add(TItem item)
             {
                 int quadrant;
                 // If the Items is at capacity, or no child will fit the item anyway, just add it here.
-                if (Items.Count < NODE_CAPACITY || (quadrant = GetFittingQuadrant(item)) < 0)
+                if (Items.Count < NODE_CAPACITY || (quadrant = GetFittingQuadrant(item.Bounds)) < 0)
                 {
                     Items.Add(item);
                     return;
@@ -149,57 +149,48 @@ namespace Helpers.DataStructures.Trees
                     child.Add(item);
                 }
             }
-
-            /// <summary>Returns whether this node could contain the given item.</summary>
-            public bool CanContain(T item) => Rect.Contains(item);
-
+            
             /// <summary>Returns whether the given item exists at this node.</summary>
-            public bool Contains(T item)
+            public bool Contains(TItem item)
             {
                 Node node = this;
                 while (node != null)
                 {
                     if (node.Items.Contains(item)) return true;
-                    int quadrant = GetFittingQuadrant(item);
+                    int quadrant = GetFittingQuadrant(item.Bounds);
                     if (quadrant < 0) return false;
                     node = Children[quadrant];
                 }
                 return false;
             }
 
-            public IEnumerable<T> GetContents()
+            public IEnumerable<TItem> GetContents(TNumber minSize = default(TNumber)) => GetContents(Bounds, minSize);
+            /// <summary>Returns the content items which would intersect the given region.</summary>
+            public IEnumerable<TItem> GetContents(IRect<TNumber> region, TNumber minSize = default(TNumber))
             {
                 Stack<Node> stack = new Stack<Node>();
                 stack.Push(this);
                 while (stack.Count > 0)
                 {
-                    Node n = stack.Pop();
-                    foreach (T item in n.Items) yield return item;
-                    for (int i = 0; i < n.Children.Length; i++)
-                        if (n.Children[i] != null)
-                            stack.Push(n.Children[i]);
+                    Node node = stack.Pop();
+                    if (_Tree.Exclude(minSize, node.Bounds)) continue;
+                    if (!node.Bounds.Overlaps(region)) continue;
+                    foreach (TItem item in node.Items)
+                        if (!_Tree.Exclude(minSize, item.Bounds))
+                            yield return item;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Node n = node.Children[i];
+                        if (n != null) stack.Push(n);
+                    }
                 }
             }
-            /// <summary>Returns the content items which would intersect the given region.</summary>
-            public IEnumerable<T> GetIntersection(IRect<double> region)
-            {
-                Node node = this;
-                while (node != null)
-                {
-                    foreach (T item in node.Items)
-                        if (Intersects(item, region))
-                            yield return item;
-                    int quadrant = GetFittingQuadrant(region);
-                    if (quadrant < 0) yield break;
-                    node = node.Children[quadrant];
-                }
-            }            
 
             /// <summary>
             /// Removes the item from this node, if it exists.  If it exists and is removed, returns true.  Otherwise, 
             /// returns false.
             /// </summary>
-            public bool Remove(T item)
+            public bool Remove(TItem item)
             {
                 Node node = this;
                 while (node != null)
@@ -223,10 +214,10 @@ namespace Helpers.DataStructures.Trees
                     else
                     {
                         // Removal was not successful, so see if a child might be holding the item.
-                        int quadrant = GetFittingQuadrant(item);
+                        int quadrant = GetFittingQuadrant(item.Bounds);
                         if (quadrant < 0) return false;
                         node = Children[quadrant];
-                    }             
+                    }
                 }
 
                 // No node left to search, so the item doesn't exist here.
@@ -234,23 +225,23 @@ namespace Helpers.DataStructures.Trees
             }
 
 
-            private int GetFittingQuadrant(IRect<double> item)
+            private int GetFittingQuadrant(IRect<TNumber> itemBounds)
             {
-                double midX = MidX, midY = MidY;
-                if (item.Left >= midX && item.Bottom >= midY) return 0;
-                if (item.Right <= midX && item.Bottom >= midY) return 1;
-                if (item.Right <= midX && item.Top <= midY) return 2;
-                if (item.Left >= midX && item.Top <= midY) return 3;
+                TNumber midX = MidX, midY = MidY;
+                if (itemBounds.Left.CompareTo(midX) >=0 && itemBounds.Bottom.CompareTo(midY)>=0) return 0;
+                if (itemBounds.Right.CompareTo(midX) <= 0 && itemBounds.Bottom.CompareTo(midY) >= 0) return 1;
+                if (itemBounds.Right.CompareTo(midX) <= 0 && itemBounds.Top.CompareTo(midY) <= 0) return 2;
+                if (itemBounds.Left.CompareTo(midX) >= 0 && itemBounds.Top.CompareTo(midY) <= 0) return 3;                
                 return -1;
             }
             private Node CreateChild(int quadrant)
             {
                 switch (quadrant)
                 {
-                    case 0: return new Node(this, MidX, Rect.Right, MidY, Rect.Top);
-                    case 1: return new Node(this, Rect.Left, MidX, MidY, Rect.Top);
-                    case 2: return new Node(this, Rect.Left, MidX, Rect.Bottom, MidY);
-                    case 3: return new Node(this, MidX, Rect.Right, Rect.Bottom, MidY);
+                    case 0: return new Node(_Tree, this, MidX, Bounds.Right, MidY, Bounds.Top);
+                    case 1: return new Node(_Tree, this, Bounds.Left, MidX, MidY, Bounds.Top);
+                    case 2: return new Node(_Tree, this, Bounds.Left, MidX, Bounds.Bottom, MidY);
+                    case 3: return new Node(_Tree, this, MidX, Bounds.Right, Bounds.Bottom, MidY);
                 }
                 throw new NotImplementedException();
             }
@@ -262,4 +253,5 @@ namespace Helpers.DataStructures.Trees
             }
         }
     }
+    
 }
