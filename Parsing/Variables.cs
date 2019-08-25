@@ -387,7 +387,7 @@ namespace Dependency
             ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
         }
 
-        private event ValueChangedHandler<T> ValueChanged;
+        public event ValueChangedHandler<T> ValueChanged;
 
         public static implicit operator T(DynamicVariable<T> d) =>  d.Value;
 
@@ -395,16 +395,20 @@ namespace Dependency
     }
 
 
+    public sealed class DynamicByte : DynamicVariable<byte>
+    {
+        public DynamicByte(byte defaultValue = 0) : base(defaultValue, Helpers.ToByte, (b) => new Number(b)) { }
+    }
 
     public sealed class DynamicDouble : DynamicVariable<double>
     {
-        public DynamicDouble(double defaultValue) : base(defaultValue, Helpers.ToDouble, Number.FromDouble) { }
+        public DynamicDouble(double defaultValue = 0.0d) : base(defaultValue, Helpers.ToDouble, Number.FromDouble) { }
     }
 
 
     public sealed class DynamicInt : DynamicVariable<int>
     {
-        public DynamicInt(int defaultValue) : base(defaultValue, Helpers.ToInt, (i) => new Number(i)) { }
+        public DynamicInt(int defaultValue = 0) : base(defaultValue, Helpers.ToInt, (i) => new Number(i)) { }
     }
 
     public sealed class DynamicString : DynamicVariable<string>
@@ -458,7 +462,7 @@ namespace Dependency
             }
         }
 
-        public Variable Variable
+        public Variable Source
         {
             get
             {
@@ -468,7 +472,8 @@ namespace Dependency
                     v = new Variable(_Initializer());
                     _Ref = new WeakReference<Variable>(v);
                     v.ValueChanged += On_Value_Changed;
-                } else if (!_Ref.TryGetTarget(out v))
+                }
+                else if (!_Ref.TryGetTarget(out v))
                 {
                     _Ref.SetTarget(v = new Variable(_Initializer()));
                     v.ValueChanged += On_Value_Changed;
@@ -476,7 +481,8 @@ namespace Dependency
                 return v;
             }
         }
-
+        Variable IWeakVariable<T>.Variable => Source;
+        
         public T Value => _Value;
 
         private void On_Value_Changed(object sender, ValueChangedArgs<IEvaluateable> e)
@@ -488,7 +494,7 @@ namespace Dependency
             ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
         }
 
-        void IWeakVariable<T>.SetLock(bool locked) => _LockedVariable = (locked) ? Variable : null;
+        void IWeakVariable<T>.SetLock(bool locked) => _LockedVariable = (locked) ? Source : null;
 
         public bool TryGetVariable(out Variable v)
         {

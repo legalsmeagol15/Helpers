@@ -13,7 +13,7 @@ using Dependency.Operators;
 namespace Dependency
 {
 
-    internal static class Helpers
+    public static class Helpers
     {
         /// <summary>
         /// Converts a non-<seealso cref="IEvaluateable"/> object into an <seealso cref="ILiteral"/> object.
@@ -42,7 +42,12 @@ namespace Dependency
         {
             if (iev is Number n) return (int)n.Value;
             throw new InvalidCastException();
-        }        
+        }     
+        public static byte ToByte(this IEvaluateable iev)
+        {
+            if (iev is Number n) return (byte)n.Value;
+            throw new InvalidCastException();
+        }
         
         public static ISet<Variable> GetTerms(IEvaluateable e)
         {
@@ -63,12 +68,17 @@ namespace Dependency
             return result;
         }
 
+        internal static class Internal
+        {
+
+        }
+    }
+    internal static class InternalHelpers
+    {
         public static bool IsSource(this Role role) => (role & Role.Source) == Role.Source;
         public static bool IsListener(this Role role) => (role & Role.Listener) == Role.Listener;
         public static bool IsConstant(this Role role) => (role & Role.Constant) == Role.Constant;
         public static bool IsNone(this Role role) => role == Role.None;
-
-
     }
 
 
