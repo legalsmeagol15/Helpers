@@ -16,7 +16,9 @@ namespace DataStructures
     /// collection modification  and iteration.  Note that a <seealso cref="WeakReference"/>'s expiration will not 
     /// automatically remove the reference from this collection, so the collection's <see cref="Count"/> may reflect 
     /// more valid references than actually exist.  This is so until the collection is iterated over or some 
-    /// modification points out the dead reference.
+    /// modification points out the dead reference.  Essentially, this might be considered a memory leak.
+    /// <para/>To avoid this, the type <typeparamref name="T"/> may implemented the <seealso cref="IDisposable"/>
+    /// interface, to remove references to itself from this set.
     /// <para/>This collection is not thread-safe.</remarks>
     /// <author>Wesley Oates</author>
     /// <date>Validated 7/27/19</date>

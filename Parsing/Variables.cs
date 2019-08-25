@@ -21,7 +21,7 @@ namespace Dependency
         All = ~0
     }
     
-    public sealed class Variable : IEvaluateable
+    public sealed class Variable : IEvaluateable, IDisposable
     {
         // A variable is apt to have few sources, but many listeners (0 or 100,000 might be reasonable).
 
@@ -166,84 +166,188 @@ namespace Dependency
         private void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
 
+        #region IDisposable Support
+        private bool disposedValue = false; // To detect redundant calls
+
+        void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // This is to prevent a memory leak in the form of an invalid WeakReference
+                    foreach (var src in _Sources) src._Listeners.Remove(this);
+                }
+                disposedValue = true;
+            }
+        }
+        void IDisposable.Dispose() { Dispose(true); }
+
+        #endregion
+
     }
-    
+
+
+
+
+
+
+
+
+
+    public interface IWeakVariable<T>
+    {   
+        Variable Variable { get; }
+        void SetLock(bool locked);
+        T Value { get; }
+        bool TryGetVariable(out Variable v);
+    }
 
     /// <summary>
-    /// Handles the nitty-gritty of implementing the weak variable pattern.  The weak variable pattern allows a 
-    /// variable to expire and be garbage-collected if it has no listeners, to save resources and simplify dependency 
-    /// updates.  Whenever the variable is defunct and the method <seealso cref="GetTarget"/> is executed, the 
-    /// <seealso cref="Dependency.Variable"/> is instantiated anew, its contents set with the given initializer, and 
-    /// returned.  On the other hand, if the variable is not defunct, the target <seealso cref="Dependency.Variable"/> 
-    /// is returned.
-    /// <para/>The pattern is ideal for two cases:  1) a variable whose contents are expected to be constant, but 
-    /// whose value may change over time; and 2) a variable whose contents (and value) are determined by CLR factors.
-    /// In other words, a weak variable won't keep user contents that are not hard-wired.
-    /// Such a <seealso cref="Dependency.Variable"/> would work as a data source for listener variables.
+    /// A <see cref="BlendedVariable{T}"/> blends the notion of CLR and dependency variables.  The current value of 
+    /// type <typeparamref name="T"/> is maintained and always available.  It maintains the 
+    /// <seealso cref="IWeakVariable{T}"/> pattern in that the dependency variable may expire due to garbage 
+    /// collection if it has no listeners.
     /// </summary>
-    public sealed class WeakVariable<T> where T : IEvaluateable
+    public struct BlendedVariable<T> : IWeakVariable<T>
     {
-        private const int MODLOCK = 10;
-        private WeakReference<Variable> _Ref;     
-        private readonly Func<IEvaluateable> _ContentSetter;
-        private readonly Action<T> _Publish;
-        public WeakVariable(Func<IEvaluateable> contentSetter, Action<T> publish = null)
+        private T _ContentValue;    // Will be both the Variable's Contents and its Value
+        private Func<T, IEvaluateable> _Converter;
+        private WeakReference<Variable> _Ref;
+        private Variable _LockedVariable;
+        public T Value
         {
-            // The publisher can be null, the initializer cannot.
-            this._ContentSetter = contentSetter ?? throw new ArgumentNullException("initialize");
-            this._Publish = publish;
+            get => _ContentValue;
+            set
+            {
+                _ContentValue = value;
+                if (_Ref != null && _Ref.TryGetTarget(out Variable v)) v.Contents = _Converter(value);
+            }
         }
         
-        /// <summary>
-        /// Returns the value of this variable.  Even if the target <seealso cref="Dependency.Variable"/> has expired, 
-        /// the initialization contents will be returned.
-        /// </summary>
-        public T Value
+        public BlendedVariable(T startValue, Func<T, IEvaluateable> converter = null)
+        {
+            this._Converter = converter ?? Dependency.Helpers.Obj2Eval;
+            _ContentValue = startValue;
+            _Ref = null;
+            _LockedVariable = null;
+        }
+
+        public Variable Variable
         {
             get
             {
-                IEvaluateable value;
-                if (_Ref != null && _Ref.TryGetTarget(out Variable v))
-                    value = v.Value;
+                if (_Ref == null)
+                {
+                    Variable vNew = new Variable(_Converter(_ContentValue));
+                    _Ref = new WeakReference<Variable>(vNew);
+                    return vNew;
+                }
+                else if (!_Ref.TryGetTarget(out Variable vExisting))
+                {
+                    _Ref.SetTarget(vExisting = new Variable(_Converter(_ContentValue)));
+                    return vExisting;
+                }
                 else
-                    value = _ContentSetter().UpdateValue();
-                if (value is T result) return result;
-                return default(T);
+                    return vExisting;
             }
         }
-
-        /// <summary>
-        /// Forces the <see cref="WeakVariable{T}"/> to update its contents by calling the provided content setter.
-        /// Returns whether the variable existed.
-        /// </summary>
-        public bool UpdateContents()
+        public bool TryGetVariable(out Variable v)
         {
-            if (_Ref == null || _Ref.TryGetTarget(out Variable v)) return false;
-            v.Contents = _ContentSetter();
-            return true;
+            if (_Ref != null && _Ref.TryGetTarget(out v)) return true;
+            v = null;
+            return false;
         }
 
-        /// <summary>Returns a hard reference to the target <seealso cref="Dependency.Variable"/> for this 
-        /// <see cref="WeakVariable{T}"/>.</summary>
-        public Variable GetTarget()
+        public void SetLock(bool locked) => _LockedVariable = (locked) ? Variable : null;
+       
+
+        public override string ToString() => _ContentValue.ToString();
+    }
+    
+    /// <summary>
+    /// A <see cref="SourceVariable{T}"/> is a variable whose contents never change, but the value may.  It maintains 
+    /// the <seealso cref="IWeakVariable{T}"/> pattern in that if the <seealso cref="Dependency.Variable"/> is ever 
+    /// garbage-collected, the next attempt to reference it through a dependency structure will re-create the 
+    /// <seealso cref="Dependency.Variable"/> with the same contents (which may evaluate to a different value).
+    /// </summary>
+    public class SourceVariable<T> : IWeakVariable<T> // where T : struct
+    {
+        private T _Value;
+        private WeakReference<Variable> _Ref;
+        private readonly Func<IEvaluateable> _Initializer;
+        private readonly Func<IEvaluateable, T> _Converter;
+        private Variable _LockedVariable;
+
+        /// <summary>Creates a new <see cref="SourceVariable{T}"/>.</summary>
+        /// <param name="startValue">The starting value for the <see cref="SourceVariable{T}"/>.  This will be 
+        /// disregarded if the initialized contents evaluate to a convertible value.</param>
+        /// <param name="initializer">The function called every time this variable is initialized.</param>
+        /// <param name="converter">The function which converts an <seealso cref="IEvaluateable"/> into the given type.
+        /// </param>
+        public SourceVariable(T startValue,  Func<IEvaluateable> initializer, Func<IEvaluateable, T> converter)
         {
-            if (_Ref == null)
-                _Ref = new WeakReference<Variable>(null);
-            if (!_Ref.TryGetTarget(out Variable v))
+            this._Initializer = initializer;
+            this._Converter = converter;
+            this._Ref = null;
+            this._Value = TryConvert(_Initializer(), out T v) ? v : startValue;        
+        }
+
+        private bool TryConvert(IEvaluateable iev, out T value)
+        {
+            try
             {
-                _Ref.SetTarget(v = new Variable(_ContentSetter(), MODLOCK));
-                v.ValueChanged += On_Value_Changed;
-                if (v.Value is T newValue) _Publish(newValue);
+                value = _Converter(iev);
+                return true;
+            } catch
+            {
+                value = _Value;
+                return false;
             }
-            return v;
         }
+
+        public Variable Variable
+        {
+            get
+            {
+                Variable v;
+                if (_Ref == null)
+                {
+                    v = new Variable(_Initializer());
+                    _Ref = new WeakReference<Variable>(v);
+                    v.ValueChanged += On_Value_Changed;
+                } else if (!_Ref.TryGetTarget(out v))
+                {
+                    _Ref.SetTarget(v = new Variable(_Initializer()));
+                    v.ValueChanged += On_Value_Changed;
+                }
+                return v;
+            }
+        }
+
+        public T Value => _Value;
 
         private void On_Value_Changed(object sender, ValueChangedArgs<IEvaluateable> e)
-        {
-            if (e.After is T newValue)
-                _Publish(newValue);
+        {            
+            TryConvert(e.After, out T newValue);
+            if (_Value.Equals( newValue)) return;
+            T oldValue = _Value;
+            _Value = newValue;
+            ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
         }
+
+        void IWeakVariable<T>.SetLock(bool locked) => _LockedVariable = (locked) ? Variable : null;
+
+        public bool TryGetVariable(out Variable v)
+        {
+            if (_Ref != null && _Ref.TryGetTarget(out v)) return true;
+            v = null;
+            return false;
+        }
+
+        private event ValueChangedHandler<T> ValueChanged;
     }
+    
 
 
     /// <summary>An exception thrown when an invalid circular dependency is added to a DependencyGraph.</summary>

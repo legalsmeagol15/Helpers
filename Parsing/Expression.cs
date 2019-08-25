@@ -31,6 +31,7 @@ namespace Dependency
                 default: return new Dependency.String(obj.ToString());
             }
         }
+        public static IEvaluateable Obj2Eval<T>(T obj) => Obj2Eval(obj);
         
         public static ISet<Variable> GetTerms(IEvaluateable e)
         {
