@@ -33,8 +33,13 @@ namespace Dependency
         public static implicit operator Number(decimal m) => new Number(m);
         public static implicit operator decimal(Number n) => n.Value;
 
-        public static implicit operator Boolean(Number n) => (n ==0) ? Boolean.False : Boolean.True;
-        public static implicit operator Number(Boolean b) => b.Value ? Number.One : Number.Zero;
+        public static implicit operator bool(Number n) => n == 0;
+        public static implicit operator Number(bool b) => b ? Number.One : Number.Zero;
+
+        public static implicit operator byte(Number n) => (byte)n.Value;
+        public static implicit operator Number(byte b) => new Number((decimal)b);
+
+        
 
 
         private static bool _IsInteger(decimal m) => (decimal)((int)m) ==  m;

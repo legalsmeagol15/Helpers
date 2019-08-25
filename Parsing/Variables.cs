@@ -176,21 +176,21 @@ namespace Dependency
     /// <seealso cref="Dependency.Variable"/> is instantiated anew, its contents set with the given initializer, and 
     /// returned.  On the other hand, if the variable is not defunct, the target <seealso cref="Dependency.Variable"/> 
     /// is returned.
-    /// <para/>The pattern is ideal for the case of a variable whose contents are expected to be constant, but whose 
-    /// value may change over time.  Such a <seealso cref="Dependency.Variable"/> would work as a data source for 
-    /// listener variables who can then respond to changes in value.
-    /// <para/>Note that the <see cref="WeakVariable{T}"/> holds no notion of its context or name.
+    /// <para/>The pattern is ideal for two cases:  1) a variable whose contents are expected to be constant, but 
+    /// whose value may change over time; and 2) a variable whose contents (and value) are determined by CLR factors.
+    /// In other words, a weak variable won't keep user contents that are not hard-wired.
+    /// Such a <seealso cref="Dependency.Variable"/> would work as a data source for listener variables.
     /// </summary>
     public sealed class WeakVariable<T> where T : IEvaluateable
     {
         private const int MODLOCK = 10;
         private WeakReference<Variable> _Ref;     
-        private readonly Func<IEvaluateable> _Initialize;
+        private readonly Func<IEvaluateable> _ContentSetter;
         private readonly Action<T> _Publish;
-        public WeakVariable(Func<IEvaluateable> initialize, Action<T> publish = null)
+        public WeakVariable(Func<IEvaluateable> contentSetter, Action<T> publish = null)
         {
             // The publisher can be null, the initializer cannot.
-            this._Initialize = initialize ?? throw new ArgumentNullException("initialize");
+            this._ContentSetter = contentSetter ?? throw new ArgumentNullException("initialize");
             this._Publish = publish;
         }
         
@@ -206,10 +206,21 @@ namespace Dependency
                 if (_Ref != null && _Ref.TryGetTarget(out Variable v))
                     value = v.Value;
                 else
-                    value = _Initialize().UpdateValue();
+                    value = _ContentSetter().UpdateValue();
                 if (value is T result) return result;
                 return default(T);
             }
+        }
+
+        /// <summary>
+        /// Forces the <see cref="WeakVariable{T}"/> to update its contents by calling the provided content setter.
+        /// Returns whether the variable existed.
+        /// </summary>
+        public bool UpdateContents()
+        {
+            if (_Ref == null || _Ref.TryGetTarget(out Variable v)) return false;
+            v.Contents = _ContentSetter();
+            return true;
         }
 
         /// <summary>Returns a hard reference to the target <seealso cref="Dependency.Variable"/> for this 
@@ -220,9 +231,9 @@ namespace Dependency
                 _Ref = new WeakReference<Variable>(null);
             if (!_Ref.TryGetTarget(out Variable v))
             {
-                _Ref.SetTarget(v = new Variable(_Initialize(), MODLOCK));
+                _Ref.SetTarget(v = new Variable(_ContentSetter(), MODLOCK));
                 v.ValueChanged += On_Value_Changed;
-                if (v.UpdateValue() is T newValue) _Publish(newValue);
+                if (v.Value is T newValue) _Publish(newValue);
             }
             return v;
         }
