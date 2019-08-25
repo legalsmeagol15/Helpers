@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.27004.2008
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Helpers", "Helpers.csproj", "{13CA4A04-0AD2-41CC-8599-3DC870032224}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{9ECDDB2F-396E-4D94-AE9E-969CD99B9040}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelpersTests", "UnitTests\HelpersTests.csproj", "{9ECDDB2F-396E-4D94-AE9E-969CD99B9040}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

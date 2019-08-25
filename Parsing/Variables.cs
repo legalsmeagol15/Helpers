@@ -25,12 +25,8 @@ namespace Dependency
     {
         // A variable is apt to have few sources, but many listeners (0 or 100,000 might be reasonable).
 
-        public readonly IContext Context;
-        public readonly string Name;
-        /// <summary>
-        /// A number the must be given to <seealso cref="SetContents(IEvaluateable, int)"/> to allow contents 
-        /// modification.
-        /// </summary>
+        /// <summary>A number the must be given to <seealso cref="SetContents(IEvaluateable, int)"/> to allow contents 
+        /// modification.</summary>
         private readonly int ModLock;
         private ISet<Variable> _Sources = new HashSet<Variable>();
         private WeakReferenceSet<Variable> _Listeners = new WeakReferenceSet<Variable>();
@@ -151,10 +147,8 @@ namespace Dependency
         
         
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
-        public Variable(IContext context, string name, IEvaluateable contents = null, int modLock = 0)
+        public Variable(IEvaluateable contents = null, int modLock = 0)
         {
-            this.Context = context;
-            this.Name = name;
             this.Contents = contents;
             this.ModLock = modLock;
         }
@@ -166,7 +160,7 @@ namespace Dependency
 
         public IEnumerable<Variable> GetTerms() => _Sources;
 
-        public override string ToString() => Name + "=" + Value.ToString();
+        public override string ToString() => Contents.ToString() + " = " + Value.ToString();
 
         public event ValueChangedHandler<IEvaluateable> ValueChanged;
         private void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
@@ -174,6 +168,72 @@ namespace Dependency
 
     }
     
+
+    /// <summary>
+    /// Handles the nitty-gritty of implementing the weak variable pattern.  The weak variable pattern allows a 
+    /// variable to expire and be garbage-collected if it has no listeners, to save resources and simplify dependency 
+    /// updates.  Whenever the variable is defunct and the method <seealso cref="GetTarget"/> is executed, the 
+    /// <seealso cref="Dependency.Variable"/> is instantiated anew, its contents set with the given initializer, and 
+    /// returned.  On the other hand, if the variable is not defunct, the target <seealso cref="Dependency.Variable"/> 
+    /// is returned.
+    /// <para/>The pattern is ideal for the case of a variable whose contents are expected to be constant, but whose 
+    /// value may change over time.  Such a <seealso cref="Dependency.Variable"/> would work as a data source for 
+    /// listener variables who can then respond to changes in value.
+    /// <para/>Note that the <see cref="WeakVariable{T}"/> holds no notion of its context or name.
+    /// </summary>
+    public sealed class WeakVariable<T> where T : IEvaluateable
+    {
+        private const int MODLOCK = 10;
+        private WeakReference<Variable> _Ref;     
+        private readonly Func<IEvaluateable> _Initialize;
+        private readonly Action<T> _Publish;
+        public WeakVariable(Func<IEvaluateable> initialize, Action<T> publish = null)
+        {
+            // The publisher can be null, the initializer cannot.
+            this._Initialize = initialize ?? throw new ArgumentNullException("initialize");
+            this._Publish = publish;
+        }
+        
+        /// <summary>
+        /// Returns the value of this variable.  Even if the target <seealso cref="Dependency.Variable"/> has expired, 
+        /// the initialization contents will be returned.
+        /// </summary>
+        public T Value
+        {
+            get
+            {
+                IEvaluateable value;
+                if (_Ref != null && _Ref.TryGetTarget(out Variable v))
+                    value = v.Value;
+                else
+                    value = _Initialize().UpdateValue();
+                if (value is T result) return result;
+                return default(T);
+            }
+        }
+
+        /// <summary>Returns a hard reference to the target <seealso cref="Dependency.Variable"/> for this 
+        /// <see cref="WeakVariable{T}"/>.</summary>
+        public Variable GetTarget()
+        {
+            if (_Ref == null)
+                _Ref = new WeakReference<Variable>(null);
+            if (!_Ref.TryGetTarget(out Variable v))
+            {
+                _Ref.SetTarget(v = new Variable(_Initialize(), MODLOCK));
+                v.ValueChanged += On_Value_Changed;
+                if (v.UpdateValue() is T newValue) _Publish(newValue);
+            }
+            return v;
+        }
+
+        private void On_Value_Changed(object sender, ValueChangedArgs<IEvaluateable> e)
+        {
+            if (e.After is T newValue)
+                _Publish(newValue);
+        }
+    }
+
 
     /// <summary>An exception thrown when an invalid circular dependency is added to a DependencyGraph.</summary>
     public class CircularDependencyException : InvalidOperationException

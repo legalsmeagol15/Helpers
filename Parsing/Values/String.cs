@@ -10,6 +10,7 @@ namespace Dependency
     [Serializable]
     public struct String : ILiteral<string>, ITypeGuarantee
     {
+        public static readonly String Empty = new String("");
         internal const string PARSE_PATTERN = "\"[^\"]*\"";  // Any string bracketed by two "s and containing no " in between.
 
         internal readonly string Value;

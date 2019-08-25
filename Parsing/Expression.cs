@@ -31,37 +31,7 @@ namespace Dependency
                 default: return new Dependency.String(obj.ToString());
             }
         }
-
-        /// <summary>
-        /// Returns the nearest common ancestry of the two contexts.  Returns null if no ancestry is shared.
-        /// </summary>
-        public static IContext GetCommonAncestor(this IContext a, IContext b)
-        {
-            HashSet<IContext> ancestorsA = new HashSet<IContext>();
-            while (a != null)
-            {
-                if (!ancestorsA.Add(a)) break;
-                else if (a is ISubcontext isc) a = isc.Parent;
-                else break;
-            }
-            while (b != null)
-            {
-                if (ancestorsA.Contains(b)) return b;
-                else if (b is ISubcontext isc) b = isc.Parent;
-                else break;
-            }
-            return null;
-        }
-        /// <summary>
-        /// Returns the nearest common ancestry of the context and variable.  Returns null if no ancestry is shared.
-        /// </summary>
-        public static IContext GetCommonAncestor(this Variable a, IContext b) => GetCommonAncestor(a.Context, b);
-        /// <summary>
-        /// Returns the nearest common ancestry of the two variables.  Returns null if no ancestry is shared.
-        /// </summary>
-        public static IContext GetCommonAncestor(this Variable a, Variable b) => GetCommonAncestor(a.Context, b.Context);
         
-
         public static ISet<Variable> GetTerms(IEvaluateable e)
         {
             HashSet<Variable> result = new HashSet<Variable>();
@@ -694,7 +664,7 @@ namespace Dependency
         private const string OperPattern = @"(?<operPattern>[+-/*&|^~!><=])";
         private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
         private const string SpacePattern = @"(?<spacePattern>\s+)";
-        private const string RefPattern = @"(?<referencePattern>[_a-zA-Z][_a-zA-Z0-9]*(\.[_a-zA-Z0-9])*)";
+        private const string RefPattern = @"(?<referencePattern>[_a-zA-Z][_a-zA-Z0-9]*[\._a-zA-Z0-9]*)";
 
         private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, NumPattern, SpacePattern, RefPattern);
         private static Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);

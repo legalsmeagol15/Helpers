@@ -119,7 +119,7 @@ namespace Dependency
             }
 
             // Otherwise, time to create a new variable from the template.
-            source = (currentVal is Variable v) ? v : (v = new Variable(this, token, Obj2Eval(currentVal)));
+            source = (currentVal is Variable v) ? v : (v = new Variable(Obj2Eval(currentVal)));
             if (template.Contents == null)
             {
                 object clrValue = template.Info.GetValue(this.Host);

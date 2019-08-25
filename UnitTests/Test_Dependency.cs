@@ -53,11 +53,11 @@ namespace UnitTests
         public void Test_Linear()
         {
             int numVars = 100;
-            int timings = 1000;
+            int timings = 0;
             int timingSizes = 13;
 
             // Test linear transmission  of a value by changing contents.
-            Variable vStart = new Variable(null, "vStart", Dependency.Number.One);
+            Variable vStart = new Variable(Dependency.Number.One);
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
             
@@ -65,7 +65,7 @@ namespace UnitTests
             List<Variable> vars = new List<Variable>();
             for (int i = 0; i < numVars; i++)
             {
-                Variable vNext = new Variable(null, "v" + i, vLast);
+                Variable vNext = new Variable(vLast);
                 vars.Add(vNext);
                 vLast = vNext;
             }
@@ -78,13 +78,13 @@ namespace UnitTests
             while (timingSizes > 0 && timings > 0)
             {
                 // Set up a chain to experiment on.
-                Variable vBegin = new Variable(null, "vBegin");
+                Variable vBegin = new Variable();
                 int n = Mathematics.Int32.Exp_2(timingSizes);
                 Variable vEnd = vBegin;
                 List<Variable> keepItAlive = new List<Variable>();
                 for (int i = 0; i < n; i++)
                 {
-                    Variable vNext = new Variable(null, "v" + i, vEnd);
+                    Variable vNext = new Variable(vEnd);
                     keepItAlive.Add(vNext);
                     vEnd = vNext;
                 }
@@ -100,14 +100,14 @@ namespace UnitTests
         {
 
             int numVars = 100;
-            int timings = 1000;
+            int timings = 0; //1000;
             int timingSizes = 13;
 
-            Variable vStart = new Variable(null, "vStart");
+            Variable vStart = new Variable( );
             List<Variable> noGC = new List<Variable>();
             for (int i = 0; i < numVars; i++)
             {
-                noGC.Add(new Variable(null, "v" + i, vStart));
+                noGC.Add(new Variable(vStart));
             }
 
             for (int i = 0; i < numVars; i++)
@@ -129,12 +129,12 @@ namespace UnitTests
             while (timingSizes > 0 && timings > 0)
             {
                 // Set up a chain to experiment on.
-                Variable vBegin = new Variable(null, "vBegin");
+                Variable vBegin = new Variable();
                 int n = Mathematics.Int32.Exp_2(timingSizes);
                 List<Variable> keepItAlive = new List<Variable>();
                 for (int i = 0; i < n; i++)
                 {
-                    keepItAlive.Add(new Variable(null, "v" + i, vBegin));
+                    keepItAlive.Add(new Variable( vBegin));
                 }
 
                 var duration = Time(vBegin, timings);
@@ -310,7 +310,6 @@ namespace UnitTests
 
             Variable varY2 = Reference.FromPath(root, "line0", "Y2").Source as Variable;
             Assert.IsNotNull(varY2);
-            Assert.AreEqual(varY2.Name, "Y2");
             Assert.AreEqual(varY2.Value, 10); // If reference works, this will work.
         }
 
@@ -323,14 +322,14 @@ namespace UnitTests
             Line line0 = new Line() { X1 = 0, Y1 = 0, X2 = -20, Y2 = 3 };
             root.Add(line0, "line0");
             Variable varX1 = Reference.FromPath(root, "line0", "X1").Source as Variable;
-            Variable varY1 = Reference.FromPath(root, "line0", "Y1").Source as Variable;
+            Variable varX2 = Reference.FromPath(root, "line0", "X2").Source as Variable;
             Assert.IsNotNull(varX1);
-            Assert.IsNotNull(varY1);
+            Assert.IsNotNull(varX2);
 
-            varX1.Contents = Parse.FromString("Y1", null, root);
-            Assert.AreNotEqual(varX1, varY1);
+            varX1.Contents = Parse.FromString("line0.X2", null, root);
+            Assert.AreNotEqual(varX1, varX2);
             Assert.IsTrue(varX1.Contents is Expression);
-            Assert.IsTrue(varX1.GetTerms().Contains(varY1));
+            Assert.IsTrue(varX1.GetTerms().Contains(varX2));
         }
 
 
