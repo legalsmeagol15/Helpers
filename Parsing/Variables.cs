@@ -202,50 +202,53 @@ namespace Dependency
         T Value { get; }
         bool TryGetVariable(out Variable v);
     }
+    
+
 
     /// <summary>
     /// A <see cref="BlendedVariable{T}"/> blends the notion of CLR and dependency variables.  The current value of 
     /// type <typeparamref name="T"/> is maintained and always available.  It maintains the 
     /// <seealso cref="IWeakVariable{T}"/> pattern in that the dependency variable may expire due to garbage 
-    /// collection if it has no listeners.
+    /// collection if it has no listeners, but the CLR value will continue to be available.
     /// </summary>
-    public struct BlendedVariable<T> : IWeakVariable<T>
+    public class BlendedVariable<T> : IWeakVariable<T> 
     {
-        private T _ContentValue;    // Will be both the Variable's Contents and its Value
-        private Func<T, IEvaluateable> _Converter;
+        protected T ContentValue;    // Will be both the Variable's Contents and its Value
+        private readonly Func<T, IEvaluateable> _Converter;
         private WeakReference<Variable> _Ref;
         private Variable _LockedVariable;
         public T Value
         {
-            get => _ContentValue;
+            get => ContentValue;
             set
             {
-                _ContentValue = value;
+                ContentValue = value;
                 if (_Ref != null && _Ref.TryGetTarget(out Variable v)) v.Contents = _Converter(value);
             }
         }
         
-        public BlendedVariable(T startValue, Func<T, IEvaluateable> converter = null)
+        public BlendedVariable(T startValue, Func<T, ILiteral> converter)
         {
             this._Converter = converter ?? Dependency.Helpers.Obj2Eval;
-            _ContentValue = startValue;
+            ContentValue = startValue;
             _Ref = null;
             _LockedVariable = null;
         }
 
-        public Variable Variable
+        Variable IWeakVariable<T>.Variable => Source;
+        public Variable Source
         {
             get
             {
                 if (_Ref == null)
                 {
-                    Variable vNew = new Variable(_Converter(_ContentValue));
+                    Variable vNew = new Variable(_Converter(ContentValue));
                     _Ref = new WeakReference<Variable>(vNew);
                     return vNew;
                 }
                 else if (!_Ref.TryGetTarget(out Variable vExisting))
                 {
-                    _Ref.SetTarget(vExisting = new Variable(_Converter(_ContentValue)));
+                    _Ref.SetTarget(vExisting = new Variable(_Converter(ContentValue)));
                     return vExisting;
                 }
                 else
@@ -259,12 +262,158 @@ namespace Dependency
             return false;
         }
 
-        public void SetLock(bool locked) => _LockedVariable = (locked) ? Variable : null;
+        public void SetLock(bool locked) => _LockedVariable = (locked) ? Source : null;
        
 
-        public override string ToString() => _ContentValue.ToString();
+        public override string ToString() => ContentValue.ToString();
+
+        public static implicit operator T(BlendedVariable<T> b) =>  b.ContentValue;
     }
-    
+
+    /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="double"/> values.</summary>
+    public sealed class BlendedDouble : BlendedVariable<double>
+    {
+        public BlendedDouble(double startValue) : base(startValue, Number.FromDouble) { }
+    }
+
+    /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="int"/> values.</summary>
+    public sealed class BlendedInt : BlendedVariable<int>
+    {
+        public BlendedInt(int startValue) : base(startValue, (i) => new Number(i)) { }
+    }
+
+    /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="string"/> values.</summary>
+    public sealed class BlendedString : BlendedVariable<string>
+    {
+        public BlendedString(string startValue) : base(startValue, (s) => new Dependency.String(s)) { }
+    }
+
+
+
+    /// <summary>
+    /// A dynamic variable can have its contents set to any <seealso cref="IEvaluateable"/>, from
+    /// <seealso cref="Number"/>s to <seealso cref="Dependency.Expression"/>s.  Yet, it implements the 
+    /// <seealso cref="IWeakVariable{T}"/> pattern, so its CLR value continues to be valid (both settable and 
+    /// gettable) even when the related <seealso cref="Dependency.Variable"/> has been garbage-collected.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public class DynamicVariable<T> : IWeakVariable<T>
+    {
+        private readonly T _DefaultValue;
+        private T _Value;
+        private Variable _LockedVariable;
+        private readonly Func<T, IEvaluateable> _ToIEval;
+        private readonly Func<IEvaluateable, T> _ToClr;
+        private WeakReference<Variable> _Ref;
+
+        public IEvaluateable Contents
+        {
+            get
+            {
+                if (_Ref != null && _Ref.TryGetTarget(out Variable v)) return v.Contents;
+                return _ToIEval(_Value);
+            }
+            set
+            {
+                _LockedVariable = Variable;
+                _LockedVariable.Contents = value;
+            }
+        }
+
+        public Variable Variable
+        {
+            get
+            {
+                if (_Ref == null)
+                {
+                    Variable vNew = new Variable(_ToIEval(_Value));
+                    _Ref = new WeakReference<Variable>(vNew);
+                    vNew.ValueChanged += On_Value_Changed;
+                    return vNew;
+                }
+                else if (!_Ref.TryGetTarget(out Variable vExisting))
+                {
+                    _Ref.SetTarget(vExisting = new Variable(_ToIEval(_Value)));
+                    vExisting.ValueChanged += On_Value_Changed;
+                    return vExisting;
+                }
+                else
+                    return vExisting;
+            }
+        }
+
+        public T Value => _Value;
+
+        public DynamicVariable(T defaultValue, Func<IEvaluateable, T> toCLR, Func<T, IEvaluateable> toIEval = null)
+        {
+            this._ToIEval = toIEval ?? Dependency.Helpers.Obj2Eval;
+            this._ToClr = toCLR;
+            this._DefaultValue = defaultValue;
+            this._Value = Value;
+            this._LockedVariable = null;
+            this._Ref = null;
+        }
+
+        public void Clear()
+        {
+            if (_LockedVariable == null) return;
+            _LockedVariable.Contents = _ToIEval(_Value = _DefaultValue);
+            _LockedVariable = null;
+        }
+
+        public void SetLock(bool locked) => _LockedVariable = (locked) ? Variable : null;
+
+        public bool TryGetVariable(out Variable v)
+        {
+            if (_Ref != null && _Ref.TryGetTarget(out v)) return true;
+            v = null;
+            return false;
+        }
+
+
+        private void On_Value_Changed(object sender, ValueChangedArgs<IEvaluateable> e)
+        {
+            T oldValue = _Value, newValue = default(T);
+            try
+            {
+                newValue = _ToClr(e.After);
+                if (newValue.Equals(_Value)) return;
+            }
+            catch
+            {
+                return;
+            }
+            _Value = newValue;
+            ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
+        }
+
+        private event ValueChangedHandler<T> ValueChanged;
+
+        public static implicit operator T(DynamicVariable<T> d) =>  d.Value;
+
+        public override string ToString() => TryGetVariable(out Variable v) ? v.ToString() : _Value.ToString();
+    }
+
+
+
+    public sealed class DynamicDouble : DynamicVariable<double>
+    {
+        public DynamicDouble(double defaultValue) : base(defaultValue, Helpers.ToDouble, Number.FromDouble) { }
+    }
+
+
+    public sealed class DynamicInt : DynamicVariable<int>
+    {
+        public DynamicInt(int defaultValue) : base(defaultValue, Helpers.ToInt, (i) => new Number(i)) { }
+    }
+
+    public sealed class DynamicString : DynamicVariable<string>
+    {
+        public DynamicString(string defaultValue = "") : base(defaultValue, (iev) => iev.Value.ToString(), (s) => new Dependency.String(s)) { }
+    }
+
+
+
     /// <summary>
     /// A <see cref="SourceVariable{T}"/> is a variable whose contents never change, but the value may.  It maintains 
     /// the <seealso cref="IWeakVariable{T}"/> pattern in that if the <seealso cref="Dependency.Variable"/> is ever 
@@ -278,6 +427,9 @@ namespace Dependency
         private readonly Func<IEvaluateable> _Initializer;
         private readonly Func<IEvaluateable, T> _Converter;
         private Variable _LockedVariable;
+
+        /// <summary>Returns whether this variable is participating currently in the dependency system.</summary>
+        public bool IsActive => TryGetVariable(out _);
 
         /// <summary>Creates a new <see cref="SourceVariable{T}"/>.</summary>
         /// <param name="startValue">The starting value for the <see cref="SourceVariable{T}"/>.  This will be 
@@ -346,6 +498,8 @@ namespace Dependency
         }
 
         private event ValueChangedHandler<T> ValueChanged;
+
+        public override string ToString() => TryGetVariable(out Variable v) ? v.ToString() : _Value.ToString();
     }
     
 

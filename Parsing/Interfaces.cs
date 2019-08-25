@@ -81,7 +81,7 @@ namespace Dependency
     }
     
 
-    internal interface ILiteral : IEvaluateable { }
+    public interface ILiteral : IEvaluateable { }
     internal interface ILiteral<TClr> : ILiteral
     {
         TClr CLRValue { get; }

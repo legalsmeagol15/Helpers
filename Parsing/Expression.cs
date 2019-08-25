@@ -16,13 +16,13 @@ namespace Dependency
     internal static class Helpers
     {
         /// <summary>
-        /// Converts a non-<seealso cref="IEvaluateable"/> object into an <seealso cref="IEvaluateable"/> object.
+        /// Converts a non-<seealso cref="IEvaluateable"/> object into an <seealso cref="ILiteral"/> object.
         /// </summary>
-        public static IEvaluateable Obj2Eval(object obj)
+        public static ILiteral Obj2Eval(object obj)
         {
             switch (obj)
             {
-                case IEvaluateable iev: return iev;
+                case ILiteral iev: return iev;
                 case null: return Null.Instance;
                 case double d: return new Number(d);
                 case int i: return new Number(i);
@@ -31,7 +31,18 @@ namespace Dependency
                 default: return new Dependency.String(obj.ToString());
             }
         }
-        public static IEvaluateable Obj2Eval<T>(T obj) => Obj2Eval(obj);
+        public static ILiteral Obj2Eval<T>(T obj) => Obj2Eval(obj);
+
+        public static double ToDouble(this IEvaluateable iev)
+        {
+            if (iev is Number n) return (double)n.Value;
+            throw new InvalidCastException();
+        }
+        public static int ToInt(this IEvaluateable iev)
+        {
+            if (iev is Number n) return (int)n.Value;
+            throw new InvalidCastException();
+        }        
         
         public static ISet<Variable> GetTerms(IEvaluateable e)
         {

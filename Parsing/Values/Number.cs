@@ -39,9 +39,13 @@ namespace Dependency
         public static implicit operator byte(Number n) => (byte)n.Value;
         public static implicit operator Number(byte b) => new Number((decimal)b);
 
+        public static ILiteral FromDouble(double d)
+        {
+            if (double.IsNaN(d) || double.IsInfinity(d)) return new ValueError("An infinite or NaN Number cannot be created.");
+            return new Number(d);
+        }
+
         
-
-
         private static bool _IsInteger(decimal m) => (decimal)((int)m) ==  m;
         public bool IsInteger => _IsInteger(Value);
 

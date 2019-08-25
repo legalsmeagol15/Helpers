@@ -7,28 +7,38 @@ using static Dependency.TypeControl;
 
 namespace Dependency
 {
-    [Serializable]
-    public class EvaluationError : IEvaluateable, ITypeGuarantee
+    public abstract class Error : ILiteral, ITypeGuarantee
     {
         public readonly string Message;
+        protected Error(string message) { this.Message = message; }
+        IEvaluateable IEvaluateable.Value => this;
+        IEvaluateable IEvaluateable.UpdateValue() => this;
+        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Error;
+    }
+
+    public sealed class ValueError : Error
+    {
+        public ValueError(string message = null) : base(message ?? "An invalid value was created.") { }
+    }
+
+    [Serializable]
+    public class EvaluationError : Error
+    {
+        // public readonly string Message;
         public readonly object Complainant;
         public readonly IEnumerable<IEvaluateable> Inputs;
         public readonly int Start;
         public readonly int End;
 
         public EvaluationError(object complainant, IEnumerable<IEvaluateable> inputs, string message = null)
-        {
-            this.Message = message ?? "Failed to evaluate inputs on " + complainant.GetType().Name + ".";
+            : base(message ?? "Failed to evaluate inputs on " + complainant.GetType().Name + ".")
+        {   
             this.Complainant = complainant;
             this.Inputs = inputs;
         }
-
-        IEvaluateable IEvaluateable.Value => this;
-        IEvaluateable IEvaluateable.UpdateValue() => this;
-        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Error;
     }
 
-    public class InputCountError : EvaluationError
+    public sealed class InputCountError : EvaluationError
     {
         internal TypeControl TypeControl;
 
@@ -39,7 +49,7 @@ namespace Dependency
         }
     }
 
-    public class TypeMismatchError : EvaluationError
+    public sealed class TypeMismatchError : EvaluationError
     {
 
         public readonly int InputIndex;
