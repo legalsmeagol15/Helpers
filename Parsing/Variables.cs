@@ -206,9 +206,9 @@ namespace Dependency
 
 
     /// <summary>
-    /// A <see cref="BlendedVariable{T}"/> blends the notion of CLR and dependency variables.  The current value of 
-    /// type <typeparamref name="T"/> is maintained and always available.  It maintains the 
-    /// <seealso cref="IWeakVariable{T}"/> pattern in that the dependency variable may expire due to garbage 
+    /// A <see cref="BlendedVariable{T}"/> blends the notion of CLR and literal dependency variables.  The current 
+    /// value of type <typeparamref name="T"/> is maintained and always available.  It maintains the 
+    /// <seealso cref="IWeakVariable{T}"/> pattern in that the dependency variable may expire due to garbage-
     /// collection if it has no listeners, but the CLR value will continue to be available.
     /// </summary>
     public class BlendedVariable<T> : IWeakVariable<T> 
@@ -297,7 +297,7 @@ namespace Dependency
     /// gettable) even when the related <seealso cref="Dependency.Variable"/> has been garbage-collected.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class DynamicVariable<T> : IWeakVariable<T>
+    public class DynamicVariable<T> : IWeakVariable<T> 
     {
         private readonly T _DefaultValue;
         private T _Value;
@@ -344,10 +344,9 @@ namespace Dependency
 
         public T Value => _Value;
 
-        public DynamicVariable(T defaultValue, Func<IEvaluateable, T> toCLR, Func<T, IEvaluateable> toIEval = null)
+        public DynamicVariable(T defaultValue, Func<T, IEvaluateable> toIEval = null)
         {
             this._ToIEval = toIEval ?? Dependency.Helpers.Obj2Eval;
-            this._ToClr = toCLR;
             this._DefaultValue = defaultValue;
             this._Value = Value;
             this._LockedVariable = null;
@@ -379,10 +378,18 @@ namespace Dependency
                 newValue = _ToClr(e.After);
                 if (newValue.Equals(_Value)) return;
             }
-            catch
+            catch (InvalidCastException)
             {
                 return;
             }
+
+            if (oldValue == null)
+            {
+                if (newValue == null) return;
+            }
+            else if (oldValue.Equals(newValue))
+                return;
+
             _Value = newValue;
             ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
         }
@@ -394,26 +401,25 @@ namespace Dependency
         public override string ToString() => TryGetVariable(out Variable v) ? v.ToString() : _Value.ToString();
     }
 
-
+    public sealed class DynamicBool : DynamicVariable<bool>
+    {
+        public DynamicBool(bool defaultValue = false) : base(defaultValue, (b) => b ? Dependency.Boolean.True : Dependency.Boolean.False) { }
+    }
     public sealed class DynamicByte : DynamicVariable<byte>
     {
-        public DynamicByte(byte defaultValue = 0) : base(defaultValue, Helpers.ToByte, (b) => new Number(b)) { }
+        public DynamicByte(byte defaultValue = 0) : base(defaultValue, (b) => new Number(b)) { }
     }
-
     public sealed class DynamicDouble : DynamicVariable<double>
     {
-        public DynamicDouble(double defaultValue = 0.0d) : base(defaultValue, Helpers.ToDouble, Number.FromDouble) { }
+        public DynamicDouble(double defaultValue = 0.0d) : base(defaultValue, Number.FromDouble) { }
     }
-
-
     public sealed class DynamicInt : DynamicVariable<int>
     {
-        public DynamicInt(int defaultValue = 0) : base(defaultValue, Helpers.ToInt, (i) => new Number(i)) { }
+        public DynamicInt(int defaultValue = 0) : base(defaultValue, (i) => new Number(i)) { }
     }
-
     public sealed class DynamicString : DynamicVariable<string>
     {
-        public DynamicString(string defaultValue = "") : base(defaultValue, (iev) => iev.Value.ToString(), (s) => new Dependency.String(s)) { }
+        public DynamicString(string defaultValue = "") : base(defaultValue, (s) => new Dependency.String(s)) { }
     }
 
 
@@ -424,12 +430,11 @@ namespace Dependency
     /// garbage-collected, the next attempt to reference it through a dependency structure will re-create the 
     /// <seealso cref="Dependency.Variable"/> with the same contents (which may evaluate to a different value).
     /// </summary>
-    public class SourceVariable<T> : IWeakVariable<T> // where T : struct
+    public class SourceVariable<T> : IWeakVariable<T>
     {
-        private T _Value;
+        private T _Value = default(T);
         private WeakReference<Variable> _Ref;
         private readonly Func<IEvaluateable> _Initializer;
-        private readonly Func<IEvaluateable, T> _Converter;
         private Variable _LockedVariable;
 
         /// <summary>Returns whether this variable is participating currently in the dependency system.</summary>
@@ -444,7 +449,6 @@ namespace Dependency
         public SourceVariable(T startValue,  Func<IEvaluateable> initializer, Func<IEvaluateable, T> converter)
         {
             this._Initializer = initializer;
-            this._Converter = converter;
             this._Ref = null;
             this._Value = TryConvert(_Initializer(), out T v) ? v : startValue;        
         }
@@ -453,9 +457,9 @@ namespace Dependency
         {
             try
             {
-                value = _Converter(iev);
+                value = (T)iev;
                 return true;
-            } catch
+            } catch (InvalidCastException)
             {
                 value = _Value;
                 return false;
@@ -488,7 +492,12 @@ namespace Dependency
         private void On_Value_Changed(object sender, ValueChangedArgs<IEvaluateable> e)
         {            
             TryConvert(e.After, out T newValue);
-            if (_Value.Equals( newValue)) return;
+
+            if (_Value  == null)
+            {
+                if (newValue == null) return;
+            }
+            else if (_Value.Equals( newValue)) return;
             T oldValue = _Value;
             _Value = newValue;
             ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));

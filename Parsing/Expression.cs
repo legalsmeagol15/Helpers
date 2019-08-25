@@ -32,22 +32,6 @@ namespace Dependency
             }
         }
         public static ILiteral Obj2Eval<T>(T obj) => Obj2Eval(obj);
-
-        public static double ToDouble(this IEvaluateable iev)
-        {
-            if (iev is Number n) return (double)n.Value;
-            throw new InvalidCastException();
-        }
-        public static int ToInt(this IEvaluateable iev)
-        {
-            if (iev is Number n) return (int)n.Value;
-            throw new InvalidCastException();
-        }     
-        public static byte ToByte(this IEvaluateable iev)
-        {
-            if (iev is Number n) return (byte)n.Value;
-            throw new InvalidCastException();
-        }
         
         public static ISet<Variable> GetTerms(IEvaluateable e)
         {

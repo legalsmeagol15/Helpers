@@ -27,7 +27,12 @@ namespace Dependency
         public static implicit operator Number(int i) => new Number((decimal)i);
         public static implicit operator int(Number n) => (int)n.Value;
 
-        public static implicit operator Number(double d) => new Number((decimal)d);
+        public static implicit operator Number(double d)
+        {
+            if (double.IsNaN(d) || double.IsInfinity(d))
+                throw new InvalidCastException("Values NaN and infinity cannot be converted to a Number.");
+            return new Number(d);
+        }
         public static implicit operator double(Number n) => (double)n.Value;
 
         public static implicit operator Number(decimal m) => new Number(m);
