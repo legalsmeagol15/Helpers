@@ -25,10 +25,6 @@ namespace Dependency
         IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
 
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.ComplexAny;
-
-        IEvaluateable IEvaluateable.UpdateValue()
-        {
-            throw new NotImplementedException();
-        }
+        
     }
 }

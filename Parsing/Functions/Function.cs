@@ -8,35 +8,48 @@ using static Dependency.TypeControl;
 
 namespace Dependency.Functions
 {
-    public abstract class Function : IFunction
+    public abstract class Function : IFunction, IDynamicEvaluateable
     {
-        protected internal IList<IEvaluateable> Inputs { get; internal set; }
+        internal IDynamicEvaluateable Parent { get; set; }
+        private IList<IEvaluateable> _Inputs;
+        protected internal IList<IEvaluateable> Inputs
+        {
+            get => _Inputs;
+            internal set
+            {
+                _Inputs = value;
+                Update();
+                foreach (var iev in value) if (iev is IDynamicEvaluateable ide) ide.Parent = this;
+            }
+        }
+
         IList<IEvaluateable> IFunction.Inputs => Inputs;
 
-        private IEvaluateable _Value = null;
+        public IEvaluateable Value { get; private set; }
+        IDynamicEvaluateable IDynamicEvaluateable.Parent { get => Parent; set => Parent = value; }
 
-        IEvaluateable IEvaluateable.Value => _Value;
-
-        IEvaluateable IEvaluateable.UpdateValue()
+        public IEvaluateable Update()
         {
-            IEvaluateable[] evaluatedInputs = new IEvaluateable[Inputs.Count];
-            for (int i = 0; i < Inputs.Count; i++)
-            {
-                evaluatedInputs[i] = Inputs[i].UpdateValue();
-                if (evaluatedInputs[i] is EvaluationError err) return err;
-            }
+            IEvaluateable[] evalInputs = _Inputs.Select(s => s.Value).ToArray();
 
             TypeControl tc;
             if (this is ICacheValidator icv) tc = icv.TypeControl ?? (icv.TypeControl = TypeControl.GetConstraints(this.GetType()));
             else tc = TypeControl.GetConstraints(this.GetType());
-            if (tc.TryMatchType(evaluatedInputs, out int bestConstraint, out int unmatchedArg))
-                return _Value = Evaluate(evaluatedInputs, bestConstraint);
-            else if (bestConstraint < 0)
-                return new InputCountError(this, evaluatedInputs, tc);
-            else
-                return new TypeMismatchError(this, evaluatedInputs, bestConstraint, unmatchedArg, tc);
-        }
 
+            IEvaluateable newValue;
+            if (tc.TryMatchType(evalInputs, out int bestConstraint, out int unmatchedArg))
+                newValue = Evaluate(evalInputs, bestConstraint);
+            else if (bestConstraint < 0)
+                newValue = new InputCountError(this, evalInputs, tc);
+            else
+                newValue = new TypeMismatchError(this, evalInputs, bestConstraint, unmatchedArg, tc);
+
+            if (newValue.Equals(Value)) return Value;
+            Value = newValue;
+            if (Parent != null) Parent.Update();
+            return Value;
+        }
+        
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
         
     }

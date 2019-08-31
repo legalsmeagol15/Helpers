@@ -33,7 +33,6 @@ namespace Dependency
         public override string ToString() => Value ? "True" : "False";
 
         bool ILiteral<bool>.CLRValue => Value;
-        IEvaluateable IEvaluateable.UpdateValue() => this;
         
         IEvaluateable IEvaluateable.Value => this;
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Boolean;

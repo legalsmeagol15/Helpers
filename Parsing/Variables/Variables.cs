@@ -20,21 +20,37 @@ namespace Dependency
         Row = 2,
         All = ~0
     }
-    
-    public sealed class Variable : IEvaluateable, IDisposable
+
+    public sealed class Variable : IDynamicEvaluateable, IVariable
+    // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
     {
         // A variable is apt to have few sources, but many listeners (0 or 100,000 might be reasonable).
 
-        /// <summary>A number the must be given to <seealso cref="SetContents(IEvaluateable, int)"/> to allow contents 
-        /// modification.</summary>
-        private readonly int ModLock;
-        private ISet<Variable> _Sources = new HashSet<Variable>();
-        private WeakReferenceSet<Variable> _Listeners = new WeakReferenceSet<Variable>();
+        IDynamicEvaluateable IDynamicEvaluateable.Parent { get=>null; set=> throw new InvalidOperationException(); }
+        private readonly WeakReferenceSet<Reference> _Listeners = new WeakReferenceSet<Reference>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private static readonly ReaderWriterLockSlim _StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
-
+        bool IVariable.AddListener(Reference r) => _Listeners.Add(r);
+        
+        public IEnumerable<Reference> GetReferences()
+        {
+            if (Contents == null) yield break;
+            Stack<IEvaluateable> stack = new Stack<IEvaluateable>();
+            stack.Push(this.Contents);
+            while (stack.Count > 0)
+            {
+                IEvaluateable focus = stack.Pop();
+                switch (focus)
+                {
+                    case IExpression exp: stack.Push(exp.Contents); continue;
+                    case IFunction f: foreach (var input in f.Inputs) stack.Push(f); continue;
+                    case Reference r: yield return r; continue;
+                }
+                
+            }
+        }
         public IEvaluateable Value
         {
             get
@@ -57,29 +73,35 @@ namespace Dependency
             set
             {
                 // No key is given when Contents is set this way.
+                if (value is Expression exp) value = exp.Contents;
                 SetContents(value, 0);
             }
         }
+
+
+        /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
+        public Variable(IEvaluateable contents = null) {
+            this.Contents = contents;
+        }
+
         public void SetContents(IEvaluateable value, int modKey = 0)
         {
-            if (ModLock != modKey)
-                throw new Exception("This Variable has a modification lock.  The correct modification key must be provided.");
-
             if (value == null) value = Dependency.Null.Instance;
 
             // First, update the structure-related variables (contents and sources).
-            ISet<Variable> newSources = Helpers.GetTerms(value);
+            ISet<IVariable> newSources = new HashSet<IVariable>(Helpers.GetTerms(value));
             _StructureLock.EnterUpgradeableReadLock();  // Lock 'a' because the structure shouldn't change while we examine it.
             try
             {
-                if (TryFindCircularity(this, newSources, out Deque<Variable> path)) throw new CircularDependencyException(path);
-                Variable[] oldSources = _Sources.Except(newSources).ToArray();
+                if (TryFindCircularity(this, newSources, out Deque<IVariable> path)) throw new CircularDependencyException(path);
                 _StructureLock.EnterWriteLock();
                 try
                 {
-                    foreach (Variable oldSrc in oldSources) oldSrc._Listeners.Remove(this);
-                    foreach (Variable newSrc in newSources) newSrc._Listeners.Add(this);
-                    _Sources = newSources;
+                    // old sources will expire through garbage collection.  No need to clean them up.
+                    foreach (Reference r in this.GetReferences().Where(obj => obj.Source != null))
+                    {
+                        r.Source.AddListener(r);
+                    }
                     _Contents = value;
                 }
                 finally { _StructureLock.ExitWriteLock(); }
@@ -88,10 +110,10 @@ namespace Dependency
             finally { _StructureLock.ExitUpgradeableReadLock(); }
 
             // Second, update the changed value
-            UpdateValue();
+            Update();
         }
-        
-        public IEvaluateable UpdateValue()
+
+        public IEvaluateable Update()
         {
             // This method makes the guess that most updates will NOT change the value.
             IEvaluateable oldValue, newValue;
@@ -101,7 +123,7 @@ namespace Dependency
             {
                 // Presume that a source Variable is already updated, since this method will be 
                 // called a lot from the sources and we don't want an exponential function.
-                newValue = (_Contents is Variable v) ? v.Value : _Contents.UpdateValue();
+                newValue = _Contents.Value;
                 if (newValue == null) newValue = Dependency.Null.Instance;
 
                 // Rule out identical values, which should not invoke any further action.
@@ -117,48 +139,36 @@ namespace Dependency
 
                 //Now update the listeners
                 List<Task> tasks = new List<Task>();
-                foreach (Variable listener in _Listeners)
-                    tasks.Add(Task.Run(() => listener.UpdateValue()));
+                foreach (Reference r in _Listeners)
+                    tasks.Add(Task.Run(() => r.Update()));
                 Task.WaitAll(tasks.ToArray());
             }
             finally { _StructureLock.ExitReadLock(); _ValueLock.ExitUpgradeableReadLock(); }
 
-            //UpdateListeners();
             return newValue;
-            
+
+
         }
 
-        private static bool TryFindCircularity(Variable target, 
-                                                IEnumerable<Variable> sources,
-                                                out Deque<Variable> path)
+        private static bool TryFindCircularity(Variable target,
+                                                IEnumerable<IVariable> sources,
+                                                out Deque<IVariable> path)
         {
             // TODO:  use a Stack<> object instead of stack frames, because I get a stack overflow at approx. 5000 levels deep
+            // TODO:  I'm not caching the sources anywhere, so it would optimize this method to cache the variables' sources.
             if (sources != null)
             {
-                foreach (Variable src in sources)
+                foreach (IVariable src in sources)
                 {
-                    if (ReferenceEquals(target, src)) { path = new Deque<Variable>(); path.AddFirst(src); return true; }
-                    else if (TryFindCircularity(target, src._Sources, out path)) { path.AddFirst(src); return true; }
+                    if (ReferenceEquals(target, src)) { path = new Deque<IVariable>(); path.AddFirst(src); return true; }
+                    else if (TryFindCircularity(target, Helpers.GetTerms(src), out path)) { path.AddFirst(src); return true; }
                 }
             }
             path = null;
             return false;
         }
-        
-        
-        /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
-        public Variable(IEvaluateable contents = null, int modLock = 0)
-        {
-            this.Contents = contents;
-            this.ModLock = modLock;
-        }
-        
-        internal string GetExpressionString(IContext perspective)
-        {
-            throw new NotImplementedException();
-        }
 
-        public IEnumerable<Variable> GetTerms() => _Sources;
+
 
         public override string ToString() => Contents.ToString() + " = " + Value.ToString();
 
@@ -166,24 +176,6 @@ namespace Dependency
         private void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
 
-        #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
-
-        void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    // This is to prevent a memory leak in the form of an invalid WeakReference
-                    foreach (var src in _Sources) src._Listeners.Remove(this);
-                }
-                disposedValue = true;
-            }
-        }
-        void IDisposable.Dispose() { Dispose(true); }
-
-        #endregion
 
     }
 
@@ -196,13 +188,13 @@ namespace Dependency
 
 
     public interface IWeakVariable<T>
-    {   
+    {
         Variable Variable { get; }
         void SetLock(bool locked);
         T Value { get; }
         bool TryGetVariable(out Variable v);
     }
-    
+
 
 
     /// <summary>
@@ -211,7 +203,7 @@ namespace Dependency
     /// <seealso cref="IWeakVariable{T}"/> pattern in that the dependency variable may expire due to garbage-
     /// collection if it has no listeners, but the CLR value will continue to be available.
     /// </summary>
-    public class BlendedVariable<T> : IWeakVariable<T> 
+    public class BlendedVariable<T> : IWeakVariable<T>
     {
         protected T ContentValue;    // Will be both the Variable's Contents and its Value
         private readonly Func<T, IEvaluateable> _Converter;
@@ -226,7 +218,7 @@ namespace Dependency
                 if (_Ref != null && _Ref.TryGetTarget(out Variable v)) v.Contents = _Converter(value);
             }
         }
-        
+
         public BlendedVariable(T startValue, Func<T, ILiteral> converter)
         {
             this._Converter = converter ?? Dependency.Helpers.Obj2Eval;
@@ -263,29 +255,29 @@ namespace Dependency
         }
 
         public void SetLock(bool locked) => _LockedVariable = (locked) ? Source : null;
-       
+
 
         public override string ToString() => ContentValue.ToString();
 
-        public static implicit operator T(BlendedVariable<T> b) =>  b.ContentValue;
+        public static implicit operator T(BlendedVariable<T> b) => b.ContentValue;
     }
 
     /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="double"/> values.</summary>
     public sealed class BlendedDouble : BlendedVariable<double>
     {
-        public BlendedDouble(double startValue) : base(startValue, Number.FromDouble) { }
+        public BlendedDouble(double startValue = 0) : base(startValue, Number.FromDouble) { }
     }
 
     /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="int"/> values.</summary>
     public sealed class BlendedInt : BlendedVariable<int>
     {
-        public BlendedInt(int startValue) : base(startValue, (i) => new Number(i)) { }
+        public BlendedInt(int startValue = 0) : base(startValue, (i) => new Number(i)) { }
     }
 
     /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="string"/> values.</summary>
     public sealed class BlendedString : BlendedVariable<string>
     {
-        public BlendedString(string startValue) : base(startValue, (s) => new Dependency.String(s)) { }
+        public BlendedString(string startValue = "") : base(startValue, (s) => new Dependency.String(s)) { }
     }
 
 
@@ -297,7 +289,7 @@ namespace Dependency
     /// gettable) even when the related <seealso cref="Dependency.Variable"/> has been garbage-collected.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class DynamicVariable<T> : IWeakVariable<T> 
+    public class DynamicVariable<T> : IWeakVariable<T>
     {
         private readonly T _DefaultValue;
         private T _Value;
@@ -396,7 +388,7 @@ namespace Dependency
 
         public event ValueChangedHandler<T> ValueChanged;
 
-        public static implicit operator T(DynamicVariable<T> d) =>  d.Value;
+        public static implicit operator T(DynamicVariable<T> d) => d.Value;
 
         public override string ToString() => TryGetVariable(out Variable v) ? v.ToString() : _Value.ToString();
     }
@@ -444,13 +436,12 @@ namespace Dependency
         /// <param name="startValue">The starting value for the <see cref="SourceVariable{T}"/>.  This will be 
         /// disregarded if the initialized contents evaluate to a convertible value.</param>
         /// <param name="initializer">The function called every time this variable is initialized.</param>
-        /// <param name="converter">The function which converts an <seealso cref="IEvaluateable"/> into the given type.
         /// </param>
-        public SourceVariable(T startValue,  Func<IEvaluateable> initializer, Func<IEvaluateable, T> converter)
+        public SourceVariable(T startValue, Func<IEvaluateable> initializer)
         {
             this._Initializer = initializer;
             this._Ref = null;
-            this._Value = TryConvert(_Initializer(), out T v) ? v : startValue;        
+            this._Value = TryConvert(_Initializer(), out T v) ? v : startValue;
         }
 
         private bool TryConvert(IEvaluateable iev, out T value)
@@ -459,7 +450,8 @@ namespace Dependency
             {
                 value = (T)iev;
                 return true;
-            } catch (InvalidCastException)
+            }
+            catch (InvalidCastException)
             {
                 value = _Value;
                 return false;
@@ -486,18 +478,18 @@ namespace Dependency
             }
         }
         Variable IWeakVariable<T>.Variable => Source;
-        
+
         public T Value => _Value;
 
         private void On_Value_Changed(object sender, ValueChangedArgs<IEvaluateable> e)
-        {            
+        {
             TryConvert(e.After, out T newValue);
 
-            if (_Value  == null)
+            if (_Value == null)
             {
                 if (newValue == null) return;
             }
-            else if (_Value.Equals( newValue)) return;
+            else if (_Value.Equals(newValue)) return;
             T oldValue = _Value;
             _Value = newValue;
             ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
@@ -516,15 +508,15 @@ namespace Dependency
 
         public override string ToString() => TryGetVariable(out Variable v) ? v.ToString() : _Value.ToString();
     }
-    
+
 
 
     /// <summary>An exception thrown when an invalid circular dependency is added to a DependencyGraph.</summary>
     public class CircularDependencyException : InvalidOperationException
     {
-        IEnumerable<Variable> Path;
+        IEnumerable<IVariable> Path;
         /// <summary>Creates a new CircularDependencyException.</summary>
-        public CircularDependencyException(IEnumerable<Variable> path, string message = "Circular reference identified.") : base(message) { this.Path = path; }
+        public CircularDependencyException(IEnumerable<IVariable> path, string message = "Circular reference identified.") : base(message) { this.Path = path; }
     }
 
 }

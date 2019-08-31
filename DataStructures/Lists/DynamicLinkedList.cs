@@ -17,6 +17,7 @@ namespace DataStructures
     /// <para/>
     [DebuggerDisplay("Count = {Count}")]
     [DefaultMember("Item")]
+    [DebuggerStepThrough]
     public class DynamicLinkedList<T> : IEnumerable<T>, ICollection<T>
     {
 

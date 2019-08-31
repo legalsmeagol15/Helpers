@@ -139,41 +139,7 @@ namespace Dependency
         {
             protected override bool Compare(Number a, Number b) => a >= b;
         }
-
-        [TypeControl.NonVariadic(0, TypeFlags.Indexable, TypeFlags.VectorInteger | TypeFlags.RealAny)]
-        public sealed class Indexing : Function, IOperator, IExpression
-        {
-            internal IEvaluateable Base { get => Inputs[0]; set { Inputs[0] = value; } }
-
-            /// <summary>The vector that this bracket object contains.</summary>
-            internal IEvaluateable Ordinal { get => Inputs[1]; set { Inputs[1] = value; } }
-
-            protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIndex)
-            {
-                switch (constraintIndex)
-                {
-                    case 0:
-                        IIndexable idxable = (IIndexable)inputs[0];
-                        Number[] ns = new Number[inputs.Length - 1];
-                        for (int i = 1; i < inputs.Length; i++)
-                        {
-                            if (inputs[i] is Number n)
-                                ns[i - 1] = n;
-                            else
-                                return new TypeMismatchError(this, inputs.Skip(1).ToArray(), 0, 1, TypeControl.GetConstraints(this.GetType()), "Indexable ordinal must evaluate to a number or vector of numbers.");
-                        }
-                        return idxable[ns];
-                    default:
-                        return new EvaluationError(this, inputs, "Have not implemented evaluation for constraint " + constraintIndex);
-                }
-            }
-
-
-            public override string ToString() => Base.ToString() + " [ " + Ordinal.ToString() + " ] ";
-
-            IEvaluateable IExpression.GetGuts() => new Vector(Inputs.ToArray());
-        }
-
+        
         internal sealed class LessThan : ComparisonOperator
         {
             protected override bool Compare(Number a, Number b) => a < b;

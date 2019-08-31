@@ -46,7 +46,7 @@ namespace Dependency
 
         public static ILiteral FromDouble(double d)
         {
-            if (double.IsNaN(d) || double.IsInfinity(d)) return new ValueError("An infinite or NaN Number cannot be created.");
+            if (double.IsNaN(d) || double.IsInfinity(d)) return new InvalidValue("An infinite or NaN Number cannot be created.");
             return new Number(d);
         }
 
@@ -108,7 +108,6 @@ namespace Dependency
         
         
         decimal ILiteral<decimal>.CLRValue => Value;
-        IEvaluateable IEvaluateable.UpdateValue() => this;
 
         int IComparable<Number>.CompareTo(Number other) => Value.CompareTo(other.Value);
 

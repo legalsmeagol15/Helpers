@@ -67,7 +67,7 @@ namespace Mathematics
         /// <summary>Returns the next power of 2 above the given number.</summary>
         public static int RoundUpPow2(int x)
         {
-            if (x <= 0) return 0;
+            if (x <= 0) return 1;
             for (int i = 1; i < 32; i++)
             {
                 if ((x >> i) == 0) return 1 << i;                

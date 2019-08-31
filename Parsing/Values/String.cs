@@ -69,7 +69,7 @@ namespace Dependency
         }
 
         string ILiteral<string>.CLRValue => Value;
-        IEvaluateable IEvaluateable.UpdateValue() => this;
+        
         IEvaluateable IEvaluateable.Value => this;
         
     }

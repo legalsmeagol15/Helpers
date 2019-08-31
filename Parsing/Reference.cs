@@ -3,104 +3,144 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Helpers;
 
 namespace Dependency
 {
-    public sealed class Reference : IEvaluateable, IExpression
+    public sealed class Reference : IDynamicEvaluateable
     {
-        public readonly Mobility Mobility;
-        private readonly Reference Prior;
-        private readonly string Segment;
-        public readonly IContext Context;
-        public readonly IEvaluateable Source;
-
-        public bool IsComplete => Source != null;
-
-        IEvaluateable IEvaluateable.Value => Source.Value;
-        IEvaluateable IEvaluateable.UpdateValue() => Source.Value;
-        IEvaluateable IExpression.GetGuts() => Source;
-
-        public object Contents
-        {
-            set
-            {
-                Variable v = Source as Variable;
-                if (v == null) throw new NullReferenceException("Reference " + ToString() + " does not refer to a variable.");
-                if (value is IEvaluateable e)
-                    v.Contents = e;
-                else
-                    v.Contents = Helpers.Obj2Eval(value);
-                v.UpdateValue();                
-            }
-        }
+        internal readonly IContext RootContext;
+        internal readonly IContext InvariantContext;
+        internal int DynamicIndex = 0;
+        public IVariable Source = null;
+        public IVariable HostVariable { get; internal set; }
+        private readonly List<Segment> Segments = new List<Segment>();
         
+        internal IDynamicEvaluateable Parent { get; set; }
 
-        public Reference this[string segment]
+        private IEvaluateable _Value = Dependency.Null.Instance;
+        public IEvaluateable Value
         {
-            get
+            get => _Value;
+            private set
             {
-                if (Context.TryGetSubcontext(segment, out IContext sub_ctxt))
-                    return new Reference(this, sub_ctxt, segment);
-                else if (Context.TryGetProperty(segment, out IEvaluateable src))
-                    return new Reference(this, null, segment, src);
-                throw new Parse.ReferenceException(this, "Invalid reference '" + segment + "' in reference path.");
+                _Value = value;
+                var p = Parent;
+                while (p != null) { p.Update(); p = p.Parent; }
+                if (HostVariable != null) HostVariable.Update();
             }
         }
 
-        private Reference(Reference prior, IContext context, string segment, IEvaluateable head = null, Mobility mobility = Mobility.All)
+        IDynamicEvaluateable IDynamicEvaluateable.Parent { get => Parent; set => Parent = value; }
+
+        internal Reference(IContext root)
         {
-            this.Prior = prior;
-            this.Context = context;
-            this.Segment = segment;
-            this.Source = head;
-            this.Mobility = mobility;
+            this.RootContext = root;
+            this.DynamicIndex = 1;
+            Segments.Add(new Segment(this, 0, null));
+            Segments[0].CachedContext = root;
         }
 
-        /// <summary>
-        /// Creates a path embodying the context or variable at its conclusion, starting at the given root.
-        /// </summary>
-        public static Reference FromPath(IContext root, params string[] segments)
+        internal void Refresh(int index = 1)
         {
-            Reference result = new Reference(null, root, "", (root as IEvaluateable));
-            int i;
-            for (i = 0; i < segments.Length; i++)
+            // No index prior to the dynamic index can be refreshed.
+            if (index < DynamicIndex) index = DynamicIndex;
+            
+            // Find the first dynamic path index whose path actually changed.
+            for (; index < Segments.Count; index++)
             {
-                string segment = segments[i];
-                result = result[segment];
-                if (result.Context == null) break;
+                Segment seg = Segments[index];
+                IEvaluateable newPathValue = seg.Path.Value;
+                if (!newPathValue.Equals(seg.Value)) break;
             }
-            if (i < segments.Length - 1)
-                throw new Parse.ReferenceException(result, "Premature completion of path at index " + i + ".");
-            return result;
+
+            // Traverse the contexts based on the re-evaluated path values.
+            for (; index < Segments.Count -1 ; index++)
+            {
+                Segment seg = Segments[index];
+                IEvaluateable newPathValue = seg.Path.Value;
+                object path = Dependency.Helpers.Eval2Obj(seg.Value = newPathValue);
+                
+                IContext prevContext = Segments[index - 1].CachedContext;
+                if (!prevContext.TryGetSubcontext(path, out IContext newContext))
+                {
+                    for (; index < Segments.Count; index++)
+                    {
+                        seg.Value = Dependency.Null.Instance;
+                        seg.CachedContext = null;
+                        Value = new ReferenceError(this, Segments.Take(index).Select(s => s.Value).ToList(), prevContext, "Failed to locate sub-context.");
+                        Source = null;
+                    }
+                } else
+                    seg.CachedContext = newContext;
+            }
+
+            // We should now be at the point of the property at the end of the reference.
+            {
+                Segment seg = Segments[index];
+                IEvaluateable newPathValue = seg.Path.Value;
+                object path = Dependency.Helpers.Eval2Obj(seg.Value = newPathValue);
+                IContext prevContext = Segments[index - 1].CachedContext;
+                if (!prevContext.TryGetProperty(path, out IEvaluateable source))
+                {
+                    seg.Value = Dependency.Null.Instance;
+                    Value = new ReferenceError(this, Segments.Select(s => s.Value).ToList(), prevContext, "Failed to locate source.");
+                    Source = null;
+                } else if (source is IVariable iv)
+                {
+                    Source = iv;
+                    iv.AddListener(this);
+                    Value = iv.Value;
+                }
+            }
         }
-        /// <summary>
-        /// Creates a path embodying the context or variable at its conclusion, starting at the given root.  The given 
-        /// root must either implement <seealso cref="IContext"/> or already be managed.
-        /// </summary>
-        public static Reference FromPath(object root, params string[] segments)
+
+        internal void AddSegment(IEvaluateable path, Mobility m = Mobility.All)
         {
-            if (root is IContext ic) return FromPath(ic, segments);
-            if (!ManagedContext.HostContexts.TryGetValue(root, out WeakReference<IContext> weakRef) || !weakRef.TryGetTarget(out ic))
-                throw new Parse.ReferenceException(null, "Given root is an invalid context.");
-            return FromPath(ic, segments);
+            Segment seg = new Segment(this, Segments.Count, path, m);
+            Segments.Add(seg);
         }
+
+        internal class Segment : IDynamicEvaluateable
+        {
+            public readonly IEvaluateable Path;
+            public readonly int Index;
+            public readonly Mobility Mobility;
+            public readonly Reference HostReference;
+            public IContext CachedContext = null;
+
+            IDynamicEvaluateable IDynamicEvaluateable.Parent { get => throw new InvalidOperationException(); set => throw new InvalidOperationException(); }
+
+            public IEvaluateable Value { get; internal set; }
+
+            public Segment(Reference r, int index, IEvaluateable path, Mobility m = Mobility.All)
+            {
+                this.HostReference = r;
+                this.Index = index;
+                this.Mobility = m;
+                this.Path = path;
+                if (path !=  null)
+                {
+                    this.Value = path.Value;
+                    if (path is IDynamicEvaluateable ide) ide.Parent = this;
+                }
+            }
+
+            IEvaluateable IDynamicEvaluateable.Update()
+            {
+                HostReference.Refresh(Index); return null;
+            }
+        }
+
+
+
+        public IEvaluateable Update()
+            => Value = (Source == null) ? Dependency.Null.Instance : Source.Value;
         
-
-
-        public string ToString(IContext perspective)
-        {
-            if (perspective == null) return this.ToString();
-            throw new NotImplementedException();
-        }
-        public override string ToString()
-        {
-            Deque<string> steps = new Deque<string>();
-            Reference root = this;
-            while (root != null) { steps.AddFirst(root.Segment); root = root.Prior; }
-            return string.Join(".", steps);
-        }
-
+        private void On_Source_Value_Changed(object sender, ValueChangedArgs<IEvaluateable> e)
+            => this.Value = ((IVariable)sender).Value;
 
     }
 

@@ -7,11 +7,14 @@ using Dependency.Functions;
 
 namespace Dependency
 {
-    public sealed class Vector : Function, IEvaluateable, IIndexable, IContext, ILiteral<object[]>, ITypeGuarantee
+    public sealed class Vector : IFunction, IEvaluateable, IIndexable, ILiteral<object[]>, ITypeGuarantee, IContext
+        // Though a Vector has inputs, it CANNOT be a Function.
     {
-        internal Vector(IEvaluateable[] contents) { Inputs = contents; }
-        public Vector() : this(new IEvaluateable[0]) { }
-
+        public IList<IEvaluateable> Inputs { get; internal set; }
+        public Vector(params IEvaluateable[] contents) { Inputs = contents; }
+        public Vector() { }
+        
+        IEvaluateable IEvaluateable.Value => this;
 
         public IEvaluateable this[params Number[] indices]
         {
@@ -23,7 +26,7 @@ namespace Dependency
                 else if (result is IIndexable idxable)
                     return idxable[indices.Skip(1).ToArray()];
                 else
-                    return new IndexingError(this, indices.OfType<IEvaluateable>(), "More ordinal indices than dimensions.");
+                    return new IndexingError(this, indices.OfType<IEvaluateable>().ToArray(), "More ordinal indices than dimensions.");
             }
         }
 
@@ -34,28 +37,7 @@ namespace Dependency
         public IEvaluateable MaxIndex => new Number(Inputs.Count - 1);
 
         public IEvaluateable MinIndex => Number.Zero;
-
-        public IContext Parent { get; } = null;
-
-        internal bool TryOrdinalize(out Number[] ordinals)
-        {
-            ordinals = new Number[this.Inputs.Count];
-            for (int i = 0; i < this.Inputs.Count; i++)
-            {
-                IEvaluateable iev = this.Inputs[i].Value;
-                if (iev is Number n) ordinals[i] = n;
-                else return false;
-            }
-            return true;
-        }
-
-        protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx) => (inputs.Length == 1) ? inputs[0] : new Vector(inputs);
-
-        bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
-
-        bool IContext.TryGetProperty(string token, out IEvaluateable src) { src = null; return false; }
         
-
         public static bool operator ==(Vector a, Vector b)
         {
             if (a.Inputs.Count != b.Inputs.Count) return false;
@@ -65,6 +47,27 @@ namespace Dependency
         public static bool operator !=(Vector a, Vector b) => !(a == b);
         public override bool Equals(object obj) => (obj is Vector other) && this == other;
         public override int GetHashCode() { unchecked { return Inputs.Sum(i => i.GetHashCode()); } }
+
+        bool IContext.TryGetSubcontext(object path, out IContext ctxt) { ctxt = null; return false; }
+
+        internal bool TryGetProperty(object path, out IEvaluateable source)
+        {
+            source = null;
+            int idx = -1;
+            if (path is string str)
+            {
+                str = str.ToLower();
+                if (str == "size" || str == "length") source = new Number(Inputs.Count);
+            }
+            else if (path is int i)
+                idx = i;
+            if (idx >= 0)
+            {
+                source = idx < Inputs.Count ? Inputs[idx].Value : Dependency.Null.Instance;
+            }
+            return source != null;
+        }
+        bool IContext.TryGetProperty(object path, out IEvaluateable source) => this.TryGetProperty(path, out source);
 
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.VectorReal;

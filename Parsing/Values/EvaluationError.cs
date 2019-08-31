@@ -7,35 +7,58 @@ using static Dependency.TypeControl;
 
 namespace Dependency
 {
+    /// <summary>The base error class.  Only maintains a message.</summary>
     public abstract class Error : ILiteral, ITypeGuarantee
     {
         public readonly string Message;
         protected Error(string message) { this.Message = message; }
         IEvaluateable IEvaluateable.Value => this;
-        IEvaluateable IEvaluateable.UpdateValue() => this;
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Error;
-    }
+        public override bool Equals(object obj) => obj is Error other && Message.Equals(other.Message);
+        public override int GetHashCode() => Message.GetHashCode();
 
-    public sealed class ValueError : Error
+        protected static bool ListsEqual<T>(IList<T> a, IList<T> b)
+        {
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++) if (!a[i].Equals(b[i])) return false;
+            return true;
+        }
+    }
+    
+
+    public sealed class InvalidValue : Error
     {
-        public ValueError(string message = null) : base(message ?? "An invalid value was created.") { }
+        public InvalidValue(string message = null) : base(message ?? "An invalid value was created.") { }
     }
 
-    [Serializable]
+    public class ReferenceError : EvaluationError
+    {
+        public readonly IContext Context;
+        public ReferenceError(object complainant, IList<IEvaluateable> inputs, IContext context, string message)
+            : base(complainant, inputs, message)
+        {
+            this.Context = context;
+        }
+    }
+
     public class EvaluationError : Error
     {
         // public readonly string Message;
         public readonly object Complainant;
-        public readonly IEnumerable<IEvaluateable> Inputs;
-        public readonly int Start;
-        public readonly int End;
+        public readonly IList<IEvaluateable> Inputs;
 
-        public EvaluationError(object complainant, IEnumerable<IEvaluateable> inputs, string message = null)
+        public EvaluationError(object complainant, IList<IEvaluateable> inputs, string message = null)
             : base(message ?? "Failed to evaluate inputs on " + complainant.GetType().Name + ".")
         {   
             this.Complainant = complainant;
             this.Inputs = inputs;
         }
+        public override bool Equals(object obj) 
+            => obj is EvaluationError other 
+            && Message.Equals(other.Message) 
+            && ReferenceEquals(Complainant, other.Complainant) 
+            && ListsEqual(Inputs, other.Inputs);
+        public override int GetHashCode() => Message.GetHashCode();
     }
 
     public sealed class InputCountError : EvaluationError
@@ -47,6 +70,14 @@ namespace Dependency
         {
             this.TypeControl = typeControl;
         }
+        public override bool Equals(object obj)
+            => obj is InputCountError other
+            && Message.Equals(other.Message)
+            && ReferenceEquals(Complainant, other.Complainant)
+            && ListsEqual(Inputs, other.Inputs)
+            && TypeControl.Equals(other.TypeControl);
+        public override int GetHashCode() => Message.GetHashCode();
+
     }
 
     public sealed class TypeMismatchError : EvaluationError
@@ -75,11 +106,21 @@ namespace Dependency
             this.TypeControl = typeControl;
             this.GivenFlags = (inputs[inputIndex] is ITypeGuarantee itf) ? itf.TypeGuarantee : TypeFlags.Any;
         }
+        public override bool Equals(object obj)
+            => obj is TypeMismatchError other
+            && Message.Equals(other.Message)
+            && ReferenceEquals(Complainant, other.Complainant)
+            && ListsEqual(Inputs, other.Inputs)
+            && TypeControl.Equals(other.TypeControl)
+            && ConstraintIndex.Equals(other.ConstraintIndex)
+            && InputIndex.Equals(other.InputIndex)
+            && GivenFlags == other.GivenFlags;
+        public override int GetHashCode() => Message.GetHashCode();
     }
     
     public sealed class IndexingError : EvaluationError
     {
-        public IndexingError(object complainant, IEnumerable<IEvaluateable> inputs, string msg) : base(complainant, inputs, msg) { }
+        public IndexingError(object complainant, IList<IEvaluateable> inputs, string msg) : base(complainant, inputs, msg) { }
 
     }
 }

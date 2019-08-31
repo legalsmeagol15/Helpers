@@ -4,10 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Dependency.Functions;
+using Helpers;
 
 namespace Dependency
 {
-   
+
 
     /// <summary>
     /// A function which caches its <seealso cref="TypeControl"/> input validator may validate just a little faster 
@@ -24,16 +25,16 @@ namespace Dependency
     }
 
 
-
+    /// <summary>
+    /// <para/>The subcontext or property returned for a given object should always be the same.
+    /// </summary>
     public interface IContext
     {
-        bool TryGetSubcontext(string token, out IContext ctxt);
-        
-        bool TryGetProperty(string token, out IEvaluateable source);
+        bool TryGetSubcontext(object path, out IContext ctxt);
 
-        
+        bool TryGetProperty(object path, out IEvaluateable source);
     }
-
+    
     public interface ISubcontext : IContext
     {
         IContext Parent { get; set; }
@@ -43,15 +44,28 @@ namespace Dependency
     {
         /// <summary>Returns the most recently-updated value of this <see cref="IEvaluateable"/>.</summary>
         IEvaluateable Value { get; }
+        
+    }
 
-        /// <summary>Caches the updated value of this <see cref="IEvaluateable"/>, and notifies any listeners of changes.</summary>
-        IEvaluateable UpdateValue();
+    internal interface IDynamicEvaluateable : IEvaluateable
+    {
+        IDynamicEvaluateable Parent { get; set; }
+        IEvaluateable Update();
+    }
+
+    public interface IVariable : IEvaluateable
+    {
+        bool AddListener(Reference r);
+        IEnumerable<Reference> GetReferences();
+        IEvaluateable Contents { get; }
+        IEvaluateable Update();
+        event ValueChangedHandler<IEvaluateable> ValueChanged;
     }
 
     /// <summary>Readable left-to-right.</summary>
     internal interface IExpression : IEvaluateable
     {
-        IEvaluateable GetGuts();
+        IEvaluateable Contents { get; }
     }
 
     public interface IFunction : IEvaluateable
@@ -79,7 +93,7 @@ namespace Dependency
         IEvaluateable MinIndex { get; }
         IEvaluateable this[params Number[] indices] { get; }
     }
-    
+
 
     public interface ILiteral : IEvaluateable { }
     internal interface ILiteral<TClr> : ILiteral
@@ -92,14 +106,14 @@ namespace Dependency
         string Name { get; }
     }
 
-    
+
 
 
     internal interface ITypeGuarantee
     {
         TypeFlags TypeGuarantee { get; }
     }
-    
-    
+
+
 
 }
