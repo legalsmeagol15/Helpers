@@ -15,26 +15,32 @@ namespace Dependency
         internal IEvaluateable HeadProperty = null;
         internal IContext HeadContext = null;
         internal IContext BaseContext = null;
-        internal object Origin;
+        private object _Origin;
+        internal object Origin
+        {
+            get => _Origin;
+            set
+            {
+                if (value is IDynamicItem idi) idi.Parent = this;
+                _Origin = value;
+                Update();
+            }
+        }
         public IDynamicItem Parent { get; set; }
 
         public IEvaluateable Value { get; private set; }
 
         public Reference(IContext root, params string[] paths)
         {
-            this.Origin = root;
-            if (root is IDynamicItem idi) idi.Parent = this;
             this.Paths = paths;
             for (int i = 0; i < Paths.Length; i++) Paths[i] = Paths[i].ToLower();
-            Update();
+            this.Origin = root;
         }
         public Reference (IEvaluateable origin, params string[] paths)
         {
-            this.Origin = origin;
-            if (origin is IDynamicItem idi) idi.Parent = this;
             this.Paths = paths;
             for (int i = 0; i < Paths.Length; i++) Paths[i] = Paths[i].ToLower();
-            Update();
+            this.Origin = origin;
         }
 
         /// <summary>Refreshes the reference structure from root to head.  Returns the index at which refresh failed, 
@@ -136,12 +142,14 @@ namespace Dependency
         {
             this.Base = @base;
             if (this.Base is IDynamicItem idi_b) idi_b.Parent = this;
+            if (ordinal is Parse.Bracket b) ordinal = b.Contents;
             this.Inputs = new IEvaluateable[] { ordinal };
         }
         internal Indexing(Reference @base, IEvaluateable ordinal)
         {
             this.Base = @base;
             if (this.Base is IDynamicItem idi_b) idi_b.Parent = this;
+            if (ordinal is Parse.Bracket b) ordinal = b.Contents;
             this.Inputs = new IEvaluateable[] { ordinal };
         }
 

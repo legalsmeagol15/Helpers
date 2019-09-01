@@ -199,7 +199,7 @@ namespace Dependency
                     List<IEvaluateable> thisLeg = new List<IEvaluateable>();
                     while (node != null)
                     {
-                        if (node.Contents is TokenComma tc) throw new ParsingException(tc, "Arguments must succeed and follow every comment.");
+                        if (node.Contents is TokenComma tc) throw new ParsingException(tc, "Arguments must succeed and follow every comma.");
                         if (node.Contents is TokenSemicolon ts0) throw new ParsingException(ts0, "Arguments must succeed and follow every semicolon.");
 
                         thisLeg.Add(node.Contents);
@@ -554,8 +554,13 @@ namespace Dependency
                 Debug.Assert(Node != null);
                 Debug.Assert(Node.List != null);
                 if (Node.Previous == null || Node.Next == null) throw new ParsingException(this, "Failed to parse " + this.GetType().Name);
-                Function newFunc = new Indexing(Node.Previous.Remove(), Node.Next.Remove());
-                Node.Contents = newFunc;
+                Indexing idxing = new Indexing(Node.Previous.Remove(), Node.Next.Remove());
+                Node.Contents = idxing;
+                if (Node.Next !=  null && Node.Next.Contents is Reference next_ref)
+                {
+                    next_ref.Origin = this;
+                    Node.Remove();
+                }
                 _ = null;
                 return true;
             }
@@ -651,15 +656,16 @@ namespace Dependency
         
         internal sealed class TokenReference : Token
         {
-            protected internal override Priorities Priority => Priorities.Refer;
-            protected internal override bool TryParse(out Token replacement)
-            {
-                Node.Contents = new Reference(Root, Paths);
-                throw new NotImplementedException();
-            }
+            protected internal override Priorities Priority => Priorities.Refer;            
             private readonly IContext Root;
             private readonly string[] Paths;
             public TokenReference(IContext root, string[] paths) { this.Root = root; this.Paths = paths; }
+            protected internal override bool TryParse(out Token _)
+            {
+                Node.Contents = new Reference(Root, Paths);
+                _ = null;
+                return true;
+            }
         }
 
         internal sealed class TokenSemicolon : Token

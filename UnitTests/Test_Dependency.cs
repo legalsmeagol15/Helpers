@@ -59,7 +59,7 @@ namespace UnitTests
             ctxt.Add("v0", v0);
             Variable v1 = new Variable(Parse.FromString("v0[2]", null, ctxt));
             ctxt.Add("v1", v1);
-            Assert.AreEqual(ctxt.Get("v1").Value, v0.Value);
+            Assert.AreEqual(v1.Value, vec[2]);
         }
 
         [TestMethod]

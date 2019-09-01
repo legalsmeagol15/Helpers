@@ -16,20 +16,8 @@ namespace Dependency
         
         IEvaluateable IEvaluateable.Value => this;
 
-        public IEvaluateable this[IEvaluateable ordinal]
-        {
-            get
-            {
-                if (ordinal is Number n)
-                {
-                    return Inputs[(int)n];
-                }
-                else
-                    return new IndexingError(this, this, ordinal);
-            }
-        }
-
-        
+        IEvaluateable IIndexable.this[IEvaluateable ordinal] => (ordinal is Number n) ? Inputs[(int)n] : new IndexingError(this, this, ordinal);
+        public IEvaluateable this [int index] => Inputs[index];
 
         public int Size => Inputs.Count;
 
@@ -40,7 +28,7 @@ namespace Dependency
         public static bool operator ==(Vector a, Vector b)
         {
             if (a.Inputs.Count != b.Inputs.Count) return false;
-            for (int i = 0; i < a.Inputs.Count; i++) if (a != b) return false;
+            for (int i = 0; i < a.Inputs.Count; i++) if (a.Inputs[i] != b.Inputs[i]) return false;
             return true;
         }
         public static bool operator !=(Vector a, Vector b) => !(a == b);
