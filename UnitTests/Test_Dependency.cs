@@ -52,14 +52,43 @@ namespace UnitTests
         [TestMethod]
         public void Test_Indexing()
         {
-            Parse.FromString("what.is.this", null, null);
-            SimpleContext ctxt = new SimpleContext();
+            Common.AssertThrows<Dependency.Parse.SyntaxException>(() => Parse.FromString("no.references.without.context", null, null));
+            
+            SimpleContext root = new SimpleContext();
+            Parse.FromString("what.is.this", null, root);
+
+            // Show that new references have the correct values.
             Vector vec = new Vector(new Number(10), new Number(11), new Number(12));
             Variable v0 = new Variable { Contents = new Vector(new Number(10), new Number(11), new Number(12)) };
-            ctxt.Add("v0", v0);
-            Variable v1 = new Variable(Parse.FromString("v0[2]", null, ctxt));
-            ctxt.Add("v1", v1);
+            root.Add("v0", v0);
+            Variable v1 = new Variable(Parse.FromString("v0[2]", null, root));
             Assert.AreEqual(v1.Value, vec[2]);
+            Variable v2 = new Variable(Parse.FromString("(v0[2] + 3) * 2", null, root));
+            Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);
+
+            // Show that value changes propogate through.
+            vec = new Vector(new Number(20), new Number(21), new Number(22));
+            v0.Contents = vec;
+            Assert.AreEqual(v1.Value, vec[2]);
+            Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);
+            
+            // Show that subcontext properties can be referenced in deeper paths.
+            v1.Contents = Parse.FromString("v0", null, root);
+            v2.Contents = Parse.FromString("v0", null, root);
+            SimpleContext sub1 = new SimpleContext();
+            root.Add("sub1", sub1);
+            sub1.Add("v1", v1);
+            SimpleContext sub2 = new SimpleContext();
+            sub1.Add("sub2", sub2);
+            sub2.Add("v2", v2);
+            Variable v3 = new Variable(Parse.FromString("sub1.v1", null, root));
+            Assert.AreEqual(v3.Value, vec);
+            Variable v4 = new Variable(Parse.FromString("sub1.sub2.v2[2]", null, root));
+            Assert.AreEqual(v4.Value, vec[2]);
+
+
+
+
         }
 
         [TestMethod]
@@ -277,13 +306,10 @@ namespace UnitTests
     internal class SimpleContext : IContext
     {
         private readonly Dictionary<object, Variable> _Variables = new Dictionary<object, Variable>();
+        private readonly Dictionary<object, SimpleContext> _Subcontexts = new Dictionary<object, SimpleContext>();
         public void Add(object key, Variable variable) => _Variables.Add(key, variable);
-
-        public Variable Get(object key)
-        {
-            return _Variables[key];
-        }
-
+        public void Add(object key, SimpleContext subcontext) => _Subcontexts.Add(key, subcontext);
+        
         bool IContext.TryGetProperty(object token, out IEvaluateable source)
         {
             if (_Variables.TryGetValue(token, out Variable v)) { source = v; return true; }
@@ -291,6 +317,11 @@ namespace UnitTests
             return false;
         }
 
-        bool IContext.TryGetSubcontext(object token, out IContext ctxt) { ctxt = null; return false; }
+        bool IContext.TryGetSubcontext(object token, out IContext ctxt)
+        {
+            if (_Subcontexts.TryGetValue(token, out SimpleContext sc)) { ctxt = sc; return true; }
+            ctxt = null;
+            return false;
+        }
     }
 }

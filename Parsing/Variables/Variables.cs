@@ -109,7 +109,9 @@ namespace Dependency
                     foreach (Reference newRef in newRefs)
                         if (newRef != null && newRef.HeadProperty is IVariable v)
                             v.AddListener(newRef);
+                    if (_Contents is IDynamicItem idi_before) idi_before.Parent = null;
                     _Contents = newContents;
+                    if (_Contents is IDynamicItem idi_after) idi_after.Parent = this;
                 }
                 finally { _StructureLock.ExitWriteLock(); }
             }

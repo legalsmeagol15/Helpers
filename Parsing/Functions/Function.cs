@@ -18,8 +18,10 @@ namespace Dependency.Functions
             internal set
             {
                 _Inputs = value;
+                foreach (var iev in value)
+                    if (iev is IDynamicItem ide)
+                        ide.Parent = this;
                 Update();
-                foreach (var iev in value) if (iev is IDynamicItem ide) ide.Parent = this;
             }
         }
 

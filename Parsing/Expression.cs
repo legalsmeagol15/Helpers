@@ -156,9 +156,9 @@ namespace Dependency
                     }
 
                     // At last, just add the token as a string.
-                    if (Regex.IsMatch(token, RefPattern, RegexOptions.IgnorePatternWhitespace))
+                    if (rootContext != null && Regex.IsMatch(token, RefPattern, RegexOptions.IgnorePatternWhitespace))
                     {
-                        string[] paths = token.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                        string[] paths = token.ToLower().Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
                         TokenReference tr = new TokenReference(rootContext, paths) { Index = splitIdx - 1 };
                         heap.Enqueue(tr);
                         tr.Node = inputs.AddLast(tr);
@@ -737,14 +737,21 @@ namespace Dependency
 
         public class SyntaxException : Exception
         {
-            public string Parsed { get; protected set; }
-            public string Token { get; protected set; }
+            public readonly string Parsed;
+            public readonly string Token;
             public SyntaxException(string parsed, string failedToken, string message, Exception inner = null) : base(message, inner)
             {
                 this.Parsed = parsed;
                 this.Token = failedToken;
             }
-            public SyntaxException(string message, Exception inner = null) : base(message, inner) { }
+            public SyntaxException(string message, Exception inner = null) : base(message, inner)
+            {
+                if (inner is SyntaxException se)
+                {
+                    Parsed = se.Parsed;
+                    Token = se.Token;
+                }
+            }
         }
 
         public class EmptySyntaxException : SyntaxException
@@ -772,7 +779,7 @@ namespace Dependency
             internal ReferenceException(Reference incomplete, string message) : base(message) { this.Incomplete = incomplete; }
         }
 
-        public class UnrecognizedTokenException : SyntaxException
+        internal class UnrecognizedTokenException : SyntaxException
         {
             internal UnrecognizedTokenException(string parsed, string failedToken, string message = null) 
                 : base(parsed, failedToken, message ?? "The token " + failedToken + " is not recognized.") { }
@@ -828,7 +835,8 @@ namespace Dependency
             public IDynamicItem Parent { get; set; }
             /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
             /// operation performed in the tree.</summary>
-            public IEvaluateable Contents { get; internal set; }
+            public IEvaluateable Contents { get => _Contents; internal set { _Contents = value; if (_Contents is IDynamicItem ide) ide.Parent = this; } }
+            private IEvaluateable _Contents;
 
             IEvaluateable IEvaluateable.Value => Contents.Value;
 

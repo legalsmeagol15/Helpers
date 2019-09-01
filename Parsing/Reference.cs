@@ -9,7 +9,7 @@ using Helpers;
 
 namespace Dependency
 {
-    internal sealed class Reference : IDynamicItem, IEvaluateable
+    internal sealed class Reference : IDynamicItem, IEvaluateable, IDisposable
     {
         public readonly string[] Paths;
         internal IEvaluateable HeadProperty = null;
@@ -30,18 +30,8 @@ namespace Dependency
 
         public IEvaluateable Value { get; private set; }
 
-        public Reference(IContext root, params string[] paths)
-        {
-            this.Paths = paths;
-            for (int i = 0; i < Paths.Length; i++) Paths[i] = Paths[i].ToLower();
-            this.Origin = root;
-        }
-        public Reference (IEvaluateable origin, params string[] paths)
-        {
-            this.Paths = paths;
-            for (int i = 0; i < Paths.Length; i++) Paths[i] = Paths[i].ToLower();
-            this.Origin = origin;
-        }
+        public Reference(IContext root, params string[] paths)        {            this.Paths = paths;            this.Origin = root;        }
+        public Reference (IEvaluateable origin, params string[] paths)        {            this.Paths = paths;            this.Origin = origin;        }
 
         /// <summary>Refreshes the reference structure from root to head.  Returns the index at which refresh failed, 
         /// or -1 if it succeeded.
@@ -131,6 +121,30 @@ namespace Dependency
             return true;
         }
 
+        #region Reference IDisposable Support
+
+        // This is implemented if the Reference's host changes its content, this Reference will be garbage 
+        // collected because the HeadProperty variables maintain only weak references to this.  However, 
+        // those weak references are maintained in a WeakReferenceSet, so to avoid leaving the weak 
+        // reference as a memory leak, go ahead and use the fact of this Reference's disposal to keep all 
+        // the sources clean.
+
+        private bool disposedValue = false; // To detect redundant calls
+
+        void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing && HeadProperty is IVariable iv) iv.RemoveListener(this);
+                disposedValue = true;
+            }
+        }
+        
+        // This code added to correctly implement the disposable pattern.
+        void IDisposable.Dispose() => Dispose(true);
+
+        #endregion
+
     }
 
     
@@ -156,7 +170,7 @@ namespace Dependency
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             IIndexable ii;
-            if (Base is IIndexable ii2) ii = ii2;
+            if (Base is IIndexable ii2) ii = ii2;            
             else if (Base is IEvaluateable iev && iev.Value is IIndexable ii3) ii = ii3;
             else return new IndexingError(this, Base, evaluatedInputs[0]);
 

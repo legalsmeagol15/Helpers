@@ -58,5 +58,6 @@ namespace Dependency
 
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.VectorReal;
+        public override string ToString() => "{" + string.Join(",", Inputs.Select(i => i.ToString())) + "}";
     }
 }
