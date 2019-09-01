@@ -50,7 +50,7 @@ namespace UnitTests
         }
 
         [TestMethod]
-        public void Test_Indexing()
+        public void Test_Indexing_Simple()
         {
             Common.AssertThrows<Dependency.Parse.SyntaxException>(() => Parse.FromString("no.references.without.context", null, null));
             
@@ -92,101 +92,67 @@ namespace UnitTests
             Assert.AreEqual(v3.Value, vec);
             Assert.AreEqual(v4.Value, vec[2]);
 
+            // Mixed paths (both References and Indexes) will be tested elsewhere.
+        }
 
+        
+        public void Test_Indexing_Complex()
+        {
+            throw new NotImplementedException();
         }
 
         [TestMethod]
         public void Test_Linear()
         {
-            int numVars = 100;
-            int timings = 0;
-            int timingSizes = 13;
-
+            int numVars = 10000;
+           
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
-            
-            Variable vLast = vStart;
+
+            SimpleContext root = new SimpleContext();
+            root.Add("v0", vStart);
             List<Variable> vars = new List<Variable>();
-            for (int i = 0; i < numVars; i++)
+            for (int i = 1; i <= numVars; i++)
             {
-                Variable vNext = new Variable(vLast);
-                vars.Add(vNext);
-                vLast = vNext;
+                Variable vNext = new Variable(Parse.FromString("v" + (i-1), null,  root));
+                Assert.AreEqual(vStart.Value, vNext.Value);
+                root.Add("v" + i, vNext);
             }
+            if (!root.TryGetProperty("v" + numVars, out IEvaluateable last_iev) || !(last_iev is Variable vLast))
+                throw new Exception("Bad testing harness.");
+            vStart.Contents = new Number(2);
+            Assert.AreEqual(vStart.Value, vLast.Value);
 
-            Number n4 = new Number(4);
-            vStart.Contents = n4;
-            Assert.AreEqual(n4, vLast.Value);
-
-            // Do a timing
-            while (timingSizes > 0 && timings > 0)
-            {
-                // Set up a chain to experiment on.
-                Variable vBegin = new Variable();
-                int n = Mathematics.Int32.Exp_2(timingSizes);
-                Variable vEnd = vBegin;
-                List<Variable> keepItAlive = new List<Variable>();
-                for (int i = 0; i < n; i++)
-                {
-                    Variable vNext = new Variable(vEnd);
-                    keepItAlive.Add(vNext);
-                    vEnd = vNext;
-                }
-                
-                var duration = Time(vBegin, timings);
-                Console.WriteLine("n=" + n + ", duration=" + duration + " for " + timings + " runs.");
-                timingSizes--;
-            }            
+            // Right now, numVars = 10,000 takes 10 sec.  Not acceptable.
         }
 
         [TestMethod]
         public void Test_Pancake()
         {
+            int numVars = 10000;
 
-            int numVars = 100;
-            int timings = 0; //1000;
-            int timingSizes = 13;
+            // Test linear transmission  of a value by changing contents.
+            Variable vStart = new Variable(Dependency.Number.One);
+            Assert.AreEqual(Dependency.Number.One, vStart.Contents);
+            Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
-            Variable vStart = new Variable( );
-            List<Variable> noGC = new List<Variable>();
-            for (int i = 0; i < numVars; i++)
+            SimpleContext root = new SimpleContext();
+            root.Add("v0", vStart);
+            List<Variable> vars = new List<Variable>();
+            for (int i = 1; i <= numVars; i++)
             {
-                noGC.Add(new Variable(vStart));
+                Variable vNext = new Variable(Parse.FromString("v0", null, root));
+                Assert.AreEqual(vStart.Value, vNext.Value);
+                root.Add("v" + i, vNext);
             }
+            if (!root.TryGetProperty("v" + numVars, out IEvaluateable last_iev) || !(last_iev is Variable vLast))
+                throw new Exception("Bad testing harness.");
+            vStart.Contents = new Number(2);
+            Assert.AreEqual(vStart.Value, vLast.Value);
 
-            for (int i = 0; i < numVars; i++)
-            {
-                Assert.AreEqual(Dependency.Null.Instance, noGC[i].Value);
-                Assert.AreNotEqual(Dependency.Number.One, noGC[i].Value);
-            }
-
-            vStart.Contents = Dependency.Number.One;
-
-            for (int i = 0; i < numVars; i++)
-            {
-                Assert.AreNotEqual(Dependency.Null.Instance, noGC[i].Value);
-                Assert.AreEqual(Dependency.Number.One, noGC[i].Value);
-            }
-
-
-            // Do a timing
-            while (timingSizes > 0 && timings > 0)
-            {
-                // Set up a chain to experiment on.
-                Variable vBegin = new Variable();
-                int n = Mathematics.Int32.Exp_2(timingSizes);
-                List<Variable> keepItAlive = new List<Variable>();
-                for (int i = 0; i < n; i++)
-                {
-                    keepItAlive.Add(new Variable( vBegin));
-                }
-
-                var duration = Time(vBegin, timings);
-                Console.WriteLine("n=" + n + ", duration=" + duration + " for " + timings + " runs.");
-                timingSizes--;
-            }
+            // At present, numVars=10000 takes 225 ms.  Doing okay.  Yay for multithreading.
         }
 
         [TestMethod]
@@ -314,14 +280,14 @@ namespace UnitTests
         public void Add(object key, Variable variable) => _Variables.Add(key, variable);
         public void Add(object key, SimpleContext subcontext) => _Subcontexts.Add(key, subcontext);
         
-        bool IContext.TryGetProperty(object token, out IEvaluateable source)
+        public bool TryGetProperty(object token, out IEvaluateable source)
         {
             if (_Variables.TryGetValue(token, out Variable v)) { source = v; return true; }
             source = null;
             return false;
         }
 
-        bool IContext.TryGetSubcontext(object token, out IContext ctxt)
+        public  bool TryGetSubcontext(object token, out IContext ctxt)
         {
             if (_Subcontexts.TryGetValue(token, out SimpleContext sc)) { ctxt = sc; return true; }
             ctxt = null;
