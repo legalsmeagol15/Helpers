@@ -86,7 +86,11 @@ namespace UnitTests
             Variable v4 = new Variable(Parse.FromString("sub1.sub2.v2[2]", null, root));
             Assert.AreEqual(v4.Value, vec[2]);
 
-
+            // Show that values propogate through deep paths.
+            vec = new Vector(new Number(31), new Number(32), new Number(33));
+            v0.Contents = vec;
+            Assert.AreEqual(v3.Value, vec);
+            Assert.AreEqual(v4.Value, vec[2]);
 
 
         }
