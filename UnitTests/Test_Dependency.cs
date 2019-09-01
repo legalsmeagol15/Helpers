@@ -104,7 +104,7 @@ namespace UnitTests
         [TestMethod]
         public void Test_Linear()
         {
-            int numVars = 10000;
+            int numVars = 1000;
            
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
@@ -125,7 +125,9 @@ namespace UnitTests
             vStart.Contents = new Number(2);
             Assert.AreEqual(vStart.Value, vLast.Value);
 
-            // Right now, numVars = 10,000 takes 10 sec.  Not acceptable.
+            // Right now, numVars = 10,000 takes 22 sec.  Searching for circularity makes this a quadraticly-timed 
+            // test.  Not acceptable.
+            // TODO:  improve efficiency
         }
 
         [TestMethod]

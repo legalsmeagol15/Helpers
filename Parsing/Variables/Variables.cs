@@ -34,7 +34,8 @@ namespace Dependency
 
         bool IVariable.AddListener(Reference r) => _Listeners.Add(r);
         bool IVariable.RemoveListener(Reference r) => _Listeners.Remove(r);
-        IEnumerable<Reference> IVariable.GetReferences() => GetReferences();
+        private HashSet<Reference> _References = new HashSet<Reference>();
+        IEnumerable<Reference> IVariable.GetReferences() => _References;
 
         internal IEnumerable<Reference> GetReferences()
         {
@@ -91,11 +92,13 @@ namespace Dependency
             if (newContents == null) newContents = Dependency.Null.Instance;
 
             // First, update the structure-related variables (contents and sources).
-            ISet<Reference> newRefs = new HashSet<Reference>(Helpers.GetReferences(newContents));
+            HashSet<Reference> newRefs = new HashSet<Reference>(Helpers.GetReferences(newContents));
+            if (TryFindCircularity(this, newRefs, out Deque<IVariable> path))
+                throw new CircularDependencyException(path);
             _StructureLock.EnterUpgradeableReadLock();  // Lock 'a' because the structure shouldn't change while we examine it.
             try
             {
-                ISet<Reference> oldRefs = new HashSet<Reference>(Helpers.GetReferences(_Contents));
+                ISet<Reference> oldRefs = _References;
 
                 //if (TryFindCircularity(this, newSources, out Deque<IVariable> path)) throw new CircularDependencyException(path);
                 _StructureLock.EnterWriteLock();
@@ -103,12 +106,13 @@ namespace Dependency
                 {
                     foreach (Reference oldRef in oldRefs)
                     {
-                        if (!newRefs.Remove(oldRef) && oldRef.HeadProperty != null && oldRef.HeadProperty is IVariable v)
+                        if (!newRefs.Contains(oldRef) && oldRef.HeadProperty != null && oldRef.HeadProperty is IVariable v)
                             v.RemoveListener(oldRef);
                     }
                     foreach (Reference newRef in newRefs)
-                        if (newRef != null && newRef.HeadProperty is IVariable v)
+                        if (!oldRefs.Contains(newRef) && newRef != null && newRef.HeadProperty is IVariable v)
                             v.AddListener(newRef);
+                    _References = newRefs;
                     if (_Contents is IDynamicItem idi_before) idi_before.Parent = null;
                     _Contents = newContents;
                     if (_Contents is IDynamicItem idi_after) idi_after.Parent = this;
@@ -159,6 +163,41 @@ namespace Dependency
 
         }
 
+        private static bool TryFindCircularity(IVariable target, IEnumerable<Reference> startRefs, out Deque<IVariable> path)
+        {
+            HashSet<IVariable> visited = new HashSet<IVariable>();
+            Queue<Node> queue = new Queue<Node>();
+            foreach (var r in startRefs)
+                if (r.HeadProperty is IVariable iv)
+                    queue.Enqueue(new Node { Item = iv, Refs = iv.GetReferences(), Prior = null });
+            while (queue.Count > 0)
+            {
+                Node n = queue.Dequeue();
+                if (!visited.Add(n.Item))
+                    continue;
+                else if (ReferenceEquals(n.Item, target))
+                {
+                    path = new Deque<IVariable>();
+                    while (n != null) { path.AddFirst(n.Item); n = n.Prior; }
+                    path.AddFirst(target);
+                    return true;
+                }
+                else
+                {
+                    foreach (var r in n.Refs)
+                        if (r.HeadProperty is IVariable iv)
+                            queue.Enqueue(new Node { Item = iv, Refs = iv.GetReferences(), Prior = n });
+                }
+            }
+            path = null;
+            return false;
+        }
+        private class Node
+        {
+            public IVariable Item;
+            public IEnumerable<Reference> Refs;
+            public Node Prior;
+        }
         //private static bool TryFindCircularity(Variable target,
         //                                        IEnumerable<IVariable> sources,
         //                                        out Deque<IVariable> path)

@@ -74,6 +74,7 @@ namespace Dependency
                     case Indexing idxing:  stack.Push(idxing.Base); stack.Push(idxing.Inputs[0]); break;
                     case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
                     case Reference r: yield return r; break;
+                    case IVariable v: throw new InvalidOperationException();
                 }
             }
         }
