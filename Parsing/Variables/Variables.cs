@@ -21,20 +21,22 @@ namespace Dependency
         All = ~0
     }
 
-    public sealed class Variable : IDynamicEvaluateable, IVariable
+    public sealed class Variable : IDynamicItem, IVariable, IEvaluateable
     // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
     {
         // A variable is apt to have few sources, but many listeners (0 or 100,000 might be reasonable).
 
-        IDynamicEvaluateable IDynamicEvaluateable.Parent { get=>null; set=> throw new InvalidOperationException(); }
+        IDynamicItem IDynamicItem.Parent { get=>null; set=> throw new InvalidOperationException(); }
         private readonly WeakReferenceSet<Reference> _Listeners = new WeakReferenceSet<Reference>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private static readonly ReaderWriterLockSlim _StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
         bool IVariable.AddListener(Reference r) => _Listeners.Add(r);
-        
-        public IEnumerable<Reference> GetReferences()
+        bool IVariable.RemoveListener(Reference r) => _Listeners.Remove(r);
+        IEnumerable<Reference> IVariable.GetReferences() => GetReferences();
+
+        internal IEnumerable<Reference> GetReferences()
         {
             if (Contents == null) yield break;
             Stack<IEvaluateable> stack = new Stack<IEvaluateable>();
@@ -84,25 +86,30 @@ namespace Dependency
             this.Contents = contents;
         }
 
-        public void SetContents(IEvaluateable value, int modKey = 0)
+        public void SetContents(IEvaluateable newContents, int modKey = 0)
         {
-            if (value == null) value = Dependency.Null.Instance;
+            if (newContents == null) newContents = Dependency.Null.Instance;
 
             // First, update the structure-related variables (contents and sources).
-            ISet<IVariable> newSources = new HashSet<IVariable>(Helpers.GetTerms(value));
+            ISet<Reference> newRefs = new HashSet<Reference>(Helpers.GetReferences(newContents));
             _StructureLock.EnterUpgradeableReadLock();  // Lock 'a' because the structure shouldn't change while we examine it.
             try
             {
-                if (TryFindCircularity(this, newSources, out Deque<IVariable> path)) throw new CircularDependencyException(path);
+                ISet<Reference> oldRefs = new HashSet<Reference>(Helpers.GetReferences(_Contents));
+
+                //if (TryFindCircularity(this, newSources, out Deque<IVariable> path)) throw new CircularDependencyException(path);
                 _StructureLock.EnterWriteLock();
                 try
                 {
-                    // old sources will expire through garbage collection.  No need to clean them up.
-                    foreach (Reference r in this.GetReferences().Where(obj => obj.Source != null))
+                    foreach (Reference oldRef in oldRefs)
                     {
-                        r.Source.AddListener(r);
+                        if (!newRefs.Remove(oldRef) && oldRef.HeadProperty != null && oldRef.HeadProperty is IVariable v)
+                            v.RemoveListener(oldRef);
                     }
-                    _Contents = value;
+                    foreach (Reference newRef in newRefs)
+                        if (newRef != null && newRef.HeadProperty is IVariable v)
+                            v.AddListener(newRef);
+                    _Contents = newContents;
                 }
                 finally { _StructureLock.ExitWriteLock(); }
             }
@@ -113,7 +120,7 @@ namespace Dependency
             Update();
         }
 
-        public IEvaluateable Update()
+        public bool Update()
         {
             // This method makes the guess that most updates will NOT change the value.
             IEvaluateable oldValue, newValue;
@@ -129,7 +136,7 @@ namespace Dependency
                 // Rule out identical values, which should not invoke any further action.
                 oldValue = _Value;
                 if (oldValue.Equals(newValue))
-                    return oldValue;
+                    return false;
 
                 // Update the value.
                 _ValueLock.EnterWriteLock();
@@ -145,28 +152,28 @@ namespace Dependency
             }
             finally { _StructureLock.ExitReadLock(); _ValueLock.ExitUpgradeableReadLock(); }
 
-            return newValue;
+            return true;
 
 
         }
 
-        private static bool TryFindCircularity(Variable target,
-                                                IEnumerable<IVariable> sources,
-                                                out Deque<IVariable> path)
-        {
-            // TODO:  use a Stack<> object instead of stack frames, because I get a stack overflow at approx. 5000 levels deep
-            // TODO:  I'm not caching the sources anywhere, so it would optimize this method to cache the variables' sources.
-            if (sources != null)
-            {
-                foreach (IVariable src in sources)
-                {
-                    if (ReferenceEquals(target, src)) { path = new Deque<IVariable>(); path.AddFirst(src); return true; }
-                    else if (TryFindCircularity(target, Helpers.GetTerms(src), out path)) { path.AddFirst(src); return true; }
-                }
-            }
-            path = null;
-            return false;
-        }
+        //private static bool TryFindCircularity(Variable target,
+        //                                        IEnumerable<IVariable> sources,
+        //                                        out Deque<IVariable> path)
+        //{
+        //    // TODO:  use a Stack<> object instead of stack frames, because I get a stack overflow at approx. 5000 levels deep
+        //    // TODO:  I'm not caching the sources anywhere, so it would optimize this method to cache the variables' sources.
+        //    if (sources != null)
+        //    {
+        //        foreach (IVariable src in sources)
+        //        {
+        //            if (ReferenceEquals(target, src)) { path = new Deque<IVariable>(); path.AddFirst(src); return true; }
+        //            else if (TryFindCircularity(target, Helpers.GetTerms(src), out path)) { path.AddFirst(src); return true; }
+        //        }
+        //    }
+        //    path = null;
+        //    return false;
+        //}
 
 
 
@@ -512,7 +519,7 @@ namespace Dependency
 
 
     /// <summary>An exception thrown when an invalid circular dependency is added to a DependencyGraph.</summary>
-    public class CircularDependencyException : InvalidOperationException
+    internal class CircularDependencyException : InvalidOperationException
     {
         IEnumerable<IVariable> Path;
         /// <summary>Creates a new CircularDependencyException.</summary>

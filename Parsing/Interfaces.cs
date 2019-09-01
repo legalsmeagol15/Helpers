@@ -47,18 +47,24 @@ namespace Dependency
         
     }
 
-    internal interface IDynamicEvaluateable : IEvaluateable
+    internal interface IDynamicItem
     {
-        IDynamicEvaluateable Parent { get; set; }
-        IEvaluateable Update();
+        IDynamicItem Parent { get; set; }
+
+        /// <summary>
+        /// Updates the value of this item.  Note that this method should NOT call a parent's update method in  any 
+        /// case exception for the <seealso cref="Reference"/>, which is the update driver.
+        /// </summary>
+        /// <returns>Returns true if the value changed; otherwise, returns false.</returns>
+        bool Update();
     }
 
-    public interface IVariable : IEvaluateable
+    internal interface IVariable 
     {
+        bool RemoveListener(Reference r);
         bool AddListener(Reference r);
         IEnumerable<Reference> GetReferences();
         IEvaluateable Contents { get; }
-        IEvaluateable Update();
         event ValueChangedHandler<IEvaluateable> ValueChanged;
     }
 
@@ -72,7 +78,7 @@ namespace Dependency
     {
         IList<IEvaluateable> Inputs { get; }
     }
-
+    
 
     /// <summary>Creates <see cref="NamedFunction"/> objects based on the given string name.</summary>
     public interface IFunctionFactory
@@ -91,7 +97,7 @@ namespace Dependency
     {
         IEvaluateable MaxIndex { get; }
         IEvaluateable MinIndex { get; }
-        IEvaluateable this[params Number[] indices] { get; }
+        IEvaluateable this[IEvaluateable index] { get; }
     }
 
 

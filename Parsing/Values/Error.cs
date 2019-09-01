@@ -7,6 +7,7 @@ using static Dependency.TypeControl;
 
 namespace Dependency
 {
+#pragma warning disable CS0659
     /// <summary>The base error class.  Only maintains a message.</summary>
     public abstract class Error : ILiteral, ITypeGuarantee
     {
@@ -15,8 +16,7 @@ namespace Dependency
         IEvaluateable IEvaluateable.Value => this;
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Error;
         public override bool Equals(object obj) => obj is Error other && Message.Equals(other.Message);
-        public override int GetHashCode() => Message.GetHashCode();
-
+        public sealed override int GetHashCode() => Message.GetHashCode();
         protected static bool ListsEqual<T>(IList<T> a, IList<T> b)
         {
             if (a.Count != b.Count) return false;
@@ -24,21 +24,45 @@ namespace Dependency
             return true;
         }
     }
-    
+
 
     public sealed class InvalidValue : Error
     {
         public InvalidValue(string message = null) : base(message ?? "An invalid value was created.") { }
     }
 
-    public class ReferenceError : EvaluationError
+    public class ReferenceError : Error
     {
-        public readonly IContext Context;
-        public ReferenceError(object complainant, IList<IEvaluateable> inputs, IContext context, string message)
-            : base(complainant, inputs, message)
+        public readonly object Root;
+        public readonly string[] Paths;
+        public readonly int Index;
+        public ReferenceError(object root, string[] paths, int pathIdx, string message = null)
+            : base(message ?? "Invalid path " + paths[pathIdx])
         {
-            this.Context = context;
+            this.Root = root;
+            this.Paths = paths;
+            this.Index = pathIdx;
         }
+        public override bool Equals(object obj)
+        {
+            if (!(base.Equals(obj) && (obj is ReferenceError re) && (this.Root.Equals(re.Root))
+                && this.Index == re.Index && this.Paths.Length == re.Paths.Length)) return false;
+            for (int i = 0; i < Paths.Length; i++) if (!(Paths[i].Equals(re.Paths[i]))) return false;
+            return true;
+        }
+
+    }
+
+    public sealed class IndexingError : EvaluationError
+    {
+        public readonly object Base;
+        internal IndexingError(object complainant, object @base, IEvaluateable ordinal, string message = null)
+            : base(complainant, new IEvaluateable[] { ordinal }, message ?? "Cannot index.")
+        {
+            this.Base = @base;
+        }
+        public override bool Equals(object obj)
+            => base.Equals(obj) && (obj is IndexingError ie) && ReferenceEquals(ie.Base, Base);
     }
 
     public class EvaluationError : Error
@@ -49,16 +73,15 @@ namespace Dependency
 
         public EvaluationError(object complainant, IList<IEvaluateable> inputs, string message = null)
             : base(message ?? "Failed to evaluate inputs on " + complainant.GetType().Name + ".")
-        {   
+        {
             this.Complainant = complainant;
             this.Inputs = inputs;
         }
-        public override bool Equals(object obj) 
-            => obj is EvaluationError other 
-            && Message.Equals(other.Message) 
-            && ReferenceEquals(Complainant, other.Complainant) 
+        public override bool Equals(object obj)
+            => obj is EvaluationError other
+            && Message.Equals(other.Message)
+            && ReferenceEquals(Complainant, other.Complainant)
             && ListsEqual(Inputs, other.Inputs);
-        public override int GetHashCode() => Message.GetHashCode();
     }
 
     public sealed class InputCountError : EvaluationError
@@ -76,7 +99,6 @@ namespace Dependency
             && ReferenceEquals(Complainant, other.Complainant)
             && ListsEqual(Inputs, other.Inputs)
             && TypeControl.Equals(other.TypeControl);
-        public override int GetHashCode() => Message.GetHashCode();
 
     }
 
@@ -115,12 +137,7 @@ namespace Dependency
             && ConstraintIndex.Equals(other.ConstraintIndex)
             && InputIndex.Equals(other.InputIndex)
             && GivenFlags == other.GivenFlags;
-        public override int GetHashCode() => Message.GetHashCode();
     }
-    
-    public sealed class IndexingError : EvaluationError
-    {
-        public IndexingError(object complainant, IList<IEvaluateable> inputs, string msg) : base(complainant, inputs, msg) { }
+#pragma warning restore CS0659
 
-    }
 }

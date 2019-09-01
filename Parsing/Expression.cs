@@ -43,21 +43,37 @@ namespace Dependency
             }
         }
 
-        public static IEnumerable<IVariable> GetTerms(IEvaluateable e)
+        internal static IEnumerable<IVariable> GetTerms(object e)
         {
-            Stack<IEvaluateable> stack = new Stack<IEvaluateable>();
+            Stack<object> stack = new Stack<object>();
             stack.Push(e);
             while (stack.Count > 0)
             {
-                IEvaluateable focus = stack.Pop();
+                object focus = stack.Pop();
                 switch (focus)
                 {
                     case IFunction f: foreach (var input in f.Inputs) stack.Push(input); continue;
                     case IExpression x: stack.Push(x.Contents); continue;
                     case ILiteral l: continue;
-                    case Reference r : if (r.Source != null) yield return r.Source; continue;
+                    case Reference r : if (r.HeadProperty is IVariable iv) yield return iv; continue;
                     case IVariable v: yield return v; continue;
                     default: throw new NotImplementedException();
+                }
+            }
+        }
+
+        internal static IEnumerable<Reference> GetReferences(object e)
+        {
+            Stack<object> stack = new Stack<object>();
+            stack.Push(e);
+            while (stack.Count > 0)
+            {
+                object focus = stack.Pop();
+                switch (focus)
+                {
+                    case Indexing idxing:  stack.Push(idxing.Base); stack.Push(idxing.Inputs[0]); break;
+                    case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
+                    case Reference r: yield return r; break;
                 }
             }
         }
@@ -138,9 +154,18 @@ namespace Dependency
                         inputs.AddLast(_TokenizeAndParse(f));
                         continue;
                     }
-                    
+
                     // At last, just add the token as a string.
-                    inputs.AddLast(new Dependency.String(token));
+                    if (Regex.IsMatch(token, RefPattern, RegexOptions.IgnorePatternWhitespace))
+                    {
+                        string[] paths = token.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                        TokenReference tr = new TokenReference(rootContext, paths) { Index = splitIdx - 1 };
+                        heap.Enqueue(tr);
+                        tr.Node = inputs.AddLast(tr);
+                        continue;
+                    }
+
+                    throw new UnrecognizedTokenException(_ComposeParsed(), token);
                 }
 
                 // We're out of tokens.  Parse, and stuff the result into the given expression.
@@ -212,7 +237,6 @@ namespace Dependency
                         case "<": resultToken = new TokenLessThan() { Index = splitIdx - 1 }; return true;
                         case "=": resultToken = new TokenEquals() { Index = splitIdx - 1 }; return true;
                         case ",": resultToken = new TokenComma() { Index = splitIdx - 1 }; return true;
-                        case ".": resultToken = new TokenReference(rootContext) { Index = splitIdx - 1 }; return true;
                     }
                     resultToken = null;
                     return false;
@@ -230,7 +254,7 @@ namespace Dependency
                             return Expression.ExpressionType.CURLY;
                         case "[":
                             // Add the contents, then add a token for LR parsing
-                            TokenReference tr = new TokenReference(rootContext) { Index = splitIdx - 1 };
+                            TokenIndexing tr = new TokenIndexing() { Index = splitIdx - 1 };
                             heap.Enqueue(tr);
                             tr.Node = inputs.AddLast(tr);
                             inputs.AddLast(_TokenizeAndParse(new Bracket()));
@@ -278,7 +302,7 @@ namespace Dependency
 
 
 
-        #region Parser Tokens parsing
+        #region Parser priority and LR parsing (Tokens)
 
 
         internal abstract class Token : IComparable<Token>, IEvaluateable
@@ -288,8 +312,8 @@ namespace Dependency
             protected internal enum Priorities
             {
                 Refer = 20,
+                Index = 30,
                 Question = 50,
-                Index = 70,
                 And = 100,
                 Or = 101,
                 Xor = 102,
@@ -445,11 +469,12 @@ namespace Dependency
 
             protected internal override bool TryParse(out Token substituted)
             {
-                Debug.Assert(Node.Previous == null || Node.Previous.Previous == null || !(Node.Previous.Previous.Contents is TokenQuestion),
-                    "Question marks '?' should be parsed before colons ':'");
-                Node.Contents = new Range() { Inputs = new IEvaluateable[] { Node.Previous.Remove(), Node.Next.Remove() } };
-                substituted = null;
-                return true;
+                //Debug.Assert(Node.Previous == null || Node.Previous.Previous == null || !(Node.Previous.Previous.Contents is TokenQuestion),
+                //    "Question marks '?' should be parsed before colons ':'");
+                //Node.Contents = new Range() { Inputs = new IEvaluateable[] { Node.Previous.Remove(), Node.Next.Remove() } };
+                //substituted = null;
+                //return true;
+                throw new NotImplementedException();
             }
         }
 
@@ -519,6 +544,22 @@ namespace Dependency
         {
             protected internal override Priorities Priority => Priorities.Exponentiation;
             protected internal override bool TryParse(out Token _) => ParseBinary<Exponentiation>(out _);
+        }
+
+        internal sealed class TokenIndexing : Token
+        {
+            protected internal override Priorities Priority => Priorities.Index;
+            protected internal override bool TryParse(out Token _)
+            {
+                Debug.Assert(Node != null);
+                Debug.Assert(Node.List != null);
+                if (Node.Previous == null || Node.Next == null) throw new ParsingException(this, "Failed to parse " + this.GetType().Name);
+                Function newFunc = new Indexing(Node.Previous.Remove(), Node.Next.Remove());
+                Node.Contents = newFunc;
+                _ = null;
+                return true;
+            }
+            
         }
 
         internal sealed class TokenNotEquals : Token
@@ -607,25 +648,20 @@ namespace Dependency
                 return true;
             }
         }
-
+        
         internal sealed class TokenReference : Token
         {
             protected internal override Priorities Priority => Priorities.Refer;
-            internal readonly IContext Root;
-            public TokenReference(IContext root) { this.Root = root; }
-            protected internal override bool TryParse(out Token _)
+            protected internal override bool TryParse(out Token replacement)
             {
-                Debug.Assert(Node != null);
-                Debug.Assert(Node.List != null);
-                Deque<IEvaluateable> segments = GatherSeries<TokenReference>();
-                Reference r = new Reference(Root);
-                foreach (var seg in segments) r.AddSegment(seg);
-                Node.Contents = r;
-                _ = null;
-                return true;
+                Node.Contents = new Reference(Root, Paths);
+                throw new NotImplementedException();
             }
+            private readonly IContext Root;
+            private readonly string[] Paths;
+            public TokenReference(IContext root, string[] paths) { this.Root = root; this.Paths = paths; }
         }
-        
+
         internal sealed class TokenSemicolon : Token
         {
             protected internal override Priorities Priority => Priorities.Semicolon;
@@ -681,10 +717,10 @@ namespace Dependency
         private const string OperPattern = @"(?<operPattern>[+-/*&|^~!><=])";
         private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
         private const string SpacePattern = @"(?<spacePattern>\s+)";
-        private const string RefPattern = @"(?<referencePattern>\.)";
-        private const string namePattern = @"(?<namePattern>[_a-zA-Z][_\w]*)";
+        //private const string RefPattern = @"(?<referencePattern>\.)";
+        private const string RefPattern = @"(?<referencePattern>\.?[_a-zA-Z]\w*(?:\.[_a-zA-Z]\w*)*)";
 
-        private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, NumPattern, SpacePattern, RefPattern, namePattern);
+        private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, NumPattern, SpacePattern, RefPattern);
         private static Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);
 
         #endregion
@@ -730,17 +766,27 @@ namespace Dependency
             internal ReferenceException(Reference incomplete, string message) : base(message) { this.Incomplete = incomplete; }
         }
 
+        public class UnrecognizedTokenException : SyntaxException
+        {
+            internal UnrecognizedTokenException(string parsed, string failedToken, string message = null) 
+                : base(parsed, failedToken, message ?? "The token " + failedToken + " is not recognized.") { }
+        }
+
         #endregion
 
 
 
         #region Parser LR expressions
 
-
+        /// <summary>
+        /// Used to build a LR clause, but this will not actually be stored in the dependency tree (an 
+        /// <seealso cref="Indexing"/> will take its place.
+        /// </summary>
         internal sealed class Bracket : IExpression, IEvaluateable
         {
+            // IEvaluateable is implemented solely to make this class fit on an IEnumerable<IEvaluateable>
             public IEvaluateable Contents { get; internal set; }
-            IEvaluateable IEvaluateable.Value => Contents.Value;          
+            IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
         }
 
         /// <summary>
@@ -748,42 +794,41 @@ namespace Dependency
         /// <seealso cref="Contents"/>.  The value of a <see cref="Curly"/> is the contents of the 
         /// <seealso cref="IVariable"/> indicated by the <seealso cref="Contents"/>.
         /// </summary>
-        internal sealed class Curly : IExpression, IContext
+        internal sealed class Curly : IExpression, IContext, IDynamicItem
         {
             /// <summary>The vector that this bracket object contains.</summary>
             public Vector Contents { get; }
             IEvaluateable IExpression.Contents => this.Contents;
 
-            private IEvaluateable _Value = null;
-            IEvaluateable IEvaluateable.Value => _Value;
+            IEvaluateable IEvaluateable.Value => Contents;
+
+            IDynamicItem IDynamicItem.Parent { get; set; }
 
             public override string ToString() => '{' + Contents.ToString() + '}';
 
             bool IContext.TryGetSubcontext(object path, out IContext ctxt) => ((IContext)Contents).TryGetSubcontext(path, out ctxt);
 
             bool IContext.TryGetProperty(object path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
+
+            bool IDynamicItem.Update() => true;
         }
 
 
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Contents"/> of a 
         /// <see cref="Parenthetical"/>.</summary>
-        internal sealed class Parenthetical : IExpression, IDynamicEvaluateable
+        internal sealed class Parenthetical : IExpression, IDynamicItem
         {
-            public IDynamicEvaluateable Parent { get; set; }
+            public IDynamicItem Parent { get; set; }
             /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
             /// operation performed in the tree.</summary>
-            public IEvaluateable Contents { get => _Contents; internal set { _Contents = value; Update(); } }
-            private IEvaluateable _Contents;
+            public IEvaluateable Contents { get; internal set; }
 
-            private IEvaluateable _Value = null;
-            IEvaluateable IEvaluateable.Value => _Value;
+            IEvaluateable IEvaluateable.Value => Contents.Value;
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            IEvaluateable IExpression.Contents => Contents;
-
-            public IEvaluateable Update() { _Value = _Contents.Value; Parent?.Update(); return _Value; }
+            bool IDynamicItem.Update() => true;
         }
 
 

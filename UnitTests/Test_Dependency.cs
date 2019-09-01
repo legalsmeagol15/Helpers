@@ -52,15 +52,14 @@ namespace UnitTests
         [TestMethod]
         public void Test_Indexing()
         {
+            Parse.FromString("what.is.this", null, null);
             SimpleContext ctxt = new SimpleContext();
             Vector vec = new Vector(new Number(10), new Number(11), new Number(12));
             Variable v0 = new Variable { Contents = new Vector(new Number(10), new Number(11), new Number(12)) };
             ctxt.Add("v0", v0);
             Variable v1 = new Variable(Parse.FromString("v0[2]", null, ctxt));
             ctxt.Add("v1", v1);
-
-            //Assert.AreEqual(v1.Value, 12);
-
+            Assert.AreEqual(ctxt.Get("v1").Value, v0.Value);
         }
 
         [TestMethod]
@@ -277,12 +276,17 @@ namespace UnitTests
 
     internal class SimpleContext : IContext
     {
-        private readonly Dictionary<object, IVariable> _Variables = new Dictionary<object, IVariable>();
-        public void Add(object key, IVariable variable) => _Variables.Add(key, variable);
+        private readonly Dictionary<object, Variable> _Variables = new Dictionary<object, Variable>();
+        public void Add(object key, Variable variable) => _Variables.Add(key, variable);
+
+        public Variable Get(object key)
+        {
+            return _Variables[key];
+        }
 
         bool IContext.TryGetProperty(object token, out IEvaluateable source)
         {
-            if (_Variables.TryGetValue(token, out  IVariable v)) { source = v; return true; }
+            if (_Variables.TryGetValue(token, out Variable v)) { source = v; return true; }
             source = null;
             return false;
         }

@@ -95,7 +95,7 @@
     <Compile Include="Parsing\TypeControl.cs" />
     <Compile Include="Parsing\Values\Boolean.cs" />
     <Compile Include="Parsing\Values\Complex.cs" />
-    <Compile Include="Parsing\Values\EvaluationError.cs" />
+    <Compile Include="Parsing\Values\Error.cs" />
     <Compile Include="Parsing\Values\Null.cs" />
     <Compile Include="Parsing\Values\Number.cs" />
     <Compile Include="Parsing\Values\String.cs" />

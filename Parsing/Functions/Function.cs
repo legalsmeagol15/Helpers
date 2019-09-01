@@ -8,9 +8,9 @@ using static Dependency.TypeControl;
 
 namespace Dependency.Functions
 {
-    public abstract class Function : IFunction, IDynamicEvaluateable
+    public abstract class Function : IFunction, IDynamicItem
     {
-        internal IDynamicEvaluateable Parent { get; set; }
+        internal IDynamicItem Parent { get; set; }
         private IList<IEvaluateable> _Inputs;
         protected internal IList<IEvaluateable> Inputs
         {
@@ -19,16 +19,21 @@ namespace Dependency.Functions
             {
                 _Inputs = value;
                 Update();
-                foreach (var iev in value) if (iev is IDynamicEvaluateable ide) ide.Parent = this;
+                foreach (var iev in value) if (iev is IDynamicItem ide) ide.Parent = this;
             }
+        }
+
+        internal IEvaluateable Recalculate()
+        {
+            throw new NotImplementedException();
         }
 
         IList<IEvaluateable> IFunction.Inputs => Inputs;
 
         public IEvaluateable Value { get; private set; }
-        IDynamicEvaluateable IDynamicEvaluateable.Parent { get => Parent; set => Parent = value; }
+        IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
 
-        public IEvaluateable Update()
+        public bool Update()
         {
             IEvaluateable[] evalInputs = _Inputs.Select(s => s.Value).ToArray();
 
@@ -44,12 +49,17 @@ namespace Dependency.Functions
             else
                 newValue = new TypeMismatchError(this, evalInputs, bestConstraint, unmatchedArg, tc);
 
-            if (newValue.Equals(Value)) return Value;
+            if (newValue.Equals(Value)) return false;
             Value = newValue;
-            if (Parent != null) Parent.Update();
-            return Value;
+            return true;
         }
         
+        /// <summary>
+        /// A function will call this method to evaluate the given evaluated inputs.
+        /// </summary>
+        /// <param name="evaluatedInputs"></param>
+        /// <param name="constraintIndex"></param>
+        /// <returns></returns>
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
         
     }

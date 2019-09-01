@@ -16,17 +16,16 @@ namespace Dependency
         
         IEvaluateable IEvaluateable.Value => this;
 
-        public IEvaluateable this[params Number[] indices]
+        public IEvaluateable this[IEvaluateable ordinal]
         {
             get
             {
-                IEvaluateable result = Inputs[indices[0]];
-                if (indices.Length == 1)
-                    return result;
-                else if (result is IIndexable idxable)
-                    return idxable[indices.Skip(1).ToArray()];
+                if (ordinal is Number n)
+                {
+                    return Inputs[(int)n];
+                }
                 else
-                    return new IndexingError(this, indices.OfType<IEvaluateable>().ToArray(), "More ordinal indices than dimensions.");
+                    return new IndexingError(this, this, ordinal);
             }
         }
 

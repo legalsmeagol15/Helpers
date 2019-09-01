@@ -227,24 +227,24 @@ namespace Dependency
             public override string ToString() => string.Join(" | ", (IEnumerable<IEvaluateable>)Inputs);
         }
 
-        [TypeControl.NonVariadic(0, TypeFlags.Integer, TypeFlags.Integer)]
-        public sealed class Range : Function, IOperator, IIndexable
-        {
-            public readonly IEvaluateable Start;
-            public readonly IEvaluateable End;
+        //[TypeControl.NonVariadic(0, TypeFlags.Integer, TypeFlags.Integer)]
+        //public sealed class Range : Function, IOperator, 3IIndexable
+        //{
+        //    public readonly IEvaluateable Start;
+        //    public readonly IEvaluateable End;
 
-            IEvaluateable IIndexable.this[params Number[] indices] => throw new NotImplementedException();
+        //    IEvaluateable IIndexable.this[params Number[] indices] => throw new NotImplementedException();
 
-            IEvaluateable IIndexable.MaxIndex => throw new NotImplementedException();
+        //    IEvaluateable IIndexable.MaxIndex => throw new NotImplementedException();
 
-            IEvaluateable IIndexable.MinIndex => throw new NotImplementedException();
+        //    IEvaluateable IIndexable.MinIndex => throw new NotImplementedException();
 
-            protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
-            {
-                throw new NotImplementedException();
-            }
+        //    protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
+        //    {
+        //        throw new NotImplementedException();
+        //    }
 
-        }
+        //}
 
         [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
         public sealed class Subtraction : Function, IOperator, ICacheValidator
