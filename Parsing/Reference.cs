@@ -23,8 +23,8 @@ namespace Dependency
         public readonly string[] Paths;
         private IEvaluateable _HeadProperty = null;
 
-        /// <summary>In the sequence, "line.color.red", this would refer to the property "red" at the end.  If it is 
-        /// null then there is no associated property with this reference.
+        /// <summary>In the sequence, "line.brush.color.red", this would refer to the property "red" at the end.  If it is 
+        /// null then there is no associated property to be found at the conclusion of the reference.
         /// </summary>
         internal IEvaluateable HeadProperty
         {
@@ -41,21 +41,48 @@ namespace Dependency
                 Value = newValue;
             }
         }
+
+        /// <summary>
+        /// In the sequence, "line.brush.color", this would refer to the context "color" at the end.  The context has 
+        /// no value in itself, but may host more sub-contexts or properties.  If this is null, then there is no sub-
+        /// context at the conclusion of the reference.
+        /// </summary>
         internal IContext HeadContext { get; private set; } = null;
+
+        /// <summary>
+        /// The current context from which this <see cref="Reference"/> progresses.  If this <see cref="Reference"/> 
+        /// is mathematically a vector, the base context represents an origin point. 
+        /// </summary>
         internal IContext BaseContext { get; private set; } = null;
-        private object _Origin;
+
+        /// <summary>
+        /// The object supplying the original <seealso cref="IContext"/> for this <see cref="Reference"/>.  This may 
+        /// be a static <seealso cref="IContext"/> itself, or it may be a dynamic object like an 
+        /// <seealso cref="Indexing"/>.
+        /// </summary>
         internal object Origin
         {
             get => _Origin;
             set
             {
-                if (value is IDynamicItem idi) idi.Parent = this;
+                if (_Origin is IDynamicItem idi_before && ReferenceEquals(idi_before.Parent, this))
+                    idi_before.Parent = null;
                 _Origin = value;
+                if (_Origin is IDynamicItem idi_after)
+                    idi_after.Parent = this;
                 Update();
             }
         }
+        private object _Origin;
+
+        /// <summary>The parent object in the evaluation tree.</summary>
         public IDynamicItem Parent { get; set; }
 
+        /// <summary>
+        /// The cached value of this <see cref="Reference"/>.  This value will represent the value of the 
+        /// HeadProperty, if one exists.  If it does not, the stored value will be 
+        /// <seealso cref="Dependency.Null.Instance"/>.
+        /// </summary>
         public IEvaluateable Value { get; private set; }
 
         public Reference(IContext root, params string[] paths) { this.Paths = paths; this.Origin = root; }
@@ -118,6 +145,15 @@ namespace Dependency
             throw new InvalidOperationException("Only IEvaluatables and IContexts can function as the head of a reference.");
         }
 
+        /// <summary>
+        /// Updates the base context, and follows the reference progression to the terminal object (be that a 
+        /// <seealso cref="IContext"/> or a <seealso cref="IVariable"/> property).  If the <see cref="Reference"/> is 
+        /// found to point to a property, caches the value of that property.
+        /// <para/>From there, the evaluation tree is updated until a <seealso cref="IVariable"/> is hit, or until 
+        /// no value changes occur, whichever is earlier.  If an <seealso cref="IVariable"/> is hit, i.e., notified to 
+        /// send notice of a value change to all listeners, the <seealso cref="IVariable"/> will do so asynchronously.
+        /// </summary>
+        /// <returns></returns>
         public bool Update()
         {
             // Try a full refresh first.
@@ -175,10 +211,18 @@ namespace Dependency
 
     }
 
-
+    /// <summary>
+    /// A function which takes a base indexable object (like a <seealso cref="Vector"/>, or a 
+    /// <seealso cref="Reference"/> which points to a property <seealso cref="Variables.Variable"/>), and an ordinal 
+    /// value 'n', and returns the 'nth' item associated with that base object.
+    /// </summary>
     [TypeControl.NonVariadic(0, TypeFlags.RealAny | TypeFlags.String)]
     internal sealed class Indexing : Functions.Function
     {
+        /// <summary>
+        /// Base is not stored with <seealso cref="Functions.Function.Inputs"/> because it might not be an 
+        /// <seealso cref="IEvaluateable"/>.  It might be a <seealso cref="Reference"/>.
+        /// </summary>
         internal readonly object Base; // Base is not part of Inputs because it could be an IContext
         internal Indexing(IEvaluateable @base, IEvaluateable ordinal)
         {
@@ -197,12 +241,25 @@ namespace Dependency
 
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
+            // The base might itself be indexable (like a Vector), or it might be a variable whose 
+            // value is indexable.
+            IEvaluateable eval_ordinal = evaluatedInputs[0];
+
             IIndexable ii;
+
+            // Is the base something like a Vector?
             if (Base is IIndexable ii2) ii = ii2;
+
+            // Is the base some expression (like a sum of Vectors) whose value happens to be indexable?
+            // Or, a Reference pointing at a Variable whose value happens to be indexable?
             else if (Base is IEvaluateable iev && iev.Value is IIndexable ii3) ii = ii3;
+
+            // Is the base a Reference 
+            else if (Base is Reference r && r.HeadContext != null && r.HeadContext.TryGetProperty(eval_ordinal, out IEvaluateable iv))
+                return iv.Value;
             else return new IndexingError(this, Base, evaluatedInputs[0]);
 
-            return ii[evaluatedInputs[0]];
+            return ii[eval_ordinal];
         }
     }
 }
