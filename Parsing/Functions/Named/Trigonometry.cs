@@ -14,7 +14,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Cos((double)e.Value));
+            return new Number(Math.Cos((double)e.CLR_Value));
         }
     }
 
@@ -26,7 +26,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Cosh((double)e.Value));
+            return new Number(Math.Cosh((double)e.CLR_Value));
         }
     }
     
@@ -38,7 +38,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Sin((double)e.Value));
+            return new Number(Math.Sin((double)e.CLR_Value));
         }
     }
 
@@ -50,7 +50,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Sinh((double)e.Value));
+            return new Number(Math.Sinh((double)e.CLR_Value));
         }
     }
 
@@ -62,7 +62,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Tan((double)e.Value));
+            return new Number(Math.Tan((double)e.CLR_Value));
         }
     }
 
@@ -72,7 +72,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Tanh((double)e.Value));
+            return new Number(Math.Tanh((double)e.CLR_Value));
         }
     }
 

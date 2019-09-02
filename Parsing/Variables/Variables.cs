@@ -10,7 +10,7 @@ using System.Collections;
 using DataStructures;
 using System.Threading;
 
-namespace Dependency
+namespace Dependency.Variables
 {
     public enum Mobility
     {
@@ -26,7 +26,7 @@ namespace Dependency
     {
         // A variable is apt to have few sources, but many listeners (0 or 100,000 might be reasonable).
 
-        IDynamicItem IDynamicItem.Parent { get=>null; set=> throw new InvalidOperationException(); }
+        IDynamicItem IDynamicItem.Parent { get => null; set => throw new InvalidOperationException(); }
         private readonly WeakReferenceSet<Reference> _Listeners = new WeakReferenceSet<Reference>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
@@ -51,7 +51,7 @@ namespace Dependency
                     case IFunction f: foreach (var input in f.Inputs) stack.Push(f); continue;
                     case Reference r: yield return r; continue;
                 }
-                
+
             }
         }
         public IEvaluateable Value
@@ -83,7 +83,8 @@ namespace Dependency
 
 
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
-        public Variable(IEvaluateable contents = null) {
+        public Variable(IEvaluateable contents = null)
+        {
             this.Contents = contents;
         }
 
@@ -235,15 +236,6 @@ namespace Dependency
 
 
 
-    public interface IWeakVariable<T>
-    {
-        Variable Variable { get; }
-        void SetLock(bool locked);
-        T Value { get; }
-        bool TryGetVariable(out Variable v);
-    }
-
-
 
     /// <summary>
     /// A <see cref="BlendedVariable{T}"/> blends the notion of CLR and literal dependency variables.  The current 
@@ -302,6 +294,7 @@ namespace Dependency
             return false;
         }
 
+
         public void SetLock(bool locked) => _LockedVariable = (locked) ? Source : null;
 
 
@@ -334,7 +327,7 @@ namespace Dependency
     /// A dynamic variable can have its contents set to any <seealso cref="IEvaluateable"/>, from
     /// <seealso cref="Number"/>s to <seealso cref="Dependency.Expression"/>s.  Yet, it implements the 
     /// <seealso cref="IWeakVariable{T}"/> pattern, so its CLR value continues to be valid (both settable and 
-    /// gettable) even when the related <seealso cref="Dependency.Variable"/> has been garbage-collected.
+    /// gettable) even when the related <seealso cref="Dependency.Variables.Variable"/> has been garbage-collected.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public class DynamicVariable<T> : IWeakVariable<T>
@@ -384,9 +377,10 @@ namespace Dependency
 
         public T Value => _Value;
 
-        public DynamicVariable(T defaultValue, Func<T, IEvaluateable> toIEval = null)
+        public DynamicVariable(T defaultValue, Func<IEvaluateable, T> toCLR, Func<T, IEvaluateable> toIEval = null)
         {
             this._ToIEval = toIEval ?? Dependency.Helpers.Obj2Eval;
+            this._ToClr = toCLR;
             this._DefaultValue = defaultValue;
             this._Value = Value;
             this._LockedVariable = null;
@@ -443,32 +437,48 @@ namespace Dependency
 
     public sealed class DynamicBool : DynamicVariable<bool>
     {
-        public DynamicBool(bool defaultValue = false) : base(defaultValue, (b) => b ? Dependency.Boolean.True : Dependency.Boolean.False) { }
+        public DynamicBool(bool defaultValue = false) 
+            : base(defaultValue, 
+                  (iev) => (iev is Dependency.Boolean b) ? b.Value : false,
+                  (b) => b ? Dependency.Boolean.True : Dependency.Boolean.False) { }
     }
     public sealed class DynamicByte : DynamicVariable<byte>
     {
-        public DynamicByte(byte defaultValue = 0) : base(defaultValue, (b) => new Number(b)) { }
+        public DynamicByte(byte defaultValue = 0) 
+            : base(defaultValue, 
+                  (iev) => (iev is Dependency.Number n) ? (byte)n : (byte)Number.Zero,
+                  (b) => new Number(b)) { }
     }
     public sealed class DynamicDouble : DynamicVariable<double>
     {
-        public DynamicDouble(double defaultValue = 0.0d) : base(defaultValue, Number.FromDouble) { }
+        public DynamicDouble(double defaultValue = 0.0d) 
+            : base(defaultValue,
+                  (iev) => (iev is Dependency.Number n) ? (double)n : 0d,
+                  Number.FromDouble) { }
     }
     public sealed class DynamicInt : DynamicVariable<int>
     {
-        public DynamicInt(int defaultValue = 0) : base(defaultValue, (i) => new Number(i)) { }
+        public DynamicInt(int defaultValue = 0) 
+            : base(defaultValue,
+                  (iev) => (iev is Dependency.Number n) ? (int) n: 0,
+                  (i) => new Number(i)) { }
     }
     public sealed class DynamicString : DynamicVariable<string>
     {
-        public DynamicString(string defaultValue = "") : base(defaultValue, (s) => new Dependency.String(s)) { }
+        public DynamicString(string defaultValue = "")
+            : base(defaultValue,
+                  (iev) => iev.ToString(),
+                  (s) => new Dependency.String(s)) { }
     }
 
 
 
     /// <summary>
     /// A <see cref="SourceVariable{T}"/> is a variable whose contents never change, but the value may.  It maintains 
-    /// the <seealso cref="IWeakVariable{T}"/> pattern in that if the <seealso cref="Dependency.Variable"/> is ever 
-    /// garbage-collected, the next attempt to reference it through a dependency structure will re-create the 
-    /// <seealso cref="Dependency.Variable"/> with the same contents (which may evaluate to a different value).
+    /// the <seealso cref="IWeakVariable{T}"/> pattern in that if the <seealso cref="Dependency.Variables.Variable"/> 
+    /// is ever garbage-collected, the next attempt to reference it through a dependency structure will re-create the 
+    /// <seealso cref="Dependency.Variables.Variable"/> with the same contents (which may evaluate to a different 
+    /// value).
     /// </summary>
     public class SourceVariable<T> : IWeakVariable<T>
     {
@@ -484,7 +494,6 @@ namespace Dependency
         /// <param name="startValue">The starting value for the <see cref="SourceVariable{T}"/>.  This will be 
         /// disregarded if the initialized contents evaluate to a convertible value.</param>
         /// <param name="initializer">The function called every time this variable is initialized.</param>
-        /// </param>
         public SourceVariable(T startValue, Func<IEvaluateable> initializer)
         {
             this._Initializer = initializer;

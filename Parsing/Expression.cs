@@ -42,7 +42,7 @@ namespace Dependency
                 default: return iev;
             }
         }
-
+       
         internal static IEnumerable<IVariable> GetTerms(object e)
         {
             Stack<object> stack = new Stack<object>();

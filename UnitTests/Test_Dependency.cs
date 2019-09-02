@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Collections;
 using Dependency;
+using Dependency.Variables;
 using static UnitTests.Common;
 using System.Runtime.CompilerServices;
 

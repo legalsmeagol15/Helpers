@@ -115,9 +115,9 @@ namespace Dependency
                 switch (constraintIndex)
                 {
                     case 0:
-                        double d = (double)((Number)inputs[0]).Value;
+                        double d = (double)((Number)inputs[0]).CLR_Value;
                         for (int i = 1; i < inputs.Length; i++)
-                            d = Math.Pow(d, (double)((Number)inputs[i]).Value);
+                            d = Math.Pow(d, (double)((Number)inputs[i]).CLR_Value);
                         return new Number(d);
                     case 1:
                         bool val = (Dependency.Boolean)inputs[0];

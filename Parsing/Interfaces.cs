@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Dependency.Functions;
+using Dependency.Variables;
 using Helpers;
 
 namespace Dependency
@@ -34,18 +35,7 @@ namespace Dependency
 
         bool TryGetProperty(object path, out IEvaluateable source);
     }
-    
-    public interface ISubcontext : IContext
-    {
-        IContext Parent { get; set; }
-    }
 
-    public interface IEvaluateable
-    {
-        /// <summary>Returns the most recently-updated value of this <see cref="IEvaluateable"/>.</summary>
-        IEvaluateable Value { get; }
-        
-    }
 
     internal interface IDynamicItem
     {
@@ -59,14 +49,14 @@ namespace Dependency
         bool Update();
     }
 
-    internal interface IVariable 
+
+    public interface IEvaluateable
     {
-        bool RemoveListener(Reference r);
-        bool AddListener(Reference r);
-        IEnumerable<Reference> GetReferences();
-        IEvaluateable Contents { get; }
-        event ValueChangedHandler<IEvaluateable> ValueChanged;
+        /// <summary>Returns the most recently-updated value of this <see cref="IEvaluateable"/>.</summary>
+        IEvaluateable Value { get; }
+        
     }
+
 
     /// <summary>Readable left-to-right.</summary>
     internal interface IExpression : IEvaluateable
@@ -113,12 +103,37 @@ namespace Dependency
     }
 
 
+    public interface ISubcontext : IContext
+    {
+        IContext Parent { get; set; }
+    }
 
 
     internal interface ITypeGuarantee
     {
         TypeFlags TypeGuarantee { get; }
     }
+
+
+    internal interface IVariable
+    {
+        bool RemoveListener(Reference r);
+        bool AddListener(Reference r);
+        IEnumerable<Reference> GetReferences();
+        IEvaluateable Contents { get; set; }
+        event ValueChangedHandler<IEvaluateable> ValueChanged;
+    }
+
+
+    internal interface IWeakVariable<T>
+    {
+        Variable Variable { get; }
+        void SetLock(bool locked);
+        T Value { get; }
+        bool TryGetVariable(out Variable v);
+    }
+
+
 
 
 

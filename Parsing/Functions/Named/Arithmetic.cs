@@ -13,7 +13,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Abs(e.Value));
+            return new Number(Math.Abs(e.CLR_Value));
         }
     }
 
@@ -23,7 +23,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Acos((double)e.Value));
+            return new Number(Math.Acos((double)e.CLR_Value));
         }
     }
 
@@ -33,7 +33,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Asin((double)e.Value));
+            return new Number(Math.Asin((double)e.CLR_Value));
         }
     }
 
@@ -43,7 +43,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Atan((double)e.Value));
+            return new Number(Math.Atan((double)e.CLR_Value));
         }
     }
 
@@ -53,7 +53,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Exp((double)e.Value));
+            return new Number(Math.Exp((double)e.CLR_Value));
         }
     }
 
@@ -63,7 +63,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number((int)e.Value);
+            return new Number((int)e.CLR_Value);
         }
     }
 
@@ -73,7 +73,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number a = (Number)evaluatedInputs[0], b =(Number)evaluatedInputs[0];
-            return new Number(Math.Log((double)a.Value, (double)b.Value));
+            return new Number(Math.Log((double)a.CLR_Value, (double)b.CLR_Value));
         }
     }
 
@@ -83,7 +83,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Log10((double)e.Value));
+            return new Number(Math.Log10((double)e.CLR_Value));
         }
     }
 
@@ -96,7 +96,7 @@ namespace Dependency.Functions
             for (int i = 1; i < evaluatedInputs.Length; i++)
             {
                 Number b = (Number)evaluatedInputs[i];
-                if (a.Value < b.Value) a = b;
+                if (a.CLR_Value < b.CLR_Value) a = b;
             }
             return a;
         }
@@ -111,7 +111,7 @@ namespace Dependency.Functions
             for (int i = 1; i < evaluatedInputs.Length; i++)
             {
                 Number b = (Number)evaluatedInputs[i];
-                if (a.Value > b.Value) a = b;
+                if (a.CLR_Value > b.CLR_Value) a = b;
             }
             return a;
         }
@@ -123,7 +123,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number a = (Number)evaluatedInputs[0], b = (Number)evaluatedInputs[1];
-            return new Number(a.Value % b.Value);
+            return new Number(a.CLR_Value % b.CLR_Value);
         }
     }
 
@@ -133,7 +133,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number a = (Number)evaluatedInputs[0], b = (Number)evaluatedInputs[1];
-            return new Number(Math.Pow((double)a.Value, (double)b.Value));
+            return new Number(Math.Pow((double)a.CLR_Value, (double)b.CLR_Value));
         }
     }
 
@@ -153,8 +153,8 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            if (e.Value < 0) return new Number(-1);
-            else if (e.Value > 0) return Number.One;
+            if (e.CLR_Value < 0) return new Number(-1);
+            else if (e.CLR_Value > 0) return Number.One;
             else return Number.Zero;
         }
     }
@@ -165,7 +165,7 @@ namespace Dependency.Functions
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             Number e = (Number)evaluatedInputs[0];
-            return new Number(Math.Sqrt((double)e.Value));
+            return new Number(Math.Sqrt((double)e.CLR_Value));
         }
     }
 }

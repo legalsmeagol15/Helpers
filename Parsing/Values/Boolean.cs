@@ -19,7 +19,7 @@ namespace Dependency
         public static implicit operator Boolean(bool b) => new Boolean(b);
         public static implicit operator bool(Boolean n) => n.Value;
 
-        public static implicit operator Boolean(Number n) => new Boolean(n.Value != 0m);
+        public static implicit operator Boolean(Number n) => new Boolean(n.CLR_Value != 0m);
         public static implicit operator Number(Boolean n) => new Number(n.Value ? 1m : 0m);
         
         public static bool operator ==(Boolean a, Boolean b) => a.Value == b.Value;
