@@ -9,6 +9,15 @@ using Helpers;
 
 namespace Dependency
 {
+    public enum Mobility
+    {
+        // TODO:  more info will probably be needed
+        None = 0,
+        Column = 1,
+        Row = 2,
+        All = ~0
+    }
+
     internal sealed class Reference : IDynamicItem, IEvaluateable, IDisposable
     {
         public readonly string[] Paths;
@@ -30,8 +39,8 @@ namespace Dependency
 
         public IEvaluateable Value { get; private set; }
 
-        public Reference(IContext root, params string[] paths)        {            this.Paths = paths;            this.Origin = root;        }
-        public Reference (IEvaluateable origin, params string[] paths)        {            this.Paths = paths;            this.Origin = origin;        }
+        public Reference(IContext root, params string[] paths) { this.Paths = paths; this.Origin = root; }
+        public Reference(IEvaluateable origin, params string[] paths) { this.Paths = paths; this.Origin = origin; }
 
         /// <summary>Refreshes the reference structure from root to head.  Returns the index at which refresh failed, 
         /// or -1 if it succeeded.
@@ -139,7 +148,7 @@ namespace Dependency
                 disposedValue = true;
             }
         }
-        
+
         // This code added to correctly implement the disposable pattern.
         void IDisposable.Dispose() => Dispose(true);
 
@@ -147,12 +156,12 @@ namespace Dependency
 
     }
 
-    
+
     [TypeControl.NonVariadic(0, TypeFlags.RealAny | TypeFlags.String)]
     internal sealed class Indexing : Functions.Function
     {
         internal readonly object Base; // Base is not part of Inputs because it could be an IContext
-        internal Indexing (IEvaluateable @base, IEvaluateable ordinal)
+        internal Indexing(IEvaluateable @base, IEvaluateable ordinal)
         {
             this.Base = @base;
             if (this.Base is IDynamicItem idi_b) idi_b.Parent = this;
@@ -170,7 +179,7 @@ namespace Dependency
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             IIndexable ii;
-            if (Base is IIndexable ii2) ii = ii2;            
+            if (Base is IIndexable ii2) ii = ii2;
             else if (Base is IEvaluateable iev && iev.Value is IIndexable ii3) ii = ii3;
             else return new IndexingError(this, Base, evaluatedInputs[0]);
 

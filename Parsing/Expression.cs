@@ -113,7 +113,7 @@ namespace Dependency
                 // Nobody else is allowed to throw a non-child SyntaxException.
                 throw new SyntaxException(s.Parsed ?? _ComposeParsed(), s.Token, s.Message, s);
             }
-            catch (Exception e)
+            catch (Exception) // e)
             {
                 // Any other exception represents a bug.
                 //throw new SyntaxException(_ComposeParsed(), splits[splitIdx], "Unexpected exception: " + e.GetType().Name, e);
