@@ -212,8 +212,7 @@ namespace AI
 
         public bool Add(TVariable label, Predicate<TDomain> rule)
         {
-            Variable v;
-            if (!_Variables.TryGetValue(label, out v))
+            if (!_Variables.TryGetValue(label, out Variable v))
             {
                 v = new Variable(label, _StandardDomain);
                 _Variables.Add(label, v);
@@ -224,8 +223,7 @@ namespace AI
 
         public bool Add(TVariable label, Func<TDomain, bool> rule)
         {
-            Variable v;
-            if (!_Variables.TryGetValue(label, out v))
+            if (!_Variables.TryGetValue(label, out Variable v))
             {
                 v = new Variable(label, _StandardDomain);
                 _Variables.Add(label, v);
@@ -235,14 +233,13 @@ namespace AI
         }
        
         public bool Add(TVariable labelA, TVariable labelB, Func<TDomain, TDomain, bool> rule)
-        {            
-            Variable varA, varB;
-            if (!_Variables.TryGetValue(labelA, out varA))
+        {
+            if (!_Variables.TryGetValue(labelA, out Variable varA))
             {
                 varA = new Variable(labelA, _StandardDomain);
                 _Variables.Add(labelA, varA);
             }
-            if (!_Variables.TryGetValue(labelB, out varB))
+            if (!_Variables.TryGetValue(labelB, out Variable varB))
             {
                 varB = new Variable(labelB, _StandardDomain);
                 _Variables.Add(labelB, varB);
@@ -253,18 +250,17 @@ namespace AI
         
         public bool Add(TVariable labelA, TVariable labelB, TVariable labelC, Func<TDomain, TDomain, TDomain, bool> rule)
         {
-            Variable varA, varB, varC;
-            if (!_Variables.TryGetValue(labelA, out varA))
+            if (!_Variables.TryGetValue(labelA, out Variable varA))
             {
                 varA = new Variable(labelA, _StandardDomain);
                 _Variables.Add(labelA, varA);
             }
-            if (!_Variables.TryGetValue(labelB, out varB))
+            if (!_Variables.TryGetValue(labelB, out Variable varB))
             {
                 varB = new Variable(labelB, _StandardDomain);
                 _Variables.Add(labelB, varB);
             }
-            if (!_Variables.TryGetValue(labelC, out varC))
+            if (!_Variables.TryGetValue(labelC, out Variable varC))
             {
                 varC = new Variable(labelC, _StandardDomain);
                 _Variables.Add(labelC, varC);
@@ -484,9 +480,8 @@ namespace AI
             }
 
             protected internal override Relation GetCopy(ConstraintResolver<TVariable, TDomain> problem)
-            {                
-                Variable v;
-                if (!problem._Variables.TryGetValue(Variable.Tag, out v))
+            {
+                if (!problem._Variables.TryGetValue(Variable.Tag, out Variable v))
                 {
                     v = new Variable(Variable.Tag, Variable.Domain);
                     problem._Variables.Add(v.Tag, v);
@@ -553,9 +548,8 @@ namespace AI
 
             public override bool Equals(object obj)
             {
-                if (obj is BinaryRelation)
+                if (obj is BinaryRelation br)
                 {
-                    BinaryRelation br = (BinaryRelation)obj;
                     return VariableA.Equals(br.VariableA) && VariableB.Equals(br.VariableB);
                 }
                 return false;
@@ -563,13 +557,12 @@ namespace AI
 
             protected internal override Relation GetCopy(ConstraintResolver<TVariable, TDomain> problem)
             {
-                Variable vA, vB;
-                if (!problem._Variables.TryGetValue(VariableA.Tag, out vA))
+                if (!problem._Variables.TryGetValue(VariableA.Tag, out Variable vA))
                 {
                     vA = new Variable(VariableA.Tag, VariableA.Domain);
                     problem._Variables.Add(vA.Tag, vA);
                 }
-                if (!problem._Variables.TryGetValue(VariableB.Tag, out vB))
+                if (!problem._Variables.TryGetValue(VariableB.Tag, out Variable vB))
                 {
                     vB = new Variable(VariableB.Tag, VariableB.Domain);
                     problem._Variables.Add(vB.Tag, vB);
@@ -607,27 +600,25 @@ namespace AI
 
             public override bool Equals(object obj)
             {
-                if (obj is TernaryRelation)
+                if (obj is TernaryRelation tr)
                 {
-                    TernaryRelation tr = (TernaryRelation)obj;
                     return VariableA.Equals(tr.VariableA) && VariableB.Equals(tr.VariableB) && VariableC.Equals(tr.VariableC);
                 }
                 return false;
             }
             protected internal override Relation GetCopy(ConstraintResolver<TVariable, TDomain> problem)
             {
-                Variable vA, vB, vC;                
-                if (!problem._Variables.TryGetValue(VariableA.Tag, out vA))
+                if (!problem._Variables.TryGetValue(VariableA.Tag, out Variable vA))
                 {
                     vA = new Variable(VariableA.Tag, VariableA.Domain);
                     problem._Variables.Add(vA.Tag, vA);
                 }
-                if (!problem._Variables.TryGetValue(VariableB.Tag, out vB))
+                if (!problem._Variables.TryGetValue(VariableB.Tag, out Variable vB))
                 {
                     vB = new Variable(VariableB.Tag, VariableB.Domain);
                     problem._Variables.Add(vB.Tag, vB);
                 }
-                if (!problem._Variables.TryGetValue(VariableC.Tag, out vC))
+                if (!problem._Variables.TryGetValue(VariableC.Tag, out Variable vC))
                 {
                     vC = new Variable(VariableC.Tag, VariableC.Domain);
                     problem._Variables.Add(vC.Tag, vC);

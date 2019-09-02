@@ -204,8 +204,7 @@ namespace DataStructures
             int idx = Hash(item);
             Dictionary<T, int> chain = _Table[idx];
             if (chain == null) return 0;
-            int number;
-            if (!chain.TryGetValue(item, out number)) return 0;
+            if (!chain.TryGetValue(item, out int number)) return 0;
             return number;
         }
 
@@ -217,8 +216,7 @@ namespace DataStructures
             int idx = Hash(item);
             Dictionary<T, int> chain = _Table[idx];
             if (chain == null) return new T[0];
-            int copies;
-            if (!chain.TryGetValue(item, out copies)) return new T[0];
+            if (!chain.TryGetValue(item, out int copies)) return new T[0];
             T[] result = new T[copies];
             for (int i = 0; i < copies; i++) result[i] = item;
             return result;
