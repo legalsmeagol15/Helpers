@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -18,6 +20,8 @@ namespace DataStructures
     /// Point structures or literal uint values.
     /// <para/>All members validated on 5/9/16, except explicitly implemented ICollection members.
     /// <para/>Author Wesley Oates</remarks>
+    [DebuggerDisplay("Count = {Count}")]
+    [DefaultMember("Item")]
     public sealed class HashCollection<T> : ICollection<T>        
     {
         private const int DEFAULT_TABLE_SIZE = 17;
@@ -66,8 +70,8 @@ namespace DataStructures
             //If this is the first item in the chain, time to create the chain.
             if (chain == null)
             {
-                _ChainSize = Mathematics.Primes.GetNextPrime(_Table.Length);  /// Forces the modularity of the chain to be different from 
-                                                                              /// table's modularity.
+                _ChainSize = Mathematics.Primes.GetNextPrime(_Table.Length);  // Forces the modularity of the chain to be different from 
+                                                                              // table's modularity.
                 chain = new Dictionary<T, int>(_ChainSize);
                 _Table[idx] = chain;
             }
@@ -82,8 +86,8 @@ namespace DataStructures
                 chain = _Table[idx];
                 if (chain == null)
                 {
-                    ///Is this really possible?  If the capacity is increased so the mod is doubled, won't the hash & _Table.Length stay 
-                    ///the same?
+                    //Is this really possible?  If the capacity is increased so the mod is doubled, won't the hash and
+                    //_Table.Length stay the same?
                     chain = new Dictionary<T, int>(_ChainSize);
                     _Table[idx] = chain;
                 }

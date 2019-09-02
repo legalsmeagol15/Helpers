@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Mathematics.Geometry;
 using Dependency;
+using System.Diagnostics;
+using System.Reflection;
 
 namespace DataStructures
 {
@@ -13,7 +15,7 @@ namespace DataStructures
     {
         protected override bool Exclude(double size, IRect<double> rect) => (rect.Right - rect.Left) < size || (rect.Top - rect.Bottom) < size;
 
-        protected override double GetMid(double a, double b) => (a + b) / 2;        
+        protected override double GetMid(double a, double b) => (a + b) / 2;
     }
 
     public sealed class QuadTreeN<TItem> : AbstractQuadTree<TItem, Number> where TItem : IBounded<Number>
@@ -23,8 +25,10 @@ namespace DataStructures
         protected override Number GetMid(Number a, Number b) => (a + b) / 2;
     }
 
-    public abstract class AbstractQuadTree<TItem, TNumber> where TItem: IBounded<TNumber>
-                                                               where TNumber: struct, IComparable<TNumber>
+    [DebuggerDisplay("Count = {Count}")]
+    [DefaultMember("Item")]
+    public abstract class AbstractQuadTree<TItem, TNumber> where TItem : IBounded<TNumber>
+                                                               where TNumber : struct, IComparable<TNumber>
     {
         private Node _Root = null;
 
@@ -36,7 +40,7 @@ namespace DataStructures
         {
             IRect<TNumber> bounds = item.Bounds;
             if (_Root == null)
-            {   
+            {
                 _Root = new Node(this, null, bounds.Left, bounds.Right, bounds.Bottom, bounds.Top);
                 _Root.Items.Add(item);
             }
@@ -53,7 +57,7 @@ namespace DataStructures
             {
                 Node oldRoot = _Root;
                 IRect<TNumber> newBounds = _Root.Bounds.GetUnion(item.Bounds);
-                _Root = new Node(this, null, newBounds.Left, newBounds.Right, newBounds.Bottom,  newBounds.Top );
+                _Root = new Node(this, null, newBounds.Left, newBounds.Right, newBounds.Bottom, newBounds.Top);
                 _Root.Add(item);
                 foreach (TItem oldItem in oldRoot.GetContents())
                     _Root.Add(oldItem);
@@ -94,7 +98,7 @@ namespace DataStructures
             Count--;
             return true;
         }
-        
+
 
         protected abstract TNumber GetMid(TNumber a, TNumber b);
         protected abstract bool Exclude(TNumber size, IRect<TNumber> rect);
@@ -108,18 +112,14 @@ namespace DataStructures
             public TNumber MidY => _Tree.GetMid(Bounds.Top, Bounds.Bottom);
             public IRect<TNumber> Bounds { get; internal set; } = Rect<TNumber>.Empty;
             public readonly List<TItem> Items = new List<TItem>(NODE_CAPACITY);
-            /// <summary>
-            /// Arranged like:
-            /// _____________
-            /// |     |     |
-            /// |  1  |  0  |
-            /// |_____|_____|
-            /// |     |     |
-            /// |  2  |  3  |
-            /// |_____|_____|
-            /// 
-            /// </summary>
-            public Node[] Children;
+            // _____________
+            // |     |     |
+            // |  1  |  0  |
+            // |_____|_____|
+            // |     |     |
+            // |  2  |  3  |
+            // |_____|_____|            
+            public readonly Node[] Children = new Node[4];
             public Node(AbstractQuadTree<TItem, TNumber> quadTree, Node parent, TNumber left, TNumber right, TNumber bottom, TNumber top)
             {
                 this._Tree = quadTree;
@@ -149,7 +149,7 @@ namespace DataStructures
                     child.Add(item);
                 }
             }
-            
+
             /// <summary>Returns whether the given item exists at this node.</summary>
             public bool Contains(TItem item)
             {
@@ -228,10 +228,10 @@ namespace DataStructures
             private int GetFittingQuadrant(IRect<TNumber> itemBounds)
             {
                 TNumber midX = MidX, midY = MidY;
-                if (itemBounds.Left.CompareTo(midX) >=0 && itemBounds.Bottom.CompareTo(midY)>=0) return 0;
+                if (itemBounds.Left.CompareTo(midX) >= 0 && itemBounds.Bottom.CompareTo(midY) >= 0) return 0;
                 if (itemBounds.Right.CompareTo(midX) <= 0 && itemBounds.Bottom.CompareTo(midY) >= 0) return 1;
                 if (itemBounds.Right.CompareTo(midX) <= 0 && itemBounds.Top.CompareTo(midY) <= 0) return 2;
-                if (itemBounds.Left.CompareTo(midX) >= 0 && itemBounds.Top.CompareTo(midY) <= 0) return 3;                
+                if (itemBounds.Left.CompareTo(midX) >= 0 && itemBounds.Top.CompareTo(midY) <= 0) return 3;
                 return -1;
             }
             private Node CreateChild(int quadrant)
@@ -253,5 +253,5 @@ namespace DataStructures
             }
         }
     }
-    
+
 }

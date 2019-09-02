@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -32,6 +34,8 @@ namespace DataStructures
     /// Validated 100% code coverage 8/20/16 except GetBeforeOrEqual().
     /// Broke RemoveMin() 4/8/19.
     /// </remarks>
+    [DebuggerDisplay("Count = {Count}")]
+    [DefaultMember("Item")]
     public sealed class SkipList<T> : ICollection<T>
     {
 
@@ -449,6 +453,7 @@ namespace DataStructures
             /// <param name="maxHeight">The maxHeight should be log_2(n) where n is the number of items in the Skip List and the 
             /// adjacency fraction is 1/2.</param>
             /// <param name="data">The data represented in this node.</param>
+            /// <param name="adjacencyFraction"></param>
             public static Node FromRandomHeight(int maxHeight, T data, double adjacencyFraction)
             {
 

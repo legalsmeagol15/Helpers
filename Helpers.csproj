@@ -50,8 +50,6 @@
     <Compile Include="Arguments\Options.cs" />
     <Compile Include="Arguments\Profile.cs" />
     <Compile Include="ArtificialIntelligence\ConstraintResolver.cs" />
-    <Compile Include="ArtificialIntelligence\Logical\CNF.cs" />
-    <Compile Include="ArtificialIntelligence\Logical\Resolution.cs" />
     <Compile Include="ArtificialIntelligence\Search.cs" />
     <Compile Include="ArtificialIntelligence\TheoremResolver.cs" />
     <Compile Include="DataStructures\Interfaces\IEdge.cs" />
@@ -61,7 +59,6 @@
     <Compile Include="DataStructures\Maps\CompositeKeyDictionary.cs" />
     <Compile Include="DataStructures\Sets\WeakReferenceSet.cs" />
     <Compile Include="DataStructures\Sets\DisjointSet.cs" />
-    <Compile Include="DataStructures\Lists\DurationList.cs" />
     <Compile Include="DataStructures\Trees\DynamicHeap.cs" />
     <Compile Include="DataStructures\Lists\DynamicLinkedList.cs" />
     <Compile Include="DataStructures\Sets\Extensions.cs" />
@@ -125,6 +122,7 @@
     <Compile Include="Mathematics\Sorting.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="ArtificialIntelligence\Logical\" />
     <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>

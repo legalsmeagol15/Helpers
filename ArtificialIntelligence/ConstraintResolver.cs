@@ -510,6 +510,8 @@ namespace AI
             /// Creates a binary relation for two variables.
             /// </summary>            
             /// <param name="rule">The rule which will be examined to determine if a given pair of domains is consistent or not.</param>
+            /// <param name="variableA"></param>
+            /// <param name="variableB"></param>
             public BinaryRelation(Variable variableA, Variable variableB, Func<TDomain, TDomain, bool> rule)
                 : base(new Variable[] { variableA, variableB })
             {

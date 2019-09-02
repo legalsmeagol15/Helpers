@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,23 +16,25 @@ namespace DataStructures
     /// the IgnoreNew strategy, and attempt to push a duplicate item onto the stack will fail.
     /// </summary>
     /// <typeparam name="T">The type of object held in this stack.</typeparam>
+    [DebuggerDisplay("Count = {Count}")]
+    [DefaultMember("Item")]
     public class HashStack<T> : IEnumerable<T>, IEnumerable, ICollection, IReadOnlyCollection<T>
     {
         //TODO:  Validate all members of HashStack
-        private List<Node> _List = new List<Node>();        
+        private List<Node> _List = new List<Node>();
         private Dictionary<T, int> _Indices = new Dictionary<T, int>();
         private int _Index = 0;
 
-        public enum Strategy { RemoveOld, IgnoreNew};
+        public enum Strategy { RemoveOld, IgnoreNew };
         public Strategy DuplicateStrategy { get; set; }
         private const Strategy DEFAULT_STRATEGY = Strategy.RemoveOld;
-        
+
         /// <summary>
         /// Creates a new stack.
         /// </summary>
         /// <param name="strategy">The duplicate-handling strategy this stack will use.</param>
         public HashStack(Strategy strategy = DEFAULT_STRATEGY)
-        {            
+        {
         }
         /// <summary>
         /// Creates a new stack.
@@ -40,16 +44,14 @@ namespace DataStructures
         /// <param name="strategy">The duplicate-handling strategy this stack will use.</param>
         public HashStack(IEnumerable<T> items, Strategy strategy = DEFAULT_STRATEGY)
         {
-            foreach (T item in items) Push(item);            
+            foreach (T item in items) Push(item);
         }
-        
-      
+
+
 
         #region HashStack contents modification
 
-        /// <summary>
-        /// Inserts an object at the top of the HashStack<T>.
-        /// </summary>
+        /// <summary>Inserts an object at the top of the <see cref="HashStack{T}"/>.</summary>
         /// <returns>Returns true if the item was successfully placed on the top of the stack; otherwise, returns false.  Push can fail 
         /// if the duplicate-handling strategy is IgnoreNew and the stack already contains an identical object (as determined via the 
         /// Equals() method).</returns>
@@ -61,7 +63,7 @@ namespace DataStructures
             {
                 if (DuplicateStrategy == Strategy.IgnoreNew)
                     return false;
-                else 
+                else
                     _List[_Indices[item]] = new Node();
             }
 
@@ -74,9 +76,7 @@ namespace DataStructures
             _Index++;
             return true;
         }
-        /// <summary>
-        /// Removes and returns the object at the top of the HashStack<T>.
-        /// </summary>  
+        /// <summary>Removes and returns the object at the top of the <see cref="HashStack{T}"/>.</summary>  
         /// <throws>Throws an InvalidOperationException if the stack is empty.</throws>
         /// <remarks>This method is an O(1) operation.</remarks>
         public T Pop()
@@ -126,9 +126,7 @@ namespace DataStructures
         object ICollection.SyncRoot { get { return this; } }
         bool ICollection.IsSynchronized { get { return false; } }
 
-        /// <summary>
-        /// Returns the object at the top of the HashStack<T> without removing it.
-        /// </summary>        
+        /// <summary>Returns the object at the top of the <see cref="HashStack{T}"/> without removing it.</summary>        
         /// <throws>Throws an InvalidOperationException if the stack is empty.</throws>
         /// <remarks>This method is an O(1) operation.</remarks>
         public T Peek()
@@ -147,7 +145,7 @@ namespace DataStructures
             for (int i = _List.Count - 1; i >= 0; i--)
             {
                 if (_List[i].IsIncluded) yield return _List[i].Data;
-            }                   
+            }
         }
         IEnumerator IEnumerable.GetEnumerator() { return GetEnumerator(); }
 

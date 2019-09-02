@@ -12,9 +12,8 @@ using System.Threading.Tasks;
 namespace DataStructures
 {
 
-    /// <summary>
-    /// A linked list that allows insertions and deletions mid-list.  Each such insertion or deletion is potentially an O(N) operation.
-    /// <para/>
+    /// <summary>A linked list that allows insertions and deletions mid-list.  Each such insertion or deletion is 
+    /// potentially an O(N) operation.</summary>
     [DebuggerDisplay("Count = {Count}")]
     [DefaultMember("Item")]
     [DebuggerStepThrough]
