@@ -108,6 +108,10 @@ namespace UnitTests
         public void Test_Linear()
         {
             // 1733 ms update 1000 vars over 100 times, or 17 ms/run
+            // 1864 ms update 1000 vars over 100 times, or 18 ms/run
+            // 1795 ms update 1000 vars over 100 times, or 17 ms/run
+            // 1626 ms update 1000 vars over 100 times, or 16 ms/run
+            // 1778 ms update 1000 vars over 100 times, or 17 ms/run
             int numVars = 1000;
            
             // Test linear transmission  of a value by changing contents.
@@ -142,6 +146,10 @@ namespace UnitTests
         public void Test_Pancake()
         {
             //59 ms update 1000 vars over 100 times, or 0 ms/run
+            //99 ms update 1000 vars over 100 times, or 0 ms/run
+            //36 ms update 1000 vars over 100 times, or 0 ms/run
+            //66 ms update 1000 vars over 100 times, or 0 ms/run
+            //46 ms update 1000 vars over 100 times, or 0 ms/run
             int numVars = 1000;
 
             // Test linear transmission  of a value by changing contents.
