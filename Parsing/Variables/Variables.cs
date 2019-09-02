@@ -13,15 +13,18 @@ using Dependency.Functions;
 
 namespace Dependency.Variables
 {
-    
+
 
     public sealed class Variable : IDynamicItem, IVariable, IEvaluateable
-    // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
     {
+        // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
+        // Also, References clean themselves up from their sources through their own implementation  of 
+        // IDisposable.
+
         // A variable is apt to have few sources, but many listeners (0 or 100,000 might be reasonable).
 
         IDynamicItem IDynamicItem.Parent { get => null; set => throw new InvalidOperationException(); }
-        private readonly WeakReferenceSet<Reference> _Listeners = new WeakReferenceSet<Reference>();
+        private readonly WeakReferenceSet<IDynamicItem> _Listeners = new WeakReferenceSet<IDynamicItem>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private static readonly ReaderWriterLockSlim _StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
@@ -30,7 +33,7 @@ namespace Dependency.Variables
         bool IVariable.RemoveListener(Functions.Reference r) => _Listeners.Remove(r);
         private HashSet<Functions.Reference> _References = new HashSet<Reference>();
         IEnumerable<Functions.Reference> IVariable.GetReferences() => _References;
-        
+
         public IEvaluateable Value
         {
             get
@@ -130,24 +133,32 @@ namespace Dependency.Variables
 
                 //Now update the listeners
                 List<Task> tasks = new List<Task>();
-                foreach (Reference r in _Listeners)
-                    tasks.Add(Task.Run(() => r.Update()));
+                foreach (IDynamicItem idi in _Listeners)
+                    tasks.Add(Task.Run(() => UpdateListener(idi)));
                 Task.WaitAll(tasks.ToArray());
             }
             finally { _StructureLock.ExitReadLock(); _ValueLock.ExitUpgradeableReadLock(); }
 
             return true;
 
+        }
 
+        private void UpdateListener(IDynamicItem listener)
+        {
+            while (listener != null && listener.Update()) listener = listener.Parent;
         }
 
         private static bool TryFindCircularity(IVariable target, IEnumerable<Reference> startRefs, out Deque<IVariable> path)
         {
             HashSet<IVariable> visited = new HashSet<IVariable>();
+
+            // Start off the queue with the indicated items.
             Queue<Node> queue = new Queue<Node>();
             foreach (var r in startRefs)
                 if (r.Head is IVariable iv)
                     queue.Enqueue(new Node { Item = iv, Refs = iv.GetReferences(), Prior = null });
+
+            // Now search.
             while (queue.Count > 0)
             {
                 Node n = queue.Dequeue();
@@ -176,25 +187,7 @@ namespace Dependency.Variables
             public IEnumerable<Reference> Refs;
             public Node Prior;
         }
-        //private static bool TryFindCircularity(Variable target,
-        //                                        IEnumerable<IVariable> sources,
-        //                                        out Deque<IVariable> path)
-        //{
-        //    // TODO:  use a Stack<> object instead of stack frames, because I get a stack overflow at approx. 5000 levels deep
-        //    // TODO:  I'm not caching the sources anywhere, so it would optimize this method to cache the variables' sources.
-        //    if (sources != null)
-        //    {
-        //        foreach (IVariable src in sources)
-        //        {
-        //            if (ReferenceEquals(target, src)) { path = new Deque<IVariable>(); path.AddFirst(src); return true; }
-        //            else if (TryFindCircularity(target, Helpers.GetTerms(src), out path)) { path.AddFirst(src); return true; }
-        //        }
-        //    }
-        //    path = null;
-        //    return false;
-        //}
-
-
+        
 
         public override string ToString()
         {

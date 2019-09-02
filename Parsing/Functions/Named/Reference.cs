@@ -87,15 +87,7 @@ namespace Dependency.Functions
             Head = null;
             return new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid subcontext or property.");
         }
-
-        public override bool Update()
-        {
-            if (!base.Update()) return false;
-            IDynamicItem idi = Parent;
-            while (idi != null && idi.Update()) idi = idi.Parent;
-            return true;
-        }
-
+        
         public override string ToString() => "=>" + Inputs[0].ToString() + "." + string.Join(".", Paths);
 
         #region Reference IDisposable Support

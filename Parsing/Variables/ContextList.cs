@@ -6,8 +6,12 @@ using System.Threading.Tasks;
 
 namespace Dependency.Variables
 {
+    
+
     public class ContextList : IContext
     {
+
+
         bool IContext.TryGetProperty(object path, out IEvaluateable source)
         {
             throw new NotImplementedException();
