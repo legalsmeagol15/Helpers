@@ -98,6 +98,7 @@
     <Compile Include="Parsing\Values\String.cs" />
     <Compile Include="Parsing\Values\Vector.cs" />
     <Compile Include="Parsing\Variables\BlendedVariable.cs" />
+    <Compile Include="Parsing\Variables\CollectionVariable.cs" />
     <Compile Include="Parsing\Variables\DynamicVariable.cs" />
     <Compile Include="Parsing\Variables\SourceVariable.cs" />
     <Compile Include="Parsing\Variables\Variables.cs" />

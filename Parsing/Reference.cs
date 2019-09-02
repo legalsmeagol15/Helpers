@@ -65,7 +65,7 @@ namespace Dependency
             get => _Origin;
             set
             {
-                if (_Origin is IDynamicItem idi_before && ReferenceEquals(idi_before.Parent, this))
+                if (_Origin is IDynamicItem idi_before)
                     idi_before.Parent = null;
                 _Origin = value;
                 if (_Origin is IDynamicItem idi_after)
