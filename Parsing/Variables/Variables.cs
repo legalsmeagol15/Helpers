@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Collections;
 using DataStructures;
 using System.Threading;
+using Dependency.Functions;
 
 namespace Dependency.Variables
 {
@@ -25,28 +26,11 @@ namespace Dependency.Variables
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private static readonly ReaderWriterLockSlim _StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
-        bool IVariable.AddListener(Reference r) => _Listeners.Add(r);
-        bool IVariable.RemoveListener(Reference r) => _Listeners.Remove(r);
-        private HashSet<Reference> _References = new HashSet<Reference>();
-        IEnumerable<Reference> IVariable.GetReferences() => _References;
-
-        internal IEnumerable<Reference> GetReferences()
-        {
-            if (Contents == null) yield break;
-            Stack<IEvaluateable> stack = new Stack<IEvaluateable>();
-            stack.Push(this.Contents);
-            while (stack.Count > 0)
-            {
-                IEvaluateable focus = stack.Pop();
-                switch (focus)
-                {
-                    case IExpression exp: stack.Push(exp.Contents); continue;
-                    case IFunction f: foreach (var input in f.Inputs) stack.Push(f); continue;
-                    case Reference r: yield return r; continue;
-                }
-
-            }
-        }
+        bool IVariable.AddListener(Functions.Reference r) => _Listeners.Add(r);
+        bool IVariable.RemoveListener(Functions.Reference r) => _Listeners.Remove(r);
+        private HashSet<Functions.Reference> _References = new HashSet<Reference>();
+        IEnumerable<Functions.Reference> IVariable.GetReferences() => _References;
+        
         public IEvaluateable Value
         {
             get
@@ -100,11 +84,11 @@ namespace Dependency.Variables
                 {
                     foreach (Reference oldRef in oldRefs)
                     {
-                        if (!newRefs.Contains(oldRef) && oldRef.HeadProperty != null && oldRef.HeadProperty is IVariable v)
+                        if (!newRefs.Contains(oldRef) && oldRef.Head is IVariable v)
                             v.RemoveListener(oldRef);
                     }
                     foreach (Reference newRef in newRefs)
-                        if (!oldRefs.Contains(newRef) && newRef != null && newRef.HeadProperty is IVariable v)
+                        if (!oldRefs.Contains(newRef) && newRef.Head is IVariable v)
                             v.AddListener(newRef);
                     _References = newRefs;
                     if (_Contents is IDynamicItem idi_before) idi_before.Parent = null;
@@ -162,7 +146,7 @@ namespace Dependency.Variables
             HashSet<IVariable> visited = new HashSet<IVariable>();
             Queue<Node> queue = new Queue<Node>();
             foreach (var r in startRefs)
-                if (r.HeadProperty is IVariable iv)
+                if (r.Head is IVariable iv)
                     queue.Enqueue(new Node { Item = iv, Refs = iv.GetReferences(), Prior = null });
             while (queue.Count > 0)
             {
@@ -179,7 +163,7 @@ namespace Dependency.Variables
                 else
                 {
                     foreach (var r in n.Refs)
-                        if (r.HeadProperty is IVariable iv)
+                        if (r.Head is IVariable iv)
                             queue.Enqueue(new Node { Item = iv, Refs = iv.GetReferences(), Prior = n });
                 }
             }
@@ -212,7 +196,11 @@ namespace Dependency.Variables
 
 
 
-        public override string ToString() => Contents.ToString() + " = " + Value.ToString();
+        public override string ToString()
+        {
+            if (Contents.Equals(Value)) return "{Variable} = " + Value.ToString();
+            return Contents.ToString() + " = " + Value.ToString();
+        }
 
         public event ValueChangedHandler<IEvaluateable> ValueChanged;
         private void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)

@@ -22,6 +22,7 @@ namespace DataStructures
     /// <para/>This collection is not thread-safe.</remarks>
     /// <author>Wesley Oates</author>
     /// <date>Validated 7/27/19</date>
+    [DebuggerDisplay("Count = {Count}")]
     public sealed class WeakReferenceSet<T> : ICollection<T> where T : class
     {
         private readonly List<Node> _Head = new List<Node> { null };

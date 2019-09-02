@@ -46,5 +46,13 @@ namespace UnitTests
                 items[i] = temp;
             }
         }
+
+        public static long Time<TInput>(Action<TInput> action, TInput input0)
+        {
+            DateTime start = DateTime.Now;
+            action(input0);
+            DateTime end = DateTime.Now;
+            return (end-start).Milliseconds;
+        }
     }
 }

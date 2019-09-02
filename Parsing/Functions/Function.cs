@@ -35,7 +35,7 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; }
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
 
-        public bool Update()
+        public virtual bool Update()
         {
             IEvaluateable[] evalInputs = _Inputs.Select(s => s.Value).ToArray();
 

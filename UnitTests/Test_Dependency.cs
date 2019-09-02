@@ -64,7 +64,9 @@ namespace UnitTests
             root.Add("v0", v0);
             Variable v1 = new Variable(Parse.FromString("v0[2]", null, root));
             Assert.AreEqual(v1.Value, vec[2]);
+            Assert.IsTrue(Dependency.Helpers.GetDependees(v1).Contains(v0));
             Variable v2 = new Variable(Parse.FromString("(v0[2] + 3) * 2", null, root));
+            Assert.IsTrue(Dependency.Helpers.GetDependees(v2).Contains(v0));
             Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);
 
             // Show that value changes propogate through.
@@ -125,16 +127,20 @@ namespace UnitTests
                 throw new Exception("Bad testing harness.");
             vStart.Contents = new Number(2);
             Assert.AreEqual(vStart.Value, vLast.Value);
-
-            // Right now, numVars = 10,000 takes 22 sec.  Searching for circularity makes this a quadraticly-timed 
-            // test.  Not acceptable.
-            // TODO:  improve efficiency
+            
+            long ms = 0;
+            long runs = 100;
+            for (int  i = 0; i < runs; i++)
+            {
+                ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+            }
+            Console.WriteLine(ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
         }
 
         [TestMethod]
         public void Test_Pancake()
         {
-            int numVars = 10000;
+            int numVars = 1000;
 
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
@@ -155,7 +161,14 @@ namespace UnitTests
             vStart.Contents = new Number(2);
             Assert.AreEqual(vStart.Value, vLast.Value);
 
-            // At present, numVars=10000 takes 225 ms.  Doing okay.  Yay for multithreading.
+            
+            long ms = 0;
+            long runs = 100;
+            for (int i = 0; i < runs; i++)
+            {
+                ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+            }
+            Console.WriteLine(ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
         }
 
         [TestMethod]

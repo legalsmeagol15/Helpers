@@ -42,7 +42,12 @@ namespace Dependency
                 default: return iev;
             }
         }
-       
+
+        public static IEnumerable<Variables.Variable> GetDependees(object e)
+        {
+            if (e is IVariable iv) e = iv.Contents;
+            foreach (Reference r in GetReferences(e)) if (r.Head is Variables.Variable v) yield return v;
+        }
         internal static IEnumerable<IVariable> GetTerms(object e)
         {
             Stack<object> stack = new Stack<object>();
@@ -52,10 +57,10 @@ namespace Dependency
                 object focus = stack.Pop();
                 switch (focus)
                 {
+                    case Reference r: if (r.Head is IVariable iv) yield return iv; continue;
                     case IFunction f: foreach (var input in f.Inputs) stack.Push(input); continue;
                     case IExpression x: stack.Push(x.Contents); continue;
                     case ILiteral l: continue;
-                    case Reference r : if (r.HeadProperty is IVariable iv) yield return iv; continue;
                     case IVariable v: yield return v; continue;
                     default: throw new NotImplementedException();
                 }
@@ -71,9 +76,9 @@ namespace Dependency
                 object focus = stack.Pop();
                 switch (focus)
                 {
-                    case Indexing idxing:  stack.Push(idxing.Base); stack.Push(idxing.Inputs[0]); break;
-                    case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
                     case Reference r: yield return r; break;
+                    case IExpression exp: stack.Push(exp.Contents); break;
+                    case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
                     case IVariable v: throw new InvalidOperationException();
                 }
             }
@@ -312,7 +317,7 @@ namespace Dependency
 
             protected internal enum Priorities
             {
-                Refer = 20,
+                Refer = 30,
                 Index = 30,
                 Question = 50,
                 And = 100,
@@ -554,18 +559,16 @@ namespace Dependency
             {
                 Debug.Assert(Node != null);
                 Debug.Assert(Node.List != null);
-                if (Node.Previous == null || Node.Next == null) throw new ParsingException(this, "Failed to parse " + this.GetType().Name);
-                Indexing idxing = new Indexing(Node.Previous.Remove(), Node.Next.Remove());
+                if (Node.Previous == null || Node.Next == null) throw new ParsingException(this, "Failed to parse " + typeof(Indexing).Name);
+                IEvaluateable @base = Node.Previous.Remove();
+                IEvaluateable ordinal = Node.Next.Remove();
+                if (ordinal is Bracket b) ordinal = b.Contents;
+                else throw new ParsingException(this,  "Second input for " + typeof(Indexing).Name + " must be a bracketed clause.");
+                Indexing idxing = new Indexing() { Inputs = new IEvaluateable[] { @base, ordinal } };
                 Node.Contents = idxing;
-                if (Node.Next !=  null && Node.Next.Contents is Reference next_ref)
-                {
-                    next_ref.Origin = this;
-                    Node.Remove();
-                }
                 _ = null;
                 return true;
             }
-            
         }
 
         internal sealed class TokenNotEquals : Token
@@ -663,7 +666,16 @@ namespace Dependency
             public TokenReference(IContext root, string[] paths) { this.Root = root; this.Paths = paths; }
             protected internal override bool TryParse(out Token _)
             {
-                Node.Contents = new Reference(Root, Paths);
+                Debug.Assert(Node != null);
+                Debug.Assert(Node.List != null);
+                IEvaluateable origin;
+                if (Node.Previous == null) origin = new EvaluateableContext(Root);
+                else if (Node.Previous.Contents is Indexing prev_idxing) origin = prev_idxing;
+                else if (Node.Previous.Contents is Reference prev_ref) origin = prev_ref;
+                else origin = new EvaluateableContext(Root);
+
+                Reference r = new Reference(origin, Paths);
+                Node.Contents = r;
                 _ = null;
                 return true;
             }

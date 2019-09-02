@@ -66,7 +66,7 @@ namespace Dependency
         bool IContext.TryGetProperty(object path, out IEvaluateable source) => this.TryGetProperty(path, out source);
 
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
-        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.VectorReal;
+        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Vector;
 
         IDynamicItem IDynamicItem.Parent { get; set; }
 

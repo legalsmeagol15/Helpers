@@ -117,9 +117,9 @@ namespace Dependency
 
     internal interface IVariable
     {
-        bool RemoveListener(Reference r);
-        bool AddListener(Reference r);
-        IEnumerable<Reference> GetReferences();
+        bool RemoveListener(Functions.Reference r);
+        bool AddListener(Functions.Reference r);
+        IEnumerable<Functions.Reference> GetReferences();
         IEvaluateable Contents { get; set; }
         event ValueChangedHandler<IEvaluateable> ValueChanged;
     }
