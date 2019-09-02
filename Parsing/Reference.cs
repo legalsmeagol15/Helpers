@@ -21,9 +21,28 @@ namespace Dependency
     internal sealed class Reference : IDynamicItem, IEvaluateable, IDisposable
     {
         public readonly string[] Paths;
-        internal IEvaluateable HeadProperty = null;
-        internal IContext HeadContext = null;
-        internal IContext BaseContext = null;
+        private IEvaluateable _HeadProperty = null;
+
+        /// <summary>In the sequence, "line.color.red", this would refer to the property "red" at the end.  If it is 
+        /// null then there is no associated property with this reference.
+        /// </summary>
+        internal IEvaluateable HeadProperty
+        {
+            get => _HeadProperty;
+            private set
+            {
+                if (ReferenceEquals(_HeadProperty, value)) return;
+                if (_HeadProperty is IVariable old_var) old_var.RemoveListener(this);
+                _HeadProperty = value;
+                if (_HeadProperty is IVariable new_var) new_var.AddListener(this);
+
+                IEvaluateable newValue = (_HeadProperty == null) ? Dependency.Null.Instance : _HeadProperty.Value;
+                if (newValue.Equals(Value)) return;
+                Value = newValue;
+            }
+        }
+        internal IContext HeadContext { get; private set; } = null;
+        internal IContext BaseContext { get; private set; } = null;
         private object _Origin;
         internal object Origin
         {
@@ -59,6 +78,7 @@ namespace Dependency
             //  If the root hasn't changed, and the value of the property hasn't changed, no need to refresh.
             if (ReferenceEquals(BaseContext, prior))
                 return -1;
+            BaseContext = prior;
 
             // Traverse the contexts that go between root and the head.  If a subcontext cannot be found along the 
             // way, make sure the value reflects an error.
@@ -72,30 +92,29 @@ namespace Dependency
                 prior = ctxt;
             }
 
-            // If we've followed the paths to end at a subcontext, the value must be a reference error.
+            // If we've followed the paths to end at a subcontext, that's okay because this last reference might still 
+            // be indexed.  However, the value should reflect null.
             if (prior.TryGetSubcontext(Paths[Paths.Length - 1].ToLower(), out IContext newContext))
             {
                 if (newContext == null) throw new InvalidOperationException("Reference context cannot be null.");
                 IContext oldCtxt = HeadContext;
                 if (ReferenceEquals(oldCtxt, newContext)) return -1;
-                HeadContext = newContext; HeadProperty = null;
-                return Paths.Length - 1;
+                HeadContext = newContext;
+                HeadProperty = null;
+                return -1;
             }
-            // If we've landed at a property, the value is equal to the property's value.  Remember that if the 
-            // property is in fact a variable, to remove and add the listeners.
+            // If we've landed at a property, the value is equal to the property's value.
             else if (prior.TryGetProperty(Paths[Paths.Length - 1].ToLower(), out IEvaluateable newProperty))
             {
                 if (newProperty == null) throw new InvalidOperationException("Reference property cannot be null.");
                 IEvaluateable oldProp = HeadProperty;
                 if (ReferenceEquals(oldProp, newProperty)) return -1;
-                if (oldProp is IVariable old_iv) old_iv.RemoveListener(this);
-                HeadContext = null; HeadProperty = newProperty;
-                if (newProperty is IVariable new_iv) new_iv.AddListener(this);
-                IEvaluateable newValue = newProperty.Value;
-                if (newValue.Equals(Value)) return -1;
-                Value = newValue;
+                HeadContext = null;
+                HeadProperty = newProperty;
                 return -1;
             }
+
+            // This shouldn't ever happen.
             throw new InvalidOperationException("Only IEvaluatables and IContexts can function as the head of a reference.");
         }
 
