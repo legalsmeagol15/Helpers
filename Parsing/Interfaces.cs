@@ -114,13 +114,30 @@ namespace Dependency
         TypeFlags TypeGuarantee { get; }
     }
 
-
+    /// <summary>
+    /// An <see cref="IVariable"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
+    /// <see cref="IVariable"/>s in turns.
+    /// </summary>
     internal interface IVariable
     {
-        bool RemoveListener(Functions.Reference r);
-        bool AddListener(Functions.Reference r);
-        IEnumerable<Functions.Reference> GetReferences();
+        /// <summary>Remove record of a listener to this <see cref="IVariable"/>.</summary>
+        /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
+        /// false.</returns>
+        bool RemoveListener(IDynamicItem r);
+
+        /// <summary>Add record of a listener to this <see cref="IVariable"/>.  When the <see cref="IVariable"/> is 
+        /// updated, the listeners should then be updated (ideally asynchronously).</summary>
+        /// <returns>True if the listener set was changed; if the listener already existed there, returns false.
+        /// </returns>
+        bool AddListener(IDynamicItem r);
+
+        /// <summary>Pointers to the things this <see cref="IVariable"/> listens to.</summary>
+        IEnumerable<Reference> GetReferences();
+
+        /// <summary>The content evaluation tree of this <see cref="IVariable"/>.</summary>
         IEvaluateable Contents { get; set; }
+
+        /// <summary>Fired when the <see cref="IVariable"/>'s cached value changes.</summary>
         event ValueChangedHandler<IEvaluateable> ValueChanged;
     }
 

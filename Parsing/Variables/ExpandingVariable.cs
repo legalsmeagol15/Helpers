@@ -1,22 +1,18 @@
-﻿using System;
+﻿using DataStructures;
+using Dependency.Functions;
+using Helpers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
-using Helpers;
-using System.Runtime.CompilerServices;
-using System.Collections;
-using DataStructures;
 using System.Threading;
-using Dependency.Functions;
+using System.Threading.Tasks;
 
 namespace Dependency.Variables
 {
-
-
-    public sealed class Variable : IDynamicItem, IVariable, IEvaluateable
+    public abstract class ExpandingVariable :  IContext, IDynamicItem, IEvaluateable, IVariable
     {
+
         // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
         // Also, References clean themselves up from their sources through their own implementation  of 
         // IDisposable.
@@ -29,8 +25,8 @@ namespace Dependency.Variables
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private static readonly ReaderWriterLockSlim _StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
-        bool IVariable.AddListener(Functions.Reference r) => _Listeners.Add(r);
-        bool IVariable.RemoveListener(Functions.Reference r) => _Listeners.Remove(r);
+        bool IVariable.AddListener(IDynamicItem idi) => _Listeners.Add(idi);
+        bool IVariable.RemoveListener(IDynamicItem idi) => _Listeners.Remove(idi);
         private HashSet<Functions.Reference> _References = new HashSet<Reference>();
         IEnumerable<Functions.Reference> IVariable.GetReferences() => _References;
 
@@ -63,7 +59,7 @@ namespace Dependency.Variables
 
 
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
-        public Variable(IEvaluateable contents = null)
+        public ExpandingVariable(IEvaluateable contents = null)
         {
             this.Contents = contents;
         }
@@ -187,7 +183,7 @@ namespace Dependency.Variables
             public IEnumerable<Reference> Refs;
             public Node Prior;
         }
-        
+
 
         public override string ToString()
         {
@@ -199,18 +195,14 @@ namespace Dependency.Variables
         private void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
 
+        bool IContext.TryGetSubcontext(object path, out IContext ctxt)
+        {
+            throw new NotImplementedException();
+        }
 
+        bool IContext.TryGetProperty(object path, out IEvaluateable source)
+        {
+            throw new NotImplementedException();
+        }
     }
-
-
-
-
-    /// <summary>An exception thrown when an invalid circular dependency is added to a DependencyGraph.</summary>
-    internal class CircularDependencyException : InvalidOperationException
-    {
-        IEnumerable<IVariable> Path;
-        /// <summary>Creates a new CircularDependencyException.</summary>
-        public CircularDependencyException(IEnumerable<IVariable> path, string message = "Circular reference identified.") : base(message) { this.Path = path; }
-    }
-
 }

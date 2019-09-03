@@ -128,17 +128,13 @@ namespace Dependency.Functions
 
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
-            // The base might be a context.  Try that first.
+            // The base must be a context.  Try that first.
             if (evaluatedInputs[0] is IContext ctxt)
             {
                 if (ctxt.TryGetSubcontext(evaluatedInputs[1], out IContext sub_ctxt)) return new EvaluateableContext(sub_ctxt);
                 if (ctxt.TryGetProperty(evaluatedInputs[1], out IEvaluateable sub_prop)) return sub_prop.Value;
             }
-
-            // Otherwise, the base MUST be indexable.
-            IIndexable indexable = evaluatedInputs[0] as IIndexable;
-            if (indexable == null) return new IndexingError(this, evaluatedInputs[0], evaluatedInputs[1], "Base is not indexable.");
-            return indexable[evaluatedInputs[1]];
+            return new IndexingError(this, evaluatedInputs[0], evaluatedInputs[1], "Base is not indexable.");            
         }
 
         public override string ToString() => Inputs[0].ToString() + "[" + Inputs[1].ToString() + "]";

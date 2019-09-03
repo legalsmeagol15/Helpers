@@ -7,13 +7,22 @@ using Dependency.Functions;
 
 namespace Dependency
 {
-    public sealed class Vector : IFunction, IEvaluateable, IIndexable, ILiteral<object[]>, ITypeGuarantee, IContext, IDynamicItem
-        // Though a Vector has inputs, it CANNOT be a Function.
+    public sealed class Vector : IFunction, IEvaluateable, ILiteral<object[]>, ITypeGuarantee, IContext, IDynamicItem
+    // Though a Vector has inputs, it CANNOT be a Function.
     {
         public IList<IEvaluateable> Inputs { get; internal set; }
         private IEvaluateable[] _Values;
-        
-        public Vector(params IEvaluateable[] contents) {
+        public IEvaluateable this[int idx]
+        {
+            get
+            {
+                if (idx >= 0 && idx <= Inputs.Count) return Inputs[idx].Value;
+                return new IndexingError(this, this, new Number(idx), "Index out of range.");
+            }
+        }
+
+        public Vector(params IEvaluateable[] contents)
+        {
             Inputs = contents;
             _Values = new IEvaluateable[contents.Length];
             for (int i = 0; i < contents.Length; i++)
@@ -27,15 +36,12 @@ namespace Dependency
 
         IEvaluateable IEvaluateable.Value => this;
 
-        IEvaluateable IIndexable.this[IEvaluateable ordinal] => (ordinal is Number n) ? _Values[(int)n] : new IndexingError(this, this, ordinal);
-        public IEvaluateable this [int index] => _Values[index];
-
         public int Size => Inputs.Count;
 
         public IEvaluateable MaxIndex => new Number(Inputs.Count - 1);
 
         public IEvaluateable MinIndex => Number.Zero;
-        
+
         public override bool Equals(object obj) => (obj is Vector other) && this == other;
         public override int GetHashCode() { unchecked { return Inputs.Sum(i => i.GetHashCode()); } }
 
@@ -43,25 +49,16 @@ namespace Dependency
 
         internal bool TryGetProperty(object path, out IEvaluateable source)
         {
-            source = null;
-            int idx = -1;
-            if (path is string str)
+            switch (path)
             {
-                switch (str.ToLower())
-                {
-                    case "size":
-                    case "length": source = new Number(_Values.Length);break;
-                    case "min": source = Number.Zero; break;
-                    case "max": source = new Number(_Values.Length - 1);break;
-                }
+                case Number n: source = this[(int)n]; return true;
+                case int idx: source = this[idx]; return true;
+                case "size":
+                case "length": source = new Number(_Values.Length); return true;
+                case "min": source = Number.Zero; return true;
+                case "max": source = new Number(_Values.Length - 1); return true;
+                default: source = null; return false;
             }
-            else if (path is int i)
-                idx = i;
-            if (idx >= 0)
-            {
-                source = idx < Inputs.Count ? Inputs[idx].Value : Dependency.Null.Instance;
-            }
-            return source != null;
         }
         bool IContext.TryGetProperty(object path, out IEvaluateable source) => this.TryGetProperty(path, out source);
 

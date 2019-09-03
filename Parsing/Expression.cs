@@ -31,7 +31,7 @@ namespace Dependency
                 default: return new Dependency.String(obj.ToString());
             }
         }
-        public static ILiteral Obj2Eval<T>(T obj) => Obj2Eval(obj);
+        public static ILiteral Obj2Eval<T>(T obj) => Obj2Eval((object)obj);
 
         public static object Eval2Obj(IEvaluateable iev)
         {
@@ -43,43 +43,24 @@ namespace Dependency
             }
         }
 
-        public static IEnumerable<Variables.Variable> GetDependees(object e)
+        public static IEnumerable<Variables.Variable> GetDependees(object obj)
         {
-            if (e is IVariable iv) e = iv.Contents;
-            foreach (Reference r in GetReferences(e)) if (r.Head is Variables.Variable v) yield return v;
-        }
-        internal static IEnumerable<IVariable> GetTerms(object e)
-        {
-            Stack<object> stack = new Stack<object>();
-            stack.Push(e);
-            while (stack.Count > 0)
-            {
-                object focus = stack.Pop();
-                switch (focus)
-                {
-                    case Reference r: if (r.Head is IVariable iv) yield return iv; continue;
-                    case IFunction f: foreach (var input in f.Inputs) stack.Push(input); continue;
-                    case IExpression x: stack.Push(x.Contents); continue;
-                    case ILiteral l: continue;
-                    case IVariable v: yield return v; continue;
-                    default: throw new NotImplementedException();
-                }
-            }
+            foreach (Reference r in GetReferences(obj)) if (r.Head is Variables.Variable v) yield return v;
         }
 
-        internal static IEnumerable<Reference> GetReferences(object e)
+        internal static IEnumerable<Reference> GetReferences(object obj)
         {
             Stack<object> stack = new Stack<object>();
-            stack.Push(e);
+            stack.Push(obj);
             while (stack.Count > 0)
             {
                 object focus = stack.Pop();
                 switch (focus)
                 {
                     case Reference r: yield return r; break;
-                    case IExpression exp: stack.Push(exp.Contents); break;
+                    case IExpression e: stack.Push(e.Contents); break;
                     case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
-                    case IVariable v: throw new InvalidOperationException();
+                    case IVariable v: stack.Push(v.Contents); break;
                 }
             }
         }
@@ -94,7 +75,7 @@ namespace Dependency
         IEvaluateable IEvaluateable.Value => Contents.Value;
 
         public override string ToString() => Contents.ToString();
-        
+
     }
-    
+
 }

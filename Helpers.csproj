@@ -100,9 +100,11 @@
     <Compile Include="Parsing\Values\Vector.cs" />
     <Compile Include="Parsing\Variables\BlendedVariable.cs" />
     <Compile Include="Parsing\Variables\ContextList.cs" />
+    <Compile Include="Parsing\Variables\Custom_Variables.cs" />
     <Compile Include="Parsing\Variables\DynamicVariable.cs" />
+    <Compile Include="Parsing\Variables\ExpandingVariable.cs" />
     <Compile Include="Parsing\Variables\SourceVariable.cs" />
-    <Compile Include="Parsing\Variables\Variables.cs" />
+    <Compile Include="Parsing\Variables\Variable.cs" />
     <Compile Include="Time.cs" />
     <Compile Include="Undo\IUndoable.cs" />
     <Compile Include="Undo\IUndoStack.cs" />
