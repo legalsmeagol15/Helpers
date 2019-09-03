@@ -94,9 +94,17 @@ easy to use.
 This project takes the usual notion of variables, but turns it on its head.  In programming generally, the value of 
 a variable is expected to remain what it is set to be, even though its semantic significance may be the function 
 output of the interaction of other variables.  In other words, if `triangle_height` is some number whose semantic 
-value is supposed to equal the sine of 'theta', changing 'theta' will not automatically update the value of 
-`triangle_height`.
+value is supposed to equal the sine of `theta`, changing `theta` will not automatically update the value of 
+`triangle_height`.  If these variables are written as `Dependency.Variable`s with the trigonmetric relationship pre-
+established between them, a change to `theta` will automatically be reflected in a new value stored at 
+`triangle_height`.  In this scenario, `triangle_height` is the dependent and `theta` is the dependee.
 
-This is useful for the situation where you want an entirely system to have a coherent state, but you don't want to 
-have to recalculate the state in its entirety with every little change.  Only the parts affected are updated in 
-response to any particular change.
+This is useful for the situation where you want an entire system to have a coherent state, but you don't want to have 
+to recalculate the state in its entirety with every little change.  Only the parts affected are updated in response to 
+any particular change.  Put another way, changes to any dependee will propogate from dependee to dependent only.  
+Keeping a fully coherent state is thus cheaper.
+
+The code is multi-threaded, but keep in mind that a dependency system's _breadth_ can be multi-threaded while its 
+_depth_ cannot.  In other words, 10,000 dependency variables that depend on the variable `t` can be updated with 
+asynchronous calls.  On the other hand, if `t0` depends on `t1`, depends on `t2`, and so forth all the way to 
+`t10000`, that work cannot be multi-threaded.
