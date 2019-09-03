@@ -10,6 +10,9 @@ using System.Diagnostics;
 using Dependency.Functions;
 using Dependency.Operators;
 
+/// <summary>
+/// This is a description  of Dependency
+/// </summary>
 namespace Dependency
 {
 

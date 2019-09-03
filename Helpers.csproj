@@ -75,36 +75,35 @@
     <Compile Include="DataStructures\Threading\RedoWorker.cs" />
     <Compile Include="DataStructures\Trees\DataTree.cs" />
     <Compile Include="DataStructures\Trees\QuadTree.cs" />
+    <Compile Include="Dependency\Expression.cs" />
+    <Compile Include="Dependency\Functions\Factory.cs" />
+    <Compile Include="Dependency\Functions\Function.cs" />
+    <Compile Include="Dependency\Functions\Named\Arithmetic.cs" />
+    <Compile Include="Dependency\Functions\Named\NamedFunction.cs" />
+    <Compile Include="Dependency\Functions\Named\Reference.cs" />
+    <Compile Include="Dependency\Functions\Named\Trigonometry.cs" />
+    <Compile Include="Dependency\Functions\Operators.cs" />
+    <Compile Include="Dependency\Interfaces.cs" />
+    <Compile Include="Dependency\Parse.cs" />
+    <Compile Include="Dependency\Properties\AssemblyInfo.cs" />
+    <Compile Include="Dependency\TypeControl.cs" />
+    <Compile Include="Dependency\Values\Boolean.cs" />
+    <Compile Include="Dependency\Values\Complex.cs" />
+    <Compile Include="Dependency\Values\Error.cs" />
+    <Compile Include="Dependency\Values\Null.cs" />
+    <Compile Include="Dependency\Values\Number.cs" />
+    <Compile Include="Dependency\Values\String.cs" />
+    <Compile Include="Dependency\Values\Vector.cs" />
+    <Compile Include="Dependency\Variables\BlendedVariable.cs" />
+    <Compile Include="Dependency\Variables\Custom_Variables.cs" />
+    <Compile Include="Dependency\Variables\DynamicVariable.cs" />
+    <Compile Include="Dependency\Variables\ExpandingVariable.cs" />
+    <Compile Include="Dependency\Variables\SourceVariable.cs" />
+    <Compile Include="Dependency\Variables\Variable.cs" />
     <Compile Include="Events.cs" />
     <Compile Include="Mathematics\Geometry\Rect.cs" />
     <Compile Include="Mathematics\Random.cs" />
     <Compile Include="Networking.cs" />
-    <Compile Include="Parsing\Expression.cs" />
-    <Compile Include="Parsing\Functions\Factory.cs" />
-    <Compile Include="Parsing\Functions\Function.cs" />
-    <Compile Include="Parsing\Functions\Named\Arithmetic.cs" />
-    <Compile Include="Parsing\Functions\Named\NamedFunction.cs" />
-    <Compile Include="Parsing\Functions\Named\Reference.cs" />
-    <Compile Include="Parsing\Functions\Named\Trigonometry.cs" />
-    <Compile Include="Parsing\Functions\Operators.cs" />
-    <Compile Include="Parsing\Interfaces.cs" />
-    <Compile Include="Parsing\Parse.cs" />
-    <Compile Include="Parsing\Properties\AssemblyInfo.cs" />
-    <Compile Include="Parsing\TypeControl.cs" />
-    <Compile Include="Parsing\Values\Boolean.cs" />
-    <Compile Include="Parsing\Values\Complex.cs" />
-    <Compile Include="Parsing\Values\Error.cs" />
-    <Compile Include="Parsing\Values\Null.cs" />
-    <Compile Include="Parsing\Values\Number.cs" />
-    <Compile Include="Parsing\Values\String.cs" />
-    <Compile Include="Parsing\Values\Vector.cs" />
-    <Compile Include="Parsing\Variables\BlendedVariable.cs" />
-    <Compile Include="Parsing\Variables\ContextList.cs" />
-    <Compile Include="Parsing\Variables\Custom_Variables.cs" />
-    <Compile Include="Parsing\Variables\DynamicVariable.cs" />
-    <Compile Include="Parsing\Variables\ExpandingVariable.cs" />
-    <Compile Include="Parsing\Variables\SourceVariable.cs" />
-    <Compile Include="Parsing\Variables\Variable.cs" />
     <Compile Include="Time.cs" />
     <Compile Include="Undo\IUndoable.cs" />
     <Compile Include="Undo\IUndoStack.cs" />
@@ -134,9 +133,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Parsing\Dependency.csproj" />
+    <Content Include="Dependency\Dependency.csproj" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

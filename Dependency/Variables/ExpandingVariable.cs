@@ -12,7 +12,6 @@ namespace Dependency.Variables
 {
     public abstract class ExpandingVariable :  IContext, IDynamicItem, IEvaluateable, IVariable
     {
-
         // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
         // Also, References clean themselves up from their sources through their own implementation  of 
         // IDisposable.
