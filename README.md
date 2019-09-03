@@ -64,14 +64,39 @@ static int Main(string[] args)
 
 _Hey presto!_  That is all you need to have a `SimpleOptions` parsed from the given command line options.
 
+## Artificial Intelligence
+
+Meh.  Stick with Python for now.  I haven't gotten around to implementing these ones, mostly.
+
 ## DataStructures
 
-Most of my work can be found here, because over time I have discovered a need for all sorts of different data 
-structures beyond what you might find in the standard library.
+I often encounter the need for a particular data structure that does _X_, and just as often, I realize that data 
+structures can be implemented in a general or generic way.  I have built a collection here.  Some of the particularly 
+interesting ones:
+
+- `Deque<T>` - Why wasn't this part of the C# standard libraries?  Does it exist under some other moniker?  Well, 
+sometimes the implementation is more fun than the use anyway.  Enjoy that one here.
+- `DynamicLinkedList<T>` - Just like your basic `LinkedList<T>`, but with a reference to a `DynamicLinkedListNode<T>`, 
+you can delete, add before, or add after in an _O(1)_ operation.
+- `IntervalSet<T> where T : IComparable<T>` - A weird data structure whose purpose is to maintain the true/false 
+whether the set contains some `T` item.  Items can be added or removed in contiguous runs.  For example, in an 
+`IntervalSet<int>`, all the ints between 20 and 2,000,000 can be added in a single near-_O(1)_ operation.  Obviously, 
+the structure cheats by storing only where the run begins and ends, so the contents do not _really_ exist meaningfully 
+on the set.  But you can do cool boolean operations between two `IntervalSet<T>` operations.
+- `PipelineWorker` and `RedoWorker`.  Suppose you have a task that needs to be performed asynchronously, but you don't 
+care particularly when it will be completed.  In the meantime, you might enqueue more work to be done as soon as the 
+first item is complete.  These inherits of the `BackgroundWorker` might be useful.  This is the older style of multi-
+threading in C# so I don't know how they might compare with `Task`s or `async/await`.  But they're event-driven and 
+easy to use.
 
 ## Dependency
 
 This project takes the usual notion of variables, but turns it on its head.  In programming generally, the value of 
-a value is expected to remain what it is set to be, even though its semantic significance may be the function output 
-of the interaction of other variables.  In other words, if `triangle_height` is some number whose semantic value is 
-supposed to equal the sine of 'theta', changing 'theta' will not automatically update the value of `triangle_height`.
+a variable is expected to remain what it is set to be, even though its semantic significance may be the function 
+output of the interaction of other variables.  In other words, if `triangle_height` is some number whose semantic 
+value is supposed to equal the sine of 'theta', changing 'theta' will not automatically update the value of 
+`triangle_height`.
+
+This is useful for the situation where you want an entirely system to have a coherent state, but you don't want to 
+have to recalculate the state in its entirety with every little change.  Only the parts affected are updated in 
+response to any particular change.
