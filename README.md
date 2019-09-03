@@ -1,10 +1,10 @@
 # Helpers (C#)
-**Wesley Oates**
+**- by Wesley Oates**
 
 This solution is designed to include some useful helpers solving commonly-encountered problems, like implementing 
 parsing of command-line argument strings or graph searches.  Feel free to copy, modify, re-use, or flame to your 
 your heart's content, though please do so with attribution.  I reserve the right to crib from any cool ideas that 
-are implemented based on this code, as I extend it over time.
+are implemented based on this code which extend its purposes, as I improve upon it over time.
 
 Some  highlights:
 
@@ -22,7 +22,7 @@ Right now, the features include:
 - Automatic type detection of values for key/value pair arguments.
 - Specify alternative groups.  If no alternative groups are satisfied, an exception is thrown.
 - Specify aliases for arguments, choosing whether the arguments are case-sensitive or not.
-- Specify individual single-letter flags, or parse them combined.  An argument will be parsed as flag if it is 
+- Specify individual single-letter flags, or parse them combined.  An argument will be parsed as a flag if it is 
 preceded by a hyphen, as in `-xvf`.
 - Argument order can be indeterminate.
 
@@ -74,18 +74,18 @@ I often encounter the need for a particular data structure that does _X_, and ju
 structures can be implemented in a general or generic way.  I have built a collection here.  Some of the particularly 
 interesting ones:
 
-- `Deque<T>` - Why wasn't this part of the C# standard libraries?  Does it exist under some other moniker?  Well, 
+- `Deque<T>`  Why wasn't this part of the C# standard libraries?  Does it exist under some other moniker?  Well, 
 sometimes the implementation is more fun than the use anyway.  Enjoy that one here.
-- `DynamicLinkedList<T>` - Just like your basic `LinkedList<T>`, but with a reference to a `DynamicLinkedListNode<T>`, 
+- `DynamicLinkedList<T>`  Just like your basic `LinkedList<T>`, but with a reference to a `DynamicLinkedListNode<T>`, 
 you can delete, add before, or add after in an _O(1)_ operation.
-- `IntervalSet<T> where T : IComparable<T>` - A weird data structure whose purpose is to maintain the true/false 
+- `IntervalSet<T> where T : IComparable<T>`  A weird data structure whose purpose is to maintain the true/false 
 whether the set contains some `T` item.  Items can be added or removed in contiguous runs.  For example, in an 
 `IntervalSet<int>`, all the ints between 20 and 2,000,000 can be added in a single near-_O(1)_ operation.  Obviously, 
 the structure cheats by storing only where the run begins and ends, so the contents do not _really_ exist meaningfully 
 on the set.  But you can do cool boolean operations between two `IntervalSet<T>` operations.
-- `PipelineWorker` and `RedoWorker`.  Suppose you have a task that needs to be performed asynchronously, but you don't 
+- `PipelineWorker` and `RedoWorker`  Suppose you have a task that needs to be performed asynchronously, but you don't 
 care particularly when it will be completed.  In the meantime, you might enqueue more work to be done as soon as the 
-first item is complete.  These inherits of the `BackgroundWorker` might be useful.  This is the older style of multi-
+first item is complete.  These subclasses of the `BackgroundWorker` might be useful.  This is the older style of multi-
 threading in C# so I don't know how they might compare with `Task`s or `async/await`.  But they're event-driven and 
 easy to use.
 
