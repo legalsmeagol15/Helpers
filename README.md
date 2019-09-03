@@ -1,16 +1,20 @@
 # Helpers (C#)
+**Wesley Oates**
 
-This solution is designed to include some useful helpers tasks for commonly-implemented problems, like implementing 
-parsing of command-line argument strings or graph searches.  Feel free to copy, modify, re-use or flame to your 
-your heart's content.  Some  highlights:
+This solution is designed to include some useful helpers solving commonly-encountered problems, like implementing 
+parsing of command-line argument strings or graph searches.  Feel free to copy, modify, re-use, or flame to your 
+your heart's content, though please do so with attribution.  I reserve the right to crib from any cool ideas that 
+are implemented based on this code, as I extend it over time.
+
+Some  highlights:
 
 ## Arguments
 
 This is my argument-parsing implementation.  The idea is to define a class into which argument values can be written 
 using automagic reflection, eliminating the need for tedious parsing of command line args in your apps.  (Really, this 
-can be used to parse and `string[]` - an obvious example would be HTTP header parsing).  Parsing failures throw useful 
-exceptions.  The properties of each argument can be specified in the parameter class using handy Attributes, wil no 
-complex code necessary.
+can be used to parse any `string[]`.  An obvious example would be HTTP header parsing.)  Parsing failures throw useful 
+and informative exceptions.  The properties of each argument can be specified in the parameter class using handy 
+Attributes, with very little complex code necessary.
 
 Right now, the features include:
 - Smart parsing of bool and key/value arguments.  A key/value pair will be provided in the form `key=value` or 
@@ -26,30 +30,27 @@ An usage example would be the following parameter class:
 
 ```
 public class SimpleOptions
-        {
-            
-            [Group("GroupA", true)]
-            public bool Enabled;
+{
+	[Alias("active", false)]
+	[Group("GroupA", true)]
+	public bool Enabled;
 
-            
-            [Group("GroupA", true)]
-            public string FirstName;
+	[Group("GroupA", true)]
+	public string FirstName;
 
-            
-            [Group("GroupA")]
-            public string LastName;
+	[Group("GroupA")]
+	public string LastName;
 
-            
-            [Group("GroupA")]
-            public int Age;
-        }
+	[Group("GroupA")]
+	public int Age;
+}
 ```
 
 Now suppose you are parsing command line arguments in your app called `myApp.exe` like so, with the `Main()` method 
 defined as follows:
 
 ```
-C:\Users\WesleyOates\myApp\myApp enabled FirstName=John LastName=Doe IntArgA=20
+C:\Users\WesleyOates\myApp\myApp active FirstName=John LastName=Doe Age=20
 .
 .
 .
