@@ -13,9 +13,7 @@ using Dependency.Functions;
 
 namespace Dependency.Variables
 {
-
-
-    public sealed class Variable : IDynamicItem, IVariable, IEvaluateable, IVariableAsync
+    public class Variable : IDynamicItem, IVariableAsync
     {
         // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
         // Also, References clean themselves up from their sources through their own implementation  of 
@@ -36,13 +34,14 @@ namespace Dependency.Variables
                 try { return _Value; }
                 finally { _ValueLock.ExitReadLock(); }
             }
+            private set
+            {
+                _ValueLock.EnterWriteLock();
+                try { _Value = value; }
+                finally { _ValueLock.ExitWriteLock(); }
+            }
         }
-        void IVariable.SetValue(IEvaluateable value)
-        {
-            _ValueLock.EnterWriteLock();
-            _Value = value;
-            _ValueLock.ExitWriteLock();
-        }
+        
         private IEvaluateable _Contents = Null.Instance;
         public IEvaluateable Contents
         {
@@ -149,15 +148,15 @@ namespace Dependency.Variables
             HashSet<IVariable> visited = new HashSet<IVariable>();
 
             // Start off the queue with the indicated items.
-            Queue<Node> queue = new Queue<Node>();
+            Queue<CircularSearchNode> queue = new Queue<CircularSearchNode>();
             foreach (var r in startRefs)
                 if (r.Head is IVariable iv)
-                    queue.Enqueue(new Node { Item = iv, Refs = iv.References, Prior = null });
+                    queue.Enqueue(new CircularSearchNode { Item = iv, Refs = iv.References, Prior = null });
 
             // Now search.
             while (queue.Count > 0)
             {
-                Node n = queue.Dequeue();
+                CircularSearchNode n = queue.Dequeue();
                 if (!visited.Add(n.Item))
                     continue;
                 else if (ReferenceEquals(n.Item, target))
@@ -171,17 +170,17 @@ namespace Dependency.Variables
                 {
                     foreach (var r in n.Refs)
                         if (r.Head is IVariable iv)
-                            queue.Enqueue(new Node { Item = iv, Refs = iv.References, Prior = n });
+                            queue.Enqueue(new CircularSearchNode { Item = iv, Refs = iv.References, Prior = n });
                 }
             }
             path = null;
             return false;
         }
-        private class Node
+        private class CircularSearchNode
         {
             public IVariable Item;
             public IEnumerable<Reference> Refs;
-            public Node Prior;
+            public CircularSearchNode Prior;
         }
 
 
@@ -192,17 +191,18 @@ namespace Dependency.Variables
         }
 
         public event ValueChangedHandler<IEvaluateable> ValueChanged;
-        void IVariable.FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
-            => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
-
+        
 
 
         bool IVariable.AddListener(IDynamicItem idi) => _Listeners.Add(idi);
         bool IVariable.RemoveListener(IDynamicItem idi) => _Listeners.Remove(idi);
         IEnumerable<IDynamicItem> IVariable.GetListeners() => _Listeners;
         ISet<Functions.Reference> IVariable.References { get; set; }
+        void IVariable.SetValue(IEvaluateable value) => Value = value;
+        void IVariable.FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
+            => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
         ReaderWriterLockSlim IVariableAsync.ValueLock => _ValueLock;
-        IDynamicItem IDynamicItem.Parent { get => null; set => throw new InvalidOperationException(); }
+        IDynamicItem IDynamicItem.Parent { get; set; }
         bool IDynamicItem.Update() => UpdateValueAsync(this);
 
 

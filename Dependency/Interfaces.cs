@@ -36,11 +36,11 @@ namespace Dependency
 
         bool TryGetProperty(object path, out IEvaluateable source);
     }
-
-
+    
     internal interface IDynamicItem
     {
         IDynamicItem Parent { get; set; }
+        
 
         /// <summary>
         /// Updates the value of this item.  Note that this method should NOT call a parent's update method in  any 
