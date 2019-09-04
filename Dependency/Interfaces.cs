@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Dependency.Functions;
 using Dependency.Variables;
 using Helpers;
+using System.Threading;
 
 namespace Dependency
 {
@@ -118,7 +119,7 @@ namespace Dependency
     /// An <see cref="IVariable"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
     /// <see cref="IVariable"/>s in turns.
     /// </summary>
-    internal interface IVariable
+    internal interface IVariable : IEvaluateable
     {
         /// <summary>Remove record of a listener to this <see cref="IVariable"/>.</summary>
         /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
@@ -132,13 +133,25 @@ namespace Dependency
         bool AddListener(IDynamicItem r);
 
         /// <summary>Pointers to the things this <see cref="IVariable"/> listens to.</summary>
-        IEnumerable<Reference> GetReferences();
+        ISet<Reference> References { get; set; }
+
+        IEnumerable<IDynamicItem> GetListeners();
 
         /// <summary>The content evaluation tree of this <see cref="IVariable"/>.</summary>
         IEvaluateable Contents { get; set; }
 
+        void SetValue(IEvaluateable value);
+        
         /// <summary>Fired when the <see cref="IVariable"/>'s cached value changes.</summary>
         event ValueChangedHandler<IEvaluateable> ValueChanged;
+
+        void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue);
+    }
+    internal interface IVariableAsync : IVariable
+    {
+        ReaderWriterLockSlim ValueLock { get; }
+
+        
     }
 
 

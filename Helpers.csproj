@@ -95,9 +95,9 @@
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
     <Compile Include="Dependency\Variables\BlendedVariable.cs" />
+    <Compile Include="Dependency\Variables\ClusterVariable.cs" />
     <Compile Include="Dependency\Variables\Custom_Variables.cs" />
     <Compile Include="Dependency\Variables\DynamicVariable.cs" />
-    <Compile Include="Dependency\Variables\ExpandingVariable.cs" />
     <Compile Include="Dependency\Variables\SourceVariable.cs" />
     <Compile Include="Dependency\Variables\Variable.cs" />
     <Compile Include="Events.cs" />

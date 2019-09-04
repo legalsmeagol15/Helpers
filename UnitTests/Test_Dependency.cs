@@ -107,11 +107,11 @@ namespace UnitTests
         [TestMethod]
         public void Test_Linear()
         {
-            // 1733 ms update 1000 vars over 100 times, or 17 ms/run
-            // 1864 ms update 1000 vars over 100 times, or 18 ms/run
-            // 1795 ms update 1000 vars over 100 times, or 17 ms/run
-            // 1626 ms update 1000 vars over 100 times, or 16 ms/run
-            // 1778 ms update 1000 vars over 100 times, or 17 ms/run
+            // 1853 ms update 1000 vars over 100 times, or 18 ms/run
+            // 1385 ms update 1000 vars over 100 times, or 13 ms/run
+            // 1551 ms update 1000 vars over 100 times, or 15 ms/run
+            // 1276 ms update 1000 vars over 100 times, or 12 ms/run
+            // 1344 ms update 1000 vars over 100 times, or 13 ms/run
             int numVars = 1000;
            
             // Test linear transmission  of a value by changing contents.
@@ -132,24 +132,27 @@ namespace UnitTests
                 throw new Exception("Bad testing harness.");
             vStart.Contents = new Number(2);
             Assert.AreEqual(vStart.Value, vLast.Value);
-            
-            long ms = 0;
-            long runs = 100;
-            for (int  i = 0; i < runs; i++)
+
+            for (int k = 0; k < 5; k++)
             {
-                ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                long ms = 0;
+                long runs = 100;
+                for (int i = 0; i < runs; i++)
+                {
+                    ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                }
+                Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
             }
-            Console.WriteLine(ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
         }
 
         [TestMethod]
         public void Test_Pancake()
         {
-            //59 ms update 1000 vars over 100 times, or 0 ms/run
-            //99 ms update 1000 vars over 100 times, or 0 ms/run
-            //36 ms update 1000 vars over 100 times, or 0 ms/run
-            //66 ms update 1000 vars over 100 times, or 0 ms/run
-            //46 ms update 1000 vars over 100 times, or 0 ms/run
+            // 76 ms update 1000 vars over 100 times, or 0 ms/run
+            // 95 ms update 1000 vars over 100 times, or 0 ms/run
+            // 91 ms update 1000 vars over 100 times, or 0 ms/run
+            // 43 ms update 1000 vars over 100 times, or 0 ms/run
+            // 36 ms update 1000 vars over 100 times, or 0 ms/run
             int numVars = 1000;
 
             // Test linear transmission  of a value by changing contents.
@@ -171,14 +174,17 @@ namespace UnitTests
             vStart.Contents = new Number(2);
             Assert.AreEqual(vStart.Value, vLast.Value);
 
-            
-            long ms = 0;
-            long runs = 100;
-            for (int i = 0; i < runs; i++)
+            for (int k= 0; k < 5; k++)
             {
-                ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                long ms = 0;
+                long runs = 100;
+                for (int i = 0; i < runs; i++)
+                {
+                    ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                }
+                Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
             }
-            Console.WriteLine(ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
+            
         }
 
         [TestMethod]
