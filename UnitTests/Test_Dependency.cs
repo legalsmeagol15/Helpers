@@ -113,6 +113,7 @@ namespace UnitTests
             // 1276 ms update 1000 vars over 100 times, or 12 ms/run
             // 1344 ms update 1000 vars over 100 times, or 13 ms/run
             int numVars = 1000;
+            bool timeUpdates = false;
            
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
@@ -133,15 +134,18 @@ namespace UnitTests
             vStart.Contents = new Number(2);
             Assert.AreEqual(vStart.Value, vLast.Value);
 
-            for (int k = 0; k < 5; k++)
+            if (timeUpdates)
             {
-                long ms = 0;
-                long runs = 100;
-                for (int i = 0; i < runs; i++)
+                for (int k = 0; k < 5; k++)
                 {
-                    ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                    long ms = 0;
+                    long runs = 100;
+                    for (int i = 0; i < runs; i++)
+                    {
+                        ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                    }
+                    Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
                 }
-                Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
             }
         }
 
@@ -154,6 +158,7 @@ namespace UnitTests
             // 43 ms update 1000 vars over 100 times, or 0 ms/run
             // 36 ms update 1000 vars over 100 times, or 0 ms/run
             int numVars = 1000;
+            bool timeUpdates = false;
 
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
@@ -174,17 +179,19 @@ namespace UnitTests
             vStart.Contents = new Number(2);
             Assert.AreEqual(vStart.Value, vLast.Value);
 
-            for (int k= 0; k < 5; k++)
+            if (timeUpdates)
             {
-                long ms = 0;
-                long runs = 100;
-                for (int i = 0; i < runs; i++)
+                for (int k = 0; k < 5; k++)
                 {
-                    ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                    long ms = 0;
+                    long runs = 100;
+                    for (int i = 0; i < runs; i++)
+                    {
+                        ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                    }
+                    Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
                 }
-                Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
             }
-            
         }
 
         [TestMethod]
@@ -193,6 +200,8 @@ namespace UnitTests
             IFunctionFactory functions = new Dependency.Functions.ReflectedFunctionFactory();
             IEvaluateable exp0 = Parse.FromString("ABS(11)", functions);
             IEvaluateable exp1 = Parse.FromString("ABS(-7)", functions);
+            Dependency.Helpers.Recalculate(exp0);
+            Dependency.Helpers.Recalculate(exp1);
             Assert.AreEqual(exp0.Value, 11);
             Assert.AreEqual(exp1.Value, 7);
         }
@@ -204,6 +213,11 @@ namespace UnitTests
             IEvaluateable exp1 = Parse.FromString("(3-5+2^3/4*-7-1)");  // Still -17
             IEvaluateable exp2 = Parse.FromString("(3-5+(2^3)/4*-7-1)"); // Still -17
             IEvaluateable exp3 = Parse.FromString("(3-5+( ( (2^3) /4) *-7)-1)"); // Still -17
+
+            Dependency.Helpers.Recalculate(exp0);
+            Dependency.Helpers.Recalculate(exp1);
+            Dependency.Helpers.Recalculate(exp2);
+            Dependency.Helpers.Recalculate(exp3);
 
             Assert.AreEqual(exp0.Value, -17);
             Assert.AreEqual(exp1.Value, -17);

@@ -64,6 +64,20 @@ namespace Dependency
                 }
             }
         }
+
+        public static IEvaluateable Recalculate(IEvaluateable ieval)
+        {
+            return _RecursiveRecalc(ieval);
+
+            IEvaluateable _RecursiveRecalc(IEvaluateable focus)
+            {
+                if (focus is IFunction ifunc) foreach (var input in ifunc.Inputs) _RecursiveRecalc(input);
+                else if (focus is IExpression iexp) return _RecursiveRecalc(iexp.Contents);
+                if (focus is IVariableAsync iva) { Variables.Variable.UpdateValueAsync(iva, false);  return iva.Value; }
+                else if (focus is IDynamicItem idi) idi.Update();
+                return focus.Value;
+            }
+        }
     }
 
 

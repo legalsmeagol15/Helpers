@@ -54,8 +54,9 @@ namespace Dependency.Variables
             }
             set
             {
-                UpdateStructureAsync(this, value);
+                UpdateStructure(this, value);
                 _Contents = value;
+                Helpers.Recalculate(_Contents);
                 UpdateValueAsync(this);
             }
         }
@@ -64,7 +65,9 @@ namespace Dependency.Variables
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
         public Variable(IEvaluateable contents = null) { this.Contents = contents ?? Null.Instance; }
 
-        internal static void UpdateStructureAsync(IVariableAsync var, IEvaluateable newContents)
+        
+
+        internal static void UpdateStructure(IVariable var, IEvaluateable newContents)
         {
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
@@ -106,7 +109,7 @@ namespace Dependency.Variables
             finally { StructureLock.ExitUpgradeableReadLock(); }
         }
 
-        internal static bool UpdateValueAsync(IVariableAsync var)
+        internal static bool UpdateValueAsync(IVariableAsync var, bool updateListeners = true)
         {
             try
             {
@@ -129,10 +132,13 @@ namespace Dependency.Variables
                 var.FireValueChanged(oldValue, newValue);
 
                 //Now update the listeners asynchronously
-                List<Task> tasks = new List<Task>();
-                foreach (IDynamicItem idi in var.GetListeners())
-                    tasks.Add(Task.Run(() => UpdateListener(idi)));
-                Task.WaitAll(tasks.ToArray());
+                if (updateListeners)
+                {
+                    List<Task> tasks = new List<Task>();
+                    foreach (IDynamicItem idi in var.GetListeners())
+                        tasks.Add(Task.Run(() => UpdateListener(idi)));
+                    Task.WaitAll(tasks.ToArray());
+                }
             }
             finally { StructureLock.ExitReadLock(); var.ValueLock.ExitUpgradeableReadLock(); }
 
@@ -203,7 +209,7 @@ namespace Dependency.Variables
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
         ReaderWriterLockSlim IVariableAsync.ValueLock => _ValueLock;
         IDynamicItem IDynamicItem.Parent { get; set; }
-        bool IDynamicItem.Update() => UpdateValueAsync(this);
+        bool IDynamicItem.Update() =>UpdateValueAsync(this);
 
 
     }

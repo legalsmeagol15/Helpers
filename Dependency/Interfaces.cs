@@ -150,8 +150,6 @@ namespace Dependency
     internal interface IVariableAsync : IVariable
     {
         ReaderWriterLockSlim ValueLock { get; }
-
-        
     }
 
 

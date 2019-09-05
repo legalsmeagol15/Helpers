@@ -21,7 +21,6 @@ namespace Dependency.Functions
                 foreach (var iev in value)
                     if (iev is IDynamicItem ide)
                         ide.Parent = this;
-                Update();
             }
         }
 

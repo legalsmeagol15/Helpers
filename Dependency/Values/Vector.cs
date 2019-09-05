@@ -69,9 +69,6 @@ namespace Dependency
 
         public override string ToString() => "{" + string.Join(",", Inputs.Select(i => i.ToString())) + "}";
 
-        bool IDynamicItem.Update()
-        {
-            throw new NotImplementedException();
-        }
+        bool IDynamicItem.Update() => true;
     }
 }
