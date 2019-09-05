@@ -102,8 +102,7 @@ namespace Dependency
     {
         string Name { get; }
     }
-
-
+    
     public interface ISubcontext : IContext
     {
         IContext Parent { get; set; }
@@ -155,7 +154,7 @@ namespace Dependency
 
     internal interface IWeakVariable<T>
     {
-        Variable WeakVariable { get; }
+        Variable Source { get; }
         void SetLock(bool locked);
         T Value { get; }
         bool TryGetVariable(out Variable v);

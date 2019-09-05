@@ -94,7 +94,7 @@
     <Compile Include="Dependency\Values\Number.cs" />
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
-    <Compile Include="Dependency\Variables\HybridVariable.cs" />
+    <Compile Include="Dependency\Variables\LiteralVariable.cs" />
     <Compile Include="Dependency\Variables\Custom\ClusterVariable.cs" />
     <Compile Include="Dependency\Variables\Custom\Point2D.cs" />
     <Compile Include="Dependency\Variables\DynamicVariable.cs" />

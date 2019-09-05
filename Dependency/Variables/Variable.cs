@@ -57,7 +57,7 @@ namespace Dependency.Variables
                 UpdateStructure(this, value);
                 _Contents = value;
                 Helpers.Recalculate(_Contents);
-                UpdateValueAsync(this);
+                UpdateValue(this);
             }
         }
 
@@ -109,7 +109,7 @@ namespace Dependency.Variables
             finally { StructureLock.ExitUpgradeableReadLock(); }
         }
 
-        internal static bool UpdateValueAsync(IVariableAsync var, bool updateListeners = true)
+        internal static bool UpdateValue(IVariableAsync var, bool updateListeners = true)
         {
             try
             {
@@ -209,7 +209,7 @@ namespace Dependency.Variables
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
         ReaderWriterLockSlim IVariableAsync.ValueLock => _ValueLock;
         IDynamicItem IDynamicItem.Parent { get; set; }
-        bool IDynamicItem.Update() =>UpdateValueAsync(this);
+        bool IDynamicItem.Update() =>UpdateValue(this);
 
 
     }

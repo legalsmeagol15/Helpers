@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 namespace Dependency.Variables
 {
     /// <summary>
-    /// A <see cref="HybridVariable{T}"/> blends the notion of CLR and literal dependency variables.  The current 
+    /// A <see cref="LiteralVariable{T}"/> blends the notion of CLR and literal dependency variables.  The current 
     /// value of type <typeparamref name="T"/> is maintained and always available.  It maintains the 
     /// <seealso cref="IWeakVariable{T}"/> pattern in that the dependency variable may expire due to garbage-
     /// collection if it has no listeners, but the CLR value will continue to be available.
     /// </summary>
-    public class HybridVariable<T> : IWeakVariable<T>
+    public class LiteralVariable<T> : IWeakVariable<T>
     {
         protected T ContentValue;    // Will be both the Variable's Contents and its Value
         private readonly Func<T, IEvaluateable> _Converter;
@@ -28,7 +28,7 @@ namespace Dependency.Variables
             }
         }
 
-        public HybridVariable(T startValue, Func<T, ILiteral> converter)
+        public LiteralVariable(T startValue, Func<T, ILiteral> converter)
         {
             this._Converter = converter ?? Dependency.Helpers.Obj2Eval;
             ContentValue = startValue;
@@ -36,7 +36,7 @@ namespace Dependency.Variables
             _LockedVariable = null;
         }
 
-        Variable IWeakVariable<T>.WeakVariable => Source;
+        Variable IWeakVariable<T>.Source => Source;
         public Variable Source
         {
             get
@@ -69,24 +69,24 @@ namespace Dependency.Variables
 
         public override string ToString() => ContentValue.ToString();
 
-        public static implicit operator T(HybridVariable<T> b) => b.ContentValue;
+        public static implicit operator T(LiteralVariable<T> b) => b.ContentValue;
     }
 
-    /// <summary>A <seealso cref="HybridVariable{T}"/> optimized for <seealso cref="double"/> values.</summary>
-    public sealed class HybridDouble : HybridVariable<double>
+    /// <summary>A <seealso cref="LiteralVariable{T}"/> optimized for <seealso cref="double"/> values.</summary>
+    public sealed class LiteralDouble : LiteralVariable<double>
     {
-        public HybridDouble(double startValue = 0) : base(startValue, Number.FromDouble) { }
+        public LiteralDouble(double startValue = 0) : base(startValue, Number.FromDouble) { }
     }
 
-    /// <summary>A <seealso cref="HybridVariable{T}"/> optimized for <seealso cref="int"/> values.</summary>
-    public sealed class HybridInt : HybridVariable<int>
+    /// <summary>A <seealso cref="LiteralVariable{T}"/> optimized for <seealso cref="int"/> values.</summary>
+    public sealed class LiteralInt : LiteralVariable<int>
     {
-        public HybridInt(int startValue = 0) : base(startValue, (i) => new Number(i)) { }
+        public LiteralInt(int startValue = 0) : base(startValue, (i) => new Number(i)) { }
     }
 
-    /// <summary>A <seealso cref="HybridVariable{T}"/> optimized for <seealso cref="string"/> values.</summary>
-    public sealed class HybridString : HybridVariable<string>
+    /// <summary>A <seealso cref="LiteralVariable{T}"/> optimized for <seealso cref="string"/> values.</summary>
+    public sealed class LiteralString : LiteralVariable<string>
     {
-        public HybridString(string startValue = "") : base(startValue, (s) => new Dependency.String(s)) { }
+        public LiteralString(string startValue = "") : base(startValue, (s) => new Dependency.String(s)) { }
     }
 }

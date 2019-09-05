@@ -75,7 +75,7 @@ namespace Dependency.Variables
                 return v;
             }
         }
-        Variable IWeakVariable<T>.WeakVariable => Source;
+        Variable IWeakVariable<T>.Source => Source;
 
         public T Value => _Value;
 

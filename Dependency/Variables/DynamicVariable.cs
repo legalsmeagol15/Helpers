@@ -15,7 +15,7 @@ namespace Dependency.Variables
     /// gettable) even when the related <seealso cref="Dependency.Variables.Variable"/> has been garbage-collected.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class DynamicVariable<T> : IWeakVariable<T>
+    public class DynamicVariable<T> : IWeakVariable<T>, IDynamicItem
     {
         private readonly T _DefaultValue;
         private T _Value;
@@ -33,12 +33,12 @@ namespace Dependency.Variables
             }
             set
             {
-                _LockedVariable = WeakVariable;
+                _LockedVariable = Source;
                 _LockedVariable.Contents = value;
             }
         }
 
-        public Variable WeakVariable
+        public Variable Source
         {
             get
             {
@@ -62,6 +62,7 @@ namespace Dependency.Variables
 
         public T Value => _Value;
 
+        
         public DynamicVariable(T defaultValue, Func<IEvaluateable, T> toCLR, Func<T, IEvaluateable> toIEval = null)
         {
             this._ToIEval = toIEval ?? Dependency.Helpers.Obj2Eval;
@@ -75,11 +76,11 @@ namespace Dependency.Variables
         public void Clear()
         {
             if (_LockedVariable == null) return;
-            _LockedVariable.Contents = _ToIEval(_Value = _DefaultValue);
+            _LockedVariable.Contents = _ToIEval(_Value);
             _LockedVariable = null;
         }
 
-        public void SetLock(bool locked) => _LockedVariable = (locked) ? WeakVariable : null;
+        public void SetLock(bool locked) => _LockedVariable = (locked) ? Source : null;
 
         public bool TryGetVariable(out Variable v)
         {
@@ -118,6 +119,15 @@ namespace Dependency.Variables
         public static implicit operator T(DynamicVariable<T> d) => d.Value;
 
         public override string ToString() => TryGetVariable(out Variable v) ? v.ToString() : _Value.ToString();
+
+        bool IDynamicItem.Update()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal IDynamicItem Parent { get; set; }
+        IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
+
     }
 
     public sealed class DynamicBool : DynamicVariable<bool>

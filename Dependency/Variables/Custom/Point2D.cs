@@ -8,10 +8,9 @@ namespace Dependency.Variables.Custom
 {
     public sealed class Point2D : IDynamicItem, IContext
     {
+        private readonly LiteralDouble _XRef = new LiteralDouble();
+        private readonly LiteralDouble _YRef = new LiteralDouble();
         
-        private readonly WeakReference<Variable> _XRef = new WeakReference<Variable>(null);
-        private readonly WeakReference<Variable> _YRef = new WeakReference<Variable>(null);
-
         internal IDynamicItem Parent { get; set; }
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
 
@@ -20,13 +19,20 @@ namespace Dependency.Variables.Custom
             string path_str = path.ToString().ToLower();
             switch (path_str)
             {
-                
+                case "x": source = _XRef.Source;return true;
+                case "y": source = _YRef.Source; return true;
                 default:source = null; return false;
             }
         }
 
         bool IContext.TryGetSubcontext(object path, out IContext ctxt) { ctxt = null; return false; }
 
-        bool IDynamicItem.Update() => true;
+        bool IDynamicItem.Update()
+        {
+            bool update = false;
+            if (_XRef.TryGetVariable(out Variable v)) update |= Variable.UpdateValue(v);
+            if (_YRef.TryGetVariable(out v)) update |= Variable.UpdateValue(v);
+            return update;
+        }
     }
 }

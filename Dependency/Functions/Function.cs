@@ -23,11 +23,7 @@ namespace Dependency.Functions
                         ide.Parent = this;
             }
         }
-
-        internal IEvaluateable Recalculate()
-        {
-            throw new NotImplementedException();
-        }
+        
 
         IList<IEvaluateable> IFunction.Inputs => Inputs;
 
