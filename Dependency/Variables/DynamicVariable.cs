@@ -46,18 +46,25 @@ namespace Dependency.Variables
                 {
                     Variable vNew = new Variable(_ToIEval(_Value));
                     _Ref = new WeakReference<Variable>(vNew);
-                    vNew.ValueChanged += On_Value_Changed;
+                    vNew.Parent = this;
                     return vNew;
                 }
                 else if (!_Ref.TryGetTarget(out Variable vExisting))
                 {
                     _Ref.SetTarget(vExisting = new Variable(_ToIEval(_Value)));
+                    vExisting.Parent = this;
                     vExisting.ValueChanged += On_Value_Changed;
                     return vExisting;
                 }
                 else
                     return vExisting;
             }
+        }
+        public bool TryGetSource(out Variable v)
+        {
+            if (_Ref != null && _Ref.TryGetTarget(out v)) return true;
+            v = null;
+            return false;
         }
 
         public T Value => _Value;
@@ -81,48 +88,17 @@ namespace Dependency.Variables
         }
 
         public void SetLock(bool locked) => _LockedVariable = (locked) ? Source : null;
-
-        public bool TryGetVariable(out Variable v)
-        {
-            if (_Ref != null && _Ref.TryGetTarget(out v)) return true;
-            v = null;
-            return false;
-        }
-
-
-        private void On_Value_Changed(object sender, ValueChangedArgs<IEvaluateable> e)
-        {
-            T oldValue = _Value, newValue = default(T);
-            try
-            {
-                newValue = _ToClr(e.After);
-                if (newValue.Equals(_Value)) return;
-            }
-            catch (InvalidCastException)
-            {
-                return;
-            }
-
-            if (oldValue == null)
-            {
-                if (newValue == null) return;
-            }
-            else if (oldValue.Equals(newValue))
-                return;
-
-            _Value = newValue;
-            ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
-        }
-
-        public event ValueChangedHandler<T> ValueChanged;
+        
+        
 
         public static implicit operator T(DynamicVariable<T> d) => d.Value;
 
-        public override string ToString() => TryGetVariable(out Variable v) ? v.ToString() : _Value.ToString();
+        public override string ToString() => TryGetSource(out Variable v) ? v.ToString() : _Value.ToString();
 
         bool IDynamicItem.Update()
         {
-            throw new NotImplementedException();
+            if (TryGetSource(out Variable v)) return Variable.UpdateValue(v);
+            return true;
         }
 
         internal IDynamicItem Parent { get; set; }

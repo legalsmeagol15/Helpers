@@ -29,7 +29,7 @@ namespace Dependency.Variables
         private Variable _LockedVariable;
 
         /// <summary>Returns whether this variable is participating currently in the dependency system.</summary>
-        public bool IsActive => TryGetVariable(out _);
+        public bool IsActive => TryGetSource(out _);
 
         /// <summary>Creates a new <see cref="SourceVariable{T}"/>.</summary>
         /// <param name="startValue">The starting value for the <see cref="SourceVariable{T}"/>.  This will be 
@@ -95,7 +95,7 @@ namespace Dependency.Variables
 
         void IWeakVariable<T>.SetLock(bool locked) => _LockedVariable = (locked) ? Source : null;
 
-        public bool TryGetVariable(out Variable v)
+        public bool TryGetSource(out Variable v)
         {
             if (_Ref != null && _Ref.TryGetTarget(out v)) return true;
             v = null;
@@ -104,7 +104,7 @@ namespace Dependency.Variables
 
         private event ValueChangedHandler<T> ValueChanged;
 
-        public override string ToString() => TryGetVariable(out Variable v) ? v.ToString() : _Value.ToString();
+        public override string ToString() => TryGetSource(out Variable v) ? v.ToString() : _Value.ToString();
     }
 
 

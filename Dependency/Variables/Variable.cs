@@ -198,7 +198,7 @@ namespace Dependency.Variables
 
         public event ValueChangedHandler<IEvaluateable> ValueChanged;
         
-
+        internal IDynamicItem Parent { get; set; }
 
         bool IVariable.AddListener(IDynamicItem idi) => _Listeners.Add(idi);
         bool IVariable.RemoveListener(IDynamicItem idi) => _Listeners.Remove(idi);
@@ -208,7 +208,7 @@ namespace Dependency.Variables
         void IVariable.FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
         ReaderWriterLockSlim IVariableAsync.ValueLock => _ValueLock;
-        IDynamicItem IDynamicItem.Parent { get; set; }
+        IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
         bool IDynamicItem.Update() =>UpdateValue(this);
 
 

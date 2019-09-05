@@ -154,10 +154,14 @@ namespace Dependency
 
     internal interface IWeakVariable<T>
     {
+        /// <summary>Creates or retrieves the existing associated <seealso cref="Variable"/>.</summary>
         Variable Source { get; }
         void SetLock(bool locked);
+        /// <summary>The CLR value associated with this variable.</summary>
         T Value { get; }
-        bool TryGetVariable(out Variable v);
+        /// <summary>Returns true if an existing <seealso cref="Variable"/> can be retrieved; otherwise, returns false.
+        /// </summary>
+        bool TryGetSource(out Variable v);
     }
 
 

@@ -30,8 +30,8 @@ namespace Dependency.Variables.Custom
         bool IDynamicItem.Update()
         {
             bool update = false;
-            if (_XRef.TryGetVariable(out Variable v)) update |= Variable.UpdateValue(v);
-            if (_YRef.TryGetVariable(out v)) update |= Variable.UpdateValue(v);
+            if (_XRef.TryGetSource(out Variable v)) update |= Variable.UpdateValue(v);
+            if (_YRef.TryGetSource(out v)) update |= Variable.UpdateValue(v);
             return update;
         }
     }

@@ -10,9 +10,11 @@ namespace Dependency.Variables
     /// A <see cref="LiteralVariable{T}"/> blends the notion of CLR and literal dependency variables.  The current 
     /// value of type <typeparamref name="T"/> is maintained and always available.  It maintains the 
     /// <seealso cref="IWeakVariable{T}"/> pattern in that the dependency variable may expire due to garbage-
-    /// collection if it has no listeners, but the CLR value will continue to be available.
+    /// collection if it has no listeners, but the CLR value will continue to be available.  A 
+    /// <see cref="LiteralVariable{T}"/> will never change value in response to an update because its contents are 
+    /// literal.
     /// </summary>
-    public class LiteralVariable<T> : IWeakVariable<T>
+    public class LiteralVariable<T> : IWeakVariable<T> , IDynamicItem
     {
         protected T ContentValue;    // Will be both the Variable's Contents and its Value
         private readonly Func<T, IEvaluateable> _Converter;
@@ -25,6 +27,8 @@ namespace Dependency.Variables
             {
                 ContentValue = value;
                 if (_Ref != null && _Ref.TryGetTarget(out Variable v)) v.Contents = _Converter(value);
+                IDynamicItem parent = Parent;
+                while (parent != null && parent.Update()) parent = parent.Parent;
             }
         }
 
@@ -37,6 +41,8 @@ namespace Dependency.Variables
         }
 
         Variable IWeakVariable<T>.Source => Source;
+
+        /// <summary>Creates or retrieves the existing <seealso cref="Variable"/>.</summary>
         public Variable Source
         {
             get
@@ -56,18 +62,27 @@ namespace Dependency.Variables
                     return vExisting;
             }
         }
-        public bool TryGetVariable(out Variable v)
+
+        internal IDynamicItem Parent { get; set; }
+        IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
+
+        public bool TryGetSource(out Variable v)
         {
             if (_Ref != null && _Ref.TryGetTarget(out v)) return true;
             v = null;
             return false;
         }
-
-
+        
         public void SetLock(bool locked) => _LockedVariable = (locked) ? Source : null;
 
 
         public override string ToString() => ContentValue.ToString();
+
+        bool IDynamicItem.Update()
+        {
+            if (TryGetSource(out Variable v)) return Variable.UpdateValue(v);
+            return true;
+        }
 
         public static implicit operator T(LiteralVariable<T> b) => b.ContentValue;
     }
