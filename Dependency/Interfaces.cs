@@ -157,7 +157,7 @@ namespace Dependency
 
     internal interface IWeakVariable<T>
     {
-        Variable Variable { get; }
+        Variable WeakVariable { get; }
         void SetLock(bool locked);
         T Value { get; }
         bool TryGetVariable(out Variable v);

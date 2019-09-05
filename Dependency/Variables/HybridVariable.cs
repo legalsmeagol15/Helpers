@@ -36,7 +36,7 @@ namespace Dependency.Variables
             _LockedVariable = null;
         }
 
-        Variable IWeakVariable<T>.Variable => Source;
+        Variable IWeakVariable<T>.WeakVariable => Source;
         public Variable Source
         {
             get
@@ -73,20 +73,20 @@ namespace Dependency.Variables
     }
 
     /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="double"/> values.</summary>
-    public sealed class BlendedDouble : BlendedVariable<double>
+    public sealed class HybridDouble : BlendedVariable<double>
     {
-        public BlendedDouble(double startValue = 0) : base(startValue, Number.FromDouble) { }
+        public HybridDouble(double startValue = 0) : base(startValue, Number.FromDouble) { }
     }
 
     /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="int"/> values.</summary>
-    public sealed class BlendedInt : BlendedVariable<int>
+    public sealed class HybridInt : BlendedVariable<int>
     {
-        public BlendedInt(int startValue = 0) : base(startValue, (i) => new Number(i)) { }
+        public HybridInt(int startValue = 0) : base(startValue, (i) => new Number(i)) { }
     }
 
     /// <summary>A <seealso cref="BlendedVariable{T}"/> optimized for <seealso cref="string"/> values.</summary>
-    public sealed class BlendedString : BlendedVariable<string>
+    public sealed class HybridString : BlendedVariable<string>
     {
-        public BlendedString(string startValue = "") : base(startValue, (s) => new Dependency.String(s)) { }
+        public HybridString(string startValue = "") : base(startValue, (s) => new Dependency.String(s)) { }
     }
 }

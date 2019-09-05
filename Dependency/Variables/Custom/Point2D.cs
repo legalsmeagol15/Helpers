@@ -12,7 +12,7 @@ namespace Dependency.Variables.Custom
         private readonly WeakReference<Variable> _YRef = new WeakReference<Variable>(null);
         bool IContext.TryGetProperty(object path, out IEvaluateable source)
         {
-            string p;
+            
             throw new NotImplementedException();
         }
 

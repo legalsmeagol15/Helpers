@@ -33,12 +33,12 @@ namespace Dependency.Variables
             }
             set
             {
-                _LockedVariable = Variable;
+                _LockedVariable = WeakVariable;
                 _LockedVariable.Contents = value;
             }
         }
 
-        public Variable Variable
+        public Variable WeakVariable
         {
             get
             {
@@ -79,7 +79,7 @@ namespace Dependency.Variables
             _LockedVariable = null;
         }
 
-        public void SetLock(bool locked) => _LockedVariable = (locked) ? Variable : null;
+        public void SetLock(bool locked) => _LockedVariable = (locked) ? WeakVariable : null;
 
         public bool TryGetVariable(out Variable v)
         {
