@@ -53,7 +53,7 @@ namespace Dependency.Variables
                 {
                     _Ref.SetTarget(vExisting = new Variable(_ToIEval(_Value)));
                     vExisting.Parent = this;
-                    vExisting.ValueChanged += On_Value_Changed;
+                    //vExisting.ValueChanged += On_Value_Changed;
                     return vExisting;
                 }
                 else

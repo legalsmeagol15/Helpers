@@ -107,11 +107,14 @@ namespace UnitTests
         [TestMethod]
         public void Test_Linear()
         {
-            // 1853 ms update 1000 vars over 100 times, or 18 ms/run
-            // 1385 ms update 1000 vars over 100 times, or 13 ms/run
-            // 1551 ms update 1000 vars over 100 times, or 15 ms/run
-            // 1276 ms update 1000 vars over 100 times, or 12 ms/run
-            // 1344 ms update 1000 vars over 100 times, or 13 ms/run
+            // NOTE:  expect a long run time because setting up the line is an N^2 operation, but updates should be 
+            // lightning-quick.
+
+            // 401 ms update 1000 vars over 100 times, or 4 ms/run
+            // 415 ms update 1000 vars over 100 times, or 4 ms/run
+            // 567 ms update 1000 vars over 100 times, or 5 ms/run
+            // 361 ms update 1000 vars over 100 times, or 3 ms/run
+            // 376 ms update 1000 vars over 100 times, or 3 ms/run
             int numVars = 1000;
             bool timeUpdates = false;
            
@@ -338,6 +341,11 @@ namespace UnitTests
             if (_Subcontexts.TryGetValue(token, out SimpleContext sc)) { ctxt = sc; return true; }
             ctxt = null;
             return false;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return base.Equals(obj);
         }
     }
 }

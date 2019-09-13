@@ -17,7 +17,7 @@ namespace Dependency.Functions
 
     internal struct EvaluateableContext : IContext, IEvaluateable, ITypeGuarantee, ILiteral<IContext>
     {
-        public IContext Context;
+        public readonly IContext Context;
 
         public EvaluateableContext(IContext context) { this.Context = context; }
 
@@ -32,6 +32,14 @@ namespace Dependency.Functions
         IContext ILiteral<IContext>.CLRValue => Context;
 
         public override string ToString() => Context.ToString();
+
+        public override bool Equals(object obj)
+        {
+            if (obj is EvaluateableContext other) return Context.Equals(other.Context);
+            return Context.Equals(obj);
+        }
+
+        public override int GetHashCode() => Context.GetHashCode();
     }
 
     [TypeControl.NonVariadic(0, TypeFlags.Reference)]
@@ -39,8 +47,13 @@ namespace Dependency.Functions
     {
         public readonly string[] Paths;
 
-        private object _Head;
-        internal object Head
+        private IContext _Origin;
+        private IEvaluateable _Head;
+        /// <summary>
+        /// The object at the head of this reference.  The head can be an <seealso cref="IContext"/>, an 
+        /// <seealso cref="IVariable"/>, or some kind of <seealso cref="IEvaluateable"/>.
+        /// </summary>
+        internal IEvaluateable Head
         {
             get => _Head;
             set
@@ -48,7 +61,6 @@ namespace Dependency.Functions
                 if (_Head == null)
                 {
                     if (value == null) return;
-                    else if (_Head is IVariable iv) iv.RemoveListener(this);
                 }
                 else if (_Head.Equals(value))
                     return;
@@ -61,31 +73,54 @@ namespace Dependency.Functions
 
         public Reference(IEvaluateable origin, params string[] paths) { this.Paths = paths; this.Inputs = new IEvaluateable[] { origin };  }
 
+        
+
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
             IContext ctxt = evaluatedInputs[0] as IContext;
-            
+            IContext newOrigin = ctxt;
+            if (newOrigin == null)
+                return new ReferenceError(evaluatedInputs[0], Paths, -1, "Origin is not a valid " + typeof(IContext).Name + ".");
+            else if (newOrigin.Equals(_Origin))
+                return Head.Value;
+
             int i;
-            for (i = 0; i < Paths.Length - 1; i++)
+            Variables.Variable.StructureLock.EnterUpgradeableReadLock();
+            try
             {
-                if (ctxt == null) return new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid context.");
-                if (!ctxt.TryGetSubcontext(Paths[i], out ctxt)) return new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid subcontext.");
-            }
+                
+                for (i = 0; i < Paths.Length - 1; i++)
+                {
+                    if (ctxt == null)
+                        return (Head = new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid context."));
+                    if (!ctxt.TryGetSubcontext(Paths[i], out ctxt))
+                        return (Head = new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid subcontext."));
+                }
 
-            // At the end of the path.  Is it a subcontext or a property?
-            if (ctxt.TryGetSubcontext(Paths[i], out IContext head_ctxt))
-            {
-                Head = head_ctxt;
-                return new EvaluateableContext(head_ctxt);
-            }
-            if (ctxt.TryGetProperty(Paths[i], out IEvaluateable head_source))
-            {
-                Head = head_source;
-                return head_source.Value;
-            }
+                // At the end of the path.  Is it a subcontext or a property?
+                if (ctxt.TryGetSubcontext(Paths[i], out IContext head_ctxt))
+                {
+                    Variables.Variable.StructureLock.EnterWriteLock();
+                    Head = new EvaluateableContext(head_ctxt);
+                    _Origin = newOrigin;
+                    Variables.Variable.StructureLock.ExitWriteLock();
+                }
+                else if (ctxt.TryGetProperty(Paths[i], out IEvaluateable head_source))
+                {
+                    //if (ReferenceEquals(head_source, Head)) return head_source.Value;
 
-            Head = null;
-            return new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid subcontext or property.");
+                    if (head_source is IVariable v && Helpers.TryFindCircularity(this, v, out _))
+                        head_source = new ReferenceError(evaluatedInputs[0], Paths, i, "Circular reference.");
+                    Variables.Variable.StructureLock.EnterWriteLock();
+                    Head = head_source;
+                    _Origin = newOrigin;
+                    Variables.Variable.StructureLock.ExitWriteLock();
+                }
+                else
+                    Head = new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid subcontext or property.");
+            }
+            finally { Variables.Variable.StructureLock.ExitUpgradeableReadLock(); }
+            return Head.Value;
         }
         
         public override string ToString() => "=>" + Inputs[0].ToString() + "." + string.Join(".", Paths);

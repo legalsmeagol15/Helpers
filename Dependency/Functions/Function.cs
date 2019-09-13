@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -30,10 +31,13 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; }
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
 
-        public bool Update()
-        {
-            IEvaluateable[] evalInputs = _Inputs.Select(s => s.Value).ToArray();
+        public bool Update() => Update(EvaluateInputs());
 
+        [DebuggerStepThrough]
+        protected virtual IEvaluateable[] EvaluateInputs() => _Inputs.Select(s => s.Value).ToArray();
+
+        protected bool Update(IEvaluateable[] evalInputs)
+        {
             TypeControl tc;
             if (this is ICacheValidator icv) tc = icv.TypeControl ?? (icv.TypeControl = TypeControl.GetConstraints(this.GetType()));
             else tc = TypeControl.GetConstraints(this.GetType());

@@ -21,6 +21,13 @@ namespace Dependency.Variables
 
         // A variable is apt to have few sources, but many listeners (0 or 100,000 might be reasonable).
 
+        // Invariant rule:  No evaluation tree Update() or dependency Update() should EVER push a value forward 
+        // because this would be an automatic race condition.  Example:  Variable updates to value 1, calls its 
+        // listeners to Update.  Variable then updates to value 2, calls its listeners to update.  Listeners update 
+        // with the pushed value 2, and evaluate themselves accordingly.  Then listeners update with pushed value 
+        // 1, and evaluate accordingly.  Listeners are now inconsistent with Variable's current value, whcih is 2.
+
+
         private readonly WeakReferenceSet<IDynamicItem> _Listeners = new WeakReferenceSet<IDynamicItem>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
@@ -111,6 +118,7 @@ namespace Dependency.Variables
 
         internal static bool UpdateValue(IVariableAsync var, bool updateListeners = true)
         {
+            List<Task> tasks = new List<Task>();
             try
             {
                 var.ValueLock.EnterUpgradeableReadLock();
@@ -134,13 +142,15 @@ namespace Dependency.Variables
                 //Now update the listeners asynchronously
                 if (updateListeners)
                 {
-                    List<Task> tasks = new List<Task>();
                     foreach (IDynamicItem idi in var.GetListeners())
                         tasks.Add(Task.Run(() => UpdateListener(idi)));
-                    Task.WaitAll(tasks.ToArray());
                 }
             }
             finally { StructureLock.ExitReadLock(); var.ValueLock.ExitUpgradeableReadLock(); }
+
+            // Tasks are awaited outside the locks because locks will be established within the tasks as well.
+            if (tasks.Count > 0)
+                Task.WaitAll(tasks.ToArray());
 
             return true;
         }

@@ -37,16 +37,31 @@ namespace Dependency
         bool TryGetProperty(object path, out IEvaluateable source);
     }
     
+    /// <summary>An object that will pass changes in value up through an evaluation tree to its parent.</summary>
     internal interface IDynamicItem
     {
+        /// <summary>
+        /// The parent <seealso cref="Reference"/>, <seealso cref="Function"/>, or other <see cref="IDynamicItem"/> 
+        /// that will be evaluated upon changes in this object's dependency value.
+        /// </summary>
         IDynamicItem Parent { get; set; }
-        
+
 
         /// <summary>
         /// Updates the value of this item.  Note that this method should NOT call a parent's update method in  any 
         /// case exception for the <seealso cref="Reference"/>, which is the update driver.
         /// </summary>
         /// <returns>Returns true if the value changed; otherwise, returns false.</returns>
+        /// <remarks>No evaluation tree Update() or dependency Update() should EVER push a value forward because this 
+        /// would be an automatic race condition.  Example:  Imagine Update() took the value from the lower-down input 
+        /// and pushed it forward.  (In other words, Update() was instead Update(<seealso cref="IEvaluateable"/>).  
+        /// Imagine a <seealso cref="Variable"/> 'v' that changes value a couple of time.  So, 'v' updates to value 1, 
+        /// calls its listeners to Update(<seealso cref="IEvaluateable"/>).  Then 'v' updates to value 2, calls its 
+        /// listeners to Update(<seealso cref="IEvaluateable"/>).  Since updates happen asynchronously, the listeners 
+        /// update first with the pushed value 2, and evaluate themselves accordingly.  Then listeners update with 
+        /// pushed value 1, and evaluate accordingly.  Listeners are now inconsistent with 
+        /// <seealso cref="Variable"/>'s current value, which should be 2.
+        /// </remarks>
         bool Update();
     }
 

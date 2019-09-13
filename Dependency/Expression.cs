@@ -79,6 +79,23 @@ namespace Dependency
                 return focus.Value;
             }
         }
+
+        internal static bool TryFindCircularity(Reference target, IVariable start, out IVariable path)
+        {
+            Stack<IVariable> stack = new Stack<IVariable>();
+            stack.Push(start);
+            while (stack.Count > 0)
+            {
+                IVariable focus = stack.Pop();
+                foreach (Reference r in GetReferences(focus))
+                {
+                    if (ReferenceEquals(r, target)) { path = focus; return true; }
+                    if (r.Head is IVariable v) stack.Push(v);
+                }
+            }
+            path = null;
+            return false;
+        }
     }
 
 
