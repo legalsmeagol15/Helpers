@@ -97,7 +97,7 @@ namespace Dependency.Variables
 
         bool IDynamicItem.Update()
         {
-            if (TryGetSource(out Variable v)) return Variable.UpdateValue(v);
+            if (TryGetSource(out Variable v)) return Update.ForValue(v).Execute();
             return true;
         }
 

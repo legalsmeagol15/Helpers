@@ -85,7 +85,7 @@ namespace Dependency.Functions
                 return Head.Value;
 
             int i;
-            Variables.Variable.StructureLock.EnterUpgradeableReadLock();
+            Dependency.Variables.Update.StructureLock.EnterUpgradeableReadLock();
             try
             {
                 
@@ -100,10 +100,10 @@ namespace Dependency.Functions
                 // At the end of the path.  Is it a subcontext or a property?
                 if (ctxt.TryGetSubcontext(Paths[i], out IContext head_ctxt))
                 {
-                    Variables.Variable.StructureLock.EnterWriteLock();
+                    Dependency.Variables.Update.StructureLock.EnterWriteLock();
                     Head = new EvaluateableContext(head_ctxt);
                     _Origin = newOrigin;
-                    Variables.Variable.StructureLock.ExitWriteLock();
+                    Dependency.Variables.Update.StructureLock.ExitWriteLock();
                 }
                 else if (ctxt.TryGetProperty(Paths[i], out IEvaluateable head_source))
                 {
@@ -111,15 +111,15 @@ namespace Dependency.Functions
 
                     if (head_source is IVariable v && Helpers.TryFindCircularity(this, v))
                         head_source = new ReferenceError(evaluatedInputs[0], Paths, i, "Circular reference.");
-                    Variables.Variable.StructureLock.EnterWriteLock();
+                    Dependency.Variables.Update.StructureLock.EnterWriteLock();
                     Head = head_source;
                     _Origin = newOrigin;
-                    Variables.Variable.StructureLock.ExitWriteLock();
+                    Dependency.Variables.Update.StructureLock.ExitWriteLock();
                 }
                 else
                     Head = new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid subcontext or property.");
             }
-            finally { Variables.Variable.StructureLock.ExitUpgradeableReadLock(); }
+            finally { Dependency.Variables.Update.StructureLock.ExitUpgradeableReadLock(); }
             return Head.Value;
         }
         
@@ -167,7 +167,7 @@ namespace Dependency.Functions
             IContext oldBase = _Base;
             IEvaluateable oldOrdinal = _Ordinal;
 
-            Variables.Variable.StructureLock.EnterUpgradeableReadLock();
+            Dependency.Variables.Update.StructureLock.EnterUpgradeableReadLock();
             try
             {
                 IContext newBase = evaluatedInputs[0] as IContext;
@@ -180,10 +180,10 @@ namespace Dependency.Functions
                 if (newBase.Equals(_Base) && newOrdinal.Equals(_Ordinal))
                     return Value;
 
-                Variables.Variable.StructureLock.EnterWriteLock();
+                Dependency.Variables.Update.StructureLock.EnterWriteLock();
                 _Base = newBase;
                 _Ordinal = newOrdinal;
-                Variables.Variable.StructureLock.ExitWriteLock();
+                Dependency.Variables.Update.StructureLock.ExitWriteLock();
 
                 if (newBase.TryGetSubcontext(newOrdinal, out IContext sub_ctxt)) return new EvaluateableContext(sub_ctxt);
                 if (newBase.TryGetProperty(newOrdinal, out IEvaluateable sub_prop))
@@ -194,7 +194,7 @@ namespace Dependency.Functions
                 }
                 else return new IndexingError(this, newBase, newOrdinal, "Base is not indexable by " + newOrdinal.ToString());
             }
-            finally { Variables.Variable.StructureLock.ExitUpgradeableReadLock(); }
+            finally { Dependency.Variables.Update.StructureLock.ExitUpgradeableReadLock(); }
         }
 
         public override string ToString() => Inputs[0].ToString() + "[" + Inputs[1].ToString() + "]";

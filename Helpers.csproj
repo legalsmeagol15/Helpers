@@ -95,10 +95,9 @@
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
     <Compile Include="Dependency\Variables\LiteralVariable.cs" />
-    <Compile Include="Dependency\Variables\Custom\ClusterVariable.cs" />
-    <Compile Include="Dependency\Variables\Custom\Point2D.cs" />
     <Compile Include="Dependency\Variables\DynamicVariable.cs" />
     <Compile Include="Dependency\Variables\SourceVariable.cs" />
+    <Compile Include="Dependency\Variables\Update.cs" />
     <Compile Include="Dependency\Variables\Variable.cs" />
     <Compile Include="Events.cs" />
     <Compile Include="Mathematics\Geometry\Rect.cs" />
@@ -129,6 +128,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="ArtificialIntelligence\Logical\" />
+    <Folder Include="Dependency\Variables\Custom\" />
     <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>

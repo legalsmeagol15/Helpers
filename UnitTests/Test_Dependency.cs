@@ -56,13 +56,16 @@ namespace UnitTests
             sub1.Add("sub2", sub2);
             sub2.Add("v2", v2);
             Variable v3 = new Variable(Parse.FromString("sub1.v1", null, root));
+            
             Assert.AreEqual(v3.Value, vec);
             Variable v4 = new Variable(Parse.FromString("sub1.sub2.v2[2]", null, root));
+            
             Assert.AreEqual(v4.Value, vec[2]);
 
             // Show that values propogate through deep paths.
             vec = new Vector(new Number(31), new Number(32), new Number(33));
             v0.Contents = vec;
+            
             Assert.AreEqual(v3.Value, vec);
             Assert.AreEqual(v4.Value, vec[2]);
 
@@ -75,65 +78,6 @@ namespace UnitTests
             throw new NotImplementedException();
         }
 
-        [TestMethod]
-        public void Test_Diamond()
-        {
-            int numVars = 1000;
-            bool timeUpdates = false;
-            Variable vStart = new Variable(Dependency.Number.One);
-            SimpleContext root = new SimpleContext();
-            root.Add("vStart", vStart);
-            Assert.AreEqual(Dependency.Number.One, vStart.Contents);
-            Assert.AreEqual(Dependency.Number.One, vStart.Value);
-
-            int vars = 0;
-            int rank = 0;
-            Dictionary<string, Variable> lastRank = new Dictionary<string, Variable>
-            {
-                { "vStart", vStart }
-            };
-            while (vars < numVars)
-            {
-                Dictionary<string, Variable> thisRank = new Dictionary<string, Variable>();
-                foreach (var kvp in lastRank)
-                {
-                    string lastName = kvp.Key;
-                    Variable lastVar = kvp.Value;
-                    
-                    Variable vA = new Variable(Parse.FromString("0 + " + lastName, null, root));
-                    Variable vB = new Variable(Parse.FromString("0 - " + lastName, null, root));
-                    string aName = "v_" + rank + "_" + vars + "A";
-                    string bName = "v_" + rank + "_" + vars + "B";
-                    vars += 2;
-                    
-                    root.Add(aName, vA);
-                    root.Add(bName, vB);
-                    thisRank.Add(aName, vA);
-                    thisRank.Add(bName, vB);
-                }
-                rank++;
-                lastRank = thisRank;
-            }
-            
-            vStart.Contents = new Number(-1);
-            vStart.Contents = new Number(0);
-
-            if (timeUpdates)
-            {
-                for (int k = 0; k < 5; k++)
-                {
-                    long ms = 0;
-                    long runs = 100;
-                    int val = 1;
-                    for (int i = 0; i < runs; i++)
-                    {
-                        ms += Common.Time((j) => vStart.Contents = new Number(val), i);
-                        val *= -1;
-                    }
-                    Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
-                }
-            }
-        }
 
         [TestMethod]
         public void Test_Linear()
@@ -151,6 +95,7 @@ namespace UnitTests
            
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
+            
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
@@ -160,13 +105,16 @@ namespace UnitTests
             for (int i = 1; i <= numVars; i++)
             {
                 Variable vNext = new Variable(Parse.FromString("v" + (i-1), null,  root));
+                
                 Assert.AreEqual(vStart.Value, vNext.Value);
                 root.Add("v" + i, vNext);
             }
             if (!root.TryGetProperty("v" + numVars, out IEvaluateable last_iev) || !(last_iev is Variable vLast))
                 throw new Exception("Bad testing harness.");
             vStart.Contents = new Number(2);
+            
             Assert.AreEqual(vStart.Value, vLast.Value);
+            
 
             if (timeUpdates)
             {
@@ -176,7 +124,7 @@ namespace UnitTests
                     long runs = 100;
                     for (int i = 0; i < runs; i++)
                     {
-                        ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                        ms += Common.Time((j) => { vStart.Contents = new Number(j);  }, i);
                     }
                     Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
                 }
@@ -196,6 +144,7 @@ namespace UnitTests
 
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
+            
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
@@ -205,12 +154,14 @@ namespace UnitTests
             for (int i = 1; i <= numVars; i++)
             {
                 Variable vNext = new Variable(Parse.FromString("v0", null, root));
+                
                 Assert.AreEqual(vStart.Value, vNext.Value);
                 root.Add("v" + i, vNext);
             }
             if (!root.TryGetProperty("v" + numVars, out IEvaluateable last_iev) || !(last_iev is Variable vLast))
                 throw new Exception("Bad testing harness.");
             vStart.Contents = new Number(2);
+            
             Assert.AreEqual(vStart.Value, vLast.Value);
 
             if (timeUpdates)
@@ -221,7 +172,7 @@ namespace UnitTests
                     long runs = 100;
                     for (int i = 0; i < runs; i++)
                     {
-                        ms += Common.Time((j) => vStart.Contents = new Number(j), i);
+                        ms += Common.Time((j) => { vStart.Contents = new Number(j);  }, i);
                     }
                     Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
                 }
@@ -278,7 +229,105 @@ namespace UnitTests
             Assert.AreEqual("( 3 - 5 + ( 2 ^ 3 ) / 4 * -7 - 1 )", exp2.ToString());
             Assert.AreEqual("( 3 - 5 + ( ( ( 2 ^ 3 ) / 4 ) * -7 ) - 1 )", exp3.ToString());
         }
-        
+
+
+
+        [TestMethod]
+        public void Test_Triangle()
+        {
+            int numVars = 1000;
+            bool timeUpdates = true;
+
+            IFunctionFactory functions = new Dependency.Functions.ReflectedFunctionFactory();
+
+            Variable vStart = new Variable(Dependency.Number.One);
+            SimpleContext root = new SimpleContext();
+            root.Add("vstart", vStart);
+            
+            Assert.AreEqual(Dependency.Number.One, vStart.Contents);
+            Assert.AreEqual(Dependency.Number.One, vStart.Value);
+
+            int vars = 0;
+            int rank = 0;
+            List<KeyValuePair<string, Variable>> lastRank = new List<KeyValuePair<string, Variable>>
+            {
+                new KeyValuePair<string, Variable>("vstart", vStart)
+            };
+
+            while (vars < numVars)
+            {
+                List<KeyValuePair<string, Variable>> thisRank = new List<KeyValuePair<string, Variable>>();
+                foreach (var kvp in lastRank)
+                {
+                    string lastName = kvp.Key;
+                    Variable lastVar = kvp.Value;
+
+                    Variable vA = new Variable(Parse.FromString("ABS(" + lastName + ")", functions, root));
+                    Variable vB = new Variable(Parse.FromString("-ABS(" + lastName + ")", functions, root));
+                    string aName = "v_" + rank + "_" + vars + "a";
+                    string bName = "v_" + rank + "_" + vars + "b";
+                    vars += 2;
+
+                    root.Add(aName, vA);
+                    root.Add(bName, vB);
+                    thisRank.Add(new KeyValuePair<string, Variable>(aName, vA));
+                    thisRank.Add(new KeyValuePair<string, Variable>(bName, vB));
+
+                    
+                    Assert.AreEqual(vA.Value, 1);
+                    Assert.AreEqual(vB.Value, -1);
+                }
+                rank++;
+                lastRank = thisRank;
+            }
+
+            vStart.Contents = new Number(-1);
+            
+            for (int i = 0; i < lastRank.Count; i += 2)
+            {
+                Variable vA = lastRank[i].Value;
+                Variable vB = lastRank[i+1].Value;
+                Assert.AreEqual(vA.Value, 1);
+                Assert.AreEqual(vB.Value, -1);
+            }
+
+            vStart.Contents = new Number(2);
+            
+            for (int i = 0; i < lastRank.Count; i += 2)
+            {
+                Variable vA = lastRank[i].Value;
+                Variable vB = lastRank[i + 1].Value;
+                Assert.AreEqual(vA.Value, 2);
+                Assert.AreEqual(vB.Value, -2);
+            }
+
+            vStart.Contents = new Number(0);
+            
+            for (int i = 0; i < lastRank.Count; i += 2)
+            {
+                Variable vA = lastRank[i].Value;
+                Variable vB = lastRank[i + 1].Value;
+                Assert.AreEqual(vA.Value, 0);
+                Assert.AreEqual(vB.Value, 0);
+            }
+
+            if (timeUpdates)
+            {
+                for (int k = 0; k < 5; k++)
+                {
+                    long ms = 0;
+                    long runs = 100;
+                    int val = 1;
+                    for (int i = 0; i < runs; i++)
+                    {
+                        ms += Common.Time((j) => { vStart.Contents = new Number(val);  }, i);
+                        val *= -1;
+                    }
+                    Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
+                }
+            }
+        }
+
 
         private static void PrintTimings(double[] timings)
         {

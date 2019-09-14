@@ -80,7 +80,7 @@ namespace Dependency.Variables
 
         bool IDynamicItem.Update()
         {
-            if (TryGetSource(out Variable v)) return Variable.UpdateValue(v);
+            if (TryGetSource(out Variable v)) return Dependency.Variables.Update.ForValue(v).Execute();
             return true;
         }
 

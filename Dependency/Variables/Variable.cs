@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -31,7 +32,8 @@ namespace Dependency.Variables
         private readonly WeakReferenceSet<IDynamicItem> _Listeners = new WeakReferenceSet<IDynamicItem>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-        internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+        
+        
 
         public IEvaluateable Value
         {
@@ -55,16 +57,16 @@ namespace Dependency.Variables
             get
             {
                 // Contents defines structure.
-                StructureLock.EnterReadLock();
+                Update.StructureLock.EnterReadLock();
                 try { return _Contents; }
-                finally { StructureLock.ExitReadLock(); }
+                finally { Update.StructureLock.ExitReadLock(); }
             }
             set
             {
-                UpdateStructure(this, value);
-                _Contents = value;
-                Helpers.Recalculate(_Contents);
-                UpdateValue(this);
+                var update = Update.ForContents(this, value);
+                update.Execute();
+                update.Await();
+                
             }
         }
 
@@ -72,132 +74,14 @@ namespace Dependency.Variables
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
         public Variable(IEvaluateable contents = null) { this.Contents = contents ?? Null.Instance; }
 
-        
 
-        internal static void UpdateStructure(IVariable var, IEvaluateable newContents)
+        public  Update SetContentsAsync(IEvaluateable newContents)
         {
-            if (newContents == null) newContents = Dependency.Null.Instance;
-            else if (newContents is Expression exp) newContents = exp.Contents;
-            IDynamicItem idi_var = var as IDynamicItem;
-
-            // Check for circular reference.
-            HashSet<Reference> newRefs = new HashSet<Reference>(Helpers.GetReferences(newContents));
-            try
-            {
-                StructureLock.EnterUpgradeableReadLock();
-                if (TryFindCircularity(var, newRefs, out Deque<IVariable> path))
-                    throw new CircularDependencyException(path);
-                ISet<Reference> oldRefs = var.References;
-                try
-                {
-                    StructureLock.EnterWriteLock();
-
-                    // Ensure the reference list (the refs this variable  listens to) are up-to-date.
-                    if (oldRefs != null)
-                    {
-                        foreach (Reference oldRef in oldRefs)
-                            if (!newRefs.Contains(oldRef) && oldRef.Head is IVariable v)
-                                v.RemoveListener(oldRef);
-                        foreach (Reference newRef in newRefs)
-                            if (!oldRefs.Contains(newRef) && newRef.Head is IVariable v)
-                                v.AddListener(newRef);
-                    }
-
-
-                    // Update references, contents, and evaluation trees.
-                    var.References = newRefs;
-                    if (var.Contents is IDynamicItem idi_before) idi_before.Parent = null;
-                    if (newContents is IDynamicItem idi_after) idi_after.Parent = idi_var;
-                }
-                finally { StructureLock.ExitWriteLock(); }
-
-            }
-            catch (CircularDependencyException) { throw; }
-            finally { StructureLock.ExitUpgradeableReadLock(); }
+            Update result = Update.ForContents(this, newContents);
+            result.Execute();
+            return result;
         }
 
-        internal static bool UpdateValue(IVariableAsync var, bool updateListeners = true)
-        {
-            List<Task> tasks = new List<Task>();
-            try
-            {
-                var.ValueLock.EnterUpgradeableReadLock();
-                StructureLock.EnterReadLock();
-
-                // Presume that a source Variable is already updated in its structure and its contents, since this 
-                // method will be called a lot from the sources and we don't want an exponential function.
-                IEvaluateable newValue = var.Contents.Value;
-                if (newValue == null) newValue = Dependency.Null.Instance;
-
-                // Rule out identical values.  If identical, return false so no further action will be invoked.
-                IEvaluateable oldValue = var.Value;
-                if (newValue.Equals(oldValue)) return false;
-
-                // Set the value.
-                var.SetValue(newValue);
-
-                // Fire the event.
-                var.FireValueChanged(oldValue, newValue);
-
-                //Now update the listeners asynchronously
-                if (updateListeners)
-                {
-                    foreach (IDynamicItem idi in var.GetListeners())
-                        tasks.Add(Task.Run(() => UpdateListener(idi)));
-                }
-            }
-            finally { StructureLock.ExitReadLock(); var.ValueLock.ExitUpgradeableReadLock(); }
-
-            // Tasks are awaited outside the locks because locks will be established within the tasks as well.
-            if (tasks.Count > 0)
-                Task.WaitAll(tasks.ToArray());
-
-            return true;
-        }
-        private static void UpdateListener(IDynamicItem listener)
-        {
-            while (listener != null && listener.Update()) listener = listener.Parent;
-        }
-
-        private static bool TryFindCircularity(IVariable target, IEnumerable<Reference> startRefs, out Deque<IVariable> path)
-        {
-            HashSet<IVariable> visited = new HashSet<IVariable>();
-
-            // Start off the queue with the indicated items.
-            Queue<CircularSearchNode> queue = new Queue<CircularSearchNode>();
-            foreach (var r in startRefs)
-                if (r.Head is IVariable iv)
-                    queue.Enqueue(new CircularSearchNode { Item = iv, Refs = iv.References, Prior = null });
-
-            // Now search.
-            while (queue.Count > 0)
-            {
-                CircularSearchNode n = queue.Dequeue();
-                if (!visited.Add(n.Item))
-                    continue;
-                else if (ReferenceEquals(n.Item, target))
-                {
-                    path = new Deque<IVariable>();
-                    while (n != null) { path.AddFirst(n.Item); n = n.Prior; }
-                    path.AddFirst(target);
-                    return true;
-                }
-                else
-                {
-                    foreach (var r in n.Refs)
-                        if (r.Head is IVariable iv)
-                            queue.Enqueue(new CircularSearchNode { Item = iv, Refs = iv.References, Prior = n });
-                }
-            }
-            path = null;
-            return false;
-        }
-        private class CircularSearchNode
-        {
-            public IVariable Item;
-            public IEnumerable<Reference> Refs;
-            public CircularSearchNode Prior;
-        }
 
 
         public override string ToString()
@@ -219,7 +103,7 @@ namespace Dependency.Variables
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
         ReaderWriterLockSlim IVariableAsync.ValueLock => _ValueLock;
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
-        bool IDynamicItem.Update() =>UpdateValue(this);
+        bool IDynamicItem.Update() => Update.ForValue(this).Execute();
 
 
     }
