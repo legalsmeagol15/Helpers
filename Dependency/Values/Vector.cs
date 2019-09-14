@@ -44,6 +44,7 @@ namespace Dependency
 
         public override bool Equals(object obj) => (obj is Vector other) && this == other;
         //public override int GetHashCode() { unchecked { return (int)Inputs.Sum(i => i.GetHashCode()); } }
+        public override int GetHashCode() => base.GetHashCode();
 
         bool IContext.TryGetSubcontext(object path, out IContext ctxt) { ctxt = null; return false; }
 

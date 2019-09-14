@@ -61,10 +61,11 @@ namespace Dependency
 
         /// <summary>
         /// Returns whether the given types match any of the constraint set.  If so, the <paramref name="bestIndex"/> 
-        /// out variable will contain the index (and <paramref name="unmatchedArg"/> will be -1).  If at least one 
-        /// constraint matched the <paramref name="objects"/> count, then the first non-matching argument index will 
-        /// be signalled in <paramref name="unmatchedArg"/>.  If not constraints matched the <paramref name="objects"/>
-        /// count, then both <paramref name="bestIndex"/> and <paramref name="unmatchedArg"/> will be -1.
+        /// out variable will contain the index (and <paramref name="unmatchedArg"/> will be the size of the type 
+        /// vector).  If at least one constraint matched the <paramref name="objects"/> count, then the first non-
+        /// matching argument index will be signalled in <paramref name="unmatchedArg"/>.  If not constraints matched 
+        /// the <paramref name="objects"/> count, then both <paramref name="bestIndex"/> and 
+        /// <paramref name="unmatchedArg"/> will be -1.
         /// </summary>
         public bool TryMatchType(IList<object> objects, out int bestIndex, out int unmatchedArg)
         {
@@ -73,7 +74,12 @@ namespace Dependency
 
             if (_Constraints.Count == 0) return true;
 
+            // Convert the objects to controllable types.
+            TypeFlags[] objTypes = new TypeFlags[objects.Count];
+            for (int  i = 0; i < objTypes.Length; i++)
+                objTypes[i] = (objects[i] is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
 
+            // Now find a matching constraint for the object types, if one such constraint exists.
             foreach (Constraint constraint in _Constraints)
             {
                 if (!constraint.MatchesCount(objects.Count))
@@ -82,26 +88,15 @@ namespace Dependency
                 for (int argIdx = 0; argIdx < objects.Count; argIdx++)
                 {
                     TypeFlags allowed = constraint[argIdx];
-                    if (objects[argIdx] is ITypeGuarantee itg)
+                    TypeFlags objType = objTypes[argIdx];
+                    if ((allowed & objType) == objType)
                     {
-                        TypeFlags objType = itg.TypeGuarantee;
-                        if ((allowed & objType) != objType)
-                        {
-                            if (argIdx <= unmatchedArg) continue;
-                            unmatchedArg = argIdx;
-                            bestIndex = constraint.Index;
-                            break;
-                        }
-                        else
-                        {
-                            bestIndex = constraint.Index;
-                            unmatchedArg = -1;
-                            return true;
-                        }
+                        if (argIdx >= unmatchedArg) { bestIndex = constraint.Index; unmatchedArg = argIdx + 1; }
                     }
-                    else if (allowed != TypeFlags.Any)
-                        break;
+                    else break;
                 }
+
+                if (bestIndex == constraint.Index && constraint.MatchesCount(unmatchedArg)) return true;
             }
             return false;
         }

@@ -21,35 +21,6 @@ namespace UnitTests
     [TestClass]
     public class Test_Dependency
     {
-        /// <summary>
-        /// Returns the elapsed time that results from updating the dependency tree that begins at 
-        /// <paramref name="vStart"/>, by updating the variables's <see cref="Variable.Contents"/> 
-        /// the given number of times.
-        /// </summary>
-        private static  TimeSpan Time(Variable vStart, int timings)
-        {
-            vStart.Contents = new Number(-100);  // Warmup
-
-            // Do the indicated number of timings
-            DateTime start = DateTime.Now;
-            for (int i = 0; i < timings; i++)
-            {
-                Number num = new Number(i);
-                vStart.Contents = num;
-            }
-            DateTime end = DateTime.Now;
-
-            // Take out the overhead.
-            DateTime overheadStart = DateTime.Now;
-            for (int i = 0; i < timings; i++)
-            {
-                Number num = new Number(i);
-            }
-            DateTime overheadEnd = DateTime.Now;
-
-            return (end - start) - (overheadEnd - overheadStart);
-        }
-
         [TestMethod]
         public void Test_Indexing_Simple()
         {
@@ -102,6 +73,49 @@ namespace UnitTests
         public void Test_Indexing_Complex()
         {
             throw new NotImplementedException();
+        }
+
+        [TestMethod]
+        public void Test_Diamond()
+        {
+            int numVars = 1000;
+            bool timeUpdates = false;
+            Variable vStart = new Variable(Dependency.Number.One);
+            SimpleContext root = new SimpleContext();
+            root.Add("vStart", vStart);
+            Assert.AreEqual(Dependency.Number.One, vStart.Contents);
+            Assert.AreEqual(Dependency.Number.One, vStart.Value);
+
+            int vars = 0;
+            int rank = 0;
+            Dictionary<string, Variable> lastRank = new Dictionary<string, Variable>
+            {
+                { "vStart", vStart }
+            };
+            while (vars < numVars)
+            {
+                Dictionary<string, Variable> thisRank = new Dictionary<string, Variable>();
+                foreach (var kvp in lastRank)
+                {
+                    string lastName = kvp.Key;
+                    Variable lastVar = kvp.Value;
+                    
+                    Variable vA = new Variable(Parse.FromString("0 + " + lastName, null, root));
+                    Variable vB = new Variable(Parse.FromString("0 - " + lastName, null, root));
+                    string aName = "v_" + rank + "_" + vars + "A";
+                    string bName = "v_" + rank + "_" + vars + "B";
+                    vars += 2;
+                    
+                    root.Add(aName, vA);
+                    root.Add(bName, vB);
+                    thisRank.Add(aName, vA);
+                    thisRank.Add(bName, vB);
+                }
+                rank++;
+                lastRank = thisRank;
+            }
+
+            vStart.Contents = new Number(-1);
         }
 
         [TestMethod]
@@ -343,9 +357,7 @@ namespace UnitTests
             return false;
         }
 
-        public override bool Equals(object obj)
-        {
-            return base.Equals(obj);
-        }
+        public override bool Equals(object obj) => base.Equals(obj);
+        public override int GetHashCode() => base.GetHashCode();
     }
 }
