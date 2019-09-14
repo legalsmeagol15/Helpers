@@ -114,8 +114,25 @@ namespace UnitTests
                 rank++;
                 lastRank = thisRank;
             }
-
+            
             vStart.Contents = new Number(-1);
+            vStart.Contents = new Number(0);
+
+            if (timeUpdates)
+            {
+                for (int k = 0; k < 5; k++)
+                {
+                    long ms = 0;
+                    long runs = 100;
+                    int val = 1;
+                    for (int i = 0; i < runs; i++)
+                    {
+                        ms += Common.Time((j) => vStart.Contents = new Number(val), i);
+                        val *= -1;
+                    }
+                    Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
+                }
+            }
         }
 
         [TestMethod]
@@ -261,12 +278,7 @@ namespace UnitTests
             Assert.AreEqual("( 3 - 5 + ( 2 ^ 3 ) / 4 * -7 - 1 )", exp2.ToString());
             Assert.AreEqual("( 3 - 5 + ( ( ( 2 ^ 3 ) / 4 ) * -7 ) - 1 )", exp3.ToString());
         }
-
-        [TestMethod]
-        public void Test_TypeControl()
-        {
-            TypeControl tc = new TypeControl();
-        }
+        
 
         private static void PrintTimings(double[] timings)
         {

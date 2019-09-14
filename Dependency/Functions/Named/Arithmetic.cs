@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dependency.Functions
 {
     
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Abs : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -17,7 +17,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Acos : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -27,7 +27,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Asin : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -37,7 +37,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Atan : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -47,7 +47,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Exp : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -57,7 +57,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Int : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -67,7 +67,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.Any)]
+    [NonVariadic(0, TypeFlags.RealAny, TypeFlags.Any)]
     public class Log : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -77,7 +77,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Log10 : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -87,7 +87,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.Variadic(0, TypeFlags.RealAny)]
+    [Variadic(0, TypeFlags.RealAny)]
     public class Max : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -102,7 +102,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.Variadic(0, TypeFlags.RealAny)]
+    [Variadic(0, TypeFlags.RealAny)]
     public class Min : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -117,7 +117,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
     public class Mod : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -127,7 +127,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
     public class Pow : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -137,7 +137,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
     public class Round : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -147,7 +147,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Sign : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -159,7 +159,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Sqrt : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)

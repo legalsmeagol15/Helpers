@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Dependency.Functions
 {
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Cos : NamedFunction, ICategorized
     {
         IList<string> ICategorized.Categories => new string[] { "Trigonometry" };
@@ -18,7 +18,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Cosh : NamedFunction, ICategorized
     {
         IList<string> ICategorized.Categories => new string[] { "Trigonometry" };
@@ -30,7 +30,7 @@ namespace Dependency.Functions
         }
     }
     
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Sin : NamedFunction, ICategorized
     {
         IList<string> ICategorized.Categories => new string[] { "Trigonometry" };
@@ -42,7 +42,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Sinh : NamedFunction, ICategorized
     {
         IList<string> ICategorized.Categories => new string[] { "Trigonometry" };
@@ -54,7 +54,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Tan : NamedFunction, ICategorized
     {
         IList<string> ICategorized.Categories => new string[] { "Trigonometry" };
@@ -66,7 +66,7 @@ namespace Dependency.Functions
         }
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.RealAny)]
+    [NonVariadic(0, TypeFlags.RealAny)]
     public class Tanh : NamedFunction
     {
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
