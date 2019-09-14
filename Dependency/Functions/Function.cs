@@ -43,7 +43,7 @@ namespace Dependency.Functions
             else tc = TypeControl.GetConstraints(this.GetType());
 
             IEvaluateable newValue;
-            if (tc.TryMatchType(evalInputs, out int bestConstraint, out int unmatchedArg))
+            if (tc.TryMatchTypes(evalInputs, out int bestConstraint, out int unmatchedArg))
                 newValue = Evaluate(evalInputs, bestConstraint);
             else if (bestConstraint < 0)
                 newValue = new InputCountError(this, evalInputs, tc);
@@ -63,5 +63,25 @@ namespace Dependency.Functions
         /// <returns></returns>
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
         
+    }
+
+
+
+    [AttributeUsage(validOn: AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true, Inherited = true)]
+    public sealed class VariadicAttribute : Attribute
+    {
+        public readonly int Index;
+        public TypeFlags[] TypeFlags;
+        public VariadicAttribute(int index, params TypeFlags[] typeFlags) { this.Index = index; this.TypeFlags = typeFlags; }
+        public VariadicAttribute(params TypeFlags[] typeFlags) : this(0, typeFlags) { }
+    }
+
+    [AttributeUsage(validOn: AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true, Inherited = true)]
+    public sealed class NonVariadicAttribute : Attribute
+    {
+        public readonly int Index;
+        public TypeFlags[] TypeFlags;
+        public NonVariadicAttribute(int index, params TypeFlags[] typeFlags) { this.Index = index; this.TypeFlags = typeFlags; }
+        public NonVariadicAttribute(params TypeFlags[] typeFlags) : this(0, typeFlags) { }
     }
 }

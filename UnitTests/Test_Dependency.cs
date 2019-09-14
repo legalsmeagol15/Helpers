@@ -262,6 +262,12 @@ namespace UnitTests
             Assert.AreEqual("( 3 - 5 + ( ( ( 2 ^ 3 ) / 4 ) * -7 ) - 1 )", exp3.ToString());
         }
 
+        [TestMethod]
+        public void Test_TypeControl()
+        {
+            TypeControl tc = new TypeControl();
+        }
+
         private static void PrintTimings(double[] timings)
         {
             double sum = 0d;

@@ -42,7 +42,7 @@ namespace Dependency.Functions
         public override int GetHashCode() => Context.GetHashCode();
     }
 
-    [TypeControl.NonVariadic(0, TypeFlags.Reference)]
+    [NonVariadic(0, TypeFlags.Reference)]
     internal sealed class Reference : Function, IDisposable
     {
         public readonly string[] Paths;
@@ -156,7 +156,7 @@ namespace Dependency.Functions
     /// <seealso cref="Reference"/> which points to a property <seealso cref="Variables.Variable"/>), and an ordinal 
     /// value 'n', and returns the 'nth' item associated with that base object.
     /// </summary>
-    [TypeControl.NonVariadic(0, TypeFlags.Indexable | TypeFlags.Reference | TypeFlags.Vector | TypeFlags.Range, TypeFlags.Any)]
+    [NonVariadic(0, TypeFlags.Indexable | TypeFlags.Reference | TypeFlags.Vector | TypeFlags.Range, TypeFlags.Any)]
     internal sealed class Indexing : Function
     {
         private IContext _Base;
