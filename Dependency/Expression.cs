@@ -80,20 +80,25 @@ namespace Dependency
             }
         }
 
-        internal static bool TryFindCircularity(Reference target, IVariable start, out IVariable path)
+        internal static bool TryFindCircularity(object target, object start)
         {
-            Stack<IVariable> stack = new Stack<IVariable>();
+            Stack<object> stack = new Stack<object>();
+            HashSet<object> visited = new HashSet<object>();
             stack.Push(start);
             while (stack.Count > 0)
             {
-                IVariable focus = stack.Pop();
-                foreach (Reference r in GetReferences(focus))
+                object focus = stack.Pop();
+                if (ReferenceEquals(focus, target)) return true;
+                if (!visited.Add(focus)) continue;
+                switch (focus)
                 {
-                    if (ReferenceEquals(r, target)) { path = focus; return true; }
-                    if (r.Head is IVariable v) stack.Push(v);
+                    case Reference r: stack.Push(r.Head); break;
+                    case IExpression e: stack.Push(e.Contents); break;
+                    case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
+                    case IVariable v: stack.Push(v.Contents); break;
                 }
+                
             }
-            path = null;
             return false;
         }
     }

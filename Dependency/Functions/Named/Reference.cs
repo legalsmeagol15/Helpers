@@ -109,7 +109,7 @@ namespace Dependency.Functions
                 {
                     //if (ReferenceEquals(head_source, Head)) return head_source.Value;
 
-                    if (head_source is IVariable v && Helpers.TryFindCircularity(this, v, out _))
+                    if (head_source is IVariable v && Helpers.TryFindCircularity(this, v))
                         head_source = new ReferenceError(evaluatedInputs[0], Paths, i, "Circular reference.");
                     Variables.Variable.StructureLock.EnterWriteLock();
                     Head = head_source;
@@ -159,17 +159,42 @@ namespace Dependency.Functions
     [TypeControl.NonVariadic(0, TypeFlags.Indexable | TypeFlags.Reference | TypeFlags.Vector | TypeFlags.Range, TypeFlags.Any)]
     internal sealed class Indexing : Function
     {
-        
+        private IContext _Base;
+        private IEvaluateable _Ordinal;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
-            // The base must be a context.  Try that first.
-            if (evaluatedInputs[0] is IContext ctxt)
+            IContext oldBase = _Base;
+            IEvaluateable oldOrdinal = _Ordinal;
+
+            Variables.Variable.StructureLock.EnterUpgradeableReadLock();
+            try
             {
-                if (ctxt.TryGetSubcontext(evaluatedInputs[1], out IContext sub_ctxt)) return new EvaluateableContext(sub_ctxt);
-                if (ctxt.TryGetProperty(evaluatedInputs[1], out IEvaluateable sub_prop)) return sub_prop.Value;
+                IContext newBase = evaluatedInputs[0] as IContext;
+                if (newBase == null)
+                    return new IndexingError(this, _Base = newBase, _Ordinal = evaluatedInputs[1], "Invalid base.");
+                IEvaluateable newOrdinal = evaluatedInputs[1];
+                if (newOrdinal == null)
+                    return new IndexingError(this, _Base = newBase, _Ordinal = evaluatedInputs[1], "Invalid ordinal (" + newOrdinal.ToString() + ").");
+
+                if (newBase.Equals(_Base) && newOrdinal.Equals(_Ordinal))
+                    return Value;
+
+                Variables.Variable.StructureLock.EnterWriteLock();
+                _Base = newBase;
+                _Ordinal = newOrdinal;
+                Variables.Variable.StructureLock.ExitWriteLock();
+
+                if (newBase.TryGetSubcontext(newOrdinal, out IContext sub_ctxt)) return new EvaluateableContext(sub_ctxt);
+                if (newBase.TryGetProperty(newOrdinal, out IEvaluateable sub_prop))
+                {
+                    if (sub_prop is IVariable ivar && Helpers.TryFindCircularity(this, ivar))
+                        return new IndexingError(this, newBase, newOrdinal, "Circular reference.");
+                    return sub_prop.Value;
+                }
+                else return new IndexingError(this, newBase, newOrdinal, "Base is not indexable by " + newOrdinal.ToString());
             }
-            return new IndexingError(this, evaluatedInputs[0], evaluatedInputs[1], "Base is not indexable.");            
+            finally { Variables.Variable.StructureLock.ExitUpgradeableReadLock(); }
         }
 
         public override string ToString() => Inputs[0].ToString() + "[" + Inputs[1].ToString() + "]";
