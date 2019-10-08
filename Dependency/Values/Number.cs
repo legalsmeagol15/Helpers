@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 namespace Dependency
 {
     [Serializable]
+    [DebuggerStepThrough]
     public struct Number : ILiteral<decimal>, ITypeGuarantee, IComparable<Number>
     {
         public static readonly Number Zero = new Number(0m);        

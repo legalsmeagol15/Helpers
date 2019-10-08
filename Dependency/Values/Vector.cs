@@ -70,6 +70,6 @@ namespace Dependency
 
         public override string ToString() => "{" + string.Join(",", Inputs.Select(i => i.ToString())) + "}";
 
-        bool IDynamicItem.Update() => true;
+        bool IDynamicItem.Update(IEvaluateable forcedValue) => true;
     }
 }

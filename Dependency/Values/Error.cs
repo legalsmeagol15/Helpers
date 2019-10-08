@@ -25,7 +25,11 @@ namespace Dependency
         }
     }
 
-
+    public sealed class CircularityError : Error
+    {
+        internal readonly WeakReference<IVariable> Origin;
+        internal CircularityError(IVariable origin) : base("Circular reference.") { Origin = new WeakReference<IVariable>(origin); }
+    }
     public sealed class InvalidValue : Error
     {
         public InvalidValue(string message = null) : base(message ?? "An invalid value was created.") { }

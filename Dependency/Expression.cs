@@ -51,10 +51,12 @@ namespace Dependency
         internal static IEnumerable<Reference> GetReferences(object obj)
         {
             Stack<object> stack = new Stack<object>();
+            HashSet<object> visited = new HashSet<object>();
             stack.Push(obj);
             while (stack.Count > 0)
             {
                 object focus = stack.Pop();
+                if (!visited.Add(focus)) continue;
                 switch (focus)
                 {
                     case Reference r: yield return r; break;
@@ -87,8 +89,20 @@ namespace Dependency
             }
             return false;
         }
+        
+        public static IEvaluateable Recalculate(IEvaluateable ieval)
+        {
+            return _RecursiveRecalc(ieval);
 
-        public static void Recalculate(IEvaluateable iev) => Dependency.Variables.Update.Recalculate(iev);
+            IEvaluateable _RecursiveRecalc(IEvaluateable focus)
+            {
+                if (focus is ILiteral) return focus;
+                if (focus is IFunction ifunc) foreach (var input in ifunc.Inputs) _RecursiveRecalc(input);
+                else if (focus is IExpression iexp) return _RecursiveRecalc(iexp.Contents);
+                else if (focus is IDynamicItem idi) idi.Update();
+                return focus.Value;
+            }
+        }
     }
 
 

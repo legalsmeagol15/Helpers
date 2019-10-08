@@ -37,8 +37,9 @@ namespace Dependency
         bool TryGetProperty(object path, out IEvaluateable source);
     }
     
-    /// <summary>An object that will pass changes in value up through an evaluation tree to its parent.</summary>
-    internal interface IDynamicItem
+    /// <summary>An <seealso cref="IEvaluateable"/> object that will pass changes in value up through an evaluation 
+    /// tree to its parent.</summary>
+    internal interface IDynamicItem : IEvaluateable
     {
         /// <summary>
         /// The parent <seealso cref="Reference"/>, <seealso cref="Function"/>, or other <see cref="IDynamicItem"/> 
@@ -46,23 +47,16 @@ namespace Dependency
         /// </summary>
         IDynamicItem Parent { get; set; }
 
-
         /// <summary>
-        /// Updates the value of this item.  Note that this method should NOT call a parent's update method in  any 
-        /// case exception for the <seealso cref="Reference"/>, which is the update driver.
+        /// Compel the <seealso cref="IDynamicItem"/> to update its stored value.  If a <paramref name="forcedValue"/> 
+        /// is given, the new value cached should be equal to that.
         /// </summary>
-        /// <returns>Returns true if the value changed; otherwise, returns false.</returns>
-        /// <remarks>No evaluation tree Update() or dependency Update() should EVER push a value forward because this 
-        /// would be an automatic race condition.  Example:  Imagine Update() took the value from the lower-down input 
-        /// and pushed it forward.  (In other words, Update() was instead Update(<seealso cref="IEvaluateable"/>).  
-        /// Imagine a <seealso cref="Variable"/> 'v' that changes value a couple of time.  So, 'v' updates to value 1, 
-        /// calls its listeners to Update(<seealso cref="IEvaluateable"/>).  Then 'v' updates to value 2, calls its 
-        /// listeners to Update(<seealso cref="IEvaluateable"/>).  Since updates happen asynchronously, the listeners 
-        /// update first with the pushed value 2, and evaluate themselves accordingly.  Then listeners update with 
-        /// pushed value 1, and evaluate accordingly.  Listeners are now inconsistent with 
-        /// <seealso cref="Variable"/>'s current value, which should be 2.
-        /// </remarks>
-        bool Update();
+        /// <param name="forcedValue">Optional.  The new value that should be assigned to this 
+        /// <seealso cref="IEvaluateable"/>.  If omitted or null, the <seealso cref="IDynamicItem"/> should calculate 
+        /// its new value according to its own logic.</param>
+        /// <returns>Returns true if the update changed the value of this <seealso cref="IDynamicItem"/>; otherwise, 
+        /// returns false.</returns>
+        bool Update(IEvaluateable forcedValue = null);
     }
 
 
@@ -133,7 +127,7 @@ namespace Dependency
     /// An <see cref="IVariable"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
     /// <see cref="IVariable"/>s in turns.
     /// </summary>
-    internal interface IVariable : IEvaluateable
+    internal interface IVariable : IEvaluateable, IDynamicItem
     {
         /// <summary>Remove record of a listener to this <see cref="IVariable"/>.</summary>
         /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
@@ -153,17 +147,14 @@ namespace Dependency
 
         /// <summary>The content evaluation tree of this <see cref="IVariable"/>.</summary>
         IEvaluateable Contents { get; set; }
-
-        void SetValue(IEvaluateable value);
+        
+        /// <summary>Sets the contents of the <see cref="IVariable"/>.</summary>
+        void SetContents(IEvaluateable newContents);
         
         /// <summary>Fired when the <see cref="IVariable"/>'s cached value changes.</summary>
         event ValueChangedHandler<IEvaluateable> ValueChanged;
 
         void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue);
-    }
-    internal interface IVariableAsync : IVariable
-    {
-        ReaderWriterLockSlim ValueLock { get; }
     }
 
 

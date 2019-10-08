@@ -95,7 +95,6 @@ namespace UnitTests
            
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
-            
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
@@ -111,8 +110,8 @@ namespace UnitTests
             }
             if (!root.TryGetProperty("v" + numVars, out IEvaluateable last_iev) || !(last_iev is Variable vLast))
                 throw new Exception("Bad testing harness.");
-            vStart.Contents = new Number(2);
-            
+
+            vStart.Contents = new Number(2);            
             Assert.AreEqual(vStart.Value, vLast.Value);
             
 

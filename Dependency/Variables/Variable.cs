@@ -14,7 +14,7 @@ using Dependency.Functions;
 
 namespace Dependency.Variables
 {
-    public class Variable : IDynamicItem, IVariableAsync
+    public class Variable : IVariable
     {
         // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
         // Also, References clean themselves up from their sources through their own implementation  of 
@@ -43,12 +43,6 @@ namespace Dependency.Variables
                 try { return _Value; }
                 finally { _ValueLock.ExitReadLock(); }
             }
-            private set
-            {
-                _ValueLock.EnterWriteLock();
-                try { _Value = value; }
-                finally { _ValueLock.ExitWriteLock(); }
-            }
         }
         
         private IEvaluateable _Contents = Null.Instance;
@@ -63,24 +57,16 @@ namespace Dependency.Variables
             }
             set
             {
-                var update = Update.ForContents(this, value);
+                var update = Update.ForVariable(this, value);
                 update.Execute();
                 update.Await();
-                
             }
         }
 
 
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
         public Variable(IEvaluateable contents = null) { this.Contents = contents ?? Null.Instance; }
-
-
-        public  Update SetContentsAsync(IEvaluateable newContents)
-        {
-            Update result = Update.ForContents(this, newContents);
-            result.Execute();
-            return result;
-        }
+        
 
 
 
@@ -98,25 +84,31 @@ namespace Dependency.Variables
         bool IVariable.RemoveListener(IDynamicItem idi) => _Listeners.Remove(idi);
         IEnumerable<IDynamicItem> IVariable.GetListeners() => _Listeners;
         ISet<Functions.Reference> IVariable.References { get; set; }
-        void IVariable.SetValue(IEvaluateable value) => Value = value;
+       
+        void IVariable.SetContents(IEvaluateable newContents) => _Contents = newContents ?? Dependency.Null.Instance;
         void IVariable.FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
-        ReaderWriterLockSlim IVariableAsync.ValueLock => _ValueLock;
+        
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
-        bool IDynamicItem.Update() => Update.ForValue(this).Execute();
+        bool IDynamicItem.Update( IEvaluateable forcedValue)
+        {
+            _ValueLock.EnterWriteLock();
+            try
+            {
+                IEvaluateable oldValue = _Value;
+                IEvaluateable newValue = forcedValue ?? _Contents.Value;
+                if (_Value.Equals(newValue)) return false;
+
+                _Value = newValue;
+                ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
+            } finally { _ValueLock.ExitWriteLock(); }
+            return true;
+        }
+        
 
 
     }
 
 
-
-
-    /// <summary>An exception thrown when an invalid circular dependency is added to a DependencyGraph.</summary>
-    internal class CircularDependencyException : InvalidOperationException
-    {
-        IEnumerable<IVariable> Path;
-        /// <summary>Creates a new CircularDependencyException.</summary>
-        public CircularDependencyException(IEnumerable<IVariable> path, string message = "Circular reference identified.") : base(message) { this.Path = path; }
-    }
-
+    
 }

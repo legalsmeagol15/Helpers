@@ -31,6 +31,13 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; }
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
 
+        public bool Update(IEvaluateable forcedValue = null)
+        {
+            if (forcedValue == null) return Update(EvaluateInputs());
+            else if (forcedValue.Equals(Value)) return false;
+            Value = forcedValue;
+            return true;
+        }
         public bool Update() => Update(EvaluateInputs());
 
         [DebuggerStepThrough]
