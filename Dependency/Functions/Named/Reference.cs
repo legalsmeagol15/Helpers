@@ -107,10 +107,6 @@ namespace Dependency.Functions
                 }
                 else if (ctxt.TryGetProperty(Paths[i], out IEvaluateable head_source))
                 {
-                    //if (ReferenceEquals(head_source, Head)) return head_source.Value;
-
-                    if (head_source is IVariable v && Helpers.TryFindCircularity(this, v))
-                        head_source = new ReferenceError(evaluatedInputs[0], Paths, i, "Circular reference.");
                     Dependency.Variables.Update.StructureLock.EnterWriteLock();
                     Head = head_source;
                     _Origin = newOrigin;
@@ -186,12 +182,7 @@ namespace Dependency.Functions
                 Dependency.Variables.Update.StructureLock.ExitWriteLock();
 
                 if (newBase.TryGetSubcontext(newOrdinal, out IContext sub_ctxt)) return new EvaluateableContext(sub_ctxt);
-                if (newBase.TryGetProperty(newOrdinal, out IEvaluateable sub_prop))
-                {
-                    if (sub_prop is IVariable ivar && Helpers.TryFindCircularity(this, ivar))
-                        return new IndexingError(this, newBase, newOrdinal, "Circular reference.");
-                    return sub_prop.Value;
-                }
+                if (newBase.TryGetProperty(newOrdinal, out IEvaluateable sub_prop)) return sub_prop.Value;
                 else return new IndexingError(this, newBase, newOrdinal, "Base is not indexable by " + newOrdinal.ToString());
             }
             finally { Dependency.Variables.Update.StructureLock.ExitUpgradeableReadLock(); }

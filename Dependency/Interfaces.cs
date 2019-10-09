@@ -74,7 +74,7 @@ namespace Dependency
         IEvaluateable Contents { get; }
     }
 
-    public interface IFunction : IEvaluateable
+    internal interface IFunction : IDynamicItem
     {
         IList<IEvaluateable> Inputs { get; }
     }
