@@ -55,6 +55,7 @@ namespace Dependency
                 case Number n: source = this[(int)n]; return true;
                 case int idx: source = this[idx]; return true;
                 case "size":
+                case "count":
                 case "length": source = new Number(_Values.Length); return true;
                 case "min": source = Number.Zero; return true;
                 case "max": source = new Number(_Values.Length - 1); return true;

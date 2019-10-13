@@ -62,7 +62,7 @@ namespace Dependency
                     case Reference r: yield return r; break;
                     case IExpression e: stack.Push(e.Contents); break;
                     case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
-                    case IVariable v: stack.Push(v.Contents); break;
+                    case IVariableInternal v: stack.Push(v.Contents); break;
                 }
             }
         }
@@ -83,7 +83,7 @@ namespace Dependency
                     case Reference r: stack.Push(r.Head); break;
                     case IExpression e: stack.Push(e.Contents); break;
                     case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
-                    case IVariable v: stack.Push(v.Contents); break;
+                    case IVariableInternal v: stack.Push(v.Contents); break;
                 }
 
             }

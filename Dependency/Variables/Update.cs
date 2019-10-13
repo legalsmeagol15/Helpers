@@ -18,11 +18,11 @@ namespace Dependency.Variables
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly ConcurrentQueue<IDynamicItem> _Items = new ConcurrentQueue<IDynamicItem>();
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
-        internal readonly IVariable Origin;
+        internal readonly IVariableInternal Origin;
         public readonly IEvaluateable NewContents;
 
 
-        private Update(IVariable var, IEvaluateable newContents)
+        private Update(IVariableInternal var, IEvaluateable newContents)
         {
             this.Origin = var;
             if (newContents == null) newContents = Dependency.Null.Instance;
@@ -30,10 +30,11 @@ namespace Dependency.Variables
             this.NewContents = newContents;
         }
 
-        internal static Update ForVariable(IVariable var, IEvaluateable newContents) => new Update(var, newContents);
-        
+        internal static Update ForVariableInternal(IVariableInternal var, IEvaluateable newContents) => new Update(var, newContents);
 
-        internal void Await()
+        public static Update ForVariable(IVariable var, IEvaluateable newContents) => new Update((IVariableInternal)var, newContents);
+
+        public void Await()
         {
             while (_Tasks.TryDequeue(out Task t))
             {
@@ -71,10 +72,10 @@ namespace Dependency.Variables
                     if (Origin.References != null)
                     {
                         foreach (Reference oldRef in Origin.References)
-                            if (oldRef.Head is IVariable v)
+                            if (oldRef.Head is IVariableInternal v)
                                 v.RemoveListener(oldRef);
                         foreach (Reference newRef in newRefs)
-                            if (newRef.Head is IVariable v)
+                            if (newRef.Head is IVariableInternal v)
                                 v.AddListener(newRef);
                     }
                     Origin.References = newRefs;
@@ -105,7 +106,7 @@ namespace Dependency.Variables
                 {
                     IEvaluateable forcedValue = (idi.Equals(this.Origin)) ? new CircularityError(this.Origin) : null;
                     if (!idi.Update(forcedValue)) return;
-                    if (idi is IVariable iv)
+                    if (idi is IVariableInternal iv)
                         foreach (var listener in iv.GetListeners())
                             _Tasks.Enqueue(Task.Run(() => _UpdateItem(listener)));
                     idi = idi.Parent;
@@ -128,7 +129,7 @@ namespace Dependency.Variables
                 {
                     IEvaluateable forcedValue = (idi.Equals(this.Origin)) ? new CircularityError(this.Origin) : null;
                     if (!idi.Update(forcedValue)) return;
-                    if (idi is IVariable iv)
+                    if (idi is IVariableInternal iv)
                         foreach (var listener in iv.GetListeners())
                             _Tasks.Enqueue(Task.Run(() => _UpdateItem(listener)));
                     idi = idi.Parent;

@@ -51,7 +51,7 @@ namespace Dependency.Functions
         private IEvaluateable _Head;
         /// <summary>
         /// The object at the head of this reference.  The head can be an <seealso cref="IContext"/>, an 
-        /// <seealso cref="IVariable"/>, or some kind of <seealso cref="IEvaluateable"/>.
+        /// <seealso cref="IVariableInternal"/>, or some kind of <seealso cref="IEvaluateable"/>.
         /// </summary>
         internal IEvaluateable Head
         {
@@ -64,10 +64,10 @@ namespace Dependency.Functions
                 }
                 else if (_Head.Equals(value))
                     return;
-                else if (_Head is IVariable iv_old)
+                else if (_Head is IVariableInternal iv_old)
                     iv_old.RemoveListener(this);
                 _Head = value;
-                if (_Head is IVariable iv_new) iv_new.AddListener(this);
+                if (_Head is IVariableInternal iv_new) iv_new.AddListener(this);
             }
         }
 
@@ -135,7 +135,7 @@ namespace Dependency.Functions
         {
             if (!disposedValue)
             {
-                if (Head is IVariable iv) iv.RemoveListener(this);
+                if (Head is IVariableInternal iv) iv.RemoveListener(this);
                 disposedValue = true;
             }
         }

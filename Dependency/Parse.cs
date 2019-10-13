@@ -731,7 +731,7 @@ namespace Dependency
         /// <summary>
         /// A curly-bracket clause.  The only legal contents of a <see cref="Curly"/> would be a 
         /// <seealso cref="Contents"/>.  The value of a <see cref="Curly"/> is the contents of the 
-        /// <seealso cref="IVariable"/> indicated by the <seealso cref="Contents"/>.
+        /// <seealso cref="IVariableInternal"/> indicated by the <seealso cref="Contents"/>.
         /// </summary>
         internal sealed class Curly : IExpression, IContext, IDynamicItem
         {

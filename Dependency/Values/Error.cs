@@ -27,8 +27,8 @@ namespace Dependency
 
     public sealed class CircularityError : Error
     {
-        internal readonly WeakReference<IVariable> Origin;
-        internal CircularityError(IVariable origin) : base("Circular reference.") { Origin = new WeakReference<IVariable>(origin); }
+        internal readonly WeakReference<IVariableInternal> Origin;
+        internal CircularityError(IVariableInternal origin) : base("Circular reference.") { Origin = new WeakReference<IVariableInternal>(origin); }
     }
     public sealed class InvalidValue : Error
     {

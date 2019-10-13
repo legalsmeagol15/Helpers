@@ -280,14 +280,16 @@ namespace UnitTests
                 lastRank = thisRank;
             }
 
-            vStart.Contents = new Number(-1);
+            Update update = Update.ForVariable(vStart, new Number(-1));
+            update.Execute();
+            update.Await();
             
             for (int i = 0; i < lastRank.Count; i += 2)
             {
                 Variable vA = lastRank[i].Value;
                 Variable vB = lastRank[i+1].Value;
-                Assert.AreEqual(vA.Value, 1);
-                Assert.AreEqual(vB.Value, -1);
+                Assert.AreEqual(vA.Value, -1);
+                Assert.AreEqual(vB.Value, 1);
             }
 
             vStart.Contents = new Number(2);

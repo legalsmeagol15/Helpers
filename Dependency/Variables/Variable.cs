@@ -14,7 +14,7 @@ using Dependency.Functions;
 
 namespace Dependency.Variables
 {
-    public class Variable : IVariable
+    public class Variable : IVariableInternal, IVariable
     {
         // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
         // Also, References clean themselves up from their sources through their own implementation  of 
@@ -57,7 +57,7 @@ namespace Dependency.Variables
             }
             set
             {
-                var update = Update.ForVariable(this, value);
+                var update = Update.ForVariableInternal(this, value);
                 update.Execute();
                 update.Await();
             }
@@ -80,13 +80,13 @@ namespace Dependency.Variables
         
         internal IDynamicItem Parent { get; set; }
 
-        bool IVariable.AddListener(IDynamicItem idi) => _Listeners.Add(idi);
-        bool IVariable.RemoveListener(IDynamicItem idi) => _Listeners.Remove(idi);
-        IEnumerable<IDynamicItem> IVariable.GetListeners() => _Listeners;
-        ISet<Functions.Reference> IVariable.References { get; set; }
+        bool IVariableInternal.AddListener(IDynamicItem idi) => _Listeners.Add(idi);
+        bool IVariableInternal.RemoveListener(IDynamicItem idi) => _Listeners.Remove(idi);
+        IEnumerable<IDynamicItem> IVariableInternal.GetListeners() => _Listeners;
+        ISet<Functions.Reference> IVariableInternal.References { get; set; }
        
-        void IVariable.SetContents(IEvaluateable newContents) => _Contents = newContents ?? Dependency.Null.Instance;
-        void IVariable.FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
+        void IVariableInternal.SetContents(IEvaluateable newContents) => _Contents = newContents ?? Dependency.Null.Instance;
+        void IVariableInternal.FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
         
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
@@ -105,7 +105,6 @@ namespace Dependency.Variables
             return true;
         }
         
-
 
     }
 

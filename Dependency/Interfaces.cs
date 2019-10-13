@@ -124,37 +124,43 @@ namespace Dependency
     }
 
     /// <summary>
-    /// An <see cref="IVariable"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
-    /// <see cref="IVariable"/>s in turns.
+    /// An <see cref="IVariableInternal"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
+    /// <see cref="IVariableInternal"/>s in turns.
     /// </summary>
-    internal interface IVariable : IEvaluateable, IDynamicItem
+    internal interface IVariableInternal : IEvaluateable, IDynamicItem
     {
-        /// <summary>Remove record of a listener to this <see cref="IVariable"/>.</summary>
+        /// <summary>Remove record of a listener to this <see cref="IVariableInternal"/>.</summary>
         /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
         /// false.</returns>
         bool RemoveListener(IDynamicItem r);
 
-        /// <summary>Add record of a listener to this <see cref="IVariable"/>.  When the <see cref="IVariable"/> is 
+        /// <summary>Add record of a listener to this <see cref="IVariableInternal"/>.  When the <see cref="IVariableInternal"/> is 
         /// updated, the listeners should then be updated (ideally asynchronously).</summary>
         /// <returns>True if the listener set was changed; if the listener already existed there, returns false.
         /// </returns>
         bool AddListener(IDynamicItem r);
 
-        /// <summary>Pointers to the things this <see cref="IVariable"/> listens to.</summary>
+        /// <summary>Pointers to the things this <see cref="IVariableInternal"/> listens to.</summary>
         ISet<Reference> References { get; set; }
 
         IEnumerable<IDynamicItem> GetListeners();
 
-        /// <summary>The content evaluation tree of this <see cref="IVariable"/>.</summary>
+        /// <summary>The content evaluation tree of this <see cref="IVariableInternal"/>.</summary>
         IEvaluateable Contents { get; set; }
         
-        /// <summary>Sets the contents of the <see cref="IVariable"/>.</summary>
+        /// <summary>Sets the contents of the <see cref="IVariableInternal"/>.</summary>
         void SetContents(IEvaluateable newContents);
         
-        /// <summary>Fired when the <see cref="IVariable"/>'s cached value changes.</summary>
+        /// <summary>Fired when the <see cref="IVariableInternal"/>'s cached value changes.</summary>
         event ValueChangedHandler<IEvaluateable> ValueChanged;
 
         void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue);
+    }
+
+    public interface IVariable : IEvaluateable
+    {
+        IEvaluateable Contents { get; set; }
+
     }
 
 

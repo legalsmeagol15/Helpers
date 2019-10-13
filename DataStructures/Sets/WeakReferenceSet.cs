@@ -23,8 +23,12 @@ namespace DataStructures
     /// <author>Wesley Oates</author>
     /// <date>Validated 7/27/19</date>
     [DebuggerDisplay("Count = {Count}")]
+    [DebuggerTypeProxy(typeof (WeakReferenceSet<>.DebugView))]
+    [DebuggerStepThrough]
     public sealed class WeakReferenceSet<T> : ICollection<T> where T : class
     {
+
+        
         private readonly List<Node> _Head = new List<Node> { null };
         private readonly Random _Random = new Random(0);
 
@@ -213,5 +217,17 @@ namespace DataStructures
 
         }
 
+        internal class DebugView
+        {
+            private readonly WeakReferenceSet<T> _Refs;
+            public DebugView(WeakReferenceSet<T> refs) { this._Refs = refs; }
+            [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+            public T[] Items => _Refs.ToArray();
+        }
+
     }
+
+
+
+
 }
