@@ -12,7 +12,8 @@ namespace Dependency.Functions
         private string _CachedNamed;
         public virtual string Name { get => _CachedNamed; }
 
-        IEvaluateable IExpression.Contents => new Vector(this.Inputs.ToArray());
+        IEvaluateable IExpression.Contents
+            => throw new InvalidOperationException(this.GetType().Name + " stores its contents through the Inputs property.");
 
         protected NamedFunction() { _CachedNamed = this.GetType().Name.ToUpper(); }
         

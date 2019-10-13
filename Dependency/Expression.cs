@@ -15,6 +15,11 @@ namespace Dependency
 
     public static class Helpers
     {
+        public static string  GetRelativeString(IContext origin)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Converts a non-<seealso cref="IEvaluateable"/> object into an <seealso cref="ILiteral"/> object.
         /// </summary>
@@ -60,8 +65,8 @@ namespace Dependency
                 switch (focus)
                 {
                     case Reference r: yield return r; break;
-                    case IExpression e: stack.Push(e.Contents); break;
                     case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
+                    case IExpression e: stack.Push(e.Contents); break;
                     case IVariableInternal v: stack.Push(v.Contents); break;
                 }
             }

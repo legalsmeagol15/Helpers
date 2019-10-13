@@ -69,7 +69,10 @@ namespace Dependency.Functions
         /// <param name="constraintIndex"></param>
         /// <returns></returns>
         protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
-        
+
+        public override string ToString() 
+            => this.GetType().Name + "(" + string.Join(",", this._Inputs.Select(i => i.ToString())) + ")";
+
     }
 
 

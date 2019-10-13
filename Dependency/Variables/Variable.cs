@@ -11,6 +11,7 @@ using System.Collections;
 using DataStructures;
 using System.Threading;
 using Dependency.Functions;
+using System.Diagnostics;
 
 namespace Dependency.Variables
 {
@@ -28,7 +29,7 @@ namespace Dependency.Variables
         // with the pushed value 2, and evaluate themselves accordingly.  Then listeners update with pushed value 
         // 1, and evaluate accordingly.  Listeners are now inconsistent with Variable's current value, whcih is 2.
 
-
+            
         private readonly WeakReferenceSet<IDynamicItem> _Listeners = new WeakReferenceSet<IDynamicItem>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);

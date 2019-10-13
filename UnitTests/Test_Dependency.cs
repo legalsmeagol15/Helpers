@@ -261,8 +261,15 @@ namespace UnitTests
                     string lastName = kvp.Key;
                     Variable lastVar = kvp.Value;
 
-                    Variable vA = new Variable(Parse.FromString("ABS(" + lastName + ")", functions, root));
-                    Variable vB = new Variable(Parse.FromString("-ABS(" + lastName + ")", functions, root));
+                    string expressionA = "ABS(" + lastName + ")";
+                    string expressionB = "-ABS(" + lastName + ")";
+
+                    IEvaluateable contentsA = Parse.FromString( expressionA, functions, root);
+                    IEvaluateable contentsB = Parse.FromString(expressionB, functions, root);
+                    
+                    Variable vA = new Variable(contentsA);
+                    Variable vB = new Variable(contentsB);
+
                     string aName = "v_" + rank + "_" + vars + "a";
                     string bName = "v_" + rank + "_" + vars + "b";
                     vars += 2;
@@ -272,7 +279,6 @@ namespace UnitTests
                     thisRank.Add(new KeyValuePair<string, Variable>(aName, vA));
                     thisRank.Add(new KeyValuePair<string, Variable>(bName, vB));
 
-                    
                     Assert.AreEqual(vA.Value, 1);
                     Assert.AreEqual(vB.Value, -1);
                 }
@@ -288,12 +294,11 @@ namespace UnitTests
             {
                 Variable vA = lastRank[i].Value;
                 Variable vB = lastRank[i+1].Value;
-                Assert.AreEqual(vA.Value, -1);
-                Assert.AreEqual(vB.Value, 1);
+                Assert.AreEqual(vA.Value, 1);
+                Assert.AreEqual(vB.Value, -1);
             }
 
-            vStart.Contents = new Number(2);
-            
+            vStart.Contents = new Number(2);            
             for (int i = 0; i < lastRank.Count; i += 2)
             {
                 Variable vA = lastRank[i].Value;
@@ -302,8 +307,7 @@ namespace UnitTests
                 Assert.AreEqual(vB.Value, -2);
             }
 
-            vStart.Contents = new Number(0);
-            
+            vStart.Contents = new Number(0);            
             for (int i = 0; i < lastRank.Count; i += 2)
             {
                 Variable vA = lastRank[i].Value;

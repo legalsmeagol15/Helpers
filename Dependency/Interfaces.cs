@@ -111,6 +111,11 @@ namespace Dependency
     {
         string Name { get; }
     }
+
+    public interface IRelativeString
+    {
+        string ToString(IContext origin);
+    }
     
     public interface ISubcontext : IContext
     {
