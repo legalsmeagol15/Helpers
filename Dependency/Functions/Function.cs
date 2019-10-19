@@ -77,7 +77,13 @@ namespace Dependency.Functions
     }
 
 
-
+    /// <summary>
+    /// When applied to a <seealso cref="Function"/>-deriving class, indicates that the last input type is allowed to 
+    /// repeat some arbitrary number of repetitions in the <seealso cref="IEvaluateable"/>[] parameter in the call to 
+    /// the <seealso cref="Function.Evaluate(IEvaluateable[], int)"/> method.  For example, 
+    /// <seealso cref="Operators.Addition"/> allows any count of <seealso cref="Number"/> inputs (because "3+7+4" is a 
+    /// valid addition).
+    /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true, Inherited = true)]
     public sealed class VariadicAttribute : Attribute
     {
@@ -87,6 +93,12 @@ namespace Dependency.Functions
         public VariadicAttribute(params TypeFlags[] typeFlags) : this(0, typeFlags) { }
     }
 
+    /// <summary>
+    /// When applied to a <seealso cref="Function"/>-deriving class, indicates that only a defined number of inputs 
+    /// are allowed for the <seealso cref="IEvaluateable"/>[] parameter in the call to the 
+    /// <seealso cref="Function.Evaluate(IEvaluateable[], int)"/> method.  For example, <seealso cref="Cos"/> allows 
+    /// only a single <seealso cref="Number"/> as its input type.
+    /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true, Inherited = true)]
     public sealed class NonVariadicAttribute : Attribute
     {
