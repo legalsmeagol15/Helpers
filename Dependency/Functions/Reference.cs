@@ -46,8 +46,7 @@ namespace Dependency.Functions
     internal sealed class Reference : Function, IDisposable
     {
         public readonly string[] Paths;
-
-        private IContext _Origin;
+        internal IContext Origin { get; private set; }
         private IEvaluateable _Head;
         /// <summary>
         /// The object at the head of this reference.  The head can be an <seealso cref="IContext"/>, an 
@@ -56,7 +55,7 @@ namespace Dependency.Functions
         internal IEvaluateable Head
         {
             get => _Head;
-            set
+            private set
             {
                 if (_Head == null)
                 {
@@ -70,10 +69,11 @@ namespace Dependency.Functions
                 if (_Head is IVariableInternal iv_new) iv_new.AddListener(this);
             }
         }
-
+        
         public Reference(IEvaluateable origin, params string[] paths) { this.Paths = paths; this.Inputs = new IEvaluateable[] { origin };  }
 
-        
+        /// <summary>The set of variables on which the ordinal value depends.</summary>
+        internal IVariable[] OrdinalVariables;
 
         protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
         {
@@ -81,7 +81,7 @@ namespace Dependency.Functions
             IContext newOrigin = ctxt;
             if (newOrigin == null)
                 return new ReferenceError(evaluatedInputs[0], Paths, -1, "Origin is not a valid " + typeof(IContext).Name + ".");
-            else if (newOrigin.Equals(_Origin))
+            else if (newOrigin.Equals(Origin))
                 return Head.Value;
 
             int i;
@@ -89,27 +89,35 @@ namespace Dependency.Functions
             try
             {
                 
+                // Walk until the last leg of the paths.
                 for (i = 0; i < Paths.Length - 1; i++)
                 {
+                    // If we have no context currently, we can't proceed to the next context.
                     if (ctxt == null)
                         return (Head = new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid context."));
+
+                    // Get the next subcontext.  If that fails, this is a bad reference.
                     if (!ctxt.TryGetSubcontext(Paths[i], out ctxt))
                         return (Head = new ReferenceError(evaluatedInputs[0], Paths, i, "Invalid subcontext."));
                 }
 
-                // At the end of the path.  Is it a subcontext or a property?
+                // At this point,  we're at the end of the reference path.
+                // Is this a subcontext?  If so, store the subcontext in the Head (wrap the 
+                // subcontext in an IEvaluateable first).
                 if (ctxt.TryGetSubcontext(Paths[i], out IContext head_ctxt))
                 {
                     Dependency.Variables.Update.StructureLock.EnterWriteLock();
                     Head = new EvaluateableContext(head_ctxt);
-                    _Origin = newOrigin;
+                    Origin = newOrigin;
                     Dependency.Variables.Update.StructureLock.ExitWriteLock();
                 }
+
+                // If it's not a subcontext, it might be a property.
                 else if (ctxt.TryGetProperty(Paths[i], out IEvaluateable head_source))
                 {
                     Dependency.Variables.Update.StructureLock.EnterWriteLock();
                     Head = head_source;
-                    _Origin = newOrigin;
+                    Origin = newOrigin;
                     Dependency.Variables.Update.StructureLock.ExitWriteLock();
                 }
                 else

@@ -31,8 +31,9 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; }
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
 
-        public bool Update(IEvaluateable forcedValue = null)
+        bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable forcedValue)
         {
+            // TODO:  since I know which child was updated, it makes sense to cache the evaluations and updated only the changed one.
             if (forcedValue == null) return Update(EvaluateInputs());
             else if (forcedValue.Equals(Value)) return false;
             Value = forcedValue;

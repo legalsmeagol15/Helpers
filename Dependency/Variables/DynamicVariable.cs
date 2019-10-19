@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Dependency.Variables
 {
-
+    
     /// <summary>
     /// A dynamic variable can have its contents set to any <seealso cref="IEvaluateable"/>, from
     /// <seealso cref="Number"/>s to <seealso cref="Dependency.Expression"/>s.  Yet, it implements the 

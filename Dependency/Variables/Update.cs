@@ -48,7 +48,24 @@ namespace Dependency.Variables
         /// <returns>Returns whether any change is made to the contents.</returns>
         public void Execute() => UpdateStructure();
 
+        internal bool TryFindCircularity(IVariable target)
+        {
+            // This method should be called with StructureLock readlock already engaged.
 
+            Stack<IVariable> stack = new Stack<IVariable>();
+            HashSet<IVariable> visited = new HashSet<IVariable>();
+            stack.Push(target);
+            visited.Add(target);
+            while (stack.Count > 0)
+            {
+                IVariable v = stack.Pop();
+                foreach (Reference r in Helpers.GetReferences(v))
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         /// Starts the structure update for the <seealso cref="Origin"/> with the given <seealso cref="NewContents"/>.
@@ -90,11 +107,11 @@ namespace Dependency.Variables
                 finally { StructureLock.ExitWriteLock(); }
 
                 IEvaluateable newValue = Helpers.Recalculate(NewContents);
-                if (!Origin.Update(newValue)) return true;
+                if (!Origin.Update(null, newValue)) return true;
                 foreach (var listener in Origin.GetListeners())
                     _Tasks.Enqueue(Task.Run(() => _UpdateItem(listener)));
                 _UpdateItem(Origin.Parent);
-            }
+            } 
             finally { StructureLock.ExitUpgradeableReadLock();  }
             
             return true;
@@ -102,40 +119,22 @@ namespace Dependency.Variables
 
             void _UpdateItem(IDynamicItem idi)
             {
+                IDynamicItem updatedChild = null;
                 while (idi != null)
                 {
                     IEvaluateable forcedValue = (idi.Equals(this.Origin)) ? new CircularityError(this.Origin) : null;
-                    if (!idi.Update(forcedValue)) return;
+                    if (!idi.Update(updatedChild, forcedValue)) return;
                     if (idi is IVariableInternal iv)
                         foreach (var listener in iv.GetListeners())
                             _Tasks.Enqueue(Task.Run(() => _UpdateItem(listener)));
+                    updatedChild = idi;
                     idi = idi.Parent;
                 }
             }
         }
 
 
-
-        private void UpdateOrigin(IEvaluateable newValue)
-        {
-            if (!Origin.Update(newValue)) return;
-            foreach (var listener in Origin.GetListeners())
-                _Tasks.Enqueue(Task.Run(() => _UpdateItem(listener)));
-            _UpdateItem(Origin.Parent);
-
-            void _UpdateItem(IDynamicItem idi)
-            {
-                while (idi != null)
-                {
-                    IEvaluateable forcedValue = (idi.Equals(this.Origin)) ? new CircularityError(this.Origin) : null;
-                    if (!idi.Update(forcedValue)) return;
-                    if (idi is IVariableInternal iv)
-                        foreach (var listener in iv.GetListeners())
-                            _Tasks.Enqueue(Task.Run(() => _UpdateItem(listener)));
-                    idi = idi.Parent;
-                }
-            }
-        }
+        
         
 
     }

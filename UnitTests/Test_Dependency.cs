@@ -22,6 +22,29 @@ namespace UnitTests
     public class Test_Dependency
     {
         [TestMethod]
+        public void Test_Circularity_Detection()
+        {
+            SimpleContext root = new SimpleContext();
+            Variable v0 = new Variable(Parse.FromString("0", null, root));
+            root.Add("v0", v0);
+            Variable v1 = new Variable(Parse.FromString("1", null, root));
+            root.Add("v1", v1);
+
+            Assert.AreEqual(v0.Value, 0);
+            Assert.AreEqual(v1.Value, 1);
+
+            v1.Contents = Parse.FromString("v0", null, root);
+            Assert.AreEqual(v0.Value, 0);
+            Assert.AreEqual(v1.Value, 0);
+
+            Update update = Update.ForVariable(v0, Parse.FromString("v1", null, root));
+            update.Execute();
+            update.Await();
+            Assert.IsInstanceOfType(v0.Value, typeof(CircularityError));
+            Assert.IsInstanceOfType(v1.Value, typeof(CircularityError));
+        }
+
+        [TestMethod]
         public void Test_Indexing_Simple()
         {
             Common.AssertThrows<Dependency.Parse.SyntaxException>(() => Parse.FromString("no.references.without.context", null, null));
@@ -72,7 +95,7 @@ namespace UnitTests
             // Mixed paths (both References and Indexes) will be tested elsewhere.
         }
 
-        
+        [TestMethod]
         public void Test_Indexing_Complex()
         {
             throw new NotImplementedException();

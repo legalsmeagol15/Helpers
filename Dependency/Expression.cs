@@ -97,14 +97,15 @@ namespace Dependency
         
         public static IEvaluateable Recalculate(IEvaluateable ieval)
         {
+            const IDynamicItem nullChild = null;
             return _RecursiveRecalc(ieval);
 
             IEvaluateable _RecursiveRecalc(IEvaluateable focus)
             {
                 if (focus is ILiteral) return focus;
-                if (focus is IFunction ifunc) { foreach (var input in ifunc.Inputs) _RecursiveRecalc(input); ifunc.Update(); }
+                if (focus is IFunction ifunc) { foreach (var input in ifunc.Inputs) _RecursiveRecalc(input); ifunc.Update(nullChild); }
                 else if (focus is IExpression iexp) return _RecursiveRecalc(iexp.Contents);
-                else if (focus is IDynamicItem idi) idi.Update();
+                else if (focus is IDynamicItem idi) idi.Update(nullChild);
                 return focus.Value;
             }
         }

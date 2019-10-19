@@ -54,9 +54,11 @@ namespace Dependency
         /// <param name="forcedValue">Optional.  The new value that should be assigned to this 
         /// <seealso cref="IEvaluateable"/>.  If omitted or null, the <seealso cref="IDynamicItem"/> should calculate 
         /// its new value according to its own logic.</param>
+        /// <param name="updatedChild">The child that was updated who is passing on the update to this 
+        /// <seealso cref="IDynamicItem"/>.</param>
         /// <returns>Returns true if the update changed the value of this <seealso cref="IDynamicItem"/>; otherwise, 
         /// returns false.</returns>
-        bool Update(IEvaluateable forcedValue = null);
+        bool Update(IDynamicItem updatedChild, IEvaluateable forcedValue = null);
     }
 
 

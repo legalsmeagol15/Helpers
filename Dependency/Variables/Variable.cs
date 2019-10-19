@@ -91,7 +91,7 @@ namespace Dependency.Variables
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
         
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
-        bool IDynamicItem.Update( IEvaluateable forcedValue)
+        bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable forcedValue)
         {
             _ValueLock.EnterWriteLock();
             try

@@ -749,7 +749,7 @@ namespace Dependency
 
             bool IContext.TryGetProperty(object path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            bool IDynamicItem.Update(IEvaluateable forcedValue = null) => true;
+            bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable forcedValue) => true;
         }
 
 
@@ -768,7 +768,7 @@ namespace Dependency
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            bool IDynamicItem.Update(IEvaluateable forcedValue = null) => true;
+            bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable forcedValue) => true;
         }
 
 
