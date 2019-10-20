@@ -72,17 +72,29 @@ namespace Dependency
         /// the <paramref name="objects"/> count, then both <paramref name="bestIndex"/> and 
         /// <paramref name="unmatchedArg"/> will be -1.
         /// </summary>
-        public bool TryMatchTypes(IList<object> objects, out int bestIndex, out int unmatchedArg)
+        /// <param name="objects">The evaluated objects we are trying to match to a type constraint.</param>
+        /// <param name="bestIndex">The index of the best-matching type constraint.</param>
+        /// <param name="firstError">The first evaluated error from among the <paramref name="objects"/>.</param>
+        /// <param name="unmatchedArg">The index of the first non-matching arg, if matching failed.  Will be -1 if 
+        /// matching succeeded.</param>
+        /// <returns>Returns true if a type constraint perfectly matched the given evaluated objects.</returns>
+        public bool TryMatchTypes(IList<object> objects, out int bestIndex, out int unmatchedArg, out Error firstError)
         {
             bestIndex = -1;
             unmatchedArg = -1;
+            firstError = null;
 
             if (_Constraints.Count == 0) return true;
 
             // Convert the objects to controllable types.
             TypeFlags[] objTypes = new TypeFlags[objects.Count];
             for (int  i = 0; i < objTypes.Length; i++)
-                objTypes[i] = (objects[i] is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
+            {
+                object obj = objects[i];
+                if (obj is Error err && firstError == null) firstError = err;
+                objTypes[i] = (obj is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
+            }
+                
 
             // Now find a matching constraint for the object types, if one such constraint exists.
             foreach (Constraint constraint in _Constraints)

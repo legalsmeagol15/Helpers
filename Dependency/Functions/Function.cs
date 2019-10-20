@@ -28,16 +28,15 @@ namespace Dependency.Functions
 
         IList<IEvaluateable> IFunction.Inputs => Inputs;
 
-        public IEvaluateable Value { get; private set; }
+        public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
 
-        bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable forcedValue)
+        bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable childValue)
         {
             // TODO:  since I know which child was updated, it makes sense to cache the evaluations and updated only the changed one.
-            if (forcedValue == null) return Update(EvaluateInputs());
-            else if (forcedValue.Equals(Value)) return false;
-            Value = forcedValue;
-            return true;
+            IEvaluateable oldValue = Value;
+            if (childValue is Error) { Value = childValue; return Value.Equals(oldValue); }
+            else return Update(EvaluateInputs());
         }
         public bool Update() => Update(EvaluateInputs());
 
@@ -51,8 +50,10 @@ namespace Dependency.Functions
             else tc = TypeControl.GetConstraints(this.GetType());
 
             IEvaluateable newValue;
-            if (tc.TryMatchTypes(evalInputs, out int bestConstraint, out int unmatchedArg))
+            if (tc.TryMatchTypes(evalInputs, out int bestConstraint, out int unmatchedArg, out Error firstError))
                 newValue = Evaluate(evalInputs, bestConstraint);
+            else if (firstError != null)
+                newValue = firstError;
             else if (bestConstraint < 0)
                 newValue = new InputCountError(this, evalInputs, tc);
             else
