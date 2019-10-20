@@ -43,6 +43,23 @@ namespace Dependency.Functions
         [DebuggerStepThrough]
         protected virtual IEvaluateable[] EvaluateInputs() => _Inputs.Select(s => s.Value).ToArray();
 
+        /// <summary>
+        /// Attempts to update by calling the inheriting <seealso cref="Function.Update(IEvaluateable[])"/> method.  
+        /// The <seealso cref="Function.Value"/> will be set to this result
+        /// <para/>1. If the given <paramref name="evalInputs"/> match one of the <seealso cref="Functions"/>'s 
+        /// associated <seealso cref="TypeControl.Constraint"/>s, the evaluation will be returned accordingly by 
+        /// returning the result of the <seealso cref="Function.Update(IEvaluateable[])"/> method.  
+        /// <para/>2. If one of the given <paramref name="evalInputs"/> is an <seealso cref="Error"/>, that 
+        /// <seealso cref="Error"/> will be returned.
+        /// <para/>3. If no <seealso cref="TypeControl.Constraint"/> matches the count of 
+        /// <paramref name="evalInputs"/>, an <seealso cref="InputCountError"/> will be returned.
+        /// <para/>4. If one or more <paramref name="evalInputs"/> types do not match the closest 
+        /// <seealso cref="TypeControl.Constraint"/>, a <seealso cref="TypeMismatchError"/> will be returned.
+        /// </summary>
+        /// <param name="evalInputs">The evaluate inputs for this <seealso cref="Function"/> to perform its operation 
+        /// on.</param>
+        /// <returns>Returns true if <seealso cref="Value"/> is changed by this method; otherwise, returns false.
+        /// </returns>
         protected bool Update(IEvaluateable[] evalInputs)
         {
             TypeControl tc;

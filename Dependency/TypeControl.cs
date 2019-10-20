@@ -73,7 +73,8 @@ namespace Dependency
         /// <paramref name="unmatchedArg"/> will be -1.
         /// </summary>
         /// <param name="objects">The evaluated objects we are trying to match to a type constraint.</param>
-        /// <param name="bestIndex">The index of the best-matching type constraint.</param>
+        /// <param name="bestIndex">The index of the best-matching type constraint.  If the <paramref name="objects"/> 
+        /// count matches no <seealso cref="Constraint"/>, the returned result will be -1.</param>
         /// <param name="firstError">The first evaluated error from among the <paramref name="objects"/>.</param>
         /// <param name="unmatchedArg">The index of the first non-matching arg, if matching failed.  Will be -1 if 
         /// matching succeeded.</param>
