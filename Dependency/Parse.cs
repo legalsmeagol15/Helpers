@@ -77,8 +77,7 @@ namespace Dependency
                     // At last, just add the token as a string.
                     if (rootContext != null && Regex.IsMatch(token, RefPattern, RegexOptions.IgnorePatternWhitespace))
                     {
-                        string[] paths = token.ToLower().Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
-                        TokenReference tr = new TokenReference(rootContext, paths) { Index = splitIdx - 1 };
+                        TokenReference tr = new TokenReference(rootContext, token) { Index = splitIdx - 1 };
                         heap.Enqueue(tr);
                         tr.Node = inputs.AddLast(tr);
                         continue;
@@ -231,7 +230,7 @@ namespace Dependency
             protected internal enum Priorities
             {
                 Refer = 30,
-                Index = 30,
+                Index = 40,
                 Question = 50,
                 And = 100,
                 Or = 101,
@@ -575,19 +574,24 @@ namespace Dependency
         {
             protected internal override Priorities Priority => Priorities.Refer;
             private readonly IContext Root;
-            private readonly string[] Paths;
-            public TokenReference(IContext root, string[] paths) { this.Root = root; this.Paths = paths; }
+            private readonly string Path;
+            public TokenReference(IContext root, string path) { this.Root = root; this.Path = path; }
             protected internal override bool TryParse(out Token _)
             {
                 Debug.Assert(Node != null);
                 Debug.Assert(Node.List != null);
-                IEvaluateable origin;
-                if (Node.Previous == null) origin = new EvaluateableContext(Root);
-                else if (Node.Previous.Contents is Indexing prev_idxing) origin = prev_idxing;
-                else if (Node.Previous.Contents is Reference prev_ref) origin = prev_ref;
-                else origin = new EvaluateableContext(Root);
 
-                Reference r = new Reference(origin, Paths);
+                Reference r;
+                if (Node.Previous == null)
+                {
+                    if (!Reference.TryCreate(Root, Path, out r))
+                        throw new SyntaxException("", Path, "Failed to parse reference \""+Path+"\" from origin.");
+                } else
+                {
+                    if (!Reference.TryCreate(Node.Previous.Remove(), Path, out r))
+                        throw new SyntaxException("", Path, "Failed to parse reference \"" + Path + "\".");
+                }
+                
                 Node.Contents = r;
                 _ = null;
                 return true;
@@ -749,7 +753,7 @@ namespace Dependency
 
             bool IContext.TryGetProperty(object path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable forcedValue) => true;
+            bool IDynamicItem.Update(IDynamicItem updatedChild) => true;
         }
 
 
@@ -768,7 +772,7 @@ namespace Dependency
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable forcedValue) => true;
+            bool IDynamicItem.Update(IDynamicItem updatedChild) => true;
         }
 
 

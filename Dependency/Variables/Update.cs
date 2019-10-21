@@ -81,23 +81,9 @@ namespace Dependency.Variables
                 
 
                 HashSet<Reference> newRefs = new HashSet<Reference>(Helpers.GetReferences(NewContents));
+                StructureLock.EnterWriteLock();
                 try
-                {
-                    StructureLock.EnterWriteLock();
-                    
-                    // Cut out all the old references and replace them with the new references
-                    if (Starter.References != null)
-                    {
-                        foreach (Reference oldRef in Starter.References)
-                            if (oldRef.Head is IVariableInternal v)
-                                v.RemoveListener(oldRef);
-                        foreach (Reference newRef in newRefs)
-                            if (newRef.Head is IVariableInternal v)
-                                v.AddListener(newRef);
-                    }
-                    Starter.References = newRefs;
-
-
+                {   
                     // Update the contents tree.
                     if (Starter.Contents is IDynamicItem idi_before) idi_before.Parent = null;
                     if (NewContents is IDynamicItem idi_after) idi_after.Parent = (IDynamicItem)Starter;

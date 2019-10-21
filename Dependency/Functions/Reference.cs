@@ -44,31 +44,43 @@ namespace Dependency.Functions
     internal sealed class Reference : IFunction, IDisposable
     {
         // Cannot implement Function directly because the count of Inputs can change.
-
-        public IContext Origin { get; private set; }
+        
         public readonly bool IsAbsolute;
         public IDynamicItem Parent { get; set; }
         private readonly Step[] _Steps;
         IList<IEvaluateable> IFunction.Inputs => _Steps.Select(s => s.Input).ToList();
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
 
-        private Reference(IContext defaultOrigin, string[] steps, bool isAbsolute)
+        private Reference(string[] steps, bool isAbsolute)
         {
-            this.Origin = defaultOrigin ?? throw new ArgumentNullException("defaultOrigin");
             this._Steps = new Step[steps.Length+1];
-            this._Steps[0] = new Step(null) { Context = defaultOrigin, Input = new ContextWrapper(defaultOrigin) }; // for the origin
+            this._Steps[0] = new Step(null); // for the origin
             for (int i = 0; i < steps.Length; i++) this._Steps[i+1] = new Step(steps[i]);
             this.IsAbsolute = isAbsolute;
         }
-        public bool TryCreate(IContext defaultOrigin, string token, out Reference reference)
+        public static bool TryCreate(IContext defaultOrigin, string token, out Reference reference)
         {
             string[] splits = token.Split('.');
             for (int i = 1; i < splits.Length; i++)
                 if (string.IsNullOrWhiteSpace(splits[i])) { reference = null; return false; }
             bool isAbsolute = string.IsNullOrWhiteSpace(splits[0]);
-            reference = new Reference(defaultOrigin, splits, isAbsolute);
+            reference = new Reference(splits, isAbsolute);
+            reference._Steps[0].Context = defaultOrigin;
+            reference._Steps[0].Input = null;
             return true;
         }
+        public static bool TryCreate(IEvaluateable originInput, string token, out Reference reference)
+        {
+            string[] splits = token.Split('.');
+            for (int i = 1; i < splits.Length; i++)
+                if (string.IsNullOrWhiteSpace(splits[i])) { reference = null; return false; }
+            bool isAbsolute = string.IsNullOrWhiteSpace(splits[0]);
+            reference = new Reference(splits, isAbsolute);
+            reference._Steps[0].Context = null;
+            reference._Steps[0].Input = originInput;
+            return true;
+        }
+        
         bool IDynamicItem.Update(IDynamicItem updatedChild)
         {
             // Find the index of the child that changed.
@@ -228,6 +240,7 @@ namespace Dependency.Functions
 
         // This code added to correctly implement the disposable pattern.
         void IDisposable.Dispose() => Dispose(true);
+
 
         #endregion
 

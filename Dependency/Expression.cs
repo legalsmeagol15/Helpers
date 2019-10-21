@@ -50,7 +50,8 @@ namespace Dependency
 
         public static IEnumerable<Variables.Variable> GetDependees(object obj)
         {
-            foreach (Reference r in GetReferences(obj)) if (r.Head is Variables.Variable v) yield return v;
+            throw new NotImplementedException();
+            //foreach (Reference r in GetReferences(obj)) if (r.Head is Variables.Variable v) yield return v;
         }
 
         internal static IEnumerable<Reference> GetReferences(object obj)
@@ -85,7 +86,6 @@ namespace Dependency
                 if (!visited.Add(focus)) continue;
                 switch (focus)
                 {
-                    case Reference r: stack.Push(r.Head); break;
                     case IExpression e: stack.Push(e.Contents); break;
                     case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
                     case IVariableInternal v: stack.Push(v.Contents); break;
@@ -104,9 +104,9 @@ namespace Dependency
             IEvaluateable _RecursiveRecalc(IEvaluateable focus)
             {
                 if (focus is ILiteral) return focus;
-                if (focus is IFunction ifunc) { foreach (var input in ifunc.Inputs) _RecursiveRecalc(input); ifunc.Update(nullChild, nullValue); }
+                if (focus is IFunction ifunc) { foreach (var input in ifunc.Inputs) _RecursiveRecalc(input); ifunc.Update(nullChild); }
                 else if (focus is IExpression iexp) return _RecursiveRecalc(iexp.Contents);
-                else if (focus is IDynamicItem idi) idi.Update(nullChild, nullValue);
+                else if (focus is IDynamicItem idi) idi.Update(nullChild);
                 return focus.Value;
             }
         }
