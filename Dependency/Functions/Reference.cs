@@ -40,10 +40,11 @@ namespace Dependency.Functions
         
     //}
     
-
-    [NonVariadic(0, TypeFlags.Context)]
+        
     internal sealed class Reference : IFunction, IDisposable
     {
+        // Cannot implement Function directly because the count of Inputs can change.
+
         public IContext Origin { get; private set; }
         public readonly bool IsAbsolute;
         public IDynamicItem Parent { get; set; }
@@ -75,91 +76,100 @@ namespace Dependency.Functions
             for (; stepIdx < _Steps.Length && !ReferenceEquals(_Steps[stepIdx].Input, updatedChild); stepIdx++) ;
             Debug.Assert(stepIdx < _Steps.Length);
 
-            // Step through all the pre-head steps, check if a reference error occurred.
+            
+            Variables.Update.StructureLock.EnterReadLock();
             IEvaluateable newValue = null;
-            IContext ctxt = null;
-            for (; stepIdx < _Steps.Length - 1; stepIdx++)
+            try
             {
-                Step step = _Steps[stepIdx];
-                Step nextStep = _Steps[stepIdx + 1];
-
-                // What is the context at this step?  If there is variable input, the context will 
-                // be the evaluation of the variable (if it can be made into a context).
-                if (step.Input != null)
+                // Step through all the pre-head steps, check if a reference error occurred. 
+                for (; stepIdx < _Steps.Length - 1; stepIdx++)
                 {
-                    IEvaluateable inputValue = step.Input.Value;
-
-                    // If the input's value hasn't changed (and the input's value is a struct or literal) then no change 
-                    // will occur later down the line.
-                    if (inputValue.Equals(step.Context) && !inputValue.GetType().IsClass) return false;
-
-                    // Is the input's new value a valid context?  If not, this evaluates to an error.
-                    ctxt = inputValue as IContext;
-                    if (ctxt == null)
+                    IContext ctxt = null;
+                    Step step = _Steps[stepIdx];
+                    Step nextStep = _Steps[stepIdx + 1];
+                    
+                    // What is the context at this step?  If there is variable input, the context will 
+                    // be the evaluation of the variable (if it can be made into a context).
+                    if (step.Input != null)
                     {
-                        string msg = (stepIdx == 0) ? "Origin context was invalid."
-                                                    : "Evaluation of segment " + step.String + " is invalid context (" + inputValue.GetType().Name + ").";
-                        newValue = new ReferenceError(msg, _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
+                        IEvaluateable inputValue = step.Input.Value;
+
+                        // If the input's value hasn't changed (and the input's value is a struct or literal) then no change 
+                        // will occur later down the line.
+                        if (inputValue.Equals(step.Context) && !inputValue.GetType().IsClass) return false;
+
+                        // Is the input's new value a valid context?  If not, this evaluates to an error.
+                        ctxt = inputValue as IContext;
+                        if (ctxt == null)
+                        {
+                            string msg = (stepIdx == 0) ? "Origin context was invalid."
+                                                        : "Evaluation of segment " + step.String + " is invalid context (" + inputValue.GetType().Name + ").";
+                            newValue = new ReferenceError(msg, _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
+                            break;
+                        }
+                    }
+                    // Since we have no variable input, if there's no context for this step, re-evaluate the whole thing.
+                    else if (step.Context == null)
+                    {
+                        stepIdx = 0;
+                        continue;
+                    }
+                    // Otherwise, just stand in the cached context for this step.
+                    else
+                        ctxt = step.Context;
+
+                    // If this context has a matching subcontext, the next step's subcontext must be that.
+                    IContext newNextContext = null;
+                    IEvaluateable newNextInput = null;
+
+                    if (ctxt.TryGetSubcontext(step.String, out IContext next_ctxt))
+                    {
+                        newNextContext = next_ctxt;
+                        newNextInput = null;
+                        continue;
+                    }
+                    else if (!ctxt.TryGetProperty(step.String, out IEvaluateable prop))
+                    {
+                        newValue = new ReferenceError("No matching property for \"" + step.String + "\".",
+                            _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
                         break;
                     }
-                }
-                // Since we have no variable input, if there's no context for this step, re-evaluate the whole thing.
-                else if (step.Context == null)
-                {
-                    stepIdx = 0;
-                    continue;
-                }
-                // Otherwise, just stand in the cached context for this step.
-                else
-                    ctxt = step.Context;
+                    else if (prop.Equals(_Steps[stepIdx + 1].Input))
+                        return false;
+                    else if (prop is IVariableInternal)
+                    {
+                        newNextContext = null;
+                        newNextInput = prop;
+                    }
+                    else if (prop is IDynamicItem idi)
+                    {
+                        newValue = new ReferenceError("Cannot reference any dynamic property except variables",
+                            _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
+                        break;
+                    }
+                    else if (prop.GetType().IsClass)
+                    {
+                        newValue = new ReferenceError("References allowed only for literal values and variables",
+                            _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
+                        break;
+                    }
+                    else
+                    {
+                        newNextContext = null;
+                        newNextInput = prop;
+                        
+                    }
 
-                // If this context has a matching subcontext, the next step's subcontext must be that.
-                if (ctxt.TryGetSubcontext(step.String, out IContext next_ctxt))
-                {
-                    ctxt = next_ctxt;
-                    if (ctxt.Equals(nextStep.Context) && nextStep.Input == null) return false;
-                    _Steps[stepIdx + 1].Context = ctxt;
-                    _Steps[stepIdx + 1].Input = null;
-                    continue;
+                    // Apply the new Input and Context
+                    if (newNextInput != null && newNextInput.Equals(nextStep.Input)) return false;
+                    if (newNextContext != null && newNextContext.Equals(nextStep.Context)) return false;
+                    if (nextStep.Input is IVariableInternal ivi) ivi.RemoveListener(this);
+                    if (newNextInput is IVariableInternal new_ivi) new_ivi.AddListener(this);
+                    _Steps[stepIdx + 1].Input = newNextInput;
+                    _Steps[stepIdx + 1].Context = newNextContext;
                 }
-                else if (!ctxt.TryGetProperty(step.String, out IEvaluateable prop))
-                {
-                    newValue = new ReferenceError("No matching property for \"" + step.String + "\".",
-                        _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
-                    break;
-                }
-                else if (prop.Equals(_Steps[stepIdx + 1].Input))
-                    return false;
-                else if (prop is IVariableInternal ivi)
-                {
-                    IEvaluateable oldInput = _Steps[stepIdx + 1].Input;
-                    if (nextStep.Context == null && ivi.Equals(oldInput)) return false;
-                    if (oldInput != null && oldInput is IVariableInternal old_ivi)
-                        old_ivi.RemoveListener(this);
-                    ivi.AddListener(this);
-                }
-                else if (prop is IDynamicItem idi)
-                {
-                    newValue = new ReferenceError("Cannot reference any dynamic property except variables",
-                        _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
-                    break;
-                }
-                else if (prop.GetType().IsClass)
-                {
-                    newValue = new ReferenceError("References allowed only for literal values and variables",
-                        _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
-                    break;
-                }
-                else
-                {
-                    if (nextStep.Context == null && prop.Equals(nextStep.Input)) return false;
-                    _Steps[stepIdx + 1].Input = prop;
-                    _Steps[stepIdx + 1].Context = null;
-                }
-                
-                
-                
-            }
+            } finally { Variables.Update.StructureLock.ExitReadLock(); }
+            
 
             // For the last step, the newValue will either be the Input's Value, or it will be a wrapped IContext.
             if (newValue == null)
@@ -211,7 +221,7 @@ namespace Dependency.Functions
         {
             if (!disposedValue)
             {
-                if (Head is IVariableInternal iv) iv.RemoveListener(this);
+                foreach (Step step in _Steps) if (step.Input is IVariableInternal ivi) ivi.RemoveListener(this);
                 disposedValue = true;
             }
         }
@@ -223,47 +233,4 @@ namespace Dependency.Functions
 
     }
 
-    /// <summary>
-    /// A function which takes a base indexable object (like a <seealso cref="Vector"/>, or a 
-    /// <seealso cref="Reference"/> which points to a property <seealso cref="Variables.Variable"/>), and an ordinal 
-    /// value 'n', and returns the 'nth' item associated with that base object.
-    /// </summary>
-    [NonVariadic(0, TypeFlags.Indexable | TypeFlags.Context | TypeFlags.Vector | TypeFlags.Range, TypeFlags.Any)]
-    internal sealed class Indexing : Function
-    {
-        private IContext _Base;
-        private IEvaluateable _Ordinal;
-
-        protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
-        {
-            IContext oldBase = _Base;
-            IEvaluateable oldOrdinal = _Ordinal;
-
-            Dependency.Variables.Update.StructureLock.EnterUpgradeableReadLock();
-            try
-            {
-                IContext newBase = evaluatedInputs[0] as IContext;
-                if (newBase == null)
-                    return new IndexingError(this, _Base = newBase, _Ordinal = evaluatedInputs[1], "Invalid base.");
-                IEvaluateable newOrdinal = evaluatedInputs[1];
-                if (newOrdinal == null)
-                    return new IndexingError(this, _Base = newBase, _Ordinal = evaluatedInputs[1], "Invalid ordinal (" + newOrdinal.ToString() + ").");
-
-                if (newBase.Equals(_Base) && newOrdinal.Equals(_Ordinal))
-                    return Value;
-
-                Dependency.Variables.Update.StructureLock.EnterWriteLock();
-                _Base = newBase;
-                _Ordinal = newOrdinal;
-                Dependency.Variables.Update.StructureLock.ExitWriteLock();
-
-                if (newBase.TryGetSubcontext(newOrdinal, out IContext sub_ctxt)) return new EvaluateableContext(sub_ctxt);
-                if (newBase.TryGetProperty(newOrdinal, out IEvaluateable sub_prop)) return sub_prop.Value;
-                else return new IndexingError(this, newBase, newOrdinal, "Base is not indexable by " + newOrdinal.ToString());
-            }
-            finally { Dependency.Variables.Update.StructureLock.ExitUpgradeableReadLock(); }
-        }
-
-        public override string ToString() => Inputs[0].ToString() + "[" + Inputs[1].ToString() + "]";
-    }
 }

@@ -94,8 +94,6 @@ namespace Dependency
 
     internal interface IIndexable : IEvaluateable
     {
-        IEvaluateable MaxIndex { get; }
-        IEvaluateable MinIndex { get; }
         IEvaluateable this[IEvaluateable index] { get; }
     }
 

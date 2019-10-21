@@ -78,6 +78,7 @@
     <Compile Include="Dependency\Expression.cs" />
     <Compile Include="Dependency\Functions\Factory.cs" />
     <Compile Include="Dependency\Functions\Function.cs" />
+    <Compile Include="Dependency\Functions\Indexing.cs" />
     <Compile Include="Dependency\Functions\Named\Arithmetic.cs" />
     <Compile Include="Dependency\Functions\Named\NamedFunction.cs" />
     <Compile Include="Dependency\Functions\Reference.cs" />
