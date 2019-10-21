@@ -31,11 +31,10 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
 
-        bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable childValue)
+        bool IDynamicItem.Update(IDynamicItem updatedChild)
         {
             // TODO:  since I know which child was updated, it makes sense to cache the evaluations and updated only the changed one.
-            IEvaluateable oldValue = Value;
-            if (childValue is Error) { Value = childValue; return Value.Equals(oldValue); }
+            if (updatedChild.Value is Error err) { if (Value.Equals(err)) return false; Value = err; return true; }
             else return Update(EvaluateInputs());
         }
         public bool Update() => Update(EvaluateInputs());

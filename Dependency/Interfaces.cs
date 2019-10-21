@@ -48,18 +48,14 @@ namespace Dependency
         IDynamicItem Parent { get; set; }
 
         /// <summary>
-        /// Compel the <seealso cref="IDynamicItem"/> to update its stored value.  If a <paramref name="forcedValue"/> 
-        /// is given, the new value cached should be equal to that.
+        /// Compel the <seealso cref="IDynamicItem"/> to update its stored value.
         /// </summary>
-        /// <param name="forcedValue">Optional.  The new value that should be assigned to this 
-        /// <seealso cref="IEvaluateable"/>.  If omitted or null, the <seealso cref="IDynamicItem"/> should calculate 
-        /// its new value according to its own logic.</param>
         /// <param name="updatedChild">The child that was updated who is passing on the update to this 
         /// <seealso cref="IDynamicItem"/>.  If null, no child was update to cause this call to 
-        /// <see cref="Update(IDynamicItem, IEvaluateable)"/>.</param>
+        /// <see cref="Update(IDynamicItem)"/>.</param>
         /// <returns>Returns true if the update changed the value of this <seealso cref="IDynamicItem"/>; otherwise, 
         /// returns false.</returns>
-        bool Update(IDynamicItem updatedChild, IEvaluateable forcedValue = null);
+        bool Update(IDynamicItem updatedChild);
     }
 
 
@@ -135,7 +131,7 @@ namespace Dependency
     /// An <see cref="IVariableInternal"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
     /// <see cref="IVariableInternal"/>s in turns.
     /// </summary>
-    internal interface IVariableInternal : IEvaluateable, IDynamicItem
+    internal interface IVariableInternal : IVariable, IDynamicItem
     {
         /// <summary>Remove record of a listener to this <see cref="IVariableInternal"/>.</summary>
         /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
@@ -152,9 +148,6 @@ namespace Dependency
         ISet<Reference> References { get; set; }
 
         IEnumerable<IDynamicItem> GetListeners();
-
-        /// <summary>The content evaluation tree of this <see cref="IVariableInternal"/>.</summary>
-        IEvaluateable Contents { get; set; }
         
         /// <summary>Sets the contents of the <see cref="IVariableInternal"/>.</summary>
         void SetContents(IEvaluateable newContents);

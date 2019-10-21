@@ -19,7 +19,7 @@ namespace Dependency
         Boolean = 1 << 19,
         ComplexAny = 1<<20 | RealAny,
         Range = 1 << 22 | Indexable,  
-        Reference = 1 << 28,
+        Context = 1 << 28,
         Indexable = 1 << 29,
         Formula = 1 << 30,
         Error = 1 << 31,
@@ -93,7 +93,14 @@ namespace Dependency
             {
                 object obj = objects[i];
                 if (obj is Error err && firstError == null) firstError = err;
-                objTypes[i] = (obj is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
+                if (obj is ITypeGuarantee itg)
+                {
+                    objTypes[i] = itg.TypeGuarantee;
+                    // TODO:  see if the following can be removed, or possibly if the TypeFlags can be cached per Type.
+                    if (obj is IContext) objTypes[i] |= TypeFlags.Context;
+                    if (obj is IIndexable) objTypes[i] |= TypeFlags.Indexable;
+                }
+                else objTypes[i] = TypeFlags.Any;
             }
                 
 

@@ -18,13 +18,13 @@ namespace Dependency.Variables
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly ConcurrentQueue<IDynamicItem> _Items = new ConcurrentQueue<IDynamicItem>();
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
-        internal readonly IVariableInternal Origin;
+        internal readonly IVariableInternal Starter;
         public readonly IEvaluateable NewContents;
 
 
         private Update(IVariableInternal var, IEvaluateable newContents)
         {
-            this.Origin = var;
+            this.Starter = var;
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
@@ -43,7 +43,7 @@ namespace Dependency.Variables
         }
 
         /// <summary>
-        /// Updates this object's <seealso cref="Update.Origin"/> with the given <seealso cref="Update.NewContents"/>.
+        /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
         /// </summary>
         /// <returns>Returns whether any change is made to the contents.</returns>
         public void Execute() => UpdateStructure();
@@ -68,7 +68,7 @@ namespace Dependency.Variables
         }
 
         /// <summary>
-        /// Starts the structure update for the <seealso cref="Origin"/> with the given <seealso cref="NewContents"/>.
+        /// Starts the structure update for the <seealso cref="Starter"/> with the given <seealso cref="NewContents"/>.
         /// </summary>
         /// <returns>Returns true if the contents would change; otherwise, returns false.</returns>
         internal bool UpdateStructure()
@@ -77,7 +77,7 @@ namespace Dependency.Variables
              try
             {
                 StructureLock.EnterUpgradeableReadLock();
-                if (Origin.Contents.Equals(NewContents)) return false;
+                if (Starter.Contents.Equals(NewContents)) return false;
                 
 
                 HashSet<Reference> newRefs = new HashSet<Reference>(Helpers.GetReferences(NewContents));
@@ -86,47 +86,47 @@ namespace Dependency.Variables
                     StructureLock.EnterWriteLock();
                     
                     // Cut out all the old references and replace them with the new references
-                    if (Origin.References != null)
+                    if (Starter.References != null)
                     {
-                        foreach (Reference oldRef in Origin.References)
+                        foreach (Reference oldRef in Starter.References)
                             if (oldRef.Head is IVariableInternal v)
                                 v.RemoveListener(oldRef);
                         foreach (Reference newRef in newRefs)
                             if (newRef.Head is IVariableInternal v)
                                 v.AddListener(newRef);
                     }
-                    Origin.References = newRefs;
+                    Starter.References = newRefs;
 
 
                     // Update the contents tree.
-                    if (Origin.Contents is IDynamicItem idi_before) idi_before.Parent = null;
-                    if (NewContents is IDynamicItem idi_after) idi_after.Parent = (IDynamicItem)Origin;
+                    if (Starter.Contents is IDynamicItem idi_before) idi_before.Parent = null;
+                    if (NewContents is IDynamicItem idi_after) idi_after.Parent = (IDynamicItem)Starter;
 
-                    Origin.SetContents(NewContents);
+                    Starter.SetContents(NewContents);
                 }
                 finally { StructureLock.ExitWriteLock(); }
 
                 IEvaluateable newValue = Helpers.Recalculate(NewContents);
-                if (!Origin.Update(null, newValue)) return true;
-                foreach (var listener in Origin.GetListeners())
-                    _Tasks.Enqueue(Task.Run(() => _UpdateItem(listener)));
-                _UpdateItem(Origin.Parent);
+                if (!Starter.Update(null)) return true;
+                foreach (var listener in Starter.GetListeners())
+                    _Tasks.Enqueue(Task.Run(() => _UpdateItem(Starter, listener)));
+                _UpdateItem(null,Starter.Parent);
             } 
             finally { StructureLock.ExitUpgradeableReadLock();  }
             
             return true;
 
 
-            void _UpdateItem(IDynamicItem idi)
+            void _UpdateItem(IVariableInternal source, IDynamicItem idi)
             {
                 IDynamicItem updatedChild = null;
                 while (idi != null)
                 {
-                    IEvaluateable forcedValue = (idi.Equals(this.Origin)) ? new CircularityError(this.Origin) : null;
-                    if (!idi.Update(updatedChild, forcedValue)) return;
+                    IEvaluateable forcedValue = (idi.Equals(this.Starter)) ? new CircularityError(this.Starter) : null;
+                    if (!idi.Update(updatedChild)) return;
                     if (idi is IVariableInternal iv)
                         foreach (var listener in iv.GetListeners())
-                            _Tasks.Enqueue(Task.Run(() => _UpdateItem(listener)));
+                            _Tasks.Enqueue(Task.Run(() => _UpdateItem(iv, listener)));
                     updatedChild = idi;
                     idi = idi.Parent;
                 }

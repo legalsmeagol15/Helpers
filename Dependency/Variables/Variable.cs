@@ -91,13 +91,13 @@ namespace Dependency.Variables
             => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
         
         IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
-        bool IDynamicItem.Update(IDynamicItem updatedChild, IEvaluateable forcedValue)
+        bool IDynamicItem.Update(IDynamicItem updatedChild)
         {
             _ValueLock.EnterWriteLock();
             try
             {
                 IEvaluateable oldValue = _Value;
-                IEvaluateable newValue = forcedValue ?? _Contents.Value;
+                IEvaluateable newValue = updatedChild.Value;
                 if (_Value.Equals(newValue)) return false;
 
                 _Value = newValue;

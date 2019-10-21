@@ -16,7 +16,8 @@ namespace Dependency
         IEvaluateable IEvaluateable.Value => this;
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Error;
         public override bool Equals(object obj) => obj is Error other && Message.Equals(other.Message);
-        public sealed override int GetHashCode() => Message.GetHashCode();
+        //public sealed override int GetHashCode() => Message.GetHashCode();
+        public sealed override int GetHashCode() => throw new InvalidOperationException("Errors should not be hashed.");
         protected static bool ListsEqual<T>(IList<T> a, IList<T> b)
         {
             if (a.Count != b.Count) return false;
@@ -35,26 +36,51 @@ namespace Dependency
         public InvalidValue(string message = null) : base(message ?? "An invalid value was created.") { }
     }
 
-    public class ReferenceError : Error
+    public class NotAContextError : Error
     {
-        public readonly object Root;
-        public readonly string[] Paths;
-        public readonly int Index;
-        public ReferenceError(object root, string[] paths, int pathIdx, string message = null)
-            : base(message ?? "Invalid path " + paths[pathIdx])
+        public readonly object Origin;
+        public readonly string[] Steps;
+        internal NotAContextError(object origin, string[] steps) : base("Given origin is not a context.") { this.Origin = origin; this.Steps = steps; }
+        public override bool Equals(object obj) => obj is NotAContextError other && StepsEqual(other.Origin, other.Steps, Origin, Steps);
+        internal static bool StepsEqual(object originA, string[] stepsA, object originB, string[] stepsB)
         {
-            this.Root = root;
-            this.Paths = paths;
-            this.Index = pathIdx;
-        }
-        public override bool Equals(object obj)
-        {
-            if (!(base.Equals(obj) && (obj is ReferenceError re) && (this.Root.Equals(re.Root))
-                && this.Index == re.Index && this.Paths.Length == re.Paths.Length)) return false;
-            for (int i = 0; i < Paths.Length; i++) if (!(Paths[i].Equals(re.Paths[i]))) return false;
+            if (originA == null)
+            {
+                if (originB != null) return false;
+            }
+            else if (!originA.Equals(originB)) return false;
+            else if ((stepsA == null) ^ (stepsB == null)) return false;
+            else if (stepsA == null) return true;
+            else if (stepsA.Length != stepsB.Length) return false;
+            for (int i = 0; i < stepsA.Length; i++)
+                if (stepsA[i] != stepsB[i]) return false;
             return true;
         }
-
+    }
+    public class NotAVariableError : Error
+    {
+        public readonly object Origin;
+        public readonly string[] Steps;
+        internal NotAVariableError(object origin, string[] steps) : base ("Give path references a non-variable dynamic object.") { this.Origin = origin;this.Steps = steps; }
+        public override bool Equals(object obj) => obj is NotAVariableError other && NotAContextError.StepsEqual(Origin, Steps, other.Origin, other.Steps);
+    }
+    public class ReferenceError : Error
+    {
+        public readonly object Origin;
+        public readonly bool IsAbsolute;
+        public readonly string[] Steps;
+        internal ReferenceError(string message, object origin, bool isAbsolute, string[] steps) : base(message) { this.Origin = origin; this.IsAbsolute = isAbsolute; this.Steps = steps; }
+        public override bool Equals(object obj)
+        {
+            ReferenceError re = obj as ReferenceError;
+            if (re == null) return false;
+            if (Message != re.Message) return false;
+            if (!Origin.Equals(re.Origin)) return false;
+            if (IsAbsolute != re.IsAbsolute) return false;
+            if (Steps.Length != re.Steps.Length) return false;
+            for (int i = 0; i < Steps.Length; i++) if (!Steps[i].Equals(re.Steps[i])) return false;
+            return true;
+        }
     }
 
     public sealed class IndexingError : EvaluationError
