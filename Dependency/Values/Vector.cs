@@ -7,7 +7,7 @@ using Dependency.Functions;
 
 namespace Dependency
 {
-    public sealed class Vector : IFunction, IEvaluateable, ILiteral<object[]>, ITypeGuarantee, IContext, IDynamicItem
+    public sealed class Vector : IFunction, IEvaluateable, ILiteral<object[]>, ITypeGuarantee, IContext, ISyncUpdater
     // Though a Vector has inputs, it CANNOT be a Function.
     {
         public IList<IEvaluateable> Inputs { get; internal set; }
@@ -28,7 +28,7 @@ namespace Dependency
             for (int i = 0; i < contents.Length; i++)
             {
                 var c = contents[i];
-                if (c is IDynamicItem idi) idi.Parent = this;
+                if (c is ISyncUpdater idi) idi.Parent = this;
                 _Values[i] = c.Value;
             }
         }
@@ -67,10 +67,10 @@ namespace Dependency
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Vector;
 
-        IDynamicItem IDynamicItem.Parent { get; set; }
+        ISyncUpdater ISyncUpdater.Parent { get; set; }
 
         public override string ToString() => "{" + string.Join(",", Inputs.Select(i => i.ToString())) + "}";
 
-        bool IDynamicItem.Update(IDynamicItem updatedChild) => true;
+        bool ISyncUpdater.Update(ISyncUpdater updatedChild) => true;
     }
 }

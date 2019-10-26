@@ -37,25 +37,25 @@ namespace Dependency
         bool TryGetProperty(object path, out IEvaluateable source);
     }
     
-    /// <summary>An <seealso cref="IEvaluateable"/> object that will pass changes in value up through an evaluation 
-    /// tree to its parent.</summary>
-    internal interface IDynamicItem : IEvaluateable
+    /// <summary>
+    /// An <seealso cref="IEvaluateable"/> object that will synchronously pass changes in value up through an 
+    /// evaluation tree to its parent.
+    /// </summary>
+    internal interface ISyncUpdater : IEvaluateable
     {
         /// <summary>
-        /// The parent <seealso cref="Reference"/>, <seealso cref="Function"/>, or other <see cref="IDynamicItem"/> 
+        /// The parent <seealso cref="Reference"/>, <seealso cref="Function"/>, or other <see cref="ISyncUpdater"/> 
         /// that will be evaluated upon changes in this object's dependency value.
         /// </summary>
-        IDynamicItem Parent { get; set; }
+        ISyncUpdater Parent { get; set; }
 
-        /// <summary>
-        /// Compel the <seealso cref="IDynamicItem"/> to update its stored value.
-        /// </summary>
+        /// <summary>Compel the <seealso cref="ISyncUpdater"/> to update its stored value.</summary>
         /// <param name="updatedChild">The child that was updated who is passing on the update to this 
-        /// <seealso cref="IDynamicItem"/>.  If null, no child was update to cause this call to 
-        /// <see cref="Update(IDynamicItem)"/>.</param>
-        /// <returns>Returns true if the update changed the value of this <seealso cref="IDynamicItem"/>; otherwise, 
+        /// <seealso cref="ISyncUpdater"/>.  If null, no child was update to cause this call to 
+        /// <see cref="Update(ISyncUpdater)"/>.</param>
+        /// <returns>Returns true if the update changed the value of this <seealso cref="ISyncUpdater"/>; otherwise, 
         /// returns false.</returns>
-        bool Update(IDynamicItem updatedChild);
+        bool Update(ISyncUpdater updatedChild);
     }
 
 
@@ -63,7 +63,6 @@ namespace Dependency
     {
         /// <summary>Returns the most recently-updated value of this <see cref="IEvaluateable"/>.</summary>
         IEvaluateable Value { get; }
-        
     }
 
 
@@ -73,7 +72,7 @@ namespace Dependency
         IEvaluateable Contents { get; }
     }
 
-    internal interface IFunction : IDynamicItem
+    internal interface IFunction : ISyncUpdater
     {
         IList<IEvaluateable> Inputs { get; }
     }
@@ -109,6 +108,11 @@ namespace Dependency
         string Name { get; }
     }
 
+    public interface IReference
+    {
+        IEnumerable<IEvaluateable> GetComposers();
+    }
+
     public interface IRelativeString
     {
         string ToString(IContext origin);
@@ -126,40 +130,39 @@ namespace Dependency
     }
 
     /// <summary>
-    /// An <see cref="IVariableInternal"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
-    /// <see cref="IVariableInternal"/>s in turns.
+    /// An <see cref="IAsyncUpdater"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
+    /// <see cref="IAsyncUpdater"/>s in turns.
     /// </summary>
-    internal interface IVariableInternal : IVariable, IDynamicItem
+    internal interface IAsyncUpdater : IEvaluateable
     {
-        /// <summary>Remove record of a listener to this <see cref="IVariableInternal"/>.</summary>
+        /// <summary>Remove record of a listener to this <see cref="IAsyncUpdater"/>.</summary>
         /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
         /// false.</returns>
-        bool RemoveListener(IDynamicItem r);
+        bool RemoveListener(ISyncUpdater r);
 
-        /// <summary>Add record of a listener to this <see cref="IVariableInternal"/>.  When the <see cref="IVariableInternal"/> is 
+        /// <summary>Add record of a listener to this <see cref="IAsyncUpdater"/>.  When the <see cref="IAsyncUpdater"/> is 
         /// updated, the listeners should then be updated (ideally asynchronously).</summary>
         /// <returns>True if the listener set was changed; if the listener already existed there, returns false.
         /// </returns>
-        bool AddListener(IDynamicItem r);
-
-        /// <summary>Pointers to the things this <see cref="IVariableInternal"/> listens to.</summary>
-        ISet<Reference> References { get; set; }
-
-        IEnumerable<IDynamicItem> GetListeners();
+        bool AddListener(ISyncUpdater r);
         
-        /// <summary>Sets the contents of the <see cref="IVariableInternal"/>.</summary>
-        void SetContents(IEvaluateable newContents);
+        IEnumerable<ISyncUpdater> GetListeners();
         
-        /// <summary>Fired when the <see cref="IVariableInternal"/>'s cached value changes.</summary>
+        /// <summary>Fired when the <see cref="IAsyncUpdater"/>'s cached value changes.</summary>
         event ValueChangedHandler<IEvaluateable> ValueChanged;
-
-        void FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue);
+        
     }
 
-    public interface IVariable : IEvaluateable
+    public interface IVariable  : IEvaluateable
     {
-        IEvaluateable Contents { get; set; }
+        IEvaluateable Contents { get; }
+    }
 
+    internal interface IVariable_ : IVariable
+    {
+        void SetContents(IEvaluateable newContent);
+
+        void SetError(Error e);
     }
 
 

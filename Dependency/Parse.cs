@@ -735,9 +735,9 @@ namespace Dependency
         /// <summary>
         /// A curly-bracket clause.  The only legal contents of a <see cref="Curly"/> would be a 
         /// <seealso cref="Contents"/>.  The value of a <see cref="Curly"/> is the contents of the 
-        /// <seealso cref="IVariableInternal"/> indicated by the <seealso cref="Contents"/>.
+        /// <seealso cref="IAsyncUpdater"/> indicated by the <seealso cref="Contents"/>.
         /// </summary>
-        internal sealed class Curly : IExpression, IContext, IDynamicItem
+        internal sealed class Curly : IExpression, IContext, ISyncUpdater
         {
             /// <summary>The vector that this bracket object contains.</summary>
             public Vector Contents { get; }
@@ -745,7 +745,7 @@ namespace Dependency
 
             IEvaluateable IEvaluateable.Value => Contents;
 
-            IDynamicItem IDynamicItem.Parent { get; set; }
+            ISyncUpdater ISyncUpdater.Parent { get; set; }
 
             public override string ToString() => '{' + Contents.ToString() + '}';
 
@@ -753,26 +753,26 @@ namespace Dependency
 
             bool IContext.TryGetProperty(object path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            bool IDynamicItem.Update(IDynamicItem updatedChild) => true;
+            bool ISyncUpdater.Update(ISyncUpdater updatedChild) => true;
         }
 
 
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Contents"/> of a 
         /// <see cref="Parenthetical"/>.</summary>
-        internal sealed class Parenthetical : IExpression, IDynamicItem
+        internal sealed class Parenthetical : IExpression, ISyncUpdater
         {
-            public IDynamicItem Parent { get; set; }
+            public ISyncUpdater Parent { get; set; }
             /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
             /// operation performed in the tree.</summary>
-            public IEvaluateable Contents { get => _Contents; internal set { _Contents = value; if (_Contents is IDynamicItem ide) ide.Parent = this; } }
+            public IEvaluateable Contents { get => _Contents; internal set { _Contents = value; if (_Contents is ISyncUpdater ide) ide.Parent = this; } }
             private IEvaluateable _Contents;
 
             IEvaluateable IEvaluateable.Value => _Contents.Value;
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            bool IDynamicItem.Update(IDynamicItem updatedChild) => true;
+            bool ISyncUpdater.Update(ISyncUpdater updatedChild) => true;
         }
 
 

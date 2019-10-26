@@ -46,7 +46,7 @@ namespace Dependency.Functions
         // Cannot implement Function directly because the count of Inputs can change.
         
         public readonly bool IsAbsolute;
-        public IDynamicItem Parent { get; set; }
+        public ISyncUpdater Parent { get; set; }
         private readonly Step[] _Steps;
         IList<IEvaluateable> IFunction.Inputs => _Steps.Select(s => s.Input).ToList();
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
@@ -81,7 +81,7 @@ namespace Dependency.Functions
             return true;
         }
         
-        bool IDynamicItem.Update(IDynamicItem updatedChild)
+        bool ISyncUpdater.Update(ISyncUpdater updatedChild)
         {
             // Find the index of the child that changed.
             int stepIdx = 0;
@@ -148,12 +148,12 @@ namespace Dependency.Functions
                     }
                     else if (prop.Equals(_Steps[stepIdx + 1].Input))
                         return false;
-                    else if (prop is IVariableInternal)
+                    else if (prop is IAsyncUpdater)
                     {
                         newNextContext = null;
                         newNextInput = prop;
                     }
-                    else if (prop is IDynamicItem idi)
+                    else if (prop is ISyncUpdater idi)
                     {
                         newValue = new ReferenceError("Cannot reference any dynamic property except variables",
                             _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
@@ -175,8 +175,8 @@ namespace Dependency.Functions
                     // Apply the new Input and Context
                     if (newNextInput != null && newNextInput.Equals(nextStep.Input)) return false;
                     if (newNextContext != null && newNextContext.Equals(nextStep.Context)) return false;
-                    if (nextStep.Input is IVariableInternal ivi) ivi.RemoveListener(this);
-                    if (newNextInput is IVariableInternal new_ivi) new_ivi.AddListener(this);
+                    if (nextStep.Input is IAsyncUpdater ivi) ivi.RemoveListener(this);
+                    if (newNextInput is IAsyncUpdater new_ivi) new_ivi.AddListener(this);
                     _Steps[stepIdx + 1].Input = newNextInput;
                     _Steps[stepIdx + 1].Context = newNextContext;
                 }
@@ -233,7 +233,7 @@ namespace Dependency.Functions
         {
             if (!disposedValue)
             {
-                foreach (Step step in _Steps) if (step.Input is IVariableInternal ivi) ivi.RemoveListener(this);
+                foreach (Step step in _Steps) if (step.Input is IAsyncUpdater ivi) ivi.RemoveListener(this);
                 disposedValue = true;
             }
         }

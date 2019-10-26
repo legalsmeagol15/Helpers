@@ -16,23 +16,21 @@ namespace Dependency.Variables
         // Like a SQL transaction
         
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-        private readonly ConcurrentQueue<IDynamicItem> _Items = new ConcurrentQueue<IDynamicItem>();
+        private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
-        internal readonly IVariableInternal Starter;
+        private IVariable_ Starter;
         public readonly IEvaluateable NewContents;
 
 
-        private Update(IVariableInternal var, IEvaluateable newContents)
+        private Update(IVariable_ var, IEvaluateable newContents)
         {
-            this.Starter = var;
+            this.Starter = var ?? throw new ArgumentNullException("var");
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
         }
-
-        internal static Update ForVariableInternal(IVariableInternal var, IEvaluateable newContents) => new Update(var, newContents);
-
-        public static Update ForVariable(IVariable var, IEvaluateable newContents) => new Update((IVariableInternal)var, newContents);
+        
+        public static Update ForVariable(IVariable var, IEvaluateable newContents) => new Update(var as IVariable_, newContents);
 
         public void Await()
         {
@@ -47,74 +45,81 @@ namespace Dependency.Variables
         /// </summary>
         /// <returns>Returns whether any change is made to the contents.</returns>
         public void Execute() => UpdateStructure();
-
-        internal bool TryFindCircularity(IVariable target)
-        {
-            // This method should be called with StructureLock readlock already engaged.
-
-            Stack<IVariable> stack = new Stack<IVariable>();
-            HashSet<IVariable> visited = new HashSet<IVariable>();
-            stack.Push(target);
-            visited.Add(target);
-            while (stack.Count > 0)
-            {
-                IVariable v = stack.Pop();
-                foreach (Reference r in Helpers.GetReferences(v))
-                {
-                    throw new NotImplementedException();
-                }
-            }
-            throw new NotImplementedException();
-        }
+        
 
         /// <summary>
         /// Starts the structure update for the <seealso cref="Starter"/> with the given <seealso cref="NewContents"/>.
         /// </summary>
         /// <returns>Returns true if the contents would change; otherwise, returns false.</returns>
-        internal bool UpdateStructure()
+        private bool UpdateStructure()
         {
-            
-             try
+            try
             {
                 StructureLock.EnterUpgradeableReadLock();
-                if (Starter.Contents.Equals(NewContents)) return false;
-                
 
-                HashSet<Reference> newRefs = new HashSet<Reference>(Helpers.GetReferences(NewContents));
+                // If the new contents equal the old contents, it can't possibly matter.
+                if (Starter.Contents.Equals(NewContents)) return false;
+
+                // Evaluate the new contents.  This will potentially establish a reference between NewContents and 
+                // existing variables.
+                IEvaluateable newValue = Helpers.Recalculate(NewContents);
+
+                // Update the Starter's new contents.
                 StructureLock.EnterWriteLock();
                 try
-                {   
-                    // Update the contents tree.
-                    if (Starter.Contents is IDynamicItem idi_before) idi_before.Parent = null;
-                    if (NewContents is IDynamicItem idi_after) idi_after.Parent = (IDynamicItem)Starter;
-
+                {
+                    // Update the contents tree.  The synchronous relations must be updated by hand, the asynchronous 
+                    // relations will be wrapped up automatically by the garbage collection.
+                    if (Starter.Contents is ISyncUpdater idi_before) idi_before.Parent = null;
+                    if (NewContents is ISyncUpdater idi_after) idi_after.Parent = (ISyncUpdater)Starter;
                     Starter.SetContents(NewContents);
                 }
                 finally { StructureLock.ExitWriteLock(); }
 
-                IEvaluateable newValue = Helpers.Recalculate(NewContents);
-                if (!Starter.Update(null)) return true;
-                foreach (var listener in Starter.GetListeners())
-                    _Tasks.Enqueue(Task.Run(() => _UpdateItem(Starter, listener)));
-                _UpdateItem(null,Starter.Parent);
-            } 
-            finally { StructureLock.ExitUpgradeableReadLock();  }
-            
+                // IF the Starter is now part of a circularity, set the Starter's value to an error (unless it's already an error).
+                if (Helpers.TryFindCircularity(Starter))
+                {
+                    if (Starter.Value is CircularityError ce && ce.Origin.Equals(Starter)) return true;
+                    Starter.SetError(new CircularityError(Starter));
+                }
+
+                // IF Starter updates synchronously,  get that started (and update asynchronously if appropriate).
+                else if (Starter is ISyncUpdater isu)
+                {
+                    if (!isu.Update(null)) return true;
+                    if (Starter is IAsyncUpdater iau) // (check this here so it can be done BEFORE isu.Parent)
+                    {
+                        foreach (var listener in iau.GetListeners())
+                            _Tasks.Enqueue(Task.Run(() => _UpdateItem(iau, listener)));
+                    }
+                    _UpdateItem(null, isu.Parent);
+                    return true;
+                }
+
+                // Finally, if Starter only updates asynchronously, kick off the asynchronous update.
+                else if (Starter is IAsyncUpdater iau)
+                {
+                    foreach (var listener in iau.GetListeners())
+                        _Tasks.Enqueue(Task.Run(() => _UpdateItem(iau, listener)));
+                }
+            }
+            finally { StructureLock.ExitUpgradeableReadLock(); }
+
+            // Done.
             return true;
 
 
-            void _UpdateItem(IVariableInternal source, IDynamicItem idi)
+            void _UpdateItem(IAsyncUpdater source, ISyncUpdater isu)
             {
-                IDynamicItem updatedChild = null;
-                while (idi != null)
+                ISyncUpdater updatedChild = null;
+                while (isu != null)
                 {
-                    IEvaluateable forcedValue = (idi.Equals(this.Starter)) ? new CircularityError(this.Starter) : null;
-                    if (!idi.Update(updatedChild)) return;
-                    if (idi is IVariableInternal iv)
+                    if (!isu.Update(updatedChild)) return;
+                    if (isu is IAsyncUpdater iv)
                         foreach (var listener in iv.GetListeners())
                             _Tasks.Enqueue(Task.Run(() => _UpdateItem(iv, listener)));
-                    updatedChild = idi;
-                    idi = idi.Parent;
+                    updatedChild = isu;
+                    isu = isu.Parent;
                 }
             }
         }

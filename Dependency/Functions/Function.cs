@@ -9,9 +9,9 @@ using static Dependency.TypeControl;
 
 namespace Dependency.Functions
 {
-    public abstract class Function : IFunction, IDynamicItem
+    public abstract class Function : IFunction, ISyncUpdater
     {
-        internal IDynamicItem Parent { get; set; }
+        internal ISyncUpdater Parent { get; set; }
         private IList<IEvaluateable> _Inputs;
         protected internal IList<IEvaluateable> Inputs
         {
@@ -20,7 +20,7 @@ namespace Dependency.Functions
             {
                 _Inputs = value;
                 foreach (var iev in value)
-                    if (iev is IDynamicItem ide)
+                    if (iev is ISyncUpdater ide)
                         ide.Parent = this;
             }
         }
@@ -29,9 +29,9 @@ namespace Dependency.Functions
         IList<IEvaluateable> IFunction.Inputs => Inputs;
 
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
-        IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
+        ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value; }
 
-        bool IDynamicItem.Update(IDynamicItem updatedChild)
+        bool ISyncUpdater.Update(ISyncUpdater updatedChild)
         {
             // TODO:  since I know which child was updated, it makes sense to cache the evaluations and updated only the changed one.
             if (updatedChild.Value is Error err) { if (Value.Equals(err)) return false; Value = err; return true; }

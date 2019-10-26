@@ -15,7 +15,7 @@ using System.Diagnostics;
 
 namespace Dependency.Variables
 {
-    public class Variable : IVariableInternal, IVariable
+    public class Variable : IAsyncUpdater, ISyncUpdater, IVariable_
     {
         // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
         // Also, References clean themselves up from their sources through their own implementation  of 
@@ -30,7 +30,7 @@ namespace Dependency.Variables
         // 1, and evaluate accordingly.  Listeners are now inconsistent with Variable's current value, whcih is 2.
 
             
-        private readonly WeakReferenceSet<IDynamicItem> _Listeners = new WeakReferenceSet<IDynamicItem>();
+        private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         
@@ -45,6 +45,19 @@ namespace Dependency.Variables
                 finally { _ValueLock.ExitReadLock(); }
             }
         }
+        private bool SetValue(IEvaluateable newValue)
+        {
+            _ValueLock.EnterWriteLock();
+            try
+            {
+                if (_Value.Equals(newValue)) return false;
+                IEvaluateable oldValue = _Value;
+                _Value = newValue;
+                ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
+            }
+            finally { _ValueLock.ExitWriteLock(); }
+            return true;
+        }
         
         private IEvaluateable _Contents = Null.Instance;
         public IEvaluateable Contents
@@ -58,7 +71,8 @@ namespace Dependency.Variables
             }
             set
             {
-                var update = Update.ForVariableInternal(this, value);
+                // Use an update to kick off Parent's and listeners' updates as well.
+                var update = Update.ForVariable(this, value);
                 update.Execute();
                 update.Await();
             }
@@ -79,34 +93,17 @@ namespace Dependency.Variables
 
         public event ValueChangedHandler<IEvaluateable> ValueChanged;
         
-        internal IDynamicItem Parent { get; set; }
+        internal ISyncUpdater Parent { get; set; }
 
-        bool IVariableInternal.AddListener(IDynamicItem idi) => _Listeners.Add(idi);
-        bool IVariableInternal.RemoveListener(IDynamicItem idi) => _Listeners.Remove(idi);
-        IEnumerable<IDynamicItem> IVariableInternal.GetListeners() => _Listeners;
-        ISet<Functions.Reference> IVariableInternal.References { get; set; }
-       
-        void IVariableInternal.SetContents(IEvaluateable newContents) => _Contents = newContents ?? Dependency.Null.Instance;
-        void IVariableInternal.FireValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
-            => ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
+        bool IAsyncUpdater.AddListener(ISyncUpdater idi) => _Listeners.Add(idi);
+        bool IAsyncUpdater.RemoveListener(ISyncUpdater idi) => _Listeners.Remove(idi);
+        IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
         
-        IDynamicItem IDynamicItem.Parent { get => Parent; set => Parent = value; }
-        bool IDynamicItem.Update(IDynamicItem updatedChild)
-        {
-            _ValueLock.EnterWriteLock();
-            try
-            {
-                IEvaluateable oldValue = _Value;
-                IEvaluateable newValue = updatedChild.Value;
-                if (_Value.Equals(newValue)) return false;
+        ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value; }
+        bool ISyncUpdater.Update(ISyncUpdater updatedChild) => SetValue(updatedChild.Value);
 
-                _Value = newValue;
-                ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
-            } finally { _ValueLock.ExitWriteLock(); }
-            return true;
-        }
-        
-
+        void IVariable_.SetError(Error e) => SetValue(e);
+        void IVariable_.SetContents(IEvaluateable newContent) { _Contents = newContent; }
     }
 
 
