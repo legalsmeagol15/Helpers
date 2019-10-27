@@ -85,14 +85,8 @@ namespace Dependency
 
     public sealed class IndexingError : EvaluationError
     {
-        public readonly object Base;
-        internal IndexingError(object complainant, object @base, IEvaluateable ordinal, string message = null)
-            : base(complainant, new IEvaluateable[] { ordinal }, message ?? "Cannot index.")
-        {
-            this.Base = @base;
-        }
-        public override bool Equals(object obj)
-            => base.Equals(obj) && (obj is IndexingError ie) && ReferenceEquals(ie.Base, Base);
+        internal IndexingError(IFunction complainant, string message)
+            : base(complainant, complainant.Inputs, message) { }
     }
 
     public class EvaluationError : Error

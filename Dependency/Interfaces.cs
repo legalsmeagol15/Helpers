@@ -93,7 +93,7 @@ namespace Dependency
 
     internal interface IIndexable : IEvaluateable
     {
-        IEvaluateable this[IEvaluateable index] { get; }
+        bool TryIndex(IEvaluateable ordinal, out IEvaluateable val);
     }
 
 

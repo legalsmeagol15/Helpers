@@ -7,7 +7,7 @@ using Dependency.Functions;
 
 namespace Dependency
 {
-    public sealed class Vector : IFunction, IEvaluateable, ILiteral<object[]>, ITypeGuarantee, IContext, ISyncUpdater
+    public sealed class Vector : IFunction, IEvaluateable, ILiteral<object[]>, ITypeGuarantee, IContext, ISyncUpdater, IIndexable
     // Though a Vector has inputs, it CANNOT be a Function.
     {
         public IList<IEvaluateable> Inputs { get; internal set; }
@@ -17,7 +17,7 @@ namespace Dependency
             get
             {
                 if (idx >= 0 && idx <= Inputs.Count) return Inputs[idx].Value;
-                return new IndexingError(this, this, new Number(idx), "Index out of range.");
+                return new IndexingError(this, "Index " + idx + " out of range.");
             }
         }
 
@@ -72,5 +72,12 @@ namespace Dependency
         public override string ToString() => "{" + string.Join(",", Inputs.Select(i => i.ToString())) + "}";
 
         bool ISyncUpdater.Update(ISyncUpdater updatedChild) => true;
+
+        bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
+        {
+            if (!(ordinal is Number n) || !n.IsInteger) { val = null; return false; }
+            val= this[(int)n];
+            return !(val is Error);
+        }
     }
 }
