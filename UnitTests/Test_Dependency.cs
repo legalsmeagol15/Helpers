@@ -132,7 +132,11 @@ namespace UnitTests
             List<Variable> vars = new List<Variable>();
             for (int i = 1; i <= numVars; i++)
             {
-                Variable vNext = new Variable(Parse.FromString("v" + (i-1), null,  root));
+                Variable vNext = new Variable();
+                IEvaluateable refer_to_last = Parse.FromString("v" + (i - 1), null, root);
+                Update u = Update.ForVariable(vNext, refer_to_last);
+                u.Execute();
+                u.Await();
                 
                 Assert.AreEqual(vStart.Value, vNext.Value);
                 root.Add("v" + i, vNext);

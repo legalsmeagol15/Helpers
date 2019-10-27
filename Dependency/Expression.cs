@@ -96,7 +96,7 @@ namespace Dependency
 
             Stack<object> stack = new Stack<object>();
             HashSet<object> visited = new HashSet<object>();
-            _Append(start.Contents);
+            _AppendListenersOf(start);
             
             while (stack.Count > 0)
             {
@@ -109,13 +109,13 @@ namespace Dependency
                 if (focus.Equals(start)) return true;
 
                 // Append the focus's listeners.
-                _Append(focus);
+                _AppendListenersOf(focus);
             }
 
             // No circularity found.
             return false;
 
-            void _Append(object obj)
+            void _AppendListenersOf(object obj)
             {
                 if (obj is ISyncUpdater isu) stack.Push(isu.Parent);
                 if (obj is IAsyncUpdater iau) foreach (var l in iau.GetListeners()) stack.Push(l);
