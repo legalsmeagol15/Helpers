@@ -25,21 +25,23 @@ namespace UnitTests
         public void Test_Circularity_Detection()
         {
             SimpleContext root = new SimpleContext();
-            Variable v0 = new Variable(Parse.FromString("0", null, root));
+            Variable v0 = new Variable(), v1 = new Variable(), v2 = new Variable();
             root.Add("v0", v0);
-            Variable v1 = new Variable(Parse.FromString("1", null, root));
             root.Add("v1", v1);
+            root.Add("v2", v2);
 
-            Assert.AreEqual(v0.Value, 0);
-            Assert.AreEqual(v1.Value, 1);
+            //v0 = v1
+            v0.Contents = Parse.FromString("v1", null, root);
 
-            v1.Contents = Parse.FromString("v0", null, root);
-            Assert.AreEqual(v0.Value, 0);
-            Assert.AreEqual(v1.Value, 0);
+            //v1 = v2
+            v1.Contents = Parse.FromString("v2", null, root);
 
-            Update update = Update.ForVariable(v0, Parse.FromString("v1", null, root));
+            //v2 = v0
+            Update update = Update.ForVariable(v2, Parse.FromString("v0", null, root));
             update.Execute();
             update.Await();
+
+            Assert.IsInstanceOfType(v2.Value, typeof(CircularityError));
             Assert.IsInstanceOfType(v0.Value, typeof(CircularityError));
             Assert.IsInstanceOfType(v1.Value, typeof(CircularityError));
         }

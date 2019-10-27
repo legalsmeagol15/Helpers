@@ -79,6 +79,8 @@ namespace Dependency
                     case IReference r: yield return r; break;
                     case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
                     case IExpression e: stack.Push(e.Contents); break;
+                    case IVariable v: stack.Push(v.Contents); break;
+                    default: yield break;
                 }
             }
         }
@@ -86,15 +88,15 @@ namespace Dependency
         /// <summary>Returns whether the given object is part of a dependency circularity.</summary>
         /// <param name="start">The object at which to start searching.  If a route back to this object is discovered, 
         /// a circularity is found.</param>
-        internal static bool TryFindCircularity(object start)
+        internal static bool TryFindCircularity(IVariable start)
         {
             // If the starting object depends on nothing, circularity would be impossible.
-            if (!GetReferences(start).Any())
+            if (!GetReferences(start.Contents).Any())
                 return false;
 
             Stack<object> stack = new Stack<object>();
             HashSet<object> visited = new HashSet<object>();
-            _Append(start);
+            _Append(start.Contents);
             
             while (stack.Count > 0)
             {

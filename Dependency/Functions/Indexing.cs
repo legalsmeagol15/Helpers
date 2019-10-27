@@ -12,13 +12,16 @@ namespace Dependency.Functions
     /// <seealso cref="Reference"/> which points to a property <seealso cref="IAsyncUpdater"/>), and an ordinal 
     /// value 'n', and returns the 'nth' item associated with that base object.
     /// </summary>
-    internal sealed class Indexing : IFunction
+    internal sealed class Indexing : IFunction, IReference
     {
         internal IEvaluateable[] Inputs;
         internal IEvaluateable Base => Inputs[0];
         internal IEvaluateable Ordinal => Inputs[1];
         internal IAsyncUpdater Head => Inputs.Length > 2 ? (IAsyncUpdater)Inputs[2] : null;
-        private IEvaluateable _BaseValue, _CachedOrdinalValue; // Cache these because updates have to have StructureLock held
+
+        // Cache these because updates have to have StructureLock held
+        private IEvaluateable _BaseValue;
+        private IEvaluateable _CachedOrdinalValue = Dependency.Null.Instance; 
 
         public ISyncUpdater Parent { get; set; }
 
@@ -43,7 +46,7 @@ namespace Dependency.Functions
                 }
 
                 // Did the base change?
-                if (updatedChild == null || updatedChild.Equals(Base))
+                else if (updatedChild == null || updatedChild.Equals(Base))
                 {
                     // Check if it's really a new base.
                     IEvaluateable newBaseValue = Base.Value;
@@ -51,7 +54,11 @@ namespace Dependency.Functions
                     _BaseValue = newBaseValue;
                 }
 
-                // In all cases, must re-index.  The new value could 
+                // Last case - the cached value changed.
+                else 
+                    _CachedOrdinalValue = updatedChild.Value;
+                
+                // In all cases, must re-index.  The new value could be a variable itself.
                 if (!(_BaseValue is IIndexable idxable))
                     newValue = new IndexingError(this, "Base of type " + _BaseValue.GetType().Name + " is not indexable.");
                 else if (!idxable.TryIndex(_CachedOrdinalValue, out newValue))
@@ -91,6 +98,8 @@ namespace Dependency.Functions
             finally { Update.StructureLock.ExitUpgradeableReadLock(); }
 
         }
+
+        IEnumerable<IEvaluateable> IReference.GetComposers() => Inputs;
     }
 
 }

@@ -7,48 +7,15 @@ using System.Threading.Tasks;
 
 namespace Dependency.Functions
 {
-    public enum Mobility
-    {
-        // TODO:  more info will probably be needed
-        None = 0,
-        Column = 1,
-        Row = 2,
-        All = ~0
-    }
-
-    //internal struct EvaluateableContext : IContext, IEvaluateable, ITypeGuarantee, ILiteral<IContext>
-    //{
-    //    public readonly IContext Context;
-
-    //    public EvaluateableContext(IContext context) { this.Context = context; }
-
-    //    bool IContext.TryGetSubcontext(object path, out IContext ctxt) => Context.TryGetSubcontext(path, out ctxt);
-
-    //    bool IContext.TryGetProperty(object path, out IEvaluateable source) => Context.TryGetProperty(path, out source);
-
-    //    IEvaluateable IEvaluateable.Value => this;
-
-    //    TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Context;
-
-    //    IContext ILiteral<IContext>.CLRValue => Context;
-
-    //    public override string ToString() => Context.ToString();
-
-    //    public override bool Equals(object obj) => (obj is EvaluateableContext other) && Context.Equals(other.Context);
-
-    //    public override int GetHashCode() => throw new InvalidOperationException();
         
-    //}
-    
-        
-    internal sealed class Reference : IFunction, IDisposable
+    internal sealed class Reference : IFunction, IDisposable, IReference
     {
         // Cannot implement Function directly because the count of Inputs can change.
         
         public readonly bool IsAbsolute;
         public ISyncUpdater Parent { get; set; }
         private readonly Step[] _Steps;
-        IList<IEvaluateable> IFunction.Inputs => _Steps.Where(s=> s.Input != null).Select(s => s.Input).ToList();
+        
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
 
         private Reference(string[] steps, bool isAbsolute)
@@ -195,7 +162,11 @@ namespace Dependency.Functions
             Value = newValue;
             return true;
         }
-
+        
+        IList<IEvaluateable> IFunction.Inputs => Inputs.ToList();
+        private IEnumerable<IEvaluateable> Inputs => _Steps.Where(s => s.Input != null).Select(s => s.Input);
+        IEnumerable<IEvaluateable> IReference.GetComposers() => Inputs;
+        
         private struct ContextWrapper : IEvaluateable, IContext
         {
             public readonly IContext Context;
@@ -240,8 +211,7 @@ namespace Dependency.Functions
 
         // This code added to correctly implement the disposable pattern.
         void IDisposable.Dispose() => Dispose(true);
-
-
+        
         #endregion
 
     }
