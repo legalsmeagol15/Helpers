@@ -34,7 +34,12 @@ namespace Dependency.Functions
         bool ISyncUpdater.Update(ISyncUpdater updatedChild)
         {
             // TODO:  since I know which child was updated, it makes sense to cache the evaluations and updated only the changed one.
-            if (updatedChild.Value is Error err) { if (Value.Equals(err)) return false; Value = err; return true; }
+            if (updatedChild != null && updatedChild.Value is Error err)
+            {
+                if (Value.Equals(err)) return false;
+                Value = err;
+                return true;
+            }
             else return Update(EvaluateInputs());
         }
         public bool Update() => Update(EvaluateInputs());
