@@ -44,6 +44,10 @@ namespace UnitTests
             Assert.IsInstanceOfType(v2.Value, typeof(CircularityError));
             Assert.IsInstanceOfType(v0.Value, typeof(CircularityError));
             Assert.IsInstanceOfType(v1.Value, typeof(CircularityError));
+
+            CircularityError ce = (CircularityError)v0.Value;
+            Assert.IsTrue(v1.Value.Equals(v0.Value));
+            Assert.IsTrue(v2.Value.Equals(v0.Value));
         }
 
         [TestMethod]

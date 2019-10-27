@@ -24,6 +24,7 @@ namespace Dependency
             for (int i = 0; i < a.Count; i++) if (!a[i].Equals(b[i])) return false;
             return true;
         }
+        public override string ToString() => this.GetType().Name + "(" + Message + ")";
     }
 
     public sealed class CircularityError : Error
