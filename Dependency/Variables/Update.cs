@@ -91,8 +91,10 @@ namespace Dependency.Variables
                     {
                         foreach (var listener in iau.GetListeners())
                             _Tasks.Enqueue(Task.Run(() => _UpdateItem(iau, listener)));
+                        _UpdateItem(iau, isu.Parent);
                     }
-                    _UpdateItem(null, isu.Parent);
+                    else 
+                        _UpdateItem(null, isu.Parent);
                     return true;
                 }
 
@@ -111,7 +113,7 @@ namespace Dependency.Variables
 
             void _UpdateItem(IAsyncUpdater source, ISyncUpdater isu)
             {
-                ISyncUpdater updatedChild = null;
+                ISyncUpdater updatedChild = source as ISyncUpdater;
                 while (isu != null)
                 {
                     if (!isu.Update(updatedChild)) return;

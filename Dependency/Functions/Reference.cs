@@ -48,7 +48,7 @@ namespace Dependency.Functions
         public readonly bool IsAbsolute;
         public ISyncUpdater Parent { get; set; }
         private readonly Step[] _Steps;
-        IList<IEvaluateable> IFunction.Inputs => _Steps.Select(s => s.Input).ToList();
+        IList<IEvaluateable> IFunction.Inputs => _Steps.Where(s=> s.Input != null).Select(s => s.Input).ToList();
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
 
         private Reference(string[] steps, bool isAbsolute)
@@ -134,19 +134,19 @@ namespace Dependency.Functions
                     IContext newNextContext = null;
                     IEvaluateable newNextInput = null;
 
-                    if (ctxt.TryGetSubcontext(step.String, out IContext next_ctxt))
+                    if (ctxt.TryGetSubcontext(nextStep.String, out IContext next_ctxt))
                     {
                         newNextContext = next_ctxt;
                         newNextInput = null;
                         continue;
                     }
-                    else if (!ctxt.TryGetProperty(step.String, out IEvaluateable prop))
+                    else if (!ctxt.TryGetProperty(nextStep.String, out IEvaluateable prop))
                     {
                         newValue = new ReferenceError("No matching property for \"" + step.String + "\".",
                             _Steps[0].Context, IsAbsolute, _Steps.Take(stepIdx + 1).Select(s => s.String).ToArray());
                         break;
                     }
-                    else if (prop.Equals(_Steps[stepIdx + 1].Input))
+                    else if (prop.Equals(nextStep.Input))
                         return false;
                     else if (prop is IAsyncUpdater)
                     {
@@ -214,7 +214,7 @@ namespace Dependency.Functions
             public IContext Context;
             public IEvaluateable Input;
             public Step (string str) { this.String = str; Context = default(IContext); Input = default(IEvaluateable); }
-            public override string ToString() => String;
+            public override string ToString() => String ?? "";
         }
         
         public override string ToString() => string.Join(".", _Steps);

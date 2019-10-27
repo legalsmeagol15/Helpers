@@ -134,7 +134,9 @@ namespace UnitTests
             if (!root.TryGetProperty("v" + numVars, out IEvaluateable last_iev) || !(last_iev is Variable vLast))
                 throw new Exception("Bad testing harness.");
 
-            vStart.Contents = new Number(2);            
+            Update update = Update.ForVariable(vStart, new Number(2));
+            update.Execute();
+            update.Await();
             Assert.AreEqual(vStart.Value, vLast.Value);
             
 
