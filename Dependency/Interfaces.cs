@@ -11,6 +11,29 @@ using System.Threading;
 namespace Dependency
 {
 
+    /// <summary>
+    /// An <see cref="IAsyncUpdater"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
+    /// <see cref="IAsyncUpdater"/>s in turns.
+    /// </summary>
+    internal interface IAsyncUpdater : IEvaluateable
+    {
+        /// <summary>Remove record of a listener to this <see cref="IAsyncUpdater"/>.</summary>
+        /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
+        /// false.</returns>
+        bool RemoveListener(ISyncUpdater r);
+
+        /// <summary>Add record of a listener to this <see cref="IAsyncUpdater"/>.  When the <see cref="IAsyncUpdater"/> is 
+        /// updated, the listeners should then be updated (ideally asynchronously).</summary>
+        /// <returns>True if the listener set was changed; if the listener already existed there, returns false.
+        /// </returns>
+        bool AddListener(ISyncUpdater r);
+
+        IEnumerable<ISyncUpdater> GetListeners();
+
+        /// <summary>Fired when the <see cref="IAsyncUpdater"/>'s cached value changes.</summary>
+        event ValueChangedHandler<IEvaluateable> ValueChanged;
+
+    }
 
     /// <summary>
     /// A function which caches its <seealso cref="TypeControl"/> input validator may validate just a little faster 
@@ -37,27 +60,6 @@ namespace Dependency
         bool TryGetProperty(object path, out IEvaluateable source);
     }
     
-    /// <summary>
-    /// An <seealso cref="IEvaluateable"/> object that will synchronously pass changes in value up through an 
-    /// evaluation tree to its parent.
-    /// </summary>
-    internal interface ISyncUpdater : IEvaluateable
-    {
-        /// <summary>
-        /// The parent <seealso cref="Reference"/>, <seealso cref="Function"/>, or other <see cref="ISyncUpdater"/> 
-        /// that will be evaluated upon changes in this object's dependency value.
-        /// </summary>
-        ISyncUpdater Parent { get; set; }
-
-        /// <summary>Compel the <seealso cref="ISyncUpdater"/> to update its stored value.</summary>
-        /// <param name="updatedChild">The child that was updated who is passing on the update to this 
-        /// <seealso cref="ISyncUpdater"/>.  If null, no child was update to cause this call to 
-        /// <see cref="Update(ISyncUpdater)"/>.</param>
-        /// <returns>Returns true if the update changed the value of this <seealso cref="ISyncUpdater"/>; otherwise, 
-        /// returns false.</returns>
-        bool Update(ISyncUpdater updatedChild);
-    }
-
 
     public interface IEvaluateable
     {
@@ -124,34 +126,34 @@ namespace Dependency
     }
 
 
+    /// <summary>
+    /// An <seealso cref="IEvaluateable"/> object that will synchronously pass changes in value up through an 
+    /// evaluation tree to its parent.
+    /// </summary>
+    internal interface ISyncUpdater : IEvaluateable
+    {
+        /// <summary>
+        /// The parent <seealso cref="Reference"/>, <seealso cref="Function"/>, or other <see cref="ISyncUpdater"/> 
+        /// that will be evaluated upon changes in this object's dependency value.
+        /// </summary>
+        ISyncUpdater Parent { get; set; }
+
+        /// <summary>Compel the <seealso cref="ISyncUpdater"/> to update its stored value.</summary>
+        /// <param name="updatedChild">The child that was updated who is passing on the update to this 
+        /// <seealso cref="ISyncUpdater"/>.  If null, no child was update to cause this call to 
+        /// <see cref="Update(ISyncUpdater)"/>.</param>
+        /// <returns>Returns true if the update changed the value of this <seealso cref="ISyncUpdater"/>; otherwise, 
+        /// returns false.</returns>
+        bool Update(ISyncUpdater updatedChild);
+    }
+
+
+
     internal interface ITypeGuarantee
     {
         TypeFlags TypeGuarantee { get; }
     }
 
-    /// <summary>
-    /// An <see cref="IAsyncUpdater"/> can have multiple listeners, and its content evaluation tree can listen to multiple 
-    /// <see cref="IAsyncUpdater"/>s in turns.
-    /// </summary>
-    internal interface IAsyncUpdater : IEvaluateable
-    {
-        /// <summary>Remove record of a listener to this <see cref="IAsyncUpdater"/>.</summary>
-        /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
-        /// false.</returns>
-        bool RemoveListener(ISyncUpdater r);
-
-        /// <summary>Add record of a listener to this <see cref="IAsyncUpdater"/>.  When the <see cref="IAsyncUpdater"/> is 
-        /// updated, the listeners should then be updated (ideally asynchronously).</summary>
-        /// <returns>True if the listener set was changed; if the listener already existed there, returns false.
-        /// </returns>
-        bool AddListener(ISyncUpdater r);
-        
-        IEnumerable<ISyncUpdater> GetListeners();
-        
-        /// <summary>Fired when the <see cref="IAsyncUpdater"/>'s cached value changes.</summary>
-        event ValueChangedHandler<IEvaluateable> ValueChanged;
-        
-    }
 
     public interface IVariable  : IEvaluateable
     {
