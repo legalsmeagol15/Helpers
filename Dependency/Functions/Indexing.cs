@@ -1,6 +1,7 @@
 ﻿using Dependency.Variables;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,7 +15,18 @@ namespace Dependency.Functions
     /// </summary>
     internal sealed class Indexing : IFunction, IReference
     {
-        internal IEvaluateable[] Inputs;
+        private IEvaluateable[] _Inputs;
+        internal IEvaluateable[] Inputs
+        {
+            get => _Inputs;
+            set
+            {
+                Debug.Assert(_Inputs == null);
+                _Inputs = value;
+                if (_Inputs[0] is ISyncUpdater isu_base) isu_base.Parent = this;
+                if (_Inputs[1] is ISyncUpdater isu_ordinal) isu_ordinal.Parent = this;                
+            }
+        }
         internal IEvaluateable Base => Inputs[0];
         internal IEvaluateable Ordinal => Inputs[1];
         internal IAsyncUpdater Head => Inputs.Length > 2 ? (IAsyncUpdater)Inputs[2] : null;
@@ -102,7 +114,7 @@ namespace Dependency.Functions
 
         }
 
-        IEnumerable<IEvaluateable> IReference.GetComposers() => Inputs;
+        IEnumerable<IEvaluateable> IReference.GetComposers() => _Inputs;
     }
 
 }

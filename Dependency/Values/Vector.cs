@@ -32,6 +32,10 @@ namespace Dependency
                 _Values[i] = c.Value;
             }
         }
+        public Vector(params decimal[] contents) 
+            : this (contents.Select(m => new Number(m)).OfType<IEvaluateable>().ToArray())
+        {
+        }
         public Vector() { }
 
         IEvaluateable IEvaluateable.Value => this;

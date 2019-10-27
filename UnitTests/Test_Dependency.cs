@@ -15,7 +15,7 @@ using System.Runtime.CompilerServices;
 
 namespace UnitTests
 {
-   
+
 
 
     [TestClass]
@@ -54,13 +54,13 @@ namespace UnitTests
         public void Test_Indexing_Simple()
         {
             Common.AssertThrows<Dependency.Parse.SyntaxException>(() => Parse.FromString("no.references.without.context", null, null));
-            
+
             SimpleContext root = new SimpleContext();
             Parse.FromString("what.is.this", null, root);
 
             // Show that new references have the correct values.
-            Vector vec = new Vector(new Number(10), new Number(11), new Number(12));
-            Variable v0 = new Variable { Contents = new Vector(new Number(10), new Number(11), new Number(12)) };
+            Vector vec = new Vector(10, 11, 12);
+            Variable v0 = new Variable { Contents = vec };
             root.Add("v0", v0);
             Variable v1 = new Variable();
             IEvaluateable idxing = Parse.FromString("v0[2]", null, root);
@@ -68,17 +68,23 @@ namespace UnitTests
             update.Execute();
             update.Await();
             Assert.AreEqual(v1.Value, vec[2]);
-            Assert.IsTrue(Dependency.Helpers.GetDependees(v1).Contains(v0));
-            Variable v2 = new Variable(Parse.FromString("(v0[2] + 3) * 2", null, root));
-            Assert.IsTrue(Dependency.Helpers.GetDependees(v2).Contains(v0));
-            Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);
+
 
             // Show that value changes propogate through.
-            vec = new Vector(new Number(20), new Number(21), new Number(22));
-            v0.Contents = vec;
+            vec = new Vector(20, 21, 22);
+            update = Update.ForVariable(v0, vec);
+            update.Execute();
+            update.Await();
             Assert.AreEqual(v1.Value, vec[2]);
+
+            // Show that the values will propogate through a second variable as well.
+            Variable v2 = new Variable(Parse.FromString("(v0[2] + 3) * 2", null, root));
+            //Assert.IsTrue(Dependency.Helpers.GetDependees(v2).Contains(v0));
             Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);
-            
+            vec = new Vector(31, 32, 33);
+
+
+
             // Show that subcontext properties can be referenced in deeper paths.
             v1.Contents = Parse.FromString("v0", null, root);
             v2.Contents = Parse.FromString("v0", null, root);
@@ -89,16 +95,16 @@ namespace UnitTests
             sub1.Add("sub2", sub2);
             sub2.Add("v2", v2);
             Variable v3 = new Variable(Parse.FromString("sub1.v1", null, root));
-            
+
             Assert.AreEqual(v3.Value, vec);
             Variable v4 = new Variable(Parse.FromString("sub1.sub2.v2[2]", null, root));
-            
+
             Assert.AreEqual(v4.Value, vec[2]);
 
             // Show that values propogate through deep paths.
-            vec = new Vector(new Number(31), new Number(32), new Number(33));
+            vec = new Vector(31, 32, 33);
             v0.Contents = vec;
-            
+
             Assert.AreEqual(v3.Value, vec);
             Assert.AreEqual(v4.Value, vec[2]);
 
@@ -125,7 +131,7 @@ namespace UnitTests
             // 376 ms update 1000 vars over 100 times, or 3 ms/run
             int numVars = 1000;
             bool timeUpdates = false;
-           
+
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
@@ -141,7 +147,7 @@ namespace UnitTests
                 Update u = Update.ForVariable(vNext, refer_to_last);
                 u.Execute();
                 u.Await();
-                
+
                 Assert.AreEqual(vStart.Value, vNext.Value);
                 root.Add("v" + i, vNext);
             }
@@ -152,7 +158,7 @@ namespace UnitTests
             update.Execute();
             update.Await();
             Assert.AreEqual(vStart.Value, vLast.Value);
-            
+
 
             if (timeUpdates)
             {
@@ -162,7 +168,7 @@ namespace UnitTests
                     long runs = 100;
                     for (int i = 0; i < runs; i++)
                     {
-                        ms += Common.Time((j) => { vStart.Contents = new Number(j);  }, i);
+                        ms += Common.Time((j) => { vStart.Contents = new Number(j); }, i);
                     }
                     Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
                 }
@@ -182,7 +188,7 @@ namespace UnitTests
 
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
-            
+
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
@@ -192,14 +198,14 @@ namespace UnitTests
             for (int i = 1; i <= numVars; i++)
             {
                 Variable vNext = new Variable(Parse.FromString("v0", null, root));
-                
+
                 Assert.AreEqual(vStart.Value, vNext.Value);
                 root.Add("v" + i, vNext);
             }
             if (!root.TryGetProperty("v" + numVars, out IEvaluateable last_iev) || !(last_iev is Variable vLast))
                 throw new Exception("Bad testing harness.");
             vStart.Contents = new Number(2);
-            
+
             Assert.AreEqual(vStart.Value, vLast.Value);
 
             if (timeUpdates)
@@ -210,7 +216,7 @@ namespace UnitTests
                     long runs = 100;
                     for (int i = 0; i < runs; i++)
                     {
-                        ms += Common.Time((j) => { vStart.Contents = new Number(j);  }, i);
+                        ms += Common.Time((j) => { vStart.Contents = new Number(j); }, i);
                     }
                     Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
                 }
@@ -253,7 +259,7 @@ namespace UnitTests
             //PrintTimings(timings);
         }
 
-        
+
         [TestMethod]
         public void Test_ToString()
         {
@@ -281,7 +287,7 @@ namespace UnitTests
             Variable vStart = new Variable(Dependency.Number.One);
             SimpleContext root = new SimpleContext();
             root.Add("vstart", vStart);
-            
+
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
@@ -303,9 +309,9 @@ namespace UnitTests
                     string expressionA = "ABS(" + lastName + ")";
                     string expressionB = "-ABS(" + lastName + ")";
 
-                    IEvaluateable contentsA = Parse.FromString( expressionA, functions, root);
+                    IEvaluateable contentsA = Parse.FromString(expressionA, functions, root);
                     IEvaluateable contentsB = Parse.FromString(expressionB, functions, root);
-                    
+
                     Variable vA = new Variable(contentsA);
                     Variable vB = new Variable(contentsB);
 
@@ -328,16 +334,16 @@ namespace UnitTests
             Update update = Update.ForVariable(vStart, new Number(-1));
             update.Execute();
             update.Await();
-            
+
             for (int i = 0; i < lastRank.Count; i += 2)
             {
                 Variable vA = lastRank[i].Value;
-                Variable vB = lastRank[i+1].Value;
+                Variable vB = lastRank[i + 1].Value;
                 Assert.AreEqual(vA.Value, 1);
                 Assert.AreEqual(vB.Value, -1);
             }
 
-            vStart.Contents = new Number(2);            
+            vStart.Contents = new Number(2);
             for (int i = 0; i < lastRank.Count; i += 2)
             {
                 Variable vA = lastRank[i].Value;
@@ -346,7 +352,7 @@ namespace UnitTests
                 Assert.AreEqual(vB.Value, -2);
             }
 
-            vStart.Contents = new Number(0);            
+            vStart.Contents = new Number(0);
             for (int i = 0; i < lastRank.Count; i += 2)
             {
                 Variable vA = lastRank[i].Value;
@@ -364,7 +370,7 @@ namespace UnitTests
                     int val = 1;
                     for (int i = 0; i < runs; i++)
                     {
-                        ms += Common.Time((j) => { vStart.Contents = new Number(val);  }, i);
+                        ms += Common.Time((j) => { vStart.Contents = new Number(val); }, i);
                         val *= -1;
                     }
                     Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
@@ -380,13 +386,13 @@ namespace UnitTests
             {
                 Console.Write(i + ":\t" + timings[i].ToString("0.00000"));
                 if (i > 0)
-                    Console.Write("\t" + ( timings[i] / timings[i - 1]));
+                    Console.Write("\t" + (timings[i] / timings[i - 1]));
                 Console.Write("\n");
                 sum += timings[i];
             }
 
             Console.WriteLine("Average: " + (sum / timings.Length));
-            
+
         }
 
         [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
@@ -394,7 +400,7 @@ namespace UnitTests
         {
             double[] results = new double[doublings];
             action();
-            DateTime loader = DateTime.Now;            
+            DateTime loader = DateTime.Now;
             for (int idx = 0; idx < doublings; idx++)
             {
                 runs <<= 1;
@@ -444,7 +450,7 @@ namespace UnitTests
 
         bool IContext.TryGetSubcontext(object token, out IContext ctxt) { ctxt = null; return false; }
     }
-    
+
 
 
     internal class SimpleContext : IContext
@@ -453,7 +459,7 @@ namespace UnitTests
         private readonly Dictionary<object, SimpleContext> _Subcontexts = new Dictionary<object, SimpleContext>();
         public void Add(object key, Variable variable) => _Variables.Add(key, variable);
         public void Add(object key, SimpleContext subcontext) => _Subcontexts.Add(key, subcontext);
-        
+
         public bool TryGetProperty(object token, out IEvaluateable source)
         {
             if (_Variables.TryGetValue(token, out Variable v)) { source = v; return true; }
@@ -461,7 +467,7 @@ namespace UnitTests
             return false;
         }
 
-        public  bool TryGetSubcontext(object token, out IContext ctxt)
+        public bool TryGetSubcontext(object token, out IContext ctxt)
         {
             if (_Subcontexts.TryGetValue(token, out SimpleContext sc)) { ctxt = sc; return true; }
             ctxt = null;
