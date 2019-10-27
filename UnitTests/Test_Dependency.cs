@@ -62,7 +62,11 @@ namespace UnitTests
             Vector vec = new Vector(new Number(10), new Number(11), new Number(12));
             Variable v0 = new Variable { Contents = new Vector(new Number(10), new Number(11), new Number(12)) };
             root.Add("v0", v0);
-            Variable v1 = new Variable(Parse.FromString("v0[2]", null, root));
+            Variable v1 = new Variable();
+            IEvaluateable idxing = Parse.FromString("v0[2]", null, root);
+            Update update = Update.ForVariable(v1, idxing);
+            update.Execute();
+            update.Await();
             Assert.AreEqual(v1.Value, vec[2]);
             Assert.IsTrue(Dependency.Helpers.GetDependees(v1).Contains(v0));
             Variable v2 = new Variable(Parse.FromString("(v0[2] + 3) * 2", null, root));

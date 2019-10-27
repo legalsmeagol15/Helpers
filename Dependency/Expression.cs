@@ -136,9 +136,17 @@ namespace Dependency
 
             IEvaluateable _RecursiveRecalc(IEvaluateable focus)
             {
-                if (focus is IFunction ifunc) { foreach (var input in ifunc.Inputs) _RecursiveRecalc(input); ifunc.Update(nullChild); }
-                else if (focus is IExpression iexp) return _RecursiveRecalc(iexp.Contents);
-                else if (focus is ISyncUpdater idi) idi.Update(nullChild);
+                switch (focus)
+                {
+                    case IVariable iv:  // Variables are presumed to be up-to-date.
+                        break;
+                    case IFunction ifunc:
+                        foreach (var input in ifunc.Inputs) _RecursiveRecalc(input);
+                        ifunc.Update(nullChild);
+                        break;
+                    case IExpression ie:
+                        return _RecursiveRecalc(ie.Contents);
+                }
                 return focus.Value;
             }
         }
