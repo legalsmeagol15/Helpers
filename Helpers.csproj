@@ -97,7 +97,9 @@
     <Compile Include="Dependency\Values\Vector.cs" />
     <Compile Include="Dependency\Variables\LiteralVariable.cs" />
     <Compile Include="Dependency\Variables\DynamicVariable.cs" />
+    <Compile Include="Dependency\Variables\Receiver.cs" />
     <Compile Include="Dependency\Variables\SourceVariable.cs" />
+    <Compile Include="Dependency\Variables\Transmitter.cs" />
     <Compile Include="Dependency\Variables\Update.cs" />
     <Compile Include="Dependency\Variables\Variable.cs" />
     <Compile Include="Events.cs" />
