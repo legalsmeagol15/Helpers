@@ -43,15 +43,8 @@ namespace Dependency.Variables
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
         /// </summary>
-        /// <returns>Returns whether any change is made to the contents.</returns>
-        public void Execute() => UpdateStructure();
-        
-
-        /// <summary>
-        /// Starts the structure update for the <seealso cref="Starter"/> with the given <seealso cref="NewContents"/>.
-        /// </summary>
-        /// <returns>Returns true if the contents would change; otherwise, returns false.</returns>
-        private bool UpdateStructure()
+        /// <returns>Returns whether any change is made to the value of the <seealso cref="Update.Starter"/>.</returns>
+        public bool Execute() 
         {
             try
             {
@@ -76,30 +69,21 @@ namespace Dependency.Variables
                 }
                 finally { StructureLock.ExitWriteLock(); }
 
-                // IF the Starter is now part of a circularity, set the Starter's value to an error (unless it's already an error).
+                // If the Starter is now part of a circularity, the new value will be a CircularityError
                 if (Helpers.TryFindCircularity(Starter))
-                {
-                    if (Starter.Value is CircularityError ce && ce.Origin.Equals(Starter)) return true;
-                    Starter.SetError(new CircularityError(Starter));
-                }
+                    newValue = new CircularityError(Starter);
 
-                // IF Starter updates synchronously,  get that started (and update asynchronously if appropriate).
-                else if (Starter is ISyncUpdater isu)
-                {
-                    if (!isu.Update(null)) return true;
-                    if (Starter is IAsyncUpdater iau) // (check this here so it can be done BEFORE isu.Parent)
-                    {
-                        foreach (var listener in iau.GetListeners())
-                            _Tasks.Enqueue(Task.Run(() => _UpdateItem(iau, listener)));
-                        _UpdateItem(iau, isu.Parent);
-                    }
-                    else 
-                        _UpdateItem(null, isu.Parent);
-                    return true;
-                }
+                // If the new value won't change the old value, no need to update listeners.
+                if (!Starter.SetValue(newValue))
+                    return false;
 
-                // Finally, if Starter only updates asynchronously, kick off the asynchronous update.
-                else if (Starter is IAsyncUpdater iau)
+                // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
+                // started.
+                if (Starter is ISyncUpdater isu)
+                    _UpdateItem(Starter as IAsyncUpdater, isu.Parent);
+
+                // Finally, if Starter updates asynchronously, kick off the asynchronous update.
+                if (Starter is IAsyncUpdater iau)
                 {
                     foreach (var listener in iau.GetListeners())
                         _Tasks.Enqueue(Task.Run(() => _UpdateItem(iau, listener)));
@@ -111,7 +95,7 @@ namespace Dependency.Variables
             return true;
 
 
-            void _UpdateItem(IAsyncUpdater source, ISyncUpdater isu)
+            void _UpdateItem(object source, ISyncUpdater isu)
             {
                 ISyncUpdater updatedChild = source as ISyncUpdater;
                 while (isu != null)

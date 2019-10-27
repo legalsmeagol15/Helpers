@@ -117,7 +117,7 @@ namespace Dependency
 
             void _AppendListenersOf(object obj)
             {
-                if (obj is ISyncUpdater isu) stack.Push(isu.Parent);
+                if (obj is ISyncUpdater isu && isu.Parent != null) stack.Push(isu.Parent);
                 if (obj is IAsyncUpdater iau) foreach (var l in iau.GetListeners()) stack.Push(l);
             }
         }

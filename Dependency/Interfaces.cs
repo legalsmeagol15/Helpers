@@ -161,8 +161,7 @@ namespace Dependency
     internal interface IVariable_ : IVariable
     {
         void SetContents(IEvaluateable newContent);
-
-        void SetError(Error e);
+        bool SetValue(IEvaluateable newValue);
     }
 
 

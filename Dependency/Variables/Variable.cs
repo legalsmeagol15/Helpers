@@ -100,10 +100,12 @@ namespace Dependency.Variables
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
         
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value; }
+        
         bool ISyncUpdater.Update(ISyncUpdater updatedChild) => SetValue(_Contents.Value);
-
-        void IVariable_.SetError(Error e) => SetValue(e);
+        
         void IVariable_.SetContents(IEvaluateable newContent) { _Contents = newContent; }
+
+        bool IVariable_.SetValue(IEvaluateable newValue) => SetValue(newValue);
     }
 
 
