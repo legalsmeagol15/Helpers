@@ -52,12 +52,15 @@ namespace Dependency.Functions
                     IEvaluateable newBaseValue = Base.Value;
                     if (newBaseValue.Equals(_BaseValue)) return false;
                     _BaseValue = newBaseValue;
+                    _CachedOrdinalValue = Ordinal.Value;
                 }
 
-                // Last case - the cached value changed.
-                else 
-                    _CachedOrdinalValue = updatedChild.Value;
-                
+                // Last case - the ordinal changed.  Just check for a non-change.
+                else if (Ordinal.Value.Equals(_CachedOrdinalValue))
+                    return false;
+
+                _CachedOrdinalValue = Ordinal.Value;
+
                 // In all cases, must re-index.  The new value could be a variable itself.
                 if (!(_BaseValue is IIndexable idxable))
                     newValue = new IndexingError(this, "Base of type " + _BaseValue.GetType().Name + " is not indexable.");
