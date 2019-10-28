@@ -35,10 +35,40 @@ namespace UnitTests
         [DebuggerStepThrough]
         public static void AssertThrows(Action action) => AssertThrows<Exception>(action);
 
-        public static void Permute<T> (IList<T> items, int seed = 0)
+        [DebuggerStepThrough]
+        public static void AssertNoThrow(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                throw new AssertFailedException("An exception of type " + e.GetType().Name + " was thrown.", e);
+            }
+        }
+
+        public static void AssertNoThrow<T>(Action action) where T : Exception
+        {
+            try
+            {
+                action();
+            }
+            catch (T)
+            {
+                throw new AssertFailedException("Prohibited exception of type " + typeof(T).Name + " was thrown.");
+            }
+            catch (Exception)
+            {
+                // Do nothing.
+            }
+        }
+
+
+        public static void Permute<T>(IList<T> items, int seed = 0)
         {
             Random rng = new Random(0);
-            for(int i = 0; i < items.Count; i++)
+            for (int i = 0; i < items.Count; i++)
             {
                 int j = rng.Next(0, items.Count);
                 T temp = items[j];
@@ -52,7 +82,7 @@ namespace UnitTests
             DateTime start = DateTime.Now;
             action(input0);
             DateTime end = DateTime.Now;
-            return (end-start).Milliseconds;
+            return (end - start).Milliseconds;
         }
     }
 }
