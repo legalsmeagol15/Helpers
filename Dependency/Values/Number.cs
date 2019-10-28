@@ -22,19 +22,17 @@ namespace Dependency
         internal decimal CLR_Value;
 
         public Number(decimal m) { this.CLR_Value = m; this._TypeFlags = (_IsInteger(m)) ? TypeFlags.Integer : TypeFlags.RealAny; }
-        
-        public Number(double d) : this((decimal)d) { }
+
+        public Number(double d) :
+            this((double.IsNaN(d) || double.IsInfinity(d)) ? throw new InvalidCastException("Values NaN and infinity cannot be converted to a " + typeof(Number).Name + ".")
+                                                           : (decimal)d)
+        { }
         public Number(int i) : this((decimal)i) { }
-        
+
         public static implicit operator Number(int i) => new Number((decimal)i);
         public static implicit operator int(Number n) => (int)n.CLR_Value;
 
-        public static implicit operator Number(double d)
-        {
-            if (double.IsNaN(d) || double.IsInfinity(d))
-                throw new InvalidCastException("Values NaN and infinity cannot be converted to a Number.");
-            return new Number(d);
-        }
+        public static implicit operator Number(double d) => new Number(d);
         public static implicit operator double(Number n) => (double)n.CLR_Value;
 
         public static implicit operator Number(decimal m) => new Number(m);
@@ -48,7 +46,8 @@ namespace Dependency
 
         public static ILiteral FromDouble(double d)
         {
-            if (double.IsNaN(d) || double.IsInfinity(d)) return new InvalidValue("An infinite or NaN Number cannot be created.");
+            if (double.IsNaN(d) || double.IsInfinity(d))
+                return new InvalidValueError("An infinite or NaN Number cannot be created.");
             return new Number(d);
         }
 
@@ -63,20 +62,12 @@ namespace Dependency
         public static Number operator -(Number a, Number b) => new Number(a.CLR_Value - b.CLR_Value);
         public static Number operator *(Number a, Number b) => new Number(a.CLR_Value * b.CLR_Value);
         public static Number operator /(Number a, Number b) => new Number(a.CLR_Value / b.CLR_Value);
-
-        internal static bool TryParse(object v, out Number n)
+        
+        public static bool TryParse(string str, out Number n)
         {
-            switch (v)
-            {
-                case int i: n = i; return true;
-                case double d: n = d; return true;
-                case decimal m: n = m; return true;
-                case Number num: n = num; return true;
-                case string s: if (decimal.TryParse(s, out decimal s_m)) { n = s_m; return true; } break;
-                case String str: if (decimal.TryParse(str.Value, out decimal str_m)) { n = str_m; return true; } break;
-            }
-            n = Zero;
-            return false;            
+            if (!decimal.TryParse(str, out decimal m)) { n = Zero; return false; }
+            n = new Number(m);
+            return true;
         }
 
         public static Number operator ^(Number a, Number b) => new Number(Math.Pow((double)a.CLR_Value, (double)b.CLR_Value));
@@ -88,7 +79,7 @@ namespace Dependency
         public static bool operator !=(Number a, Number b) => a.CLR_Value != b.CLR_Value;
         public static bool operator !=(Number a, double d) => (double)a.CLR_Value != d;
         public static bool operator !=(Number a, decimal m) => a.CLR_Value != m;
-        public static bool operator !=(Number a, int i) => a.CLR_Value == (decimal)((int)a.CLR_Value) && (int)a.CLR_Value != i;
+        public static bool operator !=(Number a, int i) => !a.IsInteger || (int)a.CLR_Value != i;
 
         public static bool operator >(Number a, Number b) => a.CLR_Value > b.CLR_Value;
         public static bool operator <(Number a, Number b) => a.CLR_Value < b.CLR_Value;

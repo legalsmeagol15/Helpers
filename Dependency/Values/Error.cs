@@ -32,9 +32,9 @@ namespace Dependency
         internal readonly IVariable Origin;
         internal CircularityError(IVariable origin) : base("Circular reference.") { Origin = origin; }
     }
-    public sealed class InvalidValue : Error
+    public sealed class InvalidValueError : Error
     {
-        public InvalidValue(string message = null) : base(message ?? "An invalid value was created.") { }
+        public InvalidValueError(string message = null) : base(message ?? "An invalid value was created.") { }
     }
 
     public class NotAContextError : Error

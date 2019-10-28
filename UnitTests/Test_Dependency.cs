@@ -12,6 +12,7 @@ using Dependency;
 using Dependency.Variables;
 using static UnitTests.Common;
 using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnitTests
 {
@@ -19,6 +20,7 @@ namespace UnitTests
 
 
     [TestClass]
+    [ExcludeFromCodeCoverage]
     public class Test_Dependency
     {
         [TestMethod]
@@ -49,7 +51,7 @@ namespace UnitTests
             Assert.IsTrue(v1.Value.Equals(v0.Value));
             Assert.IsTrue(v2.Value.Equals(v0.Value));
         }
-
+        
         [TestMethod]
         public void Test_Indexing_Simple()
         {
@@ -80,8 +82,8 @@ namespace UnitTests
             // Show that the values will propogate through a second variable as well.
             Variable v2 = new Variable(Parse.FromString("(v0[2] + 3) * 2", null, root));
             //Assert.IsTrue(Dependency.Helpers.GetDependees(v2).Contains(v0));
-            Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);            
-            
+            Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);
+
             // Show that subcontext properties can be referenced in deeper paths.
             v1.Contents = Parse.FromString("v0", null, root);
             v2.Contents = Parse.FromString("v0", null, root);
@@ -94,7 +96,6 @@ namespace UnitTests
             update.Execute();
             update.Await();
             Assert.AreEqual(v3.Value, vec);
-            
             vec = new Vector(31, 32, 33);
             v0.Contents = vec;
             Assert.AreEqual(v3.Value, vec);
@@ -121,8 +122,7 @@ namespace UnitTests
         {
             throw new NotImplementedException();
         }
-
-
+        
         [TestMethod]
         public void Test_Linear()
         {
@@ -178,6 +178,87 @@ namespace UnitTests
                     Console.WriteLine("// " + ms + " ms update " + numVars + " vars over " + runs + " times, or " + (ms / runs) + " ms/run");
                 }
             }
+        }
+        
+        [TestMethod]
+        public void Test_Numbers()
+        {
+            // Testing numbers
+            Number x = new Number(5);
+            Number y = new Number(15);
+            Assert.IsTrue(x + y == 20);
+            Assert.IsTrue(-x == -5);
+            Assert.IsTrue(x - y == -10);
+            Assert.IsTrue(x * y == 75);
+            Assert.IsTrue(y / x == 3);
+
+            AssertThrows<InvalidCastException>(() => new Number(double.NegativeInfinity));
+            AssertThrows<InvalidCastException>(() => new Number(double.PositiveInfinity));
+            AssertThrows<InvalidCastException>(() => new Number(double.NaN));
+
+            Assert.IsTrue(new Number(3d) == 3);
+            Assert.IsTrue(new Number(3m) == 3);
+            AssertNoThrow(() => { int i = 3; Number num = i; });
+            AssertNoThrow(() => { double d = 3.5; Number num = d; });
+            AssertNoThrow(() => { decimal m = 3.5m; Number num = m; });
+            AssertNoThrow(() => { bool boolean = true; Number num = boolean; });
+            AssertNoThrow(() => { byte by = 17; Number num = by; });
+
+            Number nd = (Number)Number.FromDouble(5.5d);
+            Assert.IsTrue(nd == 5.5d);
+            Assert.IsInstanceOfType(Number.FromDouble(double.NaN), typeof(InvalidValueError));
+            Assert.IsInstanceOfType(Number.FromDouble(double.NegativeInfinity), typeof(InvalidValueError));
+            Assert.IsInstanceOfType(Number.FromDouble(double.PositiveInfinity), typeof(InvalidValueError));
+
+            Assert.IsTrue(new Number(3).IsInteger);
+            Assert.IsFalse(new Number(4.5).IsInteger);
+
+            bool some_bool = true;
+            Number n = some_bool;
+            Assert.IsTrue(n == 1);
+            some_bool = false;
+            n = some_bool;
+            Assert.IsTrue(n == 0);
+
+            Assert.IsTrue(Number.TryParse("4", out Number parsed0) && parsed0 == 4);
+            Assert.IsTrue(Number.TryParse("4.5", out Number parsed1) && parsed1 == 4.5);
+            Assert.IsTrue(Number.TryParse("-5.5", out Number parsed2) && parsed2 == -5.5);
+            Assert.IsFalse(Number.TryParse("three", out Number parsed3) && parsed3 == 0);
+
+            Assert.AreEqual(new Number(2) ^ new Number(3), 8);
+            Assert.IsTrue(new Number(5) == 5m);
+            Assert.IsTrue(new Number(6) == 6d);
+            Assert.IsTrue(new Number(14).Equals(14));
+            Assert.IsTrue(new Number(15).Equals(15m));
+            Assert.IsTrue(new Number(16).Equals(16d));
+
+            Assert.IsTrue(new Number(7) != -7);
+            Assert.IsTrue(new Number(8) != -8m);
+            Assert.IsTrue(new Number(9) != -9d);
+            Assert.IsTrue(new Number(29.5) != 29);
+
+            Assert.IsTrue(new Number(10) < new Number(11));
+            Assert.IsFalse(new Number(12) > new Number(13));
+
+            AssertNoThrow(() => { int i = new Number(17); });
+            AssertNoThrow(() => { decimal m = new Number(18); });
+            AssertNoThrow(() => { double d = new Number(19); });
+            AssertNoThrow(() => { bool b = new Number(20); });
+            AssertNoThrow(() => { byte b = new Number(21); });
+
+            Assert.IsTrue(new Number(22) == new Number(22));
+            Assert.IsTrue(new Number(23) != new Number(24));
+
+            Assert.IsTrue(new Number(24).Equals(new Number(24)));
+            Assert.IsFalse(new Number(25).Equals(new SimpleContext()));
+
+            Assert.AreEqual(new Number(27).ToString(), "27");
+
+            Number n_hash = new Number(28);
+            decimal m_hash = 28m;
+            Assert.AreEqual(n_hash.GetHashCode(), m_hash.GetHashCode());
+            m_hash = 28.5m;
+            Assert.AreNotEqual(n_hash.GetHashCode(), m_hash.GetHashCode());
         }
 
         [TestMethod]
