@@ -13,12 +13,10 @@ using Dependency.Variables;
 using static UnitTests.Common;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics;
 
 namespace UnitTests
 {
-
-
-
     [TestClass]
     [ExcludeFromCodeCoverage]
     public class Test_Dependency
@@ -516,7 +514,7 @@ namespace UnitTests
 
 
 
-
+    [ExcludeFromCodeCoverage]
     internal class Brush : ISubcontext
     {
         IContext ISubcontext.Parent { get; set; }
@@ -538,7 +536,8 @@ namespace UnitTests
     }
 
 
-
+    [ExcludeFromCodeCoverage]
+    [DebuggerStepThrough]
     internal class SimpleContext : IContext
     {
         private readonly Dictionary<object, Variable> _Variables = new Dictionary<object, Variable>();
