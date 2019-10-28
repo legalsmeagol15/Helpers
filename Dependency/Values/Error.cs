@@ -29,8 +29,8 @@ namespace Dependency
 
     public sealed class CircularityError : Error
     {
-        internal readonly IVariable_ Origin;
-        internal CircularityError(IVariable_ origin) : base("Circular reference.") { Origin = origin; }
+        internal readonly IVariable Origin;
+        internal CircularityError(IVariable origin) : base("Circular reference.") { Origin = origin; }
     }
     public sealed class InvalidValue : Error
     {

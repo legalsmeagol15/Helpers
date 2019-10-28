@@ -105,7 +105,6 @@ namespace Dependency.Functions
                     {
                         newNextContext = next_ctxt;
                         newNextInput = null;
-                        continue;
                     }
                     else if (!ctxt.TryGetProperty(nextStep.String, out IEvaluateable prop))
                     {

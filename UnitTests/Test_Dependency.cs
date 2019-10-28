@@ -80,23 +80,28 @@ namespace UnitTests
             // Show that the values will propogate through a second variable as well.
             Variable v2 = new Variable(Parse.FromString("(v0[2] + 3) * 2", null, root));
             //Assert.IsTrue(Dependency.Helpers.GetDependees(v2).Contains(v0));
-            Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);
-            vec = new Vector(31, 32, 33);
-
-
-
+            Assert.AreEqual(v2.Value, (((Number)vec[2]) + 3) * 2);            
+            
             // Show that subcontext properties can be referenced in deeper paths.
             v1.Contents = Parse.FromString("v0", null, root);
             v2.Contents = Parse.FromString("v0", null, root);
             SimpleContext sub1 = new SimpleContext();
             root.Add("sub1", sub1);
             sub1.Add("v1", v1);
+            IEvaluateable ref_sub1_v1 = Parse.FromString("sub1.v1", null, root);
+            Variable v3 = new Variable();
+            update = Update.ForVariable(v3, ref_sub1_v1);
+            update.Execute();
+            update.Await();
+            Assert.AreEqual(v3.Value, vec);
+            
+            vec = new Vector(31, 32, 33);
+            v0.Contents = vec;
+            Assert.AreEqual(v3.Value, vec);
+
             SimpleContext sub2 = new SimpleContext();
             sub1.Add("sub2", sub2);
             sub2.Add("v2", v2);
-            Variable v3 = new Variable(Parse.FromString("sub1.v1", null, root));
-
-            Assert.AreEqual(v3.Value, vec);
             Variable v4 = new Variable(Parse.FromString("sub1.sub2.v2[2]", null, root));
 
             Assert.AreEqual(v4.Value, vec[2]);
