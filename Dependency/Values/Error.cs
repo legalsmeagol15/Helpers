@@ -62,7 +62,7 @@ namespace Dependency
     {
         public readonly object Origin;
         public readonly string[] Steps;
-        internal NotAVariableError(object origin, string[] steps) : base ("Give path references a non-variable dynamic object.") { this.Origin = origin;this.Steps = steps; }
+        internal NotAVariableError(object origin, string[] steps) : base("Give path references a non-variable dynamic object.") { this.Origin = origin; this.Steps = steps; }
         public override bool Equals(object obj) => obj is NotAVariableError other && NotAContextError.StepsEqual(Origin, Steps, other.Origin, other.Steps);
     }
     public class ReferenceError : Error
@@ -86,8 +86,8 @@ namespace Dependency
 
     public sealed class IndexingError : EvaluationError
     {
-        internal IndexingError(IFunction complainant, string message)
-            : base(complainant, complainant.Inputs, message) { }
+        internal IndexingError(object complainant, IList<IEvaluateable> inputs, string message)
+            : base(complainant, inputs, message) { }
     }
 
     public class EvaluationError : Error

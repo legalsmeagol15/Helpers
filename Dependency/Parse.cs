@@ -753,7 +753,7 @@ namespace Dependency
 
             bool IContext.TryGetProperty(object path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            bool ISyncUpdater.Update(ISyncUpdater updatedChild) => true;
+            bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild) => true;
         }
 
 
@@ -772,7 +772,7 @@ namespace Dependency
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            bool ISyncUpdater.Update(ISyncUpdater updatedChild) => true;
+            bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild) => true;
         }
 
 

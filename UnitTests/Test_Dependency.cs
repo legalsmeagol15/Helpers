@@ -39,7 +39,6 @@ namespace UnitTests
             //v2 = v0
             Update update = Update.ForVariable(v2, Parse.FromString("v0", null, root));
             update.Execute();
-            update.Await();
 
             Assert.IsInstanceOfType(v2.Value, typeof(CircularityError));
             Assert.IsInstanceOfType(v0.Value, typeof(CircularityError));
@@ -66,7 +65,6 @@ namespace UnitTests
             IEvaluateable idxing = Parse.FromString("v0[2]", null, root);
             Update update = Update.ForVariable(v1, idxing);
             update.Execute();
-            update.Await();
             Assert.AreEqual(v1.Value, vec[2]);
 
 
@@ -74,7 +72,6 @@ namespace UnitTests
             vec = new Vector(20, 21, 22);
             update = Update.ForVariable(v0, vec);
             update.Execute();
-            update.Await();
             Assert.AreEqual(v1.Value, vec[2]);
 
             // Show that the values will propogate through a second variable as well.
@@ -92,7 +89,6 @@ namespace UnitTests
             Variable v3 = new Variable();
             update = Update.ForVariable(v3, ref_sub1_v1);
             update.Execute();
-            update.Await();
             Assert.AreEqual(v3.Value, vec);
             vec = new Vector(31, 32, 33);
             v0.Contents = vec;
@@ -118,6 +114,8 @@ namespace UnitTests
         [TestMethod]
         public void Test_Indexing_Complex()
         {
+            // The point of this method is to test the the functionality of the follow complex expression:
+            // drawings[spreadsheet.c5].splineA.Xs.count + 5
             throw new NotImplementedException();
         }
         
@@ -142,14 +140,13 @@ namespace UnitTests
 
             SimpleContext root = new SimpleContext();
             root.Add("v0", vStart);
-            List<Variable> vars = new List<Variable>();
+            System.Collections.Generic.List<Variable> vars = new System.Collections.Generic.List<Variable>();
             for (int i = 1; i <= numVars; i++)
             {
                 Variable vNext = new Variable();
                 IEvaluateable refer_to_last = Parse.FromString("v" + (i - 1), null, root);
                 Update u = Update.ForVariable(vNext, refer_to_last);
                 u.Execute();
-                u.Await();
 
                 Assert.AreEqual(vStart.Value, vNext.Value);
                 root.Add("v" + i, vNext);
@@ -159,7 +156,6 @@ namespace UnitTests
 
             Update update = Update.ForVariable(vStart, new Number(2));
             update.Execute();
-            update.Await();
             Assert.AreEqual(vStart.Value, vLast.Value);
 
 
@@ -278,7 +274,7 @@ namespace UnitTests
 
             SimpleContext root = new SimpleContext();
             root.Add("v0", vStart);
-            List<Variable> vars = new List<Variable>();
+            System.Collections.Generic.List<Variable> vars = new System.Collections.Generic.List<Variable>();
             for (int i = 1; i <= numVars; i++)
             {
                 Variable vNext = new Variable(Parse.FromString("v0", null, root));
@@ -377,14 +373,14 @@ namespace UnitTests
 
             int vars = 0;
             int rank = 0;
-            List<KeyValuePair<string, Variable>> lastRank = new List<KeyValuePair<string, Variable>>
+            System.Collections.Generic.List<KeyValuePair<string, Variable>> lastRank = new System.Collections.Generic.List<KeyValuePair<string, Variable>>
             {
                 new KeyValuePair<string, Variable>("vstart", vStart)
             };
 
             while (vars < numVars)
             {
-                List<KeyValuePair<string, Variable>> thisRank = new List<KeyValuePair<string, Variable>>();
+                System.Collections.Generic.List<KeyValuePair<string, Variable>> thisRank = new System.Collections.Generic.List<KeyValuePair<string, Variable>>();
                 foreach (var kvp in lastRank)
                 {
                     string lastName = kvp.Key;
@@ -417,7 +413,6 @@ namespace UnitTests
 
             Update update = Update.ForVariable(vStart, new Number(-1));
             update.Execute();
-            update.Await();
 
             for (int i = 0; i < lastRank.Count; i += 2)
             {

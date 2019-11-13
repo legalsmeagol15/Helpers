@@ -14,37 +14,30 @@ namespace Dependency.Variables
     public sealed class Update
     {
         // Like a SQL transaction
-        
+
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
-        private IVariable_ Starter;
+        private IUpdatedVariable Starter;
         public readonly IEvaluateable NewContents;
 
 
-        private Update(IVariable_ var, IEvaluateable newContents)
+        private Update(IUpdatedVariable var, IEvaluateable newContents)
         {
             this.Starter = var ?? throw new ArgumentNullException("var");
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
         }
-        
-        public static Update ForVariable(IVariable var, IEvaluateable newContents) => new Update(var as IVariable_, newContents);
 
-        public void Await()
-        {
-            while (_Tasks.TryDequeue(out Task t))
-            {
-                t.Wait();
-            }   
-        }
+        public static Update ForVariable(IVariable var, IEvaluateable newContents) => new Update(var as IUpdatedVariable, newContents);
+        
 
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
         /// </summary>
         /// <returns>Returns whether any change is made to the value of the <seealso cref="Update.Starter"/>.</returns>
-        public bool Execute() 
+        public bool Execute()
         {
             try
             {
@@ -80,39 +73,63 @@ namespace Dependency.Variables
                 // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
                 // started.
                 if (Starter is ISyncUpdater isu)
-                    _UpdateItem(Starter as IAsyncUpdater, isu.Parent);
+                    Execute(Starter as IAsyncUpdater, isu.Parent);
 
                 // Finally, if Starter updates asynchronously, kick off the asynchronous update.
                 if (Starter is IAsyncUpdater iau)
                 {
                     foreach (var listener in iau.GetListeners())
-                        _Tasks.Enqueue(Task.Run(() => _UpdateItem(iau, listener)));
+                        Enqueue(iau, listener);
+                }
+
+                // Force all the tasks to finish while the StructureLock is held.
+                while (_Tasks.TryDequeue(out Task t))
+                {
+                    t.Wait();
                 }
             }
             finally { StructureLock.ExitUpgradeableReadLock(); }
 
             // Done.
             return true;
+        }
 
+        internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener) // TODO:  this should be done within the StructureLock read lock?
+            => _Tasks.Enqueue(Task.Run(() => Execute(source, listener)));
 
-            void _UpdateItem(object source, ISyncUpdater isu)
+        /// <summary>
+        /// Executes the given <seealso cref="ISyncUpdater"/> from the perspective of the given 
+        /// <paramref name="source"/>.
+        /// </summary>
+        /// <param name="source">The item called which executed the update for the <paramref name="target"/>.  This 
+        /// may be an <seealso cref="ISyncUpdater"/>, an <seealso cref="IAsyncUpdater"/>, or an object that implements 
+        /// both.</param>
+        /// <param name="target">The item which will be updated.  The <paramref name="target"/>'s Parent will be the 
+        /// next item updated, and so on.</param>
+        /// <returns>Returns true if any item's value was changed; otherwise, returns false.</returns>
+        internal bool Execute(object source, ISyncUpdater target)
+        {
+            ISyncUpdater start = target;
+            ISyncUpdater updatedChild = source as ISyncUpdater;
+            while (target != null)
             {
-                ISyncUpdater updatedChild = source as ISyncUpdater;
-                while (isu != null)
-                {
-                    if (!isu.Update(updatedChild)) return;
-                    if (isu is IAsyncUpdater iv)
-                        foreach (var listener in iv.GetListeners())
-                            _Tasks.Enqueue(Task.Run(() => _UpdateItem(iv, listener)));
-                    updatedChild = isu;
-                    isu = isu.Parent;
-                }
+                // If nothing was updated, return false.
+                if (!target.Update(this, updatedChild))
+                    return !target.Equals(start);
+
+                // Since target was updated, enqueue its listeners and proceed.
+                if (target is IAsyncUpdater iv)
+                    foreach (var listener in iv.GetListeners())
+                        Enqueue(iv, listener);
+                updatedChild = target;
+                target = target.Parent;
             }
+            return true;
         }
 
 
-        
-        
+
+
 
     }
 }

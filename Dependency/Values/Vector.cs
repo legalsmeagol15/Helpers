@@ -10,35 +10,32 @@ namespace Dependency
     public sealed class Vector : IFunction, IEvaluateable, ILiteral<object[]>, ITypeGuarantee, IContext, ISyncUpdater, IIndexable
     // Though a Vector has inputs, it CANNOT be a Function.
     {
-        public IList<IEvaluateable> Inputs { get; internal set; }
-        private IEvaluateable[] _Values;
+        public IList<IEvaluateable> Inputs { get; internal set; }  // TODO:  indexes shouldn't be publicly settable.
+        private Vector _Value = null;
+        public Vector Value => _Value ?? (_Value = new Vector(Inputs.Select(i => i.Value)));
         public IEvaluateable this[int idx]
         {
             get
             {
                 if (idx >= 0 && idx <= Inputs.Count) return Inputs[idx].Value;
-                return new IndexingError(this, "Index " + idx + " out of range.");
+                return new IndexingError(this, Inputs, "Index " + idx + " out of range.");
             }
         }
 
-        public Vector(params IEvaluateable[] contents)
+        private Vector(Vector contentVector)
         {
-            Inputs = contents;
-            _Values = new IEvaluateable[contents.Length];
-            for (int i = 0; i < contents.Length; i++)
-            {
-                var c = contents[i];
-                if (c is ISyncUpdater idi) idi.Parent = this;
-                _Values[i] = c.Value;
-            }
+
         }
+        internal Vector(IEnumerable<IEvaluateable> contents) => Inputs = contents.ToArray();
+        internal Vector(IList<IEvaluateable> contents) => Inputs = contents.ToArray();
+        public Vector(params IEvaluateable[] contents) => Inputs = contents;
         public Vector(params decimal[] contents) 
             : this (contents.Select(m => new Number(m)).OfType<IEvaluateable>().ToArray())
         {
         }
         public Vector() { }
 
-        IEvaluateable IEvaluateable.Value => this;
+        IEvaluateable IEvaluateable.Value => Value;
 
         public int Size => Inputs.Count;
 
@@ -60,9 +57,9 @@ namespace Dependency
                 case int idx: source = this[idx]; return true;
                 case "size":
                 case "count":
-                case "length": source = new Number(_Values.Length); return true;
+                case "length": source = new Number(Value.Size); return true;
                 case "min": source = Number.Zero; return true;
-                case "max": source = new Number(_Values.Length - 1); return true;
+                case "max": source = new Number(Value.Size - 1); return true;
                 default: source = null; return false;
             }
         }
@@ -75,7 +72,8 @@ namespace Dependency
 
         public override string ToString() => "{" + string.Join(",", Inputs.Select(i => i.ToString())) + "}";
 
-        bool ISyncUpdater.Update(ISyncUpdater updatedChild) => true;
+        // If the value of an indexed member changed, then of course the value of the vector changed.
+        bool ISyncUpdater.Update(Variables.Update caller, ISyncUpdater updatedChild) => true;
 
         bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
         {

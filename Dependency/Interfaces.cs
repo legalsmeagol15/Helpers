@@ -29,11 +29,8 @@ namespace Dependency
         bool AddListener(ISyncUpdater r);
 
         IEnumerable<ISyncUpdater> GetListeners();
-
-        /// <summary>Fired when the <see cref="IAsyncUpdater"/>'s cached value changes.</summary>
-        event ValueChangedHandler<IEvaluateable> ValueChanged;
-
     }
+
 
     /// <summary>
     /// A function which caches its <seealso cref="TypeControl"/> input validator may validate just a little faster 
@@ -49,6 +46,7 @@ namespace Dependency
         IList<string> Categories { get; }
     }
 
+    
 
     /// <summary>
     /// <para/>The subcontext or property returned for a given object should always be the same.
@@ -59,7 +57,18 @@ namespace Dependency
 
         bool TryGetProperty(object path, out IEvaluateable source);
     }
-    
+
+    /// <summary>
+    /// Converts values to and from a CLR value of type <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public interface IConverter<T>
+    {
+        bool CanConvert(IEvaluateable ie);
+        bool TryConvert(IEvaluateable ie, out T target);
+        IEvaluateable ConvertFrom(T item);
+    }
+
 
     public interface IEvaluateable
     {
@@ -109,6 +118,12 @@ namespace Dependency
     {
         string Name { get; }
     }
+    
+    public interface INotifyUpdates<T>
+    {
+        /// <summary>Fired when the <see cref="IAsyncUpdater"/>'s cached value changes.</summary>
+        event ValueChangedHandler<T> ValueChanged;
+    }
 
     public interface IReference
     {
@@ -138,13 +153,16 @@ namespace Dependency
         /// </summary>
         ISyncUpdater Parent { get; set; }
 
-        /// <summary>Compel the <seealso cref="ISyncUpdater"/> to update its stored value.</summary>
+        /// <summary>Compel the <seealso cref="ISyncUpdater"/> to update its stored value.  This method is called 
+        /// after the given <paramref name="updatedChild"/> has been updated with a new value.</summary>
         /// <param name="updatedChild">The child that was updated who is passing on the update to this 
         /// <seealso cref="ISyncUpdater"/>.  If null, no child was update to cause this call to 
-        /// <see cref="Update(ISyncUpdater)"/>.</param>
+        /// <see cref="Update(Update,ISyncUpdater)"/>.</param>
+        /// <param name="caller">The <seealso cref="Dependency.Variables.Update"/> which is managing the update 
+        /// procudure.</param>
         /// <returns>Returns true if the update changed the value of this <seealso cref="ISyncUpdater"/>; otherwise, 
         /// returns false.</returns>
-        bool Update(ISyncUpdater updatedChild);
+        bool Update(Update caller, ISyncUpdater updatedChild);
     }
 
 
@@ -160,9 +178,18 @@ namespace Dependency
         IEvaluateable Contents { get; }
     }
 
-    internal interface IVariable_ : IVariable
+    internal interface IVariableCollection : IEnumerable<IEvaluateable>
     {
+        Vector Contents { get; }
+
+    }
+
+
+    internal interface IUpdatedVariable : IVariable
+    {
+        /// <summary>ONLY sets the contents.  Does nothing else.  This is called only within a write lock so don't lock again.</summary>
         void SetContents(IEvaluateable newContent);
+        /// <summary>ONLY sets the value.  Does nothing else.  This is called only outside a write lock, so lock it.</summary>
         bool SetValue(IEvaluateable newValue);
     }
 

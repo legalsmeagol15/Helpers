@@ -1,0 +1,63 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Helpers;
+using DataStructures;
+
+namespace Dependency.Variables
+{
+    public sealed class Source<T> : IAsyncUpdater, IVariable, INotifyUpdates<T>, IUpdatedVariable
+    {
+        private T _Value;
+        private readonly IConverter<T> _Converter;
+        private readonly TypeFlags _TypeGuarantee;
+        private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
+
+        IEvaluateable IEvaluateable.Value => _Converter.ConvertFrom(_Value);
+
+        IEvaluateable IVariable.Contents => _Converter.ConvertFrom(_Value);
+
+        public Source(T startingValue, IConverter<T> converter = null)
+        {
+            this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
+            this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
+            this._Value = startingValue;
+        }
+
+        public T Get() => _Value;
+        public T Set(T newValue)
+        {
+            // Any change?
+            if (newValue == null)
+            {
+                if (_Value == null) return default(T);
+            }
+            else if (newValue.Equals(_Value))
+                return _Value;
+
+            // Though the value is changed in the CLR, kick off an update to notify listeners of any change.
+            T oldValue = _Value;
+            _Value = newValue;
+            IEvaluateable newContents = _Converter.ConvertFrom(newValue);
+            Update update = Update.ForVariable(this, newContents);
+            update.Execute();
+            
+            // Notify any CLR listeners to a change.
+            ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
+
+            return _Value;
+        }
+
+        bool IAsyncUpdater.RemoveListener(ISyncUpdater r) => _Listeners.Remove(r);
+        bool IAsyncUpdater.AddListener(ISyncUpdater r) => _Listeners.Add(r);
+        IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
+
+        void IUpdatedVariable.SetContents(IEvaluateable newContent) { }
+
+        bool IUpdatedVariable.SetValue(IEvaluateable newValue) => true;
+
+        public event ValueChangedHandler<T> ValueChanged;
+    }
+}

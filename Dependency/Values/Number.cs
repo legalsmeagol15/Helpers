@@ -98,6 +98,10 @@ namespace Dependency
 
         public override int GetHashCode() => CLR_Value.GetHashCode();
         public override string ToString() => CLR_Value.ToString();
+        public int ToInt() => (int)CLR_Value;
+        public decimal ToDecimal() => CLR_Value;
+        public double ToDouble() => (double)CLR_Value;
+        public byte ToByte() => (byte)CLR_Value;
         
         
         decimal ILiteral<decimal>.CLRValue => CLR_Value;

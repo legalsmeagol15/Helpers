@@ -90,6 +90,7 @@
     <Compile Include="Dependency\TypeControl.cs" />
     <Compile Include="Dependency\Values\Boolean.cs" />
     <Compile Include="Dependency\Values\Complex.cs" />
+    <Compile Include="Dependency\Values\Converters.cs" />
     <Compile Include="Dependency\Values\Error.cs" />
     <Compile Include="Dependency\Values\Null.cs" />
     <Compile Include="Dependency\Values\Number.cs" />
@@ -98,6 +99,7 @@
     <Compile Include="Dependency\Variables\LiteralVariable.cs" />
     <Compile Include="Dependency\Variables\DynamicVariable.cs" />
     <Compile Include="Dependency\Variables\Receiver.cs" />
+    <Compile Include="Dependency\Variables\Source.cs" />
     <Compile Include="Dependency\Variables\SourceVariable.cs" />
     <Compile Include="Dependency\Variables\Transmitter.cs" />
     <Compile Include="Dependency\Variables\Update.cs" />

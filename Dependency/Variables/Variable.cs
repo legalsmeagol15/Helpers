@@ -15,12 +15,10 @@ using System.Diagnostics;
 
 namespace Dependency.Variables
 {
-    public class Variable : IAsyncUpdater, ISyncUpdater, IVariable_
+    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>
     {
-        // DO NOT implement IDisposable to clean up listeners.  The listeners will expire via garbage collection.
-        // Also, References clean themselves up from their sources through their own implementation  of 
-        // IDisposable.
-
+        // DO NOT implement IDisposable to clean up listeners.  The Variable should should clean up only when its 
+        // listeners are already gone anyway.
         // A variable is apt to have few sources, but many listeners (0 or 100,000 might be reasonable).
 
         // Invariant rule:  No evaluation tree Update() or dependency Update() should EVER push a value forward 
@@ -74,7 +72,6 @@ namespace Dependency.Variables
                 // Use an update to kick off Parent's and listeners' updates as well.
                 var update = Update.ForVariable(this, value);
                 update.Execute();
-                update.Await();
             }
         }
 
@@ -93,19 +90,19 @@ namespace Dependency.Variables
 
         public event ValueChangedHandler<IEvaluateable> ValueChanged;
         
-        internal ISyncUpdater Parent { get; set; }
+        //internal ISyncUpdater Parent { get; set; }
 
         bool IAsyncUpdater.AddListener(ISyncUpdater idi) => _Listeners.Add(idi);
         bool IAsyncUpdater.RemoveListener(ISyncUpdater idi) => _Listeners.Remove(idi);
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
         
-        ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value; }
-        
-        bool ISyncUpdater.Update(ISyncUpdater updatedChild) => SetValue(_Contents.Value);
-        
-        void IVariable_.SetContents(IEvaluateable newContent) { _Contents = newContent; }
+        ISyncUpdater ISyncUpdater.Parent { get; set; }
 
-        bool IVariable_.SetValue(IEvaluateable newValue) => SetValue(newValue);
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(_Contents.Value);
+        
+        void IUpdatedVariable.SetContents(IEvaluateable newContents) => _Contents = newContents;
+
+        bool IUpdatedVariable.SetValue(IEvaluateable newValue) => SetValue(newValue);
     }
 
 

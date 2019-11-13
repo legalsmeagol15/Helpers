@@ -48,7 +48,7 @@ namespace Dependency.Functions
             return true;
         }
         
-        bool ISyncUpdater.Update(ISyncUpdater updatedChild)
+        bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild)
         {
             // Find the index of the child that changed.
             int stepIdx = 0;

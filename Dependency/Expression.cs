@@ -56,7 +56,7 @@ namespace Dependency
             {
                 if (!visited.Add(r)) continue;
                 foreach (IEvaluateable c in r.GetComposers())
-                    foreach (IVariable_ sub_var in GetDependees(c))
+                    foreach (IUpdatedVariable sub_var in GetDependees(c))
                         if (returned.Add(sub_var))
                             yield return sub_var;
             }
@@ -142,7 +142,7 @@ namespace Dependency
                         break;
                     case IFunction ifunc:
                         foreach (var input in ifunc.Inputs) _RecursiveRecalc(input);
-                        ifunc.Update(nullChild);
+                        ifunc.Update(null, nullChild);
                         break;
                     case IExpression ie:
                         return _RecursiveRecalc(ie.Contents);
