@@ -43,7 +43,13 @@ namespace Dependency
 
         public IEvaluateable MinIndex => Number.Zero;
 
-        public override bool Equals(object obj) => (obj is Vector other) && this == other;
+        public override bool Equals(object obj)
+        {
+            if (!(obj is Vector other)) return false;
+            if (Size != other.Size) return false;
+            for (int i = 0; i < Size; i++) if (!Equals(Inputs[i].Value, other.Inputs[i].Value)) return false;
+            return true;
+        }
         //public override int GetHashCode() { unchecked { return (int)Inputs.Sum(i => i.GetHashCode()); } }
         public override int GetHashCode() => base.GetHashCode();
 
