@@ -18,20 +18,30 @@ namespace Dependency.Variables
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
-        private IUpdatedVariable Starter;
+        private IVariable Starter;
         public readonly IEvaluateable NewContents;
 
 
-        private Update(IUpdatedVariable var, IEvaluateable newContents)
+        private Update(IVariable var, IEvaluateable newContents)
         {
             this.Starter = var ?? throw new ArgumentNullException("var");
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
         }
-
-        public static Update ForVariable(IVariable var, IEvaluateable newContents) => new Update(var as IUpdatedVariable, newContents);
         
+        /// <summary>Creates an updating transaction for the given <seealso cref="Variable"/>.</summary>
+        /// <param name="var">The <seealso cref="Variable"/> whose value and listeners will need 
+        /// to be updated.</param>
+        /// <param name="newContents">The new contents for the <seealso cref="Variable"/>.  If 
+        /// provided null, the <seealso cref="Variable"/> will not have its 
+        /// <seealso cref="Variable.Contents"/> changed, but its <seealso cref="Variable.Value"/> 
+        /// and all listeners will be updated.
+        /// </param>
+        internal static Update ForVariable(IUpdatedVariable var, IEvaluateable newContents) 
+            => new Update(var, newContents);
+
+        public static Update ForVariable(IVariable var) => new Update(var, null);
 
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
@@ -43,32 +53,35 @@ namespace Dependency.Variables
             {
                 StructureLock.EnterUpgradeableReadLock();
 
-                // If the new contents equal the old contents, it can't possibly matter.
-                if (Starter.Contents.Equals(NewContents)) return false;
-
-                // Evaluate the new contents.  This will potentially establish a reference between NewContents and 
-                // existing variables.
-                IEvaluateable newValue = Helpers.Recalculate(NewContents);
-
-                // Update the Starter's new contents.
-                StructureLock.EnterWriteLock();
-                try
+                if (Starter is IUpdatedVariable iuv)
                 {
-                    // Update the contents tree.  The synchronous relations must be updated by hand, the asynchronous 
-                    // relations will be wrapped up automatically by the garbage collection.
-                    if (Starter.Contents is ISyncUpdater idi_before) idi_before.Parent = null;
-                    if (NewContents is ISyncUpdater idi_after) idi_after.Parent = (ISyncUpdater)Starter;
-                    Starter.SetContents(NewContents);
+                    // If the new contents equal the old contents, it can't possibly matter.
+                    if (iuv.Contents.Equals(NewContents)) return false;
+
+                    // Evaluate the new contents.  This will potentially establish a reference between NewContents and 
+                    // existing variables.
+                    IEvaluateable newValue = Helpers.Recalculate(NewContents);
+
+                    // Update the iuv's new contents.
+                    StructureLock.EnterWriteLock();
+                    try
+                    {
+                        // Update the contents tree.  The synchronous relations must be updated by hand, the asynchronous 
+                        // relations will be wrapped up automatically by the garbage collection.
+                        if (iuv.Contents is ISyncUpdater idi_before) idi_before.Parent = null;
+                        if (NewContents is ISyncUpdater idi_after) idi_after.Parent = (ISyncUpdater)iuv;
+                        iuv.SetContents(NewContents);
+                    }
+                    finally { StructureLock.ExitWriteLock(); }
+
+                    // If the iuv is now part of a circularity, the new value will be a CircularityError
+                    if (Helpers.TryFindCircularity(iuv))
+                        newValue = new CircularityError(iuv);
+
+                    // If the new value won't change the old value, no need to update listeners.
+                    if (!iuv.SetValue(newValue))
+                        return false;
                 }
-                finally { StructureLock.ExitWriteLock(); }
-
-                // If the Starter is now part of a circularity, the new value will be a CircularityError
-                if (Helpers.TryFindCircularity(Starter))
-                    newValue = new CircularityError(Starter);
-
-                // If the new value won't change the old value, no need to update listeners.
-                if (!Starter.SetValue(newValue))
-                    return false;
 
                 // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
                 // started.

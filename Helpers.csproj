@@ -76,6 +76,7 @@
     <Compile Include="DataStructures\Trees\DataTree.cs" />
     <Compile Include="DataStructures\Trees\QuadTree.cs" />
     <Compile Include="Dependency\Expression.cs" />
+    <Compile Include="Dependency\Formulas.cs" />
     <Compile Include="Dependency\Functions\Factory.cs" />
     <Compile Include="Dependency\Functions\Function.cs" />
     <Compile Include="Dependency\Functions\Indexing.cs" />
@@ -96,11 +97,9 @@
     <Compile Include="Dependency\Values\Number.cs" />
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
-    <Compile Include="Dependency\Variables\LiteralVariable.cs" />
-    <Compile Include="Dependency\Variables\DynamicVariable.cs" />
+    <Compile Include="Dependency\Variables\List.cs" />
     <Compile Include="Dependency\Variables\Receiver.cs" />
     <Compile Include="Dependency\Variables\Source.cs" />
-    <Compile Include="Dependency\Variables\SourceVariable.cs" />
     <Compile Include="Dependency\Variables\Transmitter.cs" />
     <Compile Include="Dependency\Variables\Update.cs" />
     <Compile Include="Dependency\Variables\Variable.cs" />

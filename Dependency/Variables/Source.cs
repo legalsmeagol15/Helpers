@@ -8,12 +8,14 @@ using DataStructures;
 
 namespace Dependency.Variables
 {
-    public sealed class Source<T> : IAsyncUpdater, IVariable, INotifyUpdates<T>, IUpdatedVariable
+    public sealed class Source<T> : IAsyncUpdater, IVariable, INotifyUpdates<T>, IUpdatedVariable, ITypeGuarantee
     {
         private T _Value;
         private readonly IConverter<T> _Converter;
         private readonly TypeFlags _TypeGuarantee;
         private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
+
+        TypeFlags ITypeGuarantee.TypeGuarantee => _TypeGuarantee;
 
         IEvaluateable IEvaluateable.Value => _Converter.ConvertFrom(_Value);
 
