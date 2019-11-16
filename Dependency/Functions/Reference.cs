@@ -48,7 +48,7 @@ namespace Dependency.Functions
             return true;
         }
         
-        bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild)
+        bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild, IEnumerable<IEvaluateable> _)
         {
             // Find the index of the child that changed.
             int stepIdx = 0;
@@ -172,8 +172,8 @@ namespace Dependency.Functions
             public ContextWrapper(IContext context) { this.Context = context; }
 
             IEvaluateable IEvaluateable.Value => this;
-            bool IContext.TryGetProperty(object path, out IEvaluateable source) => Context.TryGetProperty(path, out source);
-            bool IContext.TryGetSubcontext(object path, out IContext ctxt) => Context.TryGetSubcontext(path, out ctxt);
+            bool IContext.TryGetProperty(string  path, out IEvaluateable source) => Context.TryGetProperty(path, out source);
+            bool IContext.TryGetSubcontext(string path, out IContext ctxt) => Context.TryGetSubcontext(path, out ctxt);
             public override bool Equals(object obj) => (obj is ContextWrapper other) && other.Context.Equals(Context);
             public override int GetHashCode() => throw new NotImplementedException();
         }

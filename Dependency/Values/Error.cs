@@ -163,6 +163,12 @@ namespace Dependency
             && InputIndex.Equals(other.InputIndex)
             && GivenFlags == other.GivenFlags;
     }
+
+    public sealed class RangeError : Error
+    {
+        public readonly Dependency.Values.Range Range;
+        public RangeError(Dependency.Values.Range complainant, string message) : base(message ) { this.Range = complainant; }
+    }
 #pragma warning restore CS0659
 
 }

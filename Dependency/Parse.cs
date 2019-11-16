@@ -749,11 +749,11 @@ namespace Dependency
 
             public override string ToString() => '{' + Contents.ToString() + '}';
 
-            bool IContext.TryGetSubcontext(object path, out IContext ctxt) => ((IContext)Contents).TryGetSubcontext(path, out ctxt);
+            bool IContext.TryGetSubcontext(string path, out IContext ctxt) => ((IContext)Contents).TryGetSubcontext(path, out ctxt);
 
-            bool IContext.TryGetProperty(object path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
+            bool IContext.TryGetProperty(string  path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild) => true;
+            bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild, IEnumerable<IEvaluateable> _) => true;
         }
 
 
@@ -772,7 +772,7 @@ namespace Dependency
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild) => true;
+            bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild, IEnumerable<IEvaluateable> _) => true;
         }
 
 

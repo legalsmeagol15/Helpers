@@ -42,7 +42,7 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
 
 
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, IEnumerable<IEvaluateable> updatedIndices)
         {
             IEvaluateable newValue;
 
@@ -57,14 +57,30 @@ namespace Dependency.Functions
             // Did the base change?
             else if (updatedChild == null || updatedChild.Equals(Base))
             {
+                // Did an indexed item OF the base change?
+                if (updatedIndices != null && updatedIndices.Any())
+                {
+                    foreach (IEvaluateable updated in updatedIndices)
+                    {
+                        if (Ordinal.Value.Equals(updated)) continue;
+                        else if (updated is Values.Range r && r.Contains(Ordinal.Value)) continue;
+                        return false;
+                    }
+                }
+
                 // Check if it's really a new base.
-                IEvaluateable newBaseValue = Base.Value;
-                if (newBaseValue.Equals(_BaseValue)) return false;
-                _BaseValue = newBaseValue;
-                _CachedOrdinalValue = Ordinal.Value;
+                else
+                {
+                    
+                    IEvaluateable newBaseValue = Base.Value;
+                    if (newBaseValue.Equals(_BaseValue)) return false;
+                    _BaseValue = newBaseValue;
+                    _CachedOrdinalValue = Ordinal.Value;
+                }
+                
             }
 
-            // Last case - the ordinal changed.  Just check for a non-change.
+            // Last case - the singular ordinal.  Just check for a non-change.
             else if (Ordinal.Value.Equals(_CachedOrdinalValue))
                 return false;
 

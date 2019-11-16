@@ -11,6 +11,7 @@ namespace Dependency
     [DebuggerStepThrough]
     public struct Number : ILiteral<decimal>, ITypeGuarantee, IComparable<Number>
     {
+        // TODO:  allow a Number to be infinite.
         public static readonly Number Zero = new Number(0m);        
         public static readonly Number One = new Number(1m);
         public static readonly Number Pi = new Number((decimal)Math.PI);
@@ -22,6 +23,7 @@ namespace Dependency
         internal decimal CLR_Value;
 
         public Number(decimal m) { this.CLR_Value = m; this._TypeFlags = (_IsInteger(m)) ? TypeFlags.Integer : TypeFlags.RealAny; }
+        
 
         public Number(double d) :
             this((double.IsNaN(d) || double.IsInfinity(d)) ? throw new InvalidCastException("Values NaN and infinity cannot be converted to a " + typeof(Number).Name + ".")

@@ -53,9 +53,9 @@ namespace Dependency
         //public override int GetHashCode() { unchecked { return (int)Inputs.Sum(i => i.GetHashCode()); } }
         public override int GetHashCode() => base.GetHashCode();
 
-        bool IContext.TryGetSubcontext(object path, out IContext ctxt) { ctxt = null; return false; }
+        bool IContext.TryGetSubcontext(string path, out IContext ctxt) { ctxt = null; return false; }
 
-        internal bool TryGetProperty(object path, out IEvaluateable source)
+        internal bool TryGetProperty(string  path, out IEvaluateable source)
         {
             switch (path)
             {
@@ -69,7 +69,7 @@ namespace Dependency
                 default: source = null; return false;
             }
         }
-        bool IContext.TryGetProperty(object path, out IEvaluateable source) => this.TryGetProperty(path, out source);
+        bool IContext.TryGetProperty(string  path, out IEvaluateable source) => this.TryGetProperty(path, out source);
 
         object[] ILiteral<object[]>.CLRValue => Inputs.ToArray();
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Vector;
@@ -79,7 +79,7 @@ namespace Dependency
         public override string ToString() => "{" + string.Join(",", Inputs.Select(i => i.ToString())) + "}";
 
         // If the value of an indexed member changed, then of course the value of the vector changed.
-        bool ISyncUpdater.Update(Variables.Update caller, ISyncUpdater updatedChild) => true;
+        bool ISyncUpdater.Update(Variables.Update u, ISyncUpdater uc, IEnumerable<IEvaluateable> ui) => true;
 
         bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
         {

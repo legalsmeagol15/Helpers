@@ -53,9 +53,9 @@ namespace Dependency
     /// </summary>
     public interface IContext
     {
-        bool TryGetSubcontext(object path, out IContext ctxt);
+        bool TryGetSubcontext(string path, out IContext ctxt);
 
-        bool TryGetProperty(object path, out IEvaluateable source);
+        bool TryGetProperty(string path, out IEvaluateable source);
     }
 
     /// <summary>
@@ -157,12 +157,13 @@ namespace Dependency
         /// after the given <paramref name="updatedChild"/> has been updated with a new value.</summary>
         /// <param name="updatedChild">The child that was updated who is passing on the update to this 
         /// <seealso cref="ISyncUpdater"/>.  If null, no child was update to cause this call to 
-        /// <see cref="Update(Update,ISyncUpdater)"/>.</param>
+        /// <see cref="Update(Update,ISyncUpdater, IEnumerable{IEvaluateable})"/>.</param>
         /// <param name="caller">The <seealso cref="Dependency.Variables.Update"/> which is managing the update 
         /// procudure.</param>
+        /// <param name="updatedIndices">The indices of the update child that were updated.</param>
         /// <returns>Returns true if the update changed the value of this <seealso cref="ISyncUpdater"/>; otherwise, 
         /// returns false.</returns>
-        bool Update(Update caller, ISyncUpdater updatedChild);
+        bool Update(Update caller, ISyncUpdater updatedChild, IEnumerable<IEvaluateable> updatedIndices = null);
     }
 
 

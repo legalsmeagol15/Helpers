@@ -10,15 +10,18 @@ using System.Threading;
 
 namespace Dependency.Variables
 {
-    class List<T> : IList<T>, IIndexable,  IContext, IAsyncUpdater, IVariable, ISyncUpdater
+    class List<T> : IList<T>, IIndexable,  IContext, IAsyncUpdater, IVariable
     {
         System.Collections.Generic.List<Node> _List = new System.Collections.Generic.List<Node>();
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         internal IConverter<T> Converter;
+        private WeakReference<Source<int>> _NodeRef;
 
         public int Count => _List.Count;
 
         bool ICollection<T>.IsReadOnly => false;
+
+        IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
 
         public T this[int index]
         {
@@ -46,7 +49,17 @@ namespace Dependency.Variables
             }
         }
 
-
+        private void NotifySizeChange()
+        {
+            Update.StructureLock.EnterReadLock();
+            try
+            {
+                if (_NodeRef == null) return;
+                else if (!_NodeRef.TryGetTarget(out Source<int> src)) return;
+                else src.Set(_List.Count);
+            }
+            finally { Update.StructureLock.ExitReadLock(); }
+        }
 
         public int IndexOf(T item)
         {
@@ -55,17 +68,38 @@ namespace Dependency.Variables
             {
                 for (int i = 0; i < _List.Count; i++) if (_List[i].Equals(item)) return i;
                 return -1;
-            }finally { Update.StructureLock.ExitReadLock(); }
+            }
+            finally { Update.StructureLock.ExitReadLock(); }
         }
 
-        void IList<T>.Insert(int index, T item)
+        public void Insert(int index, T item)
         {
-            throw new NotImplementedException();
+            Update.StructureLock.EnterWriteLock();
+            try
+            {
+                _List.Insert(index, new Node(this, item));
+            }
+            finally { Update.StructureLock.ExitWriteLock(); }
+            if (index == _List.Count-1)
+                Update.ForVariable(this, new Number(index)).Execute();
+            else
+                Update.ForVariable(this, new Values.Range(new Number(index), new Number(_List.Count - 1))).Execute();
+            NotifySizeChange();
         }
 
-        void IList<T>.RemoveAt(int index)
+        public void RemoveAt(int index)
         {
-            throw new NotImplementedException();
+            Update.StructureLock.EnterWriteLock();
+            try
+            {
+                _List.RemoveAt(index);
+            }
+            finally { Update.StructureLock.ExitWriteLock(); }
+            if (index == _List.Count)
+                Update.ForVariable(this, new Number(index)).Execute();
+            else
+                Update.ForVariable(this, new Values.Range(new Number(index), new Number(_List.Count))).Execute();
+            NotifySizeChange();
         }
 
         public void Add(T item)
@@ -73,15 +107,26 @@ namespace Dependency.Variables
             Update.StructureLock.EnterWriteLock();
             try
             {
-                _List.Add(new Node() { Item = item });
+                _List.Add(new Node(this, item));
             }
             finally { Update.StructureLock.ExitWriteLock(); }
-            Update.ForVariable(this).Execute();
+            Update.ForVariable(this, new Number(_List.Count-1)).Execute();
+            NotifySizeChange();
         }
 
         void ICollection<T>.Clear()
         {
-            throw new NotImplementedException();
+            int lastIdx = _List.Count - 1;
+            if (_List.Count == 0) return;
+            Update.StructureLock.EnterWriteLock();
+            try
+            {
+                _List.Clear();
+            }
+            finally { Update.StructureLock.ExitWriteLock(); }
+
+            Update.ForVariable(this, new Values.Range(Number.Zero, new Number(lastIdx))).Execute();
+            NotifySizeChange();
         }
 
         public bool Contains(T item) => IndexOf(item) != -1;
@@ -114,19 +159,65 @@ namespace Dependency.Variables
                 }
                 return false;
             } finally { Update.StructureLock.ExitUpgradeableReadLock(); }
+            NotifySizeChange();
         }
 
         public IEnumerator<T> GetEnumerator() => _List.Select(n => n.Item).GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+        bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
+        {
+            if (ordinal is Number no && no.IsInteger)
+            {
+                int index = (int)no;
+                Update.StructureLock.EnterReadLock();
+                try
+                {
+                    if (index >= 0 && index < _List.Count)
+                    {
+                        val = _List[index];
+                        return true;
+                    }
+                    
+                } finally { Update.StructureLock.ExitReadLock(); }
+            }
+            val = null;
+            return false;
+        }
+
+        bool IContext.TryGetProperty(string path, out IEvaluateable source)
+        {
+            switch (path.ToLower())
+            {
+                case "size":
+                case "count":
+                case "length":
+                    Update.StructureLock.EnterWriteLock();
+                    try
+                    {
+                        if (_NodeRef == null)
+                            _NodeRef = new WeakReference<Source<int>>(new Source<int>(_List.Count));
+                        if (!_NodeRef.TryGetTarget(out Source<int> src))
+                            _NodeRef.SetTarget(src = new Source<int>(_List.Count));
+                        source = src;
+                        return true;
+                    } finally { Update.StructureLock.ExitWriteLock(); }
+                    
+                default:
+                    source = null;
+                    return false;
+            }
+        }
+
+        bool IContext.TryGetSubcontext(string path, out IContext ctxt) { ctxt = null; return false; }
 
 
         /// <summary>Like a source with special handling of updates.</summary>
-        private class Node : ISyncUpdater, IAsyncUpdater, IVariable, IUpdatedVariable
+        private class Node : IAsyncUpdater, IVariable, IUpdatedVariable
         {
             public readonly List<T> List;
-            private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
+            public readonly WeakReferenceSet<ISyncUpdater> Listeners = new WeakReferenceSet<ISyncUpdater>();
             private T _Item;
             public T Item
             {
@@ -134,7 +225,7 @@ namespace Dependency.Variables
                 set
                 {
                     _Item = value;
-                    if (_Listeners.Any())
+                    if (Listeners.Any())
                     {
                         IEvaluateable iev = List.Converter.ConvertFrom(value);
                         Update.ForVariable(this, iev).Execute();
@@ -146,9 +237,9 @@ namespace Dependency.Variables
                 }
             }
 
-            // Can't have a parent (not even the List, which would then be updated when it 
-            // shouldn't be for a mere member update).  But, it can have a child content.
-            ISyncUpdater ISyncUpdater.Parent { get => null; set { /*do nothing*/ } }
+            public Node(List<T> host, T item) { this.List = host; this._Item = item; }
+
+            
             public void SetContents(IEvaluateable overrideContents)
             {
                 Update.StructureLock.EnterUpgradeableReadLock();
@@ -182,20 +273,13 @@ namespace Dependency.Variables
 
             IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
 
+            
 
-            // This update would be called if the node's source is updated.  The node cannot 
-            // have a parent, but it can enqueue its variable for update.
-            bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
-            {
-                foreach (ISyncUpdater listener in this._Listeners) caller.Enqueue(List, listener);
-                return false;
-            }
+            bool IAsyncUpdater.RemoveListener(ISyncUpdater r) => Listeners.Remove(r);
 
-            bool IAsyncUpdater.RemoveListener(ISyncUpdater r) => _Listeners.Remove(r);
+            bool IAsyncUpdater.AddListener(ISyncUpdater r) => Listeners.Add(r);
 
-            bool IAsyncUpdater.AddListener(ISyncUpdater r) => _Listeners.Add(r);
-
-            IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
+            IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
 
             void IUpdatedVariable.SetContents(IEvaluateable newContent) { _Contents = newContent; }
 

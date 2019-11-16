@@ -20,14 +20,16 @@ namespace Dependency.Variables
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
         private IVariable Starter;
         public readonly IEvaluateable NewContents;
+        private IEnumerable<IEvaluateable> Indices = null;
 
 
-        private Update(IVariable var, IEvaluateable newContents)
+        private Update(IVariable var, IEvaluateable newContents, IEnumerable<IEvaluateable> indices)
         {
             this.Starter = var ?? throw new ArgumentNullException("var");
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
+            this.Indices = indices;
         }
         
         /// <summary>Creates an updating transaction for the given <seealso cref="Variable"/>.</summary>
@@ -38,10 +40,14 @@ namespace Dependency.Variables
         /// <seealso cref="Variable.Contents"/> changed, but its <seealso cref="Variable.Value"/> 
         /// and all listeners will be updated.
         /// </param>
-        internal static Update ForVariable(IUpdatedVariable var, IEvaluateable newContents) 
-            => new Update(var, newContents);
+        /// <param name="indices">Optional.  The indices of the <paramref name="var"/> that were 
+        /// updated.</param>
+        internal static Update ForVariable(IUpdatedVariable var, IEvaluateable newContents, IEnumerable<IEvaluateable> indices = null) 
+            => new Update(var, newContents, indices);
 
-        public static Update ForVariable(IVariable var) => new Update(var, null);
+        public static Update ForVariable(IVariable var, params IEvaluateable[] indices) => new Update(var, null, indices);
+
+        public static Update ForVariable(IVariable var) => new Update(var, null, null);
 
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
@@ -110,25 +116,29 @@ namespace Dependency.Variables
         internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener) // TODO:  this should be done within the StructureLock read lock?
             => _Tasks.Enqueue(Task.Run(() => Execute(source, listener)));
 
-        /// <summary>
-        /// Executes the given <seealso cref="ISyncUpdater"/> from the perspective of the given 
+        /// <summary>Executes this <see cref="Update"/> for the given 
+        /// <seealso cref="ISyncUpdater"/> from the perspective of the given 
         /// <paramref name="source"/>.
         /// </summary>
-        /// <param name="source">The item called which executed the update for the <paramref name="target"/>.  This 
-        /// may be an <seealso cref="ISyncUpdater"/>, an <seealso cref="IAsyncUpdater"/>, or an object that implements 
-        /// both.</param>
-        /// <param name="target">The item which will be updated.  The <paramref name="target"/>'s Parent will be the 
-        /// next item updated, and so on.</param>
-        /// <returns>Returns true if any item's value was changed; otherwise, returns false.</returns>
-        internal bool Execute(object source, ISyncUpdater target)
+        /// <param name="source">The item called which executed the update for the 
+        /// <paramref name="target"/>.  This  may be an <seealso cref="ISyncUpdater"/>, an 
+        /// <seealso cref="IAsyncUpdater"/>, or an object that implements both.</param>
+        /// <param name="target">The item which will be updated.  The <paramref name="target"/>'s 
+        /// Parent will be the next item updated, and so on.</param>
+        /// <param name="updatedIndices">Optional.  The indices of the <paramref name="source"/> 
+        /// that were updated.</param>
+        /// <returns>Returns true if any item's value was changed; otherwise, returns false.
+        /// </returns>
+        private bool Execute(object source, ISyncUpdater target, IEnumerable<IEvaluateable> updatedIndices = null)
         {
             ISyncUpdater start = target;
             ISyncUpdater updatedChild = source as ISyncUpdater;
             while (target != null)
             {
                 // If nothing was updated, return false.
-                if (!target.Update(this, updatedChild))
+                if (!target.Update(this, updatedChild, updatedIndices))
                     return !target.Equals(start);
+                updatedIndices = null; // These indices only apply at the start
 
                 // Since target was updated, enqueue its listeners and proceed.
                 if (target is IAsyncUpdater iv)

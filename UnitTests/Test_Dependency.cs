@@ -37,7 +37,7 @@ namespace UnitTests
             v1.Contents = Parse.FromString("v2", null, root);
 
             //v2 = v0
-            Update update = Update.ForVariable(v2, Parse.FromString("v0", null, root));
+            Update update = Update.ForVariable(v2, Parse.FromString("v0", null, root), null);
             update.Execute();
 
             Assert.IsInstanceOfType(v2.Value, typeof(CircularityError));
@@ -517,7 +517,7 @@ namespace UnitTests
         private readonly Variable _WidthVar = new Variable(new Number(2));
         private readonly Variable _PatternVar = new Variable(new Number(0.25));
 
-        bool IContext.TryGetProperty(object token, out IEvaluateable source)
+        bool IContext.TryGetProperty(string  token, out IEvaluateable source)
         {
             switch (token)
             {
@@ -527,7 +527,7 @@ namespace UnitTests
             }
         }
 
-        bool IContext.TryGetSubcontext(object token, out IContext ctxt) { ctxt = null; return false; }
+        bool IContext.TryGetSubcontext(string token, out IContext ctxt) { ctxt = null; return false; }
     }
 
 
@@ -540,14 +540,14 @@ namespace UnitTests
         public void Add(object key, Variable variable) => _Variables.Add(key, variable);
         public void Add(object key, SimpleContext subcontext) => _Subcontexts.Add(key, subcontext);
 
-        public bool TryGetProperty(object token, out IEvaluateable source)
+        public bool TryGetProperty(string  token, out IEvaluateable source)
         {
             if (_Variables.TryGetValue(token, out Variable v)) { source = v; return true; }
             source = null;
             return false;
         }
 
-        public bool TryGetSubcontext(object token, out IContext ctxt)
+        public bool TryGetSubcontext(string token, out IContext ctxt)
         {
             if (_Subcontexts.TryGetValue(token, out SimpleContext sc)) { ctxt = sc; return true; }
             ctxt = null;
