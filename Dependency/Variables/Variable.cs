@@ -98,7 +98,7 @@ namespace Dependency.Variables
         
         ISyncUpdater ISyncUpdater.Parent { get; set; }
 
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(_Contents.Value);
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, IEnumerable<IEvaluateable> _) => SetValue(_Contents.Value);
         
         void IUpdatedVariable.SetContents(IEvaluateable newContents) => _Contents = newContents;
 

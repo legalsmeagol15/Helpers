@@ -59,8 +59,6 @@ namespace Dependency
         {
             switch (path)
             {
-                case Number n: source = this[(int)n]; return true;
-                case int idx: source = this[idx]; return true;
                 case "size":
                 case "count":
                 case "length": source = new Number(Value.Size); return true;

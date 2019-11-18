@@ -10,18 +10,18 @@ using System.Threading;
 
 namespace Dependency.Variables
 {
-    class List<T> : IList<T>, IIndexable,  IContext, IAsyncUpdater, IVariable
+    class List<T> : IList<T>, IIndexable,  IContext, IVariable
     {
         System.Collections.Generic.List<Node> _List = new System.Collections.Generic.List<Node>();
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         internal IConverter<T> Converter;
-        private WeakReference<Source<int>> _NodeRef;
+        private WeakReference<Source<int>> _SizeRef;
 
         public int Count => _List.Count;
 
         bool ICollection<T>.IsReadOnly => false;
 
-        IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
+        
 
         public T this[int index]
         {
@@ -54,8 +54,8 @@ namespace Dependency.Variables
             Update.StructureLock.EnterReadLock();
             try
             {
-                if (_NodeRef == null) return;
-                else if (!_NodeRef.TryGetTarget(out Source<int> src)) return;
+                if (_SizeRef == null) return;
+                else if (!_SizeRef.TryGetTarget(out Source<int> src)) return;
                 else src.Set(_List.Count);
             }
             finally { Update.StructureLock.ExitReadLock(); }
@@ -157,10 +157,17 @@ namespace Dependency.Variables
                     }finally { Update.StructureLock.ExitWriteLock(); }
                     Update.ForVariable(this).Execute();
                 }
+                NotifySizeChange();
                 return false;
             } finally { Update.StructureLock.ExitUpgradeableReadLock(); }
-            NotifySizeChange();
+            
         }
+
+        IEvaluateable IEvaluateable.Value 
+            => throw new InvalidOperationException("A " + nameof(List<T>) + " has no " + nameof(IEvaluateable) + " value.");
+
+        IEvaluateable IVariable.Contents 
+            => throw new InvalidOperationException("A " + nameof(List<T>) + " has no " + nameof(IEvaluateable) + " contents.");
 
         public IEnumerator<T> GetEnumerator() => _List.Select(n => n.Item).GetEnumerator();
 
@@ -196,14 +203,13 @@ namespace Dependency.Variables
                     Update.StructureLock.EnterWriteLock();
                     try
                     {
-                        if (_NodeRef == null)
-                            _NodeRef = new WeakReference<Source<int>>(new Source<int>(_List.Count));
-                        if (!_NodeRef.TryGetTarget(out Source<int> src))
-                            _NodeRef.SetTarget(src = new Source<int>(_List.Count));
+                        if (_SizeRef == null)
+                            _SizeRef = new WeakReference<Source<int>>(new Source<int>(_List.Count));
+                        if (!_SizeRef.TryGetTarget(out Source<int> src))
+                            _SizeRef.SetTarget(src = new Source<int>(_List.Count));
                         source = src;
                         return true;
-                    } finally { Update.StructureLock.ExitWriteLock(); }
-                    
+                    } finally { Update.StructureLock.ExitWriteLock(); }                    
                 default:
                     source = null;
                     return false;
