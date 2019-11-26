@@ -125,20 +125,17 @@ namespace Dependency.Variables
         /// <seealso cref="IAsyncUpdater"/>, or an object that implements both.</param>
         /// <param name="target">The item which will be updated.  The <paramref name="target"/>'s 
         /// Parent will be the next item updated, and so on.</param>
-        /// <param name="updatedIndices">Optional.  The indices of the <paramref name="source"/> 
-        /// that were updated.</param>
         /// <returns>Returns true if any item's value was changed; otherwise, returns false.
         /// </returns>
-        private bool Execute(object source, ISyncUpdater target, IEnumerable<IEvaluateable> updatedIndices = null)
+        private bool Execute(object source, ISyncUpdater target)
         {
             ISyncUpdater start = target;
             ISyncUpdater updatedChild = source as ISyncUpdater;
             while (target != null)
             {
                 // If nothing was updated, return false.
-                if (!target.Update(this, updatedChild, updatedIndices))
+                if (!target.Update(this, updatedChild))
                     return !target.Equals(start);
-                updatedIndices = null; // These indices only apply at the start
 
                 // Since target was updated, enqueue its listeners and proceed.
                 if (target is IAsyncUpdater iv)

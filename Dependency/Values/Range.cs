@@ -56,6 +56,6 @@ namespace Dependency.Values
             return false;
         }
 
-        bool ISyncUpdater.Update(Update u, ISyncUpdater uc, IEnumerable<IEvaluateable> ui) => true;
+        bool ISyncUpdater.Update(Update u, ISyncUpdater uc) => true;
     }
 }

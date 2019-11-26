@@ -133,7 +133,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="ArtificialIntelligence\Logical\" />
-    <Folder Include="Dependency\Variables\Custom\" />
     <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>

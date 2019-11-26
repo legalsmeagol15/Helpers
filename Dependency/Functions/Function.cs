@@ -31,7 +31,7 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value; }
 
-        bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild, IEnumerable<IEvaluateable> updatedIndices)
+        bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild)
         {
             // TODO:  since I know which child was updated, it makes sense to cache the evaluations and updated only the changed one.
             if (updatedChild != null && updatedChild.Value is Error err)

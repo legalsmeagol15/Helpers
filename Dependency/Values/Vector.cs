@@ -77,7 +77,7 @@ namespace Dependency
         public override string ToString() => "{" + string.Join(",", Inputs.Select(i => i.ToString())) + "}";
 
         // If the value of an indexed member changed, then of course the value of the vector changed.
-        bool ISyncUpdater.Update(Variables.Update u, ISyncUpdater uc, IEnumerable<IEvaluateable> ui) => true;
+        bool ISyncUpdater.Update(Variables.Update u, ISyncUpdater uc) => true;
 
         bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
         {
