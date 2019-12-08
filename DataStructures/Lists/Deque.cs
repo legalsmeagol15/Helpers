@@ -67,15 +67,17 @@ namespace DataStructures
             get
             {
                 if (Count == 0)
-                    throw new ArgumentOutOfRangeException("Item " + index + " does not exist on an empty " + this.GetType().Name + ".");
+                    throw new ArgumentOutOfRangeException("Empty " + nameof(Deque<T>));
                 index += _Start;
-                if (index >= _Table.Length) index += _Table.Length;
+                if (index >= _Table.Length) index -= _Table.Length;
                 return _Table[index];
             }
             set
             {
+                if (index >= Count || index < 0)
+                    throw new ArgumentOutOfRangeException("Index " + index + " is invalid for this " + nameof(Deque<T>));
                 index += _Start;
-                if (index >= _Table.Length) index += _Table.Length;
+                if (index >= _Table.Length) index -= _Table.Length;
                 _Table[index] = value;
             }
         }

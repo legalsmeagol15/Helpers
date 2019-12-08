@@ -30,7 +30,7 @@ namespace Dependency.Variables
             
         private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
-        private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+        protected readonly ReaderWriterLockSlim ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         
         
 
@@ -38,14 +38,14 @@ namespace Dependency.Variables
         {
             get
             {
-                _ValueLock.EnterReadLock();
+                ValueLock.EnterReadLock();
                 try { return _Value; }
-                finally { _ValueLock.ExitReadLock(); }
+                finally { ValueLock.ExitReadLock(); }
             }
         }
         private bool SetValue(IEvaluateable newValue)
         {
-            _ValueLock.EnterWriteLock();
+            ValueLock.EnterWriteLock();
             try
             {
                 if (_Value.Equals(newValue)) return false;
@@ -53,24 +53,24 @@ namespace Dependency.Variables
                 _Value = newValue;
                 ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
             }
-            finally { _ValueLock.ExitWriteLock(); }
+            finally { ValueLock.ExitWriteLock(); }
             return true;
         }
         
         private IEvaluateable _Contents = Null.Instance;
-        public IEvaluateable Contents
+        public virtual IEvaluateable Contents
         {
             get
             {
                 // Contents defines structure.
-                Update.StructureLock.EnterReadLock();
+                Dependency.Variables.Update.StructureLock.EnterReadLock();
                 try { return _Contents; }
-                finally { Update.StructureLock.ExitReadLock(); }
+                finally { Dependency.Variables.Update.StructureLock.ExitReadLock(); }
             }
             set
             {
                 // Use an update to kick off Parent's and listeners' updates as well.
-                var update = Update.ForVariable(this, value);
+                var update = Dependency.Variables.Update.ForVariable(this, value);
                 update.Execute();
             }
         }
@@ -98,7 +98,8 @@ namespace Dependency.Variables
         
         ISyncUpdater ISyncUpdater.Parent { get; set; }
 
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(_Contents.Value);
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => Update();
+        protected virtual bool Update() => SetValue(_Contents.Value);
         
         void IUpdatedVariable.SetContents(IEvaluateable newContents) => _Contents = newContents;
 

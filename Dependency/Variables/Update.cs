@@ -20,16 +20,14 @@ namespace Dependency.Variables
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
         private IVariable Starter;
         public readonly IEvaluateable NewContents;
-        private IEnumerable<IEvaluateable> Indices = null;
 
 
-        private Update(IVariable var, IEvaluateable newContents, IEnumerable<IEvaluateable> indices)
+        private Update(IVariable var, IEvaluateable newContents)
         {
             this.Starter = var ?? throw new ArgumentNullException("var");
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
-            this.Indices = indices;
         }
         
         /// <summary>Creates an updating transaction for the given <seealso cref="Variable"/>.</summary>
@@ -40,15 +38,9 @@ namespace Dependency.Variables
         /// <seealso cref="Variable.Contents"/> changed, but its <seealso cref="Variable.Value"/> 
         /// and all listeners will be updated.
         /// </param>
-        /// <param name="indices">Optional.  The indices of the <paramref name="var"/> that were 
-        /// updated.</param>
-        internal static Update ForVariable(IUpdatedVariable var, IEvaluateable newContents, IEnumerable<IEvaluateable> indices = null) 
-            => new Update(var, newContents, indices);
-
-        public static Update ForVariable(IVariable var, params IEvaluateable[] indices) => new Update(var, null, indices);
-
-        public static Update ForVariable(IVariable var) => new Update(var, null, null);
-
+        public static Update ForVariable(IVariable var, IEvaluateable newContents = null) 
+            => new Update(var, newContents);
+        
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
         /// </summary>
