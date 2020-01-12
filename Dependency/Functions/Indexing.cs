@@ -80,14 +80,14 @@ namespace Dependency.Functions
                 // Probably a variable.
                 if (!iv.Equals(Head))
                 {
-                    Update.StructureLock.EnterWriteLock();
+                    Update.StructureLock.EnterUpgradeableReadLock();
                     try
                     {
                         if (Inputs.Length > 2) { Head.RemoveListener(this); Inputs[2] = iv; }
                         else Inputs = new IEvaluateable[] { Base, Ordinal, iv };
                         iv.AddListener(this);
                     }
-                    finally { Update.StructureLock.ExitWriteLock(); }
+                    finally { Update.StructureLock.ExitUpgradeableReadLock(); }
                 }
                 newValue = iv.Value;
             }

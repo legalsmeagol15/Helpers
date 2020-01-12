@@ -56,7 +56,7 @@ namespace Dependency.Functions
             Debug.Assert(stepIdx < _Steps.Length);
 
             
-            Variables.Update.StructureLock.EnterReadLock();
+            Variables.Update.StructureLock.EnterUpgradeableReadLock();
             IEvaluateable newValue = null;
             try
             {
@@ -141,12 +141,14 @@ namespace Dependency.Functions
                     // Apply the new Input and Context
                     if (newNextInput != null && newNextInput.Equals(nextStep.Input)) return false;
                     if (newNextContext != null && newNextContext.Equals(nextStep.Context)) return false;
-                    if (nextStep.Input is IAsyncUpdater ivi) ivi.RemoveListener(this);
-                    if (newNextInput is IAsyncUpdater new_ivi) new_ivi.AddListener(this);
+                    if (nextStep.Input is IAsyncUpdater ivi)
+                        ivi.RemoveListener(this);
+                    if (newNextInput is IAsyncUpdater new_ivi)
+                        new_ivi.AddListener(this);
                     _Steps[stepIdx + 1].Input = newNextInput;
                     _Steps[stepIdx + 1].Context = newNextContext;
                 }
-            } finally { Variables.Update.StructureLock.ExitReadLock(); }
+            } finally { Variables.Update.StructureLock.ExitUpgradeableReadLock(); }
             
 
             // For the last step, the newValue will either be the Input's Value, or it will be a wrapped IContext.
