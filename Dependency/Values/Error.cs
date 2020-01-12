@@ -32,11 +32,6 @@ namespace Dependency
         internal readonly IVariable Origin;
         internal CircularityError(IVariable origin) : base("Circular reference.") { Origin = origin; }
     }
-    public sealed class ConversionError : Error
-    {
-        public readonly Type Type;
-        public ConversionError(IEvaluateable value, Type type) : base("Cannot convert " + value.ToString() + " to type " + type.Name +".") { this.Type = type; }
-    }
     public sealed class InvalidValueError : Error
     {
         public InvalidValueError(string message = null) : base(message ?? "An invalid value was created.") { }
