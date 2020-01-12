@@ -18,17 +18,31 @@ namespace Dependency.Variables
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
-        private IVariable Starter;
+        private IEvaluateable Starter;
         public readonly IEvaluateable NewContents;
 
+        private static readonly object _WeakVariablePatternLock = new object();
+        internal static Variable GetWeakVariableSafe(ref WeakReference<Variable> weakRef, Variable newVariable)
+        {
+            lock (_WeakVariablePatternLock)
+            {
+                Variable v;
+                if (weakRef == null)
+                    weakRef = new WeakReference<Variable>(v = newVariable);
+                else if (!weakRef.TryGetTarget(out v))
+                    v = newVariable;
+                return v;
+            }
+        }
 
-        private Update(IVariable var, IEvaluateable newContents)
+
+        private Update(IEvaluateable var, IEvaluateable newContents = null)
         {
             this.Starter = var ?? throw new ArgumentNullException("var");
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
-        }
+        }   
         
         /// <summary>Creates an updating transaction for the given <seealso cref="Variable"/>.</summary>
         /// <param name="var">The <seealso cref="Variable"/> whose value and listeners will need 
@@ -40,6 +54,9 @@ namespace Dependency.Variables
         /// </param>
         public static Update ForVariable(IVariable var, IEvaluateable newContents = null) 
             => new Update(var, newContents);
+
+        public static Update ForVector(DynamicVector vec, IEvaluateable newContents = null)
+            => new Update(vec, newContents);
         
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
@@ -51,6 +68,8 @@ namespace Dependency.Variables
             {
                 StructureLock.EnterUpgradeableReadLock();
 
+                // If the Starter is an updateable variable, rule out that the "new" value is the same as the old 
+                // value, and rule out that a circularity would result from changing the contents to the new value.
                 if (Starter is IUpdatedVariable iuv)
                 {
                     // If the new contents equal the old contents, it can't possibly matter.
@@ -81,10 +100,10 @@ namespace Dependency.Variables
                         return false;
                 }
 
-                // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
-                // started.
+                // The value must have changed, or the Starter wasn't a variable to begin with.  If Starter updates 
+                // synchronously, get the synchronous update started.
                 if (Starter is ISyncUpdater isu)
-                    Execute(Starter as IAsyncUpdater, isu.Parent);
+                    Execute(Starter, isu.Parent);
 
                 // Finally, if Starter updates asynchronously, kick off the asynchronous update.
                 if (Starter is IAsyncUpdater iau)

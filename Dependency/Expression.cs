@@ -112,6 +112,11 @@ namespace Dependency
 
                 // Append the focus's listeners.
                 _AppendListenersOf(focus);
+
+                // The evaluated value of the new contents may cause a circular reference too, for example, if the 
+                // evaluated value is itself a formula.
+                while (focus is IEvaluateable ie && !focus.Equals(ie.Value) && ie.Value != null)
+                    focus = ie.Value;
             }
 
             // No circularity found.
