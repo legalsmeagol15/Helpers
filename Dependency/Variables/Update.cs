@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections;
 
 namespace Dependency.Variables
 {
@@ -147,9 +148,46 @@ namespace Dependency.Variables
             return true;
         }
 
+        /// <summary>Manages the lifetime and thread access to a set of listeners.</summary>
+        internal sealed class ListenerManager : IEnumerable<ISyncUpdater>
+        {
+            private static readonly ISyncUpdater[] _Empty = new ISyncUpdater[0];
+            private WeakReference<WeakReferenceSet<ISyncUpdater>> _ListenersRef = null;
+            private WeakReferenceSet<ISyncUpdater> GetListeners()
+            {
+                WeakReferenceSet<ISyncUpdater> listeners;
+                if (_ListenersRef == null)
+                    _ListenersRef = new WeakReference<WeakReferenceSet<ISyncUpdater>>(listeners = new WeakReferenceSet<ISyncUpdater>());
+                else if (!_ListenersRef.TryGetTarget(out listeners))
+                    _ListenersRef.SetTarget(listeners = new WeakReferenceSet<ISyncUpdater>());
+                return listeners;
+            }
+            public bool Add(ISyncUpdater listener)
+            {
+                StructureLock.EnterWriteLock();
+                try { return GetListeners().Add(listener); }
+                finally { StructureLock.ExitWriteLock(); }
+            }
+            public bool Remove(ISyncUpdater listener)
+            {
+                StructureLock.EnterWriteLock();
+                try
+                {
+                    if (_ListenersRef == null) return false;
+                    if (!_ListenersRef.TryGetTarget(out var listeners)) return false;
+                    return listeners.Remove(listener);
+                }
+                finally { StructureLock.ExitWriteLock(); }
+            }
 
-
-
-
+            IEnumerator<ISyncUpdater> IEnumerable<ISyncUpdater>.GetEnumerator() => GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+            private IEnumerator<ISyncUpdater> GetEnumerator()
+            {
+                if (_ListenersRef == null) return (IEnumerator<ISyncUpdater>)_Empty.GetEnumerator();
+                if (!_ListenersRef.TryGetTarget(out var listeners)) return (IEnumerator<ISyncUpdater>)_Empty.GetEnumerator();
+                return listeners.GetEnumerator();
+            }
+        }
     }
 }

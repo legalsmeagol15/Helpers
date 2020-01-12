@@ -13,7 +13,6 @@ namespace Dependency.Variables
         private T _Value;
         private readonly IConverter<T> _Converter;
         private readonly TypeFlags _TypeGuarantee;
-        private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
 
         TypeFlags ITypeGuarantee.TypeGuarantee => _TypeGuarantee;
 
@@ -52,9 +51,11 @@ namespace Dependency.Variables
             return _Value;
         }
 
-        bool IAsyncUpdater.RemoveListener(ISyncUpdater r) => _Listeners.Remove(r);
-        bool IAsyncUpdater.AddListener(ISyncUpdater r) => _Listeners.Add(r);
+
+        bool IAsyncUpdater.AddListener(ISyncUpdater idi) => _Listeners.Add(idi);
+        bool IAsyncUpdater.RemoveListener(ISyncUpdater idi) => _Listeners.Remove(idi);
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
+        private readonly Update.ListenerManager _Listeners = new Update.ListenerManager();
 
         void IUpdatedVariable.SetContents(IEvaluateable newContent) { }
 

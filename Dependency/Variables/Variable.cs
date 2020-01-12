@@ -26,14 +26,10 @@ namespace Dependency.Variables
         // listeners to Update.  Variable then updates to value 2, calls its listeners to update.  Listeners update 
         // with the pushed value 2, and evaluate themselves accordingly.  Then listeners update with pushed value 
         // 1, and evaluate accordingly.  Listeners are now inconsistent with Variable's current value, whcih is 2.
-
-            
-        private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
+        
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         
-        
-
         public IEvaluateable Value
         {
             get
@@ -52,11 +48,12 @@ namespace Dependency.Variables
                 IEvaluateable oldValue = _Value;
                 _Value = newValue;
                 ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
+                return true;
             }
             finally { _ValueLock.ExitWriteLock(); }
-            return true;
         }
-        
+        bool IUpdatedVariable.SetValue(IEvaluateable newValue) => SetValue(newValue);
+
         private IEvaluateable _Contents = Null.Instance;
         public IEvaluateable Contents
         {
@@ -74,13 +71,12 @@ namespace Dependency.Variables
                 update.Execute();
             }
         }
+        void IUpdatedVariable.SetContents(IEvaluateable newContents) => _Contents = newContents;
+
 
 
         /// <summary>Creates the <see cref="Variable"/>.  Does not update the <seealso cref="Variable.Value"/>.</summary>
         public Variable(IEvaluateable contents = null) { this.Contents = contents ?? Null.Instance; }
-        
-
-
 
         public override string ToString()
         {
@@ -89,22 +85,22 @@ namespace Dependency.Variables
         }
 
         public event ValueChangedHandler<IEvaluateable> ValueChanged;
-        
-        //internal ISyncUpdater Parent { get; set; }
+
+        #region Variable connection members
 
         bool IAsyncUpdater.AddListener(ISyncUpdater idi) => _Listeners.Add(idi);
         bool IAsyncUpdater.RemoveListener(ISyncUpdater idi) => _Listeners.Remove(idi);
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
+        private readonly Update.ListenerManager _Listeners = new Update.ListenerManager();
         
-        ISyncUpdater ISyncUpdater.Parent { get; set; }
+        
+        ISyncUpdater ISyncUpdater.Parent { get; set; } = null;
 
         bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(_Contents.Value);
-        
-        void IUpdatedVariable.SetContents(IEvaluateable newContents) => _Contents = newContents;
+#endregion
 
-        bool IUpdatedVariable.SetValue(IEvaluateable newValue) => SetValue(newValue);
     }
 
 
-    
+
 }

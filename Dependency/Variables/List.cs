@@ -223,7 +223,7 @@ namespace Dependency.Variables
         private class Node : IAsyncUpdater, IVariable, IUpdatedVariable
         {
             public readonly List<T> List;
-            public readonly WeakReferenceSet<ISyncUpdater> Listeners = new WeakReferenceSet<ISyncUpdater>();
+            
             private T _Item;
             public T Item
             {
@@ -279,13 +279,12 @@ namespace Dependency.Variables
 
             IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
 
-            
 
-            bool IAsyncUpdater.RemoveListener(ISyncUpdater r) => Listeners.Remove(r);
 
-            bool IAsyncUpdater.AddListener(ISyncUpdater r) => Listeners.Add(r);
-
+            bool IAsyncUpdater.AddListener(ISyncUpdater idi) => Listeners.Add(idi);
+            bool IAsyncUpdater.RemoveListener(ISyncUpdater idi) => Listeners.Remove(idi);
             IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
+            public readonly Update.ListenerManager Listeners = new Update.ListenerManager();
 
             void IUpdatedVariable.SetContents(IEvaluateable newContent) { _Contents = newContent; }
 

@@ -20,13 +20,13 @@ namespace Dependency
         /// <summary>Remove record of a listener to this <see cref="IAsyncUpdater"/>.</summary>
         /// <returns>True if the listener set was changed; if the listener never existed there to begin with, returns 
         /// false.</returns>
-        bool RemoveListener(ISyncUpdater r);
+        bool RemoveListener(ISyncUpdater listener);
 
         /// <summary>Add record of a listener to this <see cref="IAsyncUpdater"/>.  When the <see cref="IAsyncUpdater"/> is 
         /// updated, the listeners should then be updated (ideally asynchronously).</summary>
         /// <returns>True if the listener set was changed; if the listener already existed there, returns false.
         /// </returns>
-        bool AddListener(ISyncUpdater r);
+        bool AddListener(ISyncUpdater listener);
 
         IEnumerable<ISyncUpdater> GetListeners();
     }
