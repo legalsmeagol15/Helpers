@@ -81,9 +81,9 @@ namespace Dependency.Variables
             }
             finally { Update.StructureLock.ExitWriteLock(); }
             if (index == _List.Count-1)
-                Update.ForVariable(this, new Number(index)).Execute();
+                Update.ForCollection(this, new Number(index)).Execute();
             else
-                Update.ForVariable(this, new Values.Range(new Number(index), new Number(_List.Count - 1))).Execute();
+                Update.ForCollection(this, new Values.Range(new Number(index), new Number(_List.Count - 1))).Execute();
             NotifySizeChange();
         }
 
@@ -96,9 +96,9 @@ namespace Dependency.Variables
             }
             finally { Update.StructureLock.ExitWriteLock(); }
             if (index == _List.Count)
-                Update.ForVariable(this, new Number(index)).Execute();
+                Update.ForCollection(this, new Number(index)).Execute();
             else
-                Update.ForVariable(this, new Values.Range(new Number(index), new Number(_List.Count))).Execute();
+                Update.ForCollection(this, new Values.Range(new Number(index), new Number(_List.Count))).Execute();
             NotifySizeChange();
         }
 
@@ -110,7 +110,7 @@ namespace Dependency.Variables
                 _List.Add(new Node(this, item));
             }
             finally { Update.StructureLock.ExitWriteLock(); }
-            Update.ForVariable(this, new Number(_List.Count-1)).Execute();
+            Update.ForCollection(this, new Number(_List.Count-1)).Execute();
             NotifySizeChange();
         }
 
@@ -125,7 +125,7 @@ namespace Dependency.Variables
             }
             finally { Update.StructureLock.ExitWriteLock(); }
 
-            Update.ForVariable(this, new Values.Range(Number.Zero, new Number(lastIdx))).Execute();
+            Update.ForCollection(this, new Values.Range(Number.Zero, new Number(lastIdx))).Execute();
             NotifySizeChange();
         }
 

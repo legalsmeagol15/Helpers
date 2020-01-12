@@ -32,7 +32,7 @@ namespace Dependency.Variables
             this.NewContents = newContents;
             this.Indices = indices;
         }
-        
+
         /// <summary>Creates an updating transaction for the given <seealso cref="Variable"/>.</summary>
         /// <param name="var">The <seealso cref="Variable"/> whose value and listeners will need 
         /// to be updated.</param>
@@ -41,14 +41,11 @@ namespace Dependency.Variables
         /// <seealso cref="Variable.Contents"/> changed, but its <seealso cref="Variable.Value"/> 
         /// and all listeners will be updated.
         /// </param>
-        /// <param name="indices">Optional.  The indices of the <paramref name="var"/> that were 
-        /// updated.</param>
-        internal static Update ForVariable(IUpdatedVariable var, IEvaluateable newContents, IEnumerable<IEvaluateable> indices = null) 
-            => new Update(var, newContents, indices);
+        public static Update ForVariable(IVariable var, IEvaluateable newContents = null) => new Update(var, newContents, null);
 
-        public static Update ForVariable(IVariable var, params IEvaluateable[] indices) => new Update(var, null, indices);
+        public static Update ForCollection(IVariable var, params IEvaluateable[] indices) => new Update(var, null, indices);
 
-        public static Update ForVariable(IVariable var) => new Update(var, null, null);
+        
 
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
@@ -101,14 +98,14 @@ namespace Dependency.Variables
                     foreach (var listener in iau.GetListeners())
                         Enqueue(iau, listener);
                 }
-
-                // Force all the tasks to finish while the StructureLock is held.
-                while (_Tasks.TryDequeue(out Task t))
-                {
-                    t.Wait();
-                }
             }
             finally { StructureLock.ExitUpgradeableReadLock(); }
+
+            // Force all the tasks to finish while.  StructureLock should not be held.
+            while (_Tasks.TryDequeue(out Task t))
+            {
+                t.Wait();
+            }
 
             // Done.
             return true;
@@ -148,46 +145,29 @@ namespace Dependency.Variables
             return true;
         }
 
-        /// <summary>Manages the lifetime and thread access to a set of listeners.</summary>
+        /// <summary>Manages the thread access to a set of listeners.</summary>
         internal sealed class ListenerManager : IEnumerable<ISyncUpdater>
         {
-            private static readonly ISyncUpdater[] _Empty = new ISyncUpdater[0];
-            private WeakReference<WeakReferenceSet<ISyncUpdater>> _ListenersRef = null;
-            private WeakReferenceSet<ISyncUpdater> GetListeners()
-            {
-                WeakReferenceSet<ISyncUpdater> listeners;
-                if (_ListenersRef == null)
-                    _ListenersRef = new WeakReference<WeakReferenceSet<ISyncUpdater>>(listeners = new WeakReferenceSet<ISyncUpdater>());
-                else if (!_ListenersRef.TryGetTarget(out listeners))
-                    _ListenersRef.SetTarget(listeners = new WeakReferenceSet<ISyncUpdater>());
-                return listeners;
-            }
+            // This can NOT be the weak-weak pattern (a WeakReference<WeakReferenceSet<...>>).
+            private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
+
+            private WeakReferenceSet<ISyncUpdater> GetListeners() => _Listeners;
             public bool Add(ISyncUpdater listener)
             {
                 StructureLock.EnterWriteLock();
-                try { return GetListeners().Add(listener); }
+                try { return _Listeners.Add(listener); }
                 finally { StructureLock.ExitWriteLock(); }
             }
             public bool Remove(ISyncUpdater listener)
             {
                 StructureLock.EnterWriteLock();
                 try
-                {
-                    if (_ListenersRef == null) return false;
-                    if (!_ListenersRef.TryGetTarget(out var listeners)) return false;
-                    return listeners.Remove(listener);
-                }
+                { return _Listeners.Remove(listener); }
                 finally { StructureLock.ExitWriteLock(); }
             }
 
-            IEnumerator<ISyncUpdater> IEnumerable<ISyncUpdater>.GetEnumerator() => GetEnumerator();
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-            private IEnumerator<ISyncUpdater> GetEnumerator()
-            {
-                if (_ListenersRef == null) return (IEnumerator<ISyncUpdater>)_Empty.GetEnumerator();
-                if (!_ListenersRef.TryGetTarget(out var listeners)) return (IEnumerator<ISyncUpdater>)_Empty.GetEnumerator();
-                return listeners.GetEnumerator();
-            }
+            IEnumerator<ISyncUpdater> IEnumerable<ISyncUpdater>.GetEnumerator() => _Listeners.GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => _Listeners.GetEnumerator();
         }
     }
 }

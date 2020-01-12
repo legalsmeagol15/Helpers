@@ -37,7 +37,7 @@ namespace UnitTests
             v1.Contents = Parse.FromString("v2", null, root);
 
             //v2 = v0
-            Update update = Update.ForVariable(v2, Parse.FromString("v0", null, root), null);
+            Update update = Update.ForVariable(v2, Parse.FromString("v0", null, root));
             update.Execute();
 
             Assert.IsInstanceOfType(v2.Value, typeof(CircularityError));
@@ -145,6 +145,7 @@ namespace UnitTests
             {
                 Variable vNext = new Variable();
                 IEvaluateable refer_to_last = Parse.FromString("v" + (i - 1), null, root);
+                
                 Update u = Update.ForVariable(vNext, refer_to_last);
                 u.Execute();
 
