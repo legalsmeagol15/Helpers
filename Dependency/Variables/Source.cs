@@ -8,8 +8,20 @@ using DataStructures;
 
 namespace Dependency.Variables
 {
-    public sealed class Source<T> : IAsyncUpdater, IVariable, INotifyUpdates<T>, IUpdatedVariable, ITypeGuarantee
+    /// <summary>
+    /// A dependency variable which can NEVER have a dependee, and whose value is always 
+    /// guaranteed to be convertible to a CLR value.
+    /// </summary>
+    public sealed class Source<T> : IAsyncUpdater, IVariable, IUpdatedVariable, ITypeGuarantee, IBlendedVariable<T>
     {
+        ISyncUpdater ISyncUpdater.Parent { get; set; }
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => true;
+        IEvaluateable IBlendedVariable<T>.Dependency
+        {
+            get => _Converter.ConvertFrom(_Value);
+            set => throw new InvalidOperationException(nameof(Source<T>) + " cannot have contents set except by setting value.");
+        }
+
         private T _Value;
         private readonly IConverter<T> _Converter;
         private readonly TypeFlags _TypeGuarantee;
@@ -27,33 +39,37 @@ namespace Dependency.Variables
             this._Value = startingValue;
         }
 
+        
+
         public T Get() => _Value;
-        public T Set(T newValue)
+        public void Set(T newValue)
         {
             // Any change?
+            T oldValue = _Value;
             if (newValue == null)
             {
-                if (_Value == null) return default(T);
+                _Value = newValue;
+                if (oldValue == null) return;
             }
             else if (newValue.Equals(_Value))
-                return _Value;
+                return;
 
             // Though the value is changed in the CLR, kick off an update to notify listeners of any change.
-            T oldValue = _Value;
+            
             _Value = newValue;
             IEvaluateable newContents = _Converter.ConvertFrom(newValue);
             Update update = Update.ForVariable(this, newContents);
             update.Execute();
             
             // Notify any CLR listeners to a change.
-            ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldValue, newValue));
+            Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(_Converter.ConvertFrom(oldValue), newContents));
 
-            return _Value;
+            return;
         }
 
 
-        bool IAsyncUpdater.AddListener(ISyncUpdater idi) => _Listeners.Add(idi);
-        bool IAsyncUpdater.RemoveListener(ISyncUpdater idi) => _Listeners.Remove(idi);
+        bool IAsyncUpdater.AddListener(ISyncUpdater isu) => _Listeners.Add(isu);
+        bool IAsyncUpdater.RemoveListener(ISyncUpdater isu) => _Listeners.Remove(isu);
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
         private readonly Update.ListenerManager _Listeners = new Update.ListenerManager();
 
@@ -61,6 +77,6 @@ namespace Dependency.Variables
 
         bool IUpdatedVariable.SetValue(IEvaluateable newValue) => true;
 
-        public event ValueChangedHandler<T> ValueChanged;
+        public event ValueChangedHandler<IEvaluateable> Updated;
     }
 }

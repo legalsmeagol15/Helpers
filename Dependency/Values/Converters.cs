@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Dependency.Values
 {
-    public class Converter<T>
+    internal class Converter<T> : IConverter<T>
     {
         private static IConverter<T> _Default;
         static Converter()
@@ -19,11 +19,34 @@ namespace Dependency.Values
                 _Default = (IConverter<T>)(IConverter<decimal>)(new DecimalConverter());
             else if (typeof(string).Equals(typeof(T)))
                 _Default = (IConverter<T>)(IConverter<string>)(new StringConverter());
-            else
+            else if (typeof(IEvaluateable).IsAssignableFrom(typeof(T)))
                 _Default = (IConverter<T>)(IConverter<IEvaluateable>)(new TransparentConverter());
+            else
+                _Default = new Converter<T>();
         }
 
         public static IConverter<T> Default => _Default;
+
+        bool IConverter<T>.CanConvert(IEvaluateable ie)
+        {
+            throw new InvalidCastException("Cannot convert " + ie.GetType().Name + " to " + typeof(T).Name);
+        }
+
+        IEvaluateable IConverter<T>.ConvertFrom(T item)
+        {
+            throw new InvalidCastException("Cannot convert " + item.GetType().Name + " to " + nameof(IEvaluateable));
+        }
+
+        T IConverter<T>.ConvertTo(IEvaluateable ie)
+        {
+            throw new InvalidCastException("Cannot convert " + ie.GetType().Name + " to " + typeof(T).Name);
+        }
+
+        bool IConverter<T>.TryConvert(IEvaluateable ie, out T target)
+        {
+            target = default(T);
+            return false;
+        }
     }
     
 
@@ -35,11 +58,17 @@ namespace Dependency.Values
 
         IEvaluateable IConverter<decimal>.ConvertFrom(decimal item) => new Number(item);
 
+        decimal IConverter<decimal>.ConvertTo(IEvaluateable item)
+        {
+            return ((Number)item).ToDecimal();
+        }
+
         bool IConverter<decimal>.TryConvert(IEvaluateable ie, out decimal target)
         {
             if (ie is Number n) { target = n.ToDecimal(); return true; }
             else { target = 0m; return false; }
         }
+        
     }
 
     internal sealed class DoubleConverter : IConverter<double>, ITypeGuarantee
@@ -54,6 +83,11 @@ namespace Dependency.Values
         {
             if (ie is Number n) { target = n.ToDouble(); return true; }
             else { target = double.NaN; return false; }
+        }
+
+        double IConverter<double>.ConvertTo(IEvaluateable item)
+        {
+            return ((Number)item).ToDouble();
         }
     }
 
@@ -70,6 +104,11 @@ namespace Dependency.Values
             if (ie is Number n && n.IsInteger) { target = n.ToInt(); return true; }
             else { target = 0; return false; }
         }
+
+        int IConverter<int>.ConvertTo(IEvaluateable item)
+        {
+            return ((Number)item).ToInt();
+        }
     }
 
     internal sealed class StringConverter : IConverter<string>, ITypeGuarantee
@@ -81,6 +120,10 @@ namespace Dependency.Values
         IEvaluateable IConverter<string>.ConvertFrom(string item) => new Dependency.String(item);
 
         bool IConverter<string>.TryConvert(IEvaluateable ie, out string target) { target = ie.ToString(); return true; }
+        string IConverter<string>.ConvertTo(IEvaluateable item)
+        {
+            return ((Number)item).ToString();
+        }
     }
 
     internal sealed class TransparentConverter : IConverter<IEvaluateable>, ITypeGuarantee
@@ -92,8 +135,10 @@ namespace Dependency.Values
         IEvaluateable IConverter<IEvaluateable>.ConvertFrom(IEvaluateable item) => item;
 
         bool IConverter<IEvaluateable>.TryConvert(IEvaluateable ie, out IEvaluateable target) { target = ie; return true; }
-    }
 
+        IEvaluateable IConverter<IEvaluateable>.ConvertTo(IEvaluateable item) => item;
+    }
+    
 
 
 }

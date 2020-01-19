@@ -76,8 +76,12 @@
     <Compile Include="DataStructures\Threading\RedoWorker.cs" />
     <Compile Include="DataStructures\Trees\DataTree.cs" />
     <Compile Include="DataStructures\Trees\QuadTree.cs" />
+    <Compile Include="Dependency\Auto\AutoBlended.cs" />
+    <Compile Include="Dependency\Auto\AutoContext.cs" />
+    <Compile Include="Dependency\Auto\AutoProfile.cs" />
+    <Compile Include="Dependency\Auto\AutoSource.cs" />
+    <Compile Include="Dependency\Auto\DependencyAttributes.cs" />
     <Compile Include="Dependency\Expression.cs" />
-    <Compile Include="Dependency\Formulas.cs" />
     <Compile Include="Dependency\Functions\Factory.cs" />
     <Compile Include="Dependency\Functions\Function.cs" />
     <Compile Include="Dependency\Functions\Indexing.cs" />
@@ -99,6 +103,7 @@
     <Compile Include="Dependency\Values\Range.cs" />
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
+    <Compile Include="Dependency\Variables\Blended.cs" />
     <Compile Include="Dependency\Variables\Formula.cs" />
     <Compile Include="Dependency\Variables\List.cs" />
     <Compile Include="Dependency\Variables\Receiver.cs" />

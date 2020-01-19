@@ -67,6 +67,7 @@ namespace Dependency
         bool CanConvert(IEvaluateable ie);
         bool TryConvert(IEvaluateable ie, out T target);
         IEvaluateable ConvertFrom(T item);
+        T ConvertTo(IEvaluateable item);
     }
 
 
@@ -122,7 +123,7 @@ namespace Dependency
     public interface INotifyUpdates<T>
     {
         /// <summary>Fired when the <see cref="IAsyncUpdater"/>'s cached value changes.</summary>
-        event ValueChangedHandler<T> ValueChanged;
+        event ValueChangedHandler<T> Updated;
     }
 
     public interface IReference
@@ -187,9 +188,13 @@ namespace Dependency
 
     internal interface IUpdatedVariable : IVariable
     {
-        /// <summary>ONLY sets the contents.  Does nothing else.  This is called only within a write lock so don't lock again.</summary>
+        /// <summary>ONLY sets the contents.  Does nothing else.  This is called only within a 
+        /// <seealso cref="Update.StructureLock"/> write lock so don't lock again.</summary>
         void SetContents(IEvaluateable newContent);
-        /// <summary>ONLY sets the value.  Does nothing else.  This is called only outside a write lock, so lock it.</summary>
+        /// <summary>ONLY sets the value.  Does nothing else.  This is called only outside a 
+        /// <seealso cref="Update.StructureLock"/> write lock, but within a read lock.  If the 
+        /// <seealso cref="IUpdatedVariable"/>'s value requires locking, it is safe to lock within 
+        /// the implementation of this method.</summary>
         bool SetValue(IEvaluateable newValue);
     }
 

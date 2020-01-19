@@ -151,6 +151,7 @@ namespace Dependency.Variables
             // This can NOT be the weak-weak pattern (a WeakReference<WeakReferenceSet<...>>).
             private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
 
+            public int Count => _Listeners.Count;
             private WeakReferenceSet<ISyncUpdater> GetListeners() => _Listeners;
             public bool Add(ISyncUpdater listener)
             {

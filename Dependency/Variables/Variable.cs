@@ -39,6 +39,7 @@ namespace Dependency.Variables
                 finally { _ValueLock.ExitReadLock(); }
             }
         }
+
         private bool SetValue(IEvaluateable newValue)
         {
             _ValueLock.EnterWriteLock();
@@ -47,7 +48,7 @@ namespace Dependency.Variables
                 if (_Value.Equals(newValue)) return false;
                 IEvaluateable oldValue = _Value;
                 _Value = newValue;
-                ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
+                OnValueChanged(oldValue, newValue);
                 return true;
             }
             finally { _ValueLock.ExitWriteLock(); }
@@ -71,7 +72,9 @@ namespace Dependency.Variables
                 update.Execute();
             }
         }
-        void IUpdatedVariable.SetContents(IEvaluateable newContents) => _Contents = newContents;
+        /// <summary>Sets contents without starting a new update.</summary>
+        protected void SetContents(IEvaluateable newContents) => _Contents = newContents;
+        void IUpdatedVariable.SetContents(IEvaluateable newContents) => SetContents(newContents);
 
 
 
@@ -84,20 +87,44 @@ namespace Dependency.Variables
             return Contents.ToString() + " = " + Value.ToString();
         }
 
-        public event ValueChangedHandler<IEvaluateable> ValueChanged;
+        public event ValueChangedHandler<IEvaluateable> Updated;
+
+        /// <summary>Called immediately after the cached value is updated, from within a 
+        /// <seealso cref="Variable._ValueLock"/> write lock.  Invokes the 
+        /// <seealso cref="Updated"/> event.</summary>
+        protected virtual void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
+        {
+            Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
+        }
+
+
 
         #region Variable connection members
+        internal virtual bool OnAddListener(ISyncUpdater isu) => Listeners.Add(isu);
+        internal virtual bool OnRemoveListener(ISyncUpdater isu) => Listeners.Remove(isu);
+        internal virtual void OnParentChanged(ISyncUpdater oldParent, ISyncUpdater newParent) 
+            => _Parent = newParent;
+        bool IAsyncUpdater.AddListener(ISyncUpdater isu) => OnAddListener(isu);
+        bool IAsyncUpdater.RemoveListener(ISyncUpdater isu) => OnRemoveListener(isu);
+        IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
+        internal readonly Update.ListenerManager Listeners = new Update.ListenerManager();
 
-        bool IAsyncUpdater.AddListener(ISyncUpdater idi) => _Listeners.Add(idi);
-        bool IAsyncUpdater.RemoveListener(ISyncUpdater idi) => _Listeners.Remove(idi);
-        IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
-        private readonly Update.ListenerManager _Listeners = new Update.ListenerManager();
-        
-        
-        ISyncUpdater ISyncUpdater.Parent { get; set; } = null;
+        private ISyncUpdater _Parent = null;
+        internal ISyncUpdater Parent
+        {
+            get => _Parent;
+            set
+            {
+                if (_Parent == null)
+                    if (value == null) return;
+                if (_Parent == value) return;
+                OnParentChanged(_Parent, value);
+            }
+        }
+        ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
         bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(_Contents.Value);
-#endregion
+        #endregion
 
     }
 
