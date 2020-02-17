@@ -21,7 +21,11 @@ namespace Dependency.Variables
 
         bool ICollection<T>.IsReadOnly => false;
 
-        
+        public List()
+        {
+            Converter = Dependency.Values.Converter<T>.Default;
+            throw new NotImplementedException();
+        }
 
         public T this[int index]
         {

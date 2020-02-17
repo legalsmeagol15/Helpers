@@ -26,7 +26,7 @@ namespace Dependency.Auto
 
         bool IContext.TryGetProperty(string path, out IEvaluateable source)
         {
-            
+            throw new NotImplementedException();
         }
 
         bool IContext.TryGetSubcontext(string path, out IContext ctxt)
