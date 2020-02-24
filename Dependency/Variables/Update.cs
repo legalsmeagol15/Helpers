@@ -101,10 +101,12 @@ namespace Dependency.Variables
             }
             finally { StructureLock.ExitUpgradeableReadLock(); }
 
-            // Force all the tasks to finish while.  StructureLock should not be held.
+            // Force all the tasks to finish.  StructureLock should not be held.
             while (_Tasks.TryDequeue(out Task t))
             {
                 t.Wait();
+                if (t.Exception != null)
+                    throw new Exception("TODO:  a meaningful  message", t.Exception);
             }
 
             // Done.
