@@ -37,6 +37,8 @@ namespace Mathematics.Geometry
         public static Vector operator /(Vector v, double d) { return new Vector(v.X / d, v.Y / d); }
 #pragma warning restore 1591
 
+        public override string ToString() => X + "," + Y;
+
     }
 
     /// <summary>

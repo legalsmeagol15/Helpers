@@ -26,6 +26,12 @@ namespace Mathematics.Geometry
         IRect<T> Bounds { get; }
     }
 
+    /// <summary>
+    /// Represents a rectangle.  Duh.
+    /// <para/>There exist other versions of this in standard libraries.  This implementation is 
+    /// so I don't have to reference those libraries here.  This might be a bad idea, we'll see.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public struct Rect<T> : IRect<T> where T: struct, IComparable<T>
     {
         public static readonly Rect<T> Empty = new Rect<T>(true);
