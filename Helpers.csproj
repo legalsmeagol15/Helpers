@@ -46,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Algorithm_Lab.cs" />
     <Compile Include="Arguments\Attributes.cs" />
     <Compile Include="Arguments\Options.cs" />
     <Compile Include="Arguments\Profile.cs" />
@@ -57,6 +58,7 @@
     <Compile Include="DataStructures\Interfaces\IVertex.cs" />
     <Compile Include="DataStructures\Lists.cs" />
     <Compile Include="DataStructures\Maps\CompositeKeyDictionary.cs" />
+    <Compile Include="DataStructures\Prioritized.cs" />
     <Compile Include="DataStructures\Sets\WeakReferenceSet.cs" />
     <Compile Include="DataStructures\Sets\DisjointSet.cs" />
     <Compile Include="DataStructures\Threading\Atomic.cs" />
