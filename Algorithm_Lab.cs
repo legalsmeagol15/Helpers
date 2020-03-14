@@ -21,15 +21,10 @@ namespace Helpers
         {
             // see https://www.geeksforgeeks.org/edit-distance-dp-5/
 
-            if (a.Length == 0) return b.Length;
-            if (b.Length == 0) return a.Length;
-
-
             // Dynamic programming makes this O(a.length * b.length), instead of O(3^a.length)
             int[,] known = new int[a.Length, b.Length];
 
             return _EditDistance(a.Length, b.Length, limit_distance);
-
 
             int _EditDistance(int a_idx, int b_idx, int limit)
             {
@@ -39,19 +34,21 @@ namespace Helpers
                     return b_idx;
                 if (b_idx == 0)
                     return a_idx;
-                int tmp = known[a_idx, b_idx];
+                int tmp = known[a_idx-1, b_idx-1];
                 if (tmp > 0)
                     return tmp;
                 // If the substrings end the same, then return the next-smallest substrings.
-                tmp = _EditDistance(a_idx - 1, b_idx - 1, limit-1);
-                if (a[a_idx] != b[b_idx])
+                tmp = _EditDistance(a_idx - 1, b_idx - 1, limit - 1);
+                if (a[a_idx - 1] != b[b_idx - 1])
                 {
-                    tmp = Math.Min(tmp, _EditDistance(a_idx, b_idx - 1, limit-1)); // insert
-                    tmp = Math.Min(tmp, _EditDistance(a_idx - 1, a_idx, limit-1)); // remove
-                    // We already calculated a replace value.
+                    // Since the strings aren't identical, the minimum edit distance would be the 
+                    // smallest of an insert, remove, or replace operation.
+                    tmp = Math.Min(tmp, _EditDistance(a_idx, b_idx - 1, limit - 1));                         // insert
+                    tmp = Math.Min(tmp, _EditDistance(a_idx - 1, b_idx, limit-1));          // remove
+                    // We already tried a replace operation.
                     tmp++;
                 }
-                return (known[a_idx, b_idx] = tmp);
+                return (known[a_idx-1, b_idx-1] = tmp);
             }
         }
     }

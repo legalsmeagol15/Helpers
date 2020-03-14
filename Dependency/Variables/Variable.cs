@@ -26,10 +26,10 @@ namespace Dependency.Variables
         // listeners to Update.  Variable then updates to value 2, calls its listeners to update.  Listeners update 
         // with the pushed value 2, and evaluate themselves accordingly.  Then listeners update with pushed value 
         // 1, and evaluate accordingly.  Listeners are now inconsistent with Variable's current value, whcih is 2.
-        
+
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-        
+
         public IEvaluateable Value
         {
             get
@@ -102,7 +102,7 @@ namespace Dependency.Variables
         #region Variable connection members
         internal virtual bool OnAddListener(ISyncUpdater isu) => Listeners.Add(isu);
         internal virtual bool OnRemoveListener(ISyncUpdater isu) => Listeners.Remove(isu);
-        internal virtual void OnParentChanged(ISyncUpdater oldParent, ISyncUpdater newParent) 
+        internal virtual void OnParentChanged(ISyncUpdater oldParent, ISyncUpdater newParent)
             => _Parent = newParent;
         bool IAsyncUpdater.AddListener(ISyncUpdater isu) => OnAddListener(isu);
         bool IAsyncUpdater.RemoveListener(ISyncUpdater isu) => OnRemoveListener(isu);
@@ -126,6 +126,24 @@ namespace Dependency.Variables
         bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(_Contents.Value);
         #endregion
 
+        public static Variable<T> Typed<T>(IEvaluateable contents = null, IConverter<T> converter = null)
+            => new Variable<T>(contents, converter);
+    }
+
+
+    public sealed class Variable<T> : Variable
+    {
+        internal Variable(IEvaluateable contents = null, IConverter<T> converter = null) : base(contents)
+        {
+            this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
+            this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
+        }
+        private readonly IConverter<T> _Converter;
+        private readonly TypeFlags _TypeGuarantee;
+        public T Get()
+        {
+
+        }
     }
 
 
