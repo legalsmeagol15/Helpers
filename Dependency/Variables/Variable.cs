@@ -140,10 +140,9 @@ namespace Dependency.Variables
         }
         private readonly IConverter<T> _Converter;
         private readonly TypeFlags _TypeGuarantee;
-        public T Get()
-        {
-
-        }
+        public T Get() => _Converter.ConvertTo(this.Value);
+        public void Set(T newContents) => this.Contents = _Converter.ConvertFrom(newContents);
+        public static implicit operator T(Variable<T> v) => v._Converter.ConvertTo(v.Value);
     }
 
 
