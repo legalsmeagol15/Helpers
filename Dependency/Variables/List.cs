@@ -7,10 +7,11 @@ using System.Threading.Tasks;
 using System.Collections;
 using DataStructures;
 using System.Threading;
+using System.Collections.Specialized;
 
 namespace Dependency.Variables
 {
-    class List<T> : IList<T>, IIndexable,  IContext, IVariable
+    public class List<T> : IList<T>, IIndexable,  IContext, IVariable, INotifyCollectionChanged
     {
         System.Collections.Generic.List<Node> _InnerList = new System.Collections.Generic.List<Node>();
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
@@ -27,6 +28,10 @@ namespace Dependency.Variables
             this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
             this._InnerList = items.Select(item => new Node(this, item)).ToList();
         }
+
+        private void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
+            => CollectionChanged?.Invoke(this, e);
+        public event NotifyCollectionChangedEventHandler CollectionChanged;
 
         public T this[int index]
         {
@@ -77,7 +82,8 @@ namespace Dependency.Variables
             finally { Update.StructureLock.ExitReadLock(); }
         }
 
-        public void Insert(int index, T item)
+        public void Insert(int index, T item) => Insert(index, _Converter.ConvertFrom(item));
+        public void Insert(int index, IEvaluateable item)
         {
             Update.StructureLock.EnterWriteLock();
             try
@@ -107,7 +113,8 @@ namespace Dependency.Variables
             NotifySizeChange();
         }
 
-        public void Add(T item)
+        public void Add(T item) => Add(_Converter.ConvertFrom(item));
+        public void Add(IEvaluateable item)
         {
             Update.StructureLock.EnterWriteLock();
             try
@@ -119,7 +126,7 @@ namespace Dependency.Variables
             NotifySizeChange();
         }
 
-        void ICollection<T>.Clear()
+        public void Clear()
         {
             int lastIdx = _InnerList.Count - 1;
             if (_InnerList.Count == 0) return;
@@ -249,8 +256,15 @@ namespace Dependency.Variables
             }
 
             public Node(List<T> host, T item) { this.List = host; this._Item = item; }
+            public Node(List<T> host, IEvaluateable iev)
+            {
+                this.List = host;
+                this._Contents = iev;
+                this._Value = this._Contents.Value;
+                this._Item = this.List._Converter.ConvertTo(this._Value);
+            }
 
-            
+
             public void SetContents(IEvaluateable overrideContents)
             {
                 Update.StructureLock.EnterUpgradeableReadLock();
