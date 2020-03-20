@@ -35,7 +35,7 @@ namespace Dependency.Variables
         TypeFlags ITypeGuarantee.TypeGuarantee => _TypeGuarantee;
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim();
         private T _CachedValue;
-        public T Get => _CachedValue;  // Call this "get" for continuity with Source{T}
+        public T Get() => _CachedValue;  // Call this "get" for continuity with Source{T}
         /// <summary>
         /// Creates a new <see cref="Formula{T}"/> with the given initializer function.  The 
         /// initializer will NOT be checked for circularity when it executes, this is the job of 

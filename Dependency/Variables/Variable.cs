@@ -139,7 +139,7 @@ namespace Dependency.Variables
             this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
             this.Contents = this._Converter.ConvertFrom(startingValue);
         }
-        internal Variable(IEvaluateable contents = null, IConverter<T> converter = null) : base(contents)
+        public Variable(IEvaluateable contents = null, IConverter<T> converter = null) : base(contents)
         {
             this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
             this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
