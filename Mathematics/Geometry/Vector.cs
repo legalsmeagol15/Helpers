@@ -35,6 +35,8 @@ namespace Mathematics.Geometry
         public static Vector operator *(Vector v, double d) { return new Vector(v.X * d, v.Y * d); }
         public static Vector operator *(double d, Vector v) { return v * d; }
         public static Vector operator /(Vector v, double d) { return new Vector(v.X / d, v.Y / d); }
+        public static bool operator  ==(Vector a, Vector b) => a.X == b.X && a.Y == b.Y;
+        public static bool operator !=(Vector a, Vector b) => a.X != b.X || a.Y != b.Y;
 #pragma warning restore 1591
 
         public override string ToString() => X + "," + Y;
