@@ -98,7 +98,18 @@ namespace Mathematics.Geometry
         }
         IRect<T> IRect<T>.GetUnion(IRect<T> other) => GetUnion(other);
 
-        
+        public override bool Equals(object obj)
+            => obj is Rect<T> other && Left.Equals(other.Left) 
+                                    && Right.Equals(other.Right)
+                                    && Top.Equals(other.Top) 
+                                    && Bottom.Equals(other.Bottom);
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return Math.Abs(Left.GetHashCode() + Right.GetHashCode() + Top.GetHashCode() + Bottom.GetHashCode());
+            }
+        }
     }
     
 }
