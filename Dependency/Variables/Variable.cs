@@ -133,6 +133,8 @@ namespace Dependency.Variables
 
     public sealed class Variable<T> : Variable
     {
+        // TODO:  does this replace a Blended<T> ?
+        private T _Cache = default(T);
         public Variable(T startingValue)
         {
             this._Converter = Dependency.Values.Converter<T>.Default;
@@ -146,9 +148,15 @@ namespace Dependency.Variables
         }
         private readonly IConverter<T> _Converter;
         private readonly TypeFlags _TypeGuarantee;
-        public T Get() => _Converter.ConvertTo(this.Value);
+        public T Get() => _Cache;
         public void Set(T newContents) => this.Contents = _Converter.ConvertFrom(newContents);
         public static implicit operator T(Variable<T> v) => v._Converter.ConvertTo(v.Value);
+
+        protected override void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
+        {
+            _Cache = (_Converter == null) ? default(T) : _Converter.ConvertTo(this.Value);
+            base.OnValueChanged(oldValue, newValue);
+        }
     }
 
 
