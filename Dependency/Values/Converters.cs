@@ -21,6 +21,8 @@ namespace Dependency.Values
                 _Default = (IConverter<T>)(IConverter<string>)(new StringConverter());
             else if (typeof(IEvaluateable).IsAssignableFrom(typeof(T)))
                 _Default = (IConverter<T>)(IConverter<IEvaluateable>)(new TransparentConverter());
+            else if (typeof(bool).IsAssignableFrom(typeof(T)))
+                _Default = (IConverter<T>)(IConverter<bool>)(new BoolConverter());
             else
                 _Default = new Converter<T>();
         }
@@ -48,8 +50,28 @@ namespace Dependency.Values
             return false;
         }
     }
-    
 
+    internal sealed class BoolConverter : IConverter<bool>, ITypeGuarantee
+    {
+        TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Boolean;
+
+        bool IConverter<bool>.CanConvert(IEvaluateable ie) => ie is Dependency.Boolean;
+
+        IEvaluateable IConverter<bool>.ConvertFrom(bool item) => item ? Dependency.Boolean.True : Dependency.Boolean.False;
+
+        bool IConverter<bool>.ConvertTo(IEvaluateable item)
+        {
+            if (item is Dependency.Boolean b) return b;
+            return false;
+        }
+
+        bool IConverter<bool>.TryConvert(IEvaluateable ie, out bool target)
+        {
+            if (ie is Dependency.Boolean b) { target = b; return true; }
+            target = false;
+            return false;
+        }
+    }
     internal sealed class DecimalConverter : IConverter<decimal>, ITypeGuarantee
     {
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.RealAny;
