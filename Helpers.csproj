@@ -115,6 +115,7 @@
     <Compile Include="Dependency\Variables\Variable.cs" />
     <Compile Include="Enums.cs" />
     <Compile Include="Events.cs" />
+    <Compile Include="Logging.cs" />
     <Compile Include="Mathematics\Geometry\Rect.cs" />
     <Compile Include="Mathematics\Random.cs" />
     <Compile Include="Networking.cs" />
