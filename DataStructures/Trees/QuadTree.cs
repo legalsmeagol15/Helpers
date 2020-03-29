@@ -16,6 +16,8 @@ namespace DataStructures
         protected override bool Exclude(double size, IRect<double> rect) => (rect.Right - rect.Left) < size || (rect.Top - rect.Bottom) < size;
 
         protected override double GetMid(double a, double b) => (a + b) / 2;
+
+        
     }
 
     public sealed class QuadTreeN<TItem> : AbstractQuadTree<TItem, Number> where TItem : IBounded<Number>
@@ -102,6 +104,37 @@ namespace DataStructures
 
         protected abstract TNumber GetMid(TNumber a, TNumber b);
         protected abstract bool Exclude(TNumber size, IRect<TNumber> rect);
+
+        public IEnumerable<TItem> GetIntersectors(IRect<TNumber> bounds)
+        {
+            if (_Root == null || !bounds.Overlaps(_Root.Bounds)) yield break;
+            Stack<Node> stack = new Stack<Node>();
+            stack.Push(_Root);
+            while (stack.Count > 0)
+            {
+                Node focus = stack.Pop();
+                foreach (var child in focus.Children)
+                    if (child != null && bounds.Overlaps(child.Bounds)) stack.Push(child);
+                foreach (var item in focus.Items)
+                    if (bounds.Overlaps(item.Bounds))
+                        yield return item;
+            }
+        }
+        public IEnumerable<TItem> GetIntersectors(IPoint<TNumber> point)
+        {
+            if (_Root == null || !_Root.Bounds.Contains(point)) yield break;
+            Stack<Node> stack = new Stack<Node>();
+            stack.Push(_Root);
+            while (stack.Count > 0)
+            {
+                Node focus = stack.Pop();
+                foreach (var child in focus.Children)
+                    if (child != null && child.Bounds.Contains(point)) stack.Push(child);
+                foreach (var item in focus.Items)
+                    if (item.Bounds.Contains(point))
+                        yield return item;
+            }
+        }
 
         private sealed class Node : IBounded<TNumber>
         {

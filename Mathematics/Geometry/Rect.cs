@@ -13,6 +13,7 @@ namespace Mathematics.Geometry
         T Top { get; }
         T Bottom { get; }
 
+        bool Contains(IPoint<T> point);
         bool Contains(IRect<T> other);
         bool Overlaps(IRect<T> other);
         bool IsEmpty { get; }
@@ -59,6 +60,14 @@ namespace Mathematics.Geometry
             this.IsEmpty = false;
         }
 
+        public bool Contains(IPoint<T> point)
+        {
+            if (IsEmpty) return false;
+            return Left.CompareTo(point.X) <= 0
+                    && point.X.CompareTo(Right) <= 0
+                    && Bottom.CompareTo(point.Y) <= 0
+                    && point.Y.CompareTo(Top) <= 0;
+        }
         public bool Contains(IRect<T> other)
         {
             if (IsEmpty || other.IsEmpty) return false;

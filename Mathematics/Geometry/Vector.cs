@@ -6,11 +6,12 @@ using System.Threading.Tasks;
 
 namespace Mathematics.Geometry
 {
+    public interface IPoint <T> { T X { get; } T Y { get; } }
     /// <summary>
     /// A data structure embodying a vector in two-dimensional space.
     /// </summary>
     [Serializable]
-    public struct Vector
+    public struct Vector : IPoint<double>
     {
         /// <summary>The x-coordinate.</summary>
         public double X { get; private set; }
