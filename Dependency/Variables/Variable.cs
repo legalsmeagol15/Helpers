@@ -146,7 +146,7 @@ namespace Dependency.Variables
             this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
             this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
         }
-        private readonly IConverter<T> _Converter;
+        private readonly IConverter<T> _Converter;      // This should never be null
         private readonly TypeFlags _TypeGuarantee;
         public T Get() => _Cache;
         public void Set(T newContents) => this.Contents = _Converter.ConvertFrom(newContents);
@@ -154,9 +154,15 @@ namespace Dependency.Variables
 
         protected override void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
         {
-            _Cache = (_Converter == null) ? default(T) : _Converter.ConvertTo(this.Value);
+            T oldCache = _Cache;            
+            _Cache =  _Converter.ConvertTo(this.Value);
+            if (oldCache ==  null) { if (_Cache == null) return; }                
+            else if (oldCache.Equals(_Cache)) return;
             base.OnValueChanged(oldValue, newValue);
+            ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldCache, _Cache));
         }
+        
+        public event ValueChangedHandler<T> ValueChanged;
     }
 
 
