@@ -98,7 +98,6 @@ namespace Mathematics.Geometry
 
         public Rect<T> GetUnion(IRect<T> other)
         {
-            if (!Overlaps(other)) return Empty;
             T left = (Left.CompareTo(other.Left) < 0) ? Left : other.Left;
             T right = (Right.CompareTo(other.Right) > 0) ? Right : other.Right;
             T bottom = (Bottom.CompareTo(other.Bottom) < 0) ? Bottom : other.Bottom;
