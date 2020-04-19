@@ -7,25 +7,31 @@ using System.Threading.Tasks;
 using System.Collections;
 using DataStructures;
 using System.Threading;
+using System.Collections.Specialized;
 
 namespace Dependency.Variables
 {
-    class List<T> : IList<T>, IIndexable,  IContext, IVariable
+    public class List<T> : IList<T>, IIndexable,  IContext, IVariable, INotifyCollectionChanged
     {
-        System.Collections.Generic.List<Node> _List = new System.Collections.Generic.List<Node>();
+        System.Collections.Generic.List<Node> _InnerList = new System.Collections.Generic.List<Node>();
         private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-        internal IConverter<T> Converter;
+        private readonly IConverter<T> _Converter;
         private WeakReference<Source<int>> _SizeRef;
 
-        public int Count => _List.Count;
+        public int Count => _InnerList.Count;
 
         bool ICollection<T>.IsReadOnly => false;
 
-        public List()
+        public List(IEnumerable<T> items = null) : this(null, items) { }
+        public List(IConverter<T> converter,  IEnumerable<T> items = null)
         {
-            Converter = Dependency.Values.Converter<T>.Default;
-            throw new NotImplementedException();
+            this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
+            this._InnerList = items.Select(item => new Node(this, item)).ToList();
         }
+
+        private void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
+            => CollectionChanged?.Invoke(this, e);
+        public event NotifyCollectionChangedEventHandler CollectionChanged;
 
         public T this[int index]
         {
@@ -35,7 +41,7 @@ namespace Dependency.Variables
                 Update.StructureLock.EnterReadLock();
                 try
                 {
-                    Node n = _List[index];  // Might throw an exception
+                    Node n = _InnerList[index];  // Might throw an exception
                     return n.Item;
                 }
                 finally { Update.StructureLock.ExitReadLock(); }
@@ -46,7 +52,7 @@ namespace Dependency.Variables
                 Update.StructureLock.EnterReadLock();
                 try
                 {
-                    Node n = _List[index];  // Might throw an exception
+                    Node n = _InnerList[index];  // Might throw an exception
                     n.Item = value;
                 }
                 finally { Update.StructureLock.ExitReadLock(); }
@@ -60,7 +66,7 @@ namespace Dependency.Variables
             {
                 if (_SizeRef == null) return;
                 else if (!_SizeRef.TryGetTarget(out Source<int> src)) return;
-                else src.Set(_List.Count);
+                else src.Set(_InnerList.Count);
             }
             finally { Update.StructureLock.ExitReadLock(); }
         }
@@ -70,24 +76,25 @@ namespace Dependency.Variables
             Update.StructureLock.EnterReadLock();
             try
             {
-                for (int i = 0; i < _List.Count; i++) if (_List[i].Equals(item)) return i;
+                for (int i = 0; i < _InnerList.Count; i++) if (_InnerList[i].Equals(item)) return i;
                 return -1;
             }
             finally { Update.StructureLock.ExitReadLock(); }
         }
 
-        public void Insert(int index, T item)
+        public void Insert(int index, T item) => Insert(index, _Converter.ConvertFrom(item));
+        public void Insert(int index, IEvaluateable item)
         {
             Update.StructureLock.EnterWriteLock();
             try
             {
-                _List.Insert(index, new Node(this, item));
+                _InnerList.Insert(index, new Node(this, item));
             }
             finally { Update.StructureLock.ExitWriteLock(); }
-            if (index == _List.Count-1)
+            if (index == _InnerList.Count-1)
                 Update.ForCollection(this, new Number(index)).Execute();
             else
-                Update.ForCollection(this, new Values.Range(new Number(index), new Number(_List.Count - 1))).Execute();
+                Update.ForCollection(this, new Values.Range(new Number(index), new Number(_InnerList.Count - 1))).Execute();
             NotifySizeChange();
         }
 
@@ -96,36 +103,37 @@ namespace Dependency.Variables
             Update.StructureLock.EnterWriteLock();
             try
             {
-                _List.RemoveAt(index);
+                _InnerList.RemoveAt(index);
             }
             finally { Update.StructureLock.ExitWriteLock(); }
-            if (index == _List.Count)
+            if (index == _InnerList.Count)
                 Update.ForCollection(this, new Number(index)).Execute();
             else
-                Update.ForCollection(this, new Values.Range(new Number(index), new Number(_List.Count))).Execute();
+                Update.ForCollection(this, new Values.Range(new Number(index), new Number(_InnerList.Count))).Execute();
             NotifySizeChange();
         }
 
-        public void Add(T item)
+        public void Add(T item) => Add(_Converter.ConvertFrom(item));
+        public void Add(IEvaluateable item)
         {
             Update.StructureLock.EnterWriteLock();
             try
             {
-                _List.Add(new Node(this, item));
+                _InnerList.Add(new Node(this, item));
             }
             finally { Update.StructureLock.ExitWriteLock(); }
-            Update.ForCollection(this, new Number(_List.Count-1)).Execute();
+            Update.ForCollection(this, new Number(_InnerList.Count-1)).Execute();
             NotifySizeChange();
         }
 
-        void ICollection<T>.Clear()
+        public void Clear()
         {
-            int lastIdx = _List.Count - 1;
-            if (_List.Count == 0) return;
+            int lastIdx = _InnerList.Count - 1;
+            if (_InnerList.Count == 0) return;
             Update.StructureLock.EnterWriteLock();
             try
             {
-                _List.Clear();
+                _InnerList.Clear();
             }
             finally { Update.StructureLock.ExitWriteLock(); }
 
@@ -140,8 +148,8 @@ namespace Dependency.Variables
             Update.StructureLock.EnterReadLock();
             try
             {
-                for (int i = 0; i < _List.Count && arrayIndex < array.Length; i++)
-                    array[arrayIndex++] = _List[i].Item;
+                for (int i = 0; i < _InnerList.Count && arrayIndex < array.Length; i++)
+                    array[arrayIndex++] = _InnerList[i].Item;
             }
             finally { Update.StructureLock.ExitReadLock(); }
         }
@@ -151,13 +159,13 @@ namespace Dependency.Variables
             Update.StructureLock.EnterUpgradeableReadLock();
             try
             {
-                for (int i = 0; i < _List.Count; i++)
+                for (int i = 0; i < _InnerList.Count; i++)
                 {
-                    if (!_List[i].Item.Equals(item)) continue;
+                    if (!_InnerList[i].Item.Equals(item)) continue;
                     Update.StructureLock.EnterWriteLock();
                     try
                     {
-                        _List.RemoveAt(1);
+                        _InnerList.RemoveAt(1);
                     }finally { Update.StructureLock.ExitWriteLock(); }
                     Update.ForVariable(this).Execute();
                 }
@@ -173,7 +181,7 @@ namespace Dependency.Variables
         IEvaluateable IVariable.Contents 
             => throw new InvalidOperationException("A " + nameof(List<T>) + " has no " + nameof(IEvaluateable) + " contents.");
 
-        public IEnumerator<T> GetEnumerator() => _List.Select(n => n.Item).GetEnumerator();
+        public IEnumerator<T> GetEnumerator() => _InnerList.Select(n => n.Item).GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
@@ -185,9 +193,9 @@ namespace Dependency.Variables
                 Update.StructureLock.EnterReadLock();
                 try
                 {
-                    if (index >= 0 && index < _List.Count)
+                    if (index >= 0 && index < _InnerList.Count)
                     {
-                        val = _List[index];
+                        val = _InnerList[index];
                         return true;
                     }
                     
@@ -208,9 +216,9 @@ namespace Dependency.Variables
                     try
                     {
                         if (_SizeRef == null)
-                            _SizeRef = new WeakReference<Source<int>>(new Source<int>(_List.Count));
+                            _SizeRef = new WeakReference<Source<int>>(new Source<int>(_InnerList.Count));
                         if (!_SizeRef.TryGetTarget(out Source<int> src))
-                            _SizeRef.SetTarget(src = new Source<int>(_List.Count));
+                            _SizeRef.SetTarget(src = new Source<int>(_InnerList.Count));
                         source = src;
                         return true;
                     } finally { Update.StructureLock.ExitWriteLock(); }                    
@@ -237,7 +245,7 @@ namespace Dependency.Variables
                     _Item = value;
                     if (Listeners.Any())
                     {
-                        IEvaluateable iev = List.Converter.ConvertFrom(value);
+                        IEvaluateable iev = List._Converter.ConvertFrom(value);
                         Update.ForVariable(this, iev).Execute();
                     } else
                     {
@@ -248,15 +256,22 @@ namespace Dependency.Variables
             }
 
             public Node(List<T> host, T item) { this.List = host; this._Item = item; }
+            public Node(List<T> host, IEvaluateable iev)
+            {
+                this.List = host;
+                this._Contents = iev;
+                this._Value = this._Contents.Value;
+                this._Item = this.List._Converter.ConvertTo(this._Value);
+            }
 
-            
+
             public void SetContents(IEvaluateable overrideContents)
             {
                 Update.StructureLock.EnterUpgradeableReadLock();
                 try
                 {
                     if (!Update.ForVariable(this, overrideContents).Execute()) return;
-                    if (List.Converter.TryConvert(Value, out T result))
+                    if (List._Converter.TryConvert(Value, out T result))
                         _Item = result;
 
                 }

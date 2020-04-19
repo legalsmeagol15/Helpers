@@ -16,6 +16,8 @@ namespace DataStructures
         protected override bool Exclude(double size, IRect<double> rect) => (rect.Right - rect.Left) < size || (rect.Top - rect.Bottom) < size;
 
         protected override double GetMid(double a, double b) => (a + b) / 2;
+
+        
     }
 
     public sealed class QuadTreeN<TItem> : AbstractQuadTree<TItem, Number> where TItem : IBounded<Number>
@@ -35,8 +37,20 @@ namespace DataStructures
         /// <summary>The count of content items on this <see cref="AbstractQuadTree{TItem, TNumber}"/>.</summary>
         public int Count { get; private set; }
 
+        private struct BoundedPoint : IBounded<TNumber>
+        {
+            internal readonly IPoint<TNumber> Point;
+            private readonly IRect<TNumber> _Bounds;
+            IRect<TNumber> IBounded<TNumber>.Bounds => _Bounds;
+            public BoundedPoint(IPoint<TNumber> pt) { this.Point = pt; this._Bounds = new Rect<TNumber>(pt.X, pt.X, pt.Y, pt.Y); }
+            public override bool Equals(object obj) => obj is BoundedPoint other && Point.Equals(other.Point);
+            public override int GetHashCode() => Point.GetHashCode();
+        }
+        /// <summary>Adds the given point to this <see cref="AbstractQuadTree{TItem, TNumber}"/>.</summary>
+        public void Add(IPoint<TNumber> item) { Add(new BoundedPoint(item)); }
         /// <summary>Adds the given item to this <see cref="AbstractQuadTree{TItem, TNumber}"/>.</summary>
-        public void Add(TItem item)
+        public void Add(TItem item) { Add((IBounded<TNumber>)item); }
+        private void Add(IBounded<TNumber> item)
         {
             IRect<TNumber> bounds = item.Bounds;
             if (_Root == null)
@@ -69,8 +83,9 @@ namespace DataStructures
         public void Clear() { _Root = null; Count = 0; }
 
         /// <summary>
-        /// Calculates the furthers extent of the bounds that would contain all the content items of this 
-        /// <see cref="AbstractQuadTree{TItem, TNumber}"/>.  This is an O(n) operation, where n is the number of content items existing.
+        /// Calculates the furthest extent of the bounds that would contain all the content items 
+        /// of this <see cref="AbstractQuadTree{TItem, TNumber}"/>.  This is an O(n) operation, 
+        /// where n is the number of content items existing.
         /// </summary>
         public Rect<TNumber> GetBounds()
         {
@@ -103,6 +118,60 @@ namespace DataStructures
         protected abstract TNumber GetMid(TNumber a, TNumber b);
         protected abstract bool Exclude(TNumber size, IRect<TNumber> rect);
 
+        public IEnumerable<IPoint<TNumber>> GetPoints(IRect<TNumber> bounds)
+        {
+            if (_Root == null || !bounds.Overlaps(_Root.Bounds)) yield break;
+            Stack<Node> stack = new Stack<Node>();
+            stack.Push(_Root);
+            while (stack.Count > 0)
+            {
+                Node focus = stack.Pop();
+                foreach (var child in focus.Children)
+                    if (child != null && bounds.Overlaps(child.Bounds)) stack.Push(child);
+                foreach (var item in focus.Items)
+                {
+                    if (!bounds.Overlaps(item.Bounds)) continue;
+                    if (item is BoundedPoint bp) yield return bp.Point;
+                }
+
+            }
+        }
+        public IEnumerable<TItem> GetIntersectors(IRect<TNumber> bounds)
+        {
+            if (_Root == null || !bounds.Overlaps(_Root.Bounds)) yield break;
+            Stack<Node> stack = new Stack<Node>();
+            stack.Push(_Root);
+            while (stack.Count > 0)
+            {
+                Node focus = stack.Pop();
+                foreach (var child in focus.Children)
+                    if (child != null && bounds.Overlaps(child.Bounds)) stack.Push(child);
+                foreach (var item in focus.Items)
+                {
+                    if (!bounds.Overlaps(item.Bounds)) continue;
+                    if (item is TItem ti) yield return ti;
+                }
+                    
+            }
+        }
+        public IEnumerable<TItem> GetIntersectors(IPoint<TNumber> point)
+        {
+            if (_Root == null || !_Root.Bounds.Contains(point)) yield break;
+            Stack<Node> stack = new Stack<Node>();
+            stack.Push(_Root);
+            while (stack.Count > 0)
+            {
+                Node focus = stack.Pop();
+                foreach (var child in focus.Children)
+                    if (child != null && child.Bounds.Contains(point)) stack.Push(child);
+                foreach (var item in focus.Items)
+                {
+                    if (!item.Bounds.Contains(point)) continue;
+                    if (item is TItem ti) yield return ti;
+                }                    
+            }
+        }
+
         private sealed class Node : IBounded<TNumber>
         {
             public const int NODE_CAPACITY = 16;
@@ -111,7 +180,7 @@ namespace DataStructures
             public TNumber MidX => _Tree.GetMid(Bounds.Right, Bounds.Left);
             public TNumber MidY => _Tree.GetMid(Bounds.Top, Bounds.Bottom);
             public IRect<TNumber> Bounds { get; internal set; } = Rect<TNumber>.Empty;
-            public readonly List<TItem> Items = new List<TItem>(NODE_CAPACITY);
+            public readonly List<IBounded<TNumber>> Items = new List<IBounded<TNumber>>(NODE_CAPACITY);
             // _____________
             // |     |     |
             // |  1  |  0  |
@@ -132,7 +201,7 @@ namespace DataStructures
             /// Adds the given item to this node.  If it won't fit in this node, but could fit  on a child, adds it to 
             /// the child.
             /// </summary>
-            public void Add(TItem item)
+            public void Add(IBounded<TNumber> item)
             {
                 int quadrant;
                 // If the Items is at capacity, or no child will fit the item anyway, just add it here.
@@ -190,17 +259,16 @@ namespace DataStructures
             /// Removes the item from this node, if it exists.  If it exists and is removed, returns true.  Otherwise, 
             /// returns false.
             /// </summary>
-            public bool Remove(TItem item)
+            public bool Remove(IBounded<TNumber> item)
             {
                 Node node = this;
                 while (node != null)
                 {
-                    if (node.Items.Remove(item))
+                    if (node.Items.Remove(item) || (item is BoundedPoint bp && node.Items.Remove(bp)))
                     {
                         // Removal was successful, so prune empty parts of the tree.                        
                         while (true)
                         {
-
                             if (node.Items.Any() || node.HasChildren) break;
                             Node parent = node.Parent;
                             if (parent == null) break;

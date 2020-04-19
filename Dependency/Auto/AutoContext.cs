@@ -11,6 +11,7 @@ namespace Dependency.Auto
         private readonly static System.Runtime.CompilerServices.ConditionalWeakTable<object, AutoContext> _Catalogue
             = new System.Runtime.CompilerServices.ConditionalWeakTable<object, AutoContext>();
         private readonly WeakReference Host;
+        
 
         public AutoContext(object host)
         {
@@ -22,6 +23,11 @@ namespace Dependency.Auto
             if (_Catalogue.TryGetValue(host, out AutoContext ctxt)) return ctxt;
             ctxt = new AutoContext(host);
             return ctxt;
+        }
+
+        public static void UpdateProperty(object host, string path)
+        {
+            throw new NotImplementedException();
         }
 
         bool IContext.TryGetProperty(string path, out IEvaluateable source)

@@ -13,6 +13,7 @@ namespace Mathematics.Geometry
         T Top { get; }
         T Bottom { get; }
 
+        bool Contains(IPoint<T> point);
         bool Contains(IRect<T> other);
         bool Overlaps(IRect<T> other);
         bool IsEmpty { get; }
@@ -26,6 +27,12 @@ namespace Mathematics.Geometry
         IRect<T> Bounds { get; }
     }
 
+    /// <summary>
+    /// Represents a rectangle.  Duh.
+    /// <para/>There exist other versions of this in standard libraries.  This implementation is 
+    /// so I don't have to reference those libraries here.  This might be a bad idea, we'll see.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public struct Rect<T> : IRect<T> where T: struct, IComparable<T>
     {
         public static readonly Rect<T> Empty = new Rect<T>(true);
@@ -53,6 +60,14 @@ namespace Mathematics.Geometry
             this.IsEmpty = false;
         }
 
+        public bool Contains(IPoint<T> point)
+        {
+            if (IsEmpty) return false;
+            return Left.CompareTo(point.X) <= 0
+                    && point.X.CompareTo(Right) <= 0
+                    && Bottom.CompareTo(point.Y) <= 0
+                    && point.Y.CompareTo(Top) <= 0;
+        }
         public bool Contains(IRect<T> other)
         {
             if (IsEmpty || other.IsEmpty) return false;
@@ -92,7 +107,18 @@ namespace Mathematics.Geometry
         }
         IRect<T> IRect<T>.GetUnion(IRect<T> other) => GetUnion(other);
 
-        
+        public override bool Equals(object obj)
+            => obj is Rect<T> other && Left.Equals(other.Left) 
+                                    && Right.Equals(other.Right)
+                                    && Top.Equals(other.Top) 
+                                    && Bottom.Equals(other.Bottom);
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return Math.Abs(Left.GetHashCode() + Right.GetHashCode() + Top.GetHashCode() + Bottom.GetHashCode());
+            }
+        }
     }
     
 }

@@ -6,6 +6,15 @@ using System.Threading.Tasks;
 
 namespace DataStructures.Undo
 {
+    public sealed class Undoable : IUndoable
+    {
+        public readonly Action Undo, Redo;
+        public Undoable(Action undo, Action redo) { this.Undo = undo; this.Redo = redo; }
+
+        void IUndoable.Redo() => Redo();
+
+        void IUndoable.Undo() => Undo();
+    }
     public enum UndoTypes { Add, Delete, Modify }
     public sealed class Undoable<T> : IUndoable
     {        

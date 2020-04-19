@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 
 namespace Mathematics.Geometry
 {
+    public interface IPoint <T> { T X { get; } T Y { get; } }
     /// <summary>
     /// A data structure embodying a vector in two-dimensional space.
     /// </summary>
-    public struct Vector
+    [Serializable]
+    public struct Vector : IPoint<double>
     {
         /// <summary>The x-coordinate.</summary>
         public double X { get; private set; }
@@ -35,7 +37,19 @@ namespace Mathematics.Geometry
         public static Vector operator *(Vector v, double d) { return new Vector(v.X * d, v.Y * d); }
         public static Vector operator *(double d, Vector v) { return v * d; }
         public static Vector operator /(Vector v, double d) { return new Vector(v.X / d, v.Y / d); }
+        public static bool operator  ==(Vector a, Vector b) => a.X == b.X && a.Y == b.Y;
+        public static bool operator !=(Vector a, Vector b) => a.X != b.X || a.Y != b.Y;
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return Math.Abs(X.GetHashCode() + Y.GetHashCode());
+            }
+        }
+        public override bool Equals(object obj) => obj is Vector other && this == other;
 #pragma warning restore 1591
+
+        public override string ToString() => X + "," + Y;
 
     }
 
