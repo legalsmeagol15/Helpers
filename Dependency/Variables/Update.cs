@@ -45,7 +45,7 @@ namespace Dependency.Variables
 
         public static Update ForCollection(IVariable var, params IEvaluateable[] indices) => new Update(var, null, indices);
 
-        
+
 
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
@@ -143,6 +143,8 @@ namespace Dependency.Variables
                         Enqueue(iv, listener);
                 updatedChild = target;
                 target = target.Parent;
+                if (target is Reference)
+                    throw new InvalidOperationException("A " + nameof(Reference) + " is not permitted to be a parent.");
             }
             return true;
         }
@@ -171,6 +173,59 @@ namespace Dependency.Variables
 
             IEnumerator<ISyncUpdater> IEnumerable<ISyncUpdater>.GetEnumerator() => _Listeners.GetEnumerator();
             IEnumerator IEnumerable.GetEnumerator() => _Listeners.GetEnumerator();
+        }
+
+        /// <summary>
+        /// Refactors all references to the given <paramref name="context"/> to the new string 
+        /// <paramref name="after"/>.
+        /// </summary>
+        public static int Refactor(IContext context, string after)
+        {
+            int count = 0;
+            StructureLock.EnterWriteLock();
+            try
+            {
+                // We must take any properties of the given context, or of its sub-contexts, check 
+                // if those properties have listening references, and then refactor each of those 
+                // references.
+                HashSet<object> visited = new HashSet<object>();
+                HashSet<Reference> refs = new HashSet<Reference>();
+                Stack<object> stack = new Stack<object>();
+                stack.Push(context);
+                while (stack.Count > 0)
+                {
+                    object focus = stack.Pop();
+                    if (!visited.Add(focus)) 
+                        continue;
+                    foreach (System.Reflection.FieldInfo fInfo in focus.GetType().GetFields(System.Reflection.BindingFlags.Instance
+                                                                                            | System.Reflection.BindingFlags.Public
+                                                                                            | System.Reflection.BindingFlags.NonPublic))
+                    {
+                        object val = fInfo.GetValue(focus);
+
+                        // If the property is a subcontext, that subcontext might have listener 
+                        // References that name the given context.
+                        if (val is IContext sub_ctxt) 
+                            stack.Push(sub_ctxt);
+
+                        // Any property that has async listeners might have References naming the 
+                        // given context.
+                        if (val is IAsyncUpdater iau)
+                            foreach (var listener in iau.GetListeners().OfType<Reference>())
+                                refs.Add(listener);
+                    }
+                }
+
+                // Now that we know which listening References exist, tell them to refactor the 
+                // given context.
+                foreach (Reference r in refs)
+                    if (r.Refactor(context, after))
+                        count++;
+
+                // Don't know who might want this, but it's data that we have.
+                return count;
+            }
+            finally { StructureLock.ExitWriteLock(); }
         }
     }
 }

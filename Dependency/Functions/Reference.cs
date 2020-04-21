@@ -11,6 +11,8 @@ namespace Dependency.Functions
     internal sealed class Reference : IFunction, IDisposable, IReference
     {
         // Cannot implement Function directly because the count of Inputs can change.
+
+        // This is not intended to be a parent of anything else.
         
         public readonly bool IsAbsolute;
         public ISyncUpdater Parent { get; set; }
@@ -163,7 +165,16 @@ namespace Dependency.Functions
             Value = newValue;
             return true;
         }
-        
+
+        /// <summary>
+        /// Refactors the reference to change the given item's name.  Returns whether a change was 
+        /// made or not.
+        /// </summary>        
+        internal bool Refactor(IContext context, string newName)
+        {
+            throw new NotImplementedException();
+        }
+
         IList<IEvaluateable> IFunction.Inputs => Inputs.ToList();
         private IEnumerable<IEvaluateable> Inputs => _Steps.Where(s => s.Input != null).Select(s => s.Input);
         IEnumerable<IEvaluateable> IReference.GetComposers() => Inputs;
