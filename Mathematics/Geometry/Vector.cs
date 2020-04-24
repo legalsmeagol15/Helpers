@@ -7,6 +7,46 @@ using System.Threading.Tasks;
 namespace Mathematics.Geometry
 {
     public interface IPoint <T> { T X { get; } T Y { get; } }
+    public struct VectorN : IPoint<Dependency.Number>
+    {
+        /// <summary>The x-coordinate.</summary>
+        public Dependency.Number X { get; private set; }
+        /// <summary>The y-coordinate.</summary>
+        public Dependency.Number Y { get; private set; }
+        /// <summary>Creates a new two-dimensional vector.</summary>
+        public VectorN(Dependency.Number x, Dependency.Number y) { X = x; Y = y; }
+
+        /// <summary>
+        /// Returns the square of the length of this vector.  <para/>Many mathematical operations rely on the square of the length rather than the 
+        /// length itself.  This is an optimization.
+        /// </summary>
+        public Dependency.Number GetLengthSquared() { return (X * X) + (Y * Y); }
+        /// <summary> Returns the length of the vector. </summary>
+        public Dependency.Number GetLength() { return Math.Sqrt(GetLengthSquared()); }
+        /// <summary>Edits this vector to be a normalized vector.</summary>
+        public void Normalize() { Dependency.Number len = GetLength(); X /= len; Y /= len; }
+
+#pragma warning disable 1591
+        public static VectorN operator +(VectorN a, VectorN b) { return new VectorN(a.X + b.X, a.Y + b.Y); }
+        public static VectorN operator -(VectorN a, VectorN b) { return new VectorN(a.X - b.X, a.Y - b.Y); }
+        public static VectorN operator -(VectorN a) { return new VectorN(-a.X, -a.Y); }
+        public static VectorN operator *(VectorN v, double d) { return new VectorN(v.X * d, v.Y * d); }
+        public static VectorN operator *(double d, VectorN v) { return v * d; }
+        public static VectorN operator /(VectorN v, double d) { return new VectorN(v.X / d, v.Y / d); }
+        public static bool operator ==(VectorN a, VectorN b) => a.X == b.X && a.Y == b.Y;
+        public static bool operator !=(VectorN a, VectorN b) => a.X != b.X || a.Y != b.Y;
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return Math.Abs(X.GetHashCode() + Y.GetHashCode());
+            }
+        }
+        public override bool Equals(object obj) => obj is VectorN other && this == other;
+#pragma warning restore 1591
+
+        public override string ToString() => X + "," + Y;
+    }
     /// <summary>
     /// A data structure embodying a vector in two-dimensional space.
     /// </summary>
