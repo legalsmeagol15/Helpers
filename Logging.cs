@@ -16,45 +16,94 @@ namespace Helpers
         CRITICAL = 50
     }
 
-    public class Logging
+    /// <summary>Designed to be static so it can be reached easily from any class that can 
+    /// reference <seealso cref="Helpers"/>.  This static class is state-based.</summary>
+    public static class Log
     {
-        private static Logging _Logger;
-        public static Logging Log
+        // TODO:  all for async logging.
+
+        public const string DEFAULT_FACILITY = "fac1";
+        public enum LoggingChannels { NONE = 0, FILE = 1 << 1, EVENT = 1 << 2 }
+
+        /// <summary>The current state of the channels output.</summary>
+        public static LoggingChannels Channels { get => _Channels; set => _Channels = value; }
+        private static LoggingChannels _Channels = LoggingChannels.FILE | LoggingChannels.EVENT;
+        public static bool OutputsToFile => (_Channels & LoggingChannels.FILE) != LoggingChannels.NONE;
+        public static bool OutputsToEvent => (_Channels & LoggingChannels.EVENT) != LoggingChannels.NONE;
+
+        public static string Facility { get; set; } = DEFAULT_FACILITY;
+        public static bool ShowPrefix { get; set; } = true;
+        public static bool ShowSender { get; set; } = true;
+
+        /// <summary>Logs a message at severity <seealso cref="LoggingSeverity.DEBUG"/>.</summary>
+        /// <param name="sender">The object sending the message.</param>
+        /// <param name="message">The message to send.</param>
+        /// <param name="facility">Optional.  The facility to which the message should be sent.  
+        /// If omitted, sent to <seealso cref="DEFAULT_FACILITY"/>.</param>
+        /// <param name="prefix">Optional.  A caller-specifed prefix.  This will be the 
+        /// <seealso cref="CallerMemberNameAttribute"/>.</param>
+        public static void Debug(object sender, string message, string facility = null, [CallerMemberName] string prefix = null)
+            => Do_Log(sender, facility, LoggingSeverity.DEBUG, message, prefix);
+
+        /// <summary>Logs a message at severity <seealso cref="LoggingSeverity.INFO"/>.</summary>
+        /// <param name="sender">The object sending the message.</param>
+        /// <param name="message">The message to send.</param>
+        /// <param name="facility">Optional.  The facility to which the message should be sent.  
+        /// If omitted, sent to <seealso cref="DEFAULT_FACILITY"/>.</param>
+        /// <param name="prefix">Optional.  A caller-specifed prefix.  This will be the 
+        /// <seealso cref="CallerMemberNameAttribute"/>.</param>
+        public static void Info(object sender, string message, string facility = null, [CallerMemberName] string prefix = null)
+            => Do_Log(sender, facility, LoggingSeverity.INFO, message, prefix);
+
+        /// <summary>Logs a message at severity <seealso cref="LoggingSeverity.WARNING"/>.</summary>
+        /// <param name="sender">The object sending the message.</param>
+        /// <param name="message">The message to send.</param>
+        /// <param name="facility">Optional.  The facility to which the message should be sent.  
+        /// If omitted, sent to <seealso cref="DEFAULT_FACILITY"/>.</param>
+        /// <param name="prefix">Optional.  A caller-specifed prefix.  This will be the 
+        /// <seealso cref="CallerMemberNameAttribute"/>.</param>
+        public static void Warning(object sender, string message, string facility = null, [CallerMemberName] string prefix = null)
+            => Do_Log(sender, facility, LoggingSeverity.WARNING, message, prefix);
+
+        /// <summary>Logs a message at severity <seealso cref="LoggingSeverity.ERROR"/>.</summary>
+        /// <param name="sender">The object sending the message.</param>
+        /// <param name="message">The message to send.</param>
+        /// <param name="facility">Optional.  The facility to which the message should be sent.  
+        /// If omitted, sent to <seealso cref="DEFAULT_FACILITY"/>.</param>
+        /// <param name="prefix">Optional.  A caller-specifed prefix.  This will be the 
+        /// <seealso cref="CallerMemberNameAttribute"/>.</param>
+        public static void Error(object sender, string message, string facility = null, [CallerMemberName] string prefix = null)
+            => Do_Log(sender, facility, LoggingSeverity.ERROR, message, prefix);
+
+        /// <summary>Logs a message at severity <seealso cref="LoggingSeverity.CRITICAL"/>.</summary>
+        /// <param name="sender">The object sending the message.</param>
+        /// <param name="message">The message to send.</param>
+        /// <param name="facility">Optional.  The facility to which the message should be sent.  
+        /// If omitted, sent to <seealso cref="DEFAULT_FACILITY"/>.</param>
+        /// <param name="prefix">Optional.  A caller-specifed prefix.  This will be the 
+        /// <seealso cref="CallerMemberNameAttribute"/>.</param>
+        public static void Critical(object sender, string message, string facility = null, [CallerMemberName] string prefix = null)
+            => Do_Log(sender, facility, LoggingSeverity.CRITICAL, message, prefix);
+
+        private static void Do_Log(object sender, string facility, LoggingSeverity severity, string message, string prefix, string separator = " - ")
         {
-            get => _Logger ?? (_Logger = new Logging());
-        }        
-
-        private Outputs _Outputs;
-        public enum Outputs { NONE = 0, EVENT = 1 << 1, FILE = 1 << 2 }
-        public void SetOutputs(Outputs outputs) { this._Outputs = outputs; }
-        public bool OutputsToEvent => (_Outputs & Outputs.EVENT) != Outputs.NONE;
-        public bool OutputsToFile => (_Outputs & Outputs.FILE) != Outputs.NONE;
-
-        public Logging(Outputs outputs = Outputs.EVENT | Outputs.FILE) { this._Outputs = outputs; }
-
-        public void Debug(string message, string facility = "fac1", [CallerMemberName] string prefix = null)
-            => Do_Log(facility, LoggingSeverity.DEBUG, message, prefix);
-        public void Info(string message, string facility = "fac1", [CallerMemberName] string prefix = null)
-            => Do_Log(facility, LoggingSeverity.INFO, message, prefix);
-        public void Warning(string message, string facility = "fac1", [CallerMemberName] string prefix = null)
-            => Do_Log(facility, LoggingSeverity.WARNING, message, prefix);
-        public void Error(string message, string facility = "fac1", [CallerMemberName] string prefix = null)
-            => Do_Log(facility, LoggingSeverity.ERROR, message, prefix);
-        public void Critical(string message, string facility = "fac1", [CallerMemberName] string prefix = null)
-            => Do_Log(facility, LoggingSeverity.CRITICAL, message, prefix);
-
-        private void Do_Log(string facility, LoggingSeverity severity, string message, string prefix, string separator = " - ")
-        {
-            if (prefix != null)
+            if (ShowPrefix && prefix != null)
                 message = prefix + separator + message;
-            if (OutputsToEvent)
-                OnLog?.Invoke(this, new LogEventArgs(facility, severity, message));
+            if (ShowSender && sender != null)
+                message = sender.GetType().Name + "." + message;
+            if (facility == null)
+                facility = Facility ?? DEFAULT_FACILITY;
             if (OutputsToFile)
                 throw new NotImplementedException();
+            if (OutputsToEvent)
+                Logged?.Invoke(sender, new LogEventArgs(Facility, severity, message));            
         }
 
-        public event LogEventHandler OnLog;
+        /// <summary>Invoked upon receiving a logging message.  Fires after the file channel is 
+        /// output, if required.</summary>
+        public static event LogEventHandler Logged;        
     }
+
 
     public delegate void LogEventHandler(object sender, LogEventArgs e);
 
