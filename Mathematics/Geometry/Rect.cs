@@ -47,7 +47,7 @@ namespace Mathematics.Geometry
         public bool IsEdge => Left.Equals(Right) ^ Bottom.Equals(Top);
 
         /// <summary>Creates an empty <see cref="Rect{T}"/>.</summary>
-        private Rect(bool isEmpty) { IsEmpty = isEmpty; Left = Right = Bottom = Top = default(T); }
+        private Rect(bool isEmpty) { IsEmpty = isEmpty; Left = Right = Bottom = Top = default; }
 
         public Rect(T left, T right, T bottom, T top)
         {
@@ -86,7 +86,7 @@ namespace Mathematics.Geometry
                     || Top.CompareTo(other.Bottom) < 0);
         }
 
-        public IRect<T> GetIntersection(IRect<T> other)
+        public Rect<T> GetIntersection(IRect<T> other)
         {
             if (!Overlaps(other)) return Empty;
             T left = (Left.CompareTo(other.Left) > 0) ? Left : other.Left;
@@ -95,14 +95,33 @@ namespace Mathematics.Geometry
             T top = (Top.CompareTo(other.Top) < 0) ? Top: other.Top;
             return new Rect<T>(left, right, bottom, top);
         }
+        IRect<T> IRect<T>.GetIntersection(IRect<T> other) => GetIntersection(other);
 
+        /// <summary>
+        /// Returns the union of this and the given item.  The union will equal the 
+        /// <see cref="IRect{T}"/> exactly large enough to include all points in both items.  Note 
+        /// that the two <see cref="IRect{T}"/> items do not need to intersect.
+        /// </summary>     
         public Rect<T> GetUnion(IRect<T> other)
         {
+            if (other.IsEmpty) return this;
             T left = (Left.CompareTo(other.Left) < 0) ? Left : other.Left;
             T right = (Right.CompareTo(other.Right) > 0) ? Right : other.Right;
             T bottom = (Bottom.CompareTo(other.Bottom) < 0) ? Bottom : other.Bottom;
             T top = (Top.CompareTo(other.Top) > 0) ? Top : other.Top;
             return new Rect<T>(left, right, bottom, top);
+        }
+        /// <summary>
+        /// Returns the union of all the given items.  The union will equal the 
+        /// <see cref="IRect{T}"/> exactly large enough to include all points in all items.  Note 
+        /// that the two <see cref="IRect{T}"/> items do not need to intersect.
+        /// </summary>
+        public static IRect<T> GetUnion(IEnumerable<Rect<T>> items)
+        {
+            // TODO:  getting the union of a large set of items can be made more efficient by 
+            IRect<T> result = Rect<T>.Empty;
+            foreach (var item in items) result = result.GetUnion(item);
+            return result;
         }
         IRect<T> IRect<T>.GetUnion(IRect<T> other) => GetUnion(other);
 
