@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Mathematics.Geometry
 {
-    public interface IRect<T> where T : struct
+    public interface IRect<T> where T : struct, IComparable<T> // TODO:  does it have to be struct?
     {
         T Left { get; }
         T Right { get; }
@@ -22,9 +22,42 @@ namespace Mathematics.Geometry
         IRect<T> GetIntersection(IRect<T> other);
     }
 
-    public interface IBounded<T> where T: struct
+    public interface IBounded<T> where T : struct, IComparable<T>
     {
         IRect<T> Bounds { get; }
+    }
+
+    public static class Helpers
+    {
+        public static bool SharesEdge<T>(this IRect<T> a, IRect<T> other) where T:struct, IComparable<T>
+        {
+            if (a.IsEmpty || other.IsEmpty) return false;
+            return (a.Left.CompareTo(other.Left) == 0) 
+                || (a.Right.CompareTo(other.Right) == 0) 
+                || (a.Top.CompareTo(other.Top) == 0) 
+                || (a.Bottom.CompareTo(other.Bottom) == 0);
+        }
+
+        /// <summary>
+        /// Returns the union of all the given items.  The union will equal the 
+        /// <see cref="IRect{T}"/> exactly large enough to include all points in all items.  Note 
+        /// that the two <see cref="IRect{T}"/> items do not need to intersect.
+        /// </summary>
+        public static IRect<T> GetUnion<T>(this IEnumerable<IRect<T>> items) where T:struct, IComparable<T>
+        {
+            // TODO:  getting the union of a large set of items can be made more efficient by 
+            IRect<T> result = Rect<T>.Empty;
+            foreach (var item in items) result = result.GetUnion(item);
+            return result;
+        }
+
+        /// <summary>
+        /// Returns the union of all the given items.  The union will equal the 
+        /// <see cref="IRect{T}"/> exactly large enough to include all points in all items.  Note 
+        /// that the two <see cref="IRect{T}"/> items do not need to intersect.
+        /// </summary>
+        public static IRect<T> GetUnion<T>(this IEnumerable<IBounded<T>> items) where T : struct, IComparable<T>
+            => GetUnion(items.Select(item => item.Bounds));
     }
 
     /// <summary>
@@ -33,7 +66,7 @@ namespace Mathematics.Geometry
     /// so I don't have to reference those libraries here.  This might be a bad idea, we'll see.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public struct Rect<T> : IRect<T> where T: struct, IComparable<T>
+    public struct Rect<T> : IRect<T> where T : struct, IComparable<T>
     {
         public static readonly Rect<T> Empty = new Rect<T>(true);
 
@@ -92,7 +125,7 @@ namespace Mathematics.Geometry
             T left = (Left.CompareTo(other.Left) > 0) ? Left : other.Left;
             T right = (Right.CompareTo(other.Right) < 0) ? Right : other.Right;
             T bottom = (Bottom.CompareTo(other.Bottom) > 0) ? Bottom : other.Bottom;
-            T top = (Top.CompareTo(other.Top) < 0) ? Top: other.Top;
+            T top = (Top.CompareTo(other.Top) < 0) ? Top : other.Top;
             return new Rect<T>(left, right, bottom, top);
         }
         IRect<T> IRect<T>.GetIntersection(IRect<T> other) => GetIntersection(other);
@@ -111,24 +144,13 @@ namespace Mathematics.Geometry
             T top = (Top.CompareTo(other.Top) > 0) ? Top : other.Top;
             return new Rect<T>(left, right, bottom, top);
         }
-        /// <summary>
-        /// Returns the union of all the given items.  The union will equal the 
-        /// <see cref="IRect{T}"/> exactly large enough to include all points in all items.  Note 
-        /// that the two <see cref="IRect{T}"/> items do not need to intersect.
-        /// </summary>
-        public static IRect<T> GetUnion(IEnumerable<Rect<T>> items)
-        {
-            // TODO:  getting the union of a large set of items can be made more efficient by 
-            IRect<T> result = Rect<T>.Empty;
-            foreach (var item in items) result = result.GetUnion(item);
-            return result;
-        }
+        
         IRect<T> IRect<T>.GetUnion(IRect<T> other) => GetUnion(other);
 
         public override bool Equals(object obj)
-            => obj is Rect<T> other && Left.Equals(other.Left) 
+            => obj is Rect<T> other && Left.Equals(other.Left)
                                     && Right.Equals(other.Right)
-                                    && Top.Equals(other.Top) 
+                                    && Top.Equals(other.Top)
                                     && Bottom.Equals(other.Bottom);
         public override int GetHashCode()
         {
@@ -138,5 +160,5 @@ namespace Mathematics.Geometry
             }
         }
     }
-    
+
 }

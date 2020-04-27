@@ -12,9 +12,8 @@ namespace DataStructures.Undo
     public class UndoStack : IUndoStack
     {
         private readonly object _Lock = new object();
-        private Stack<IUndoable> toUndo = new Stack<IUndoable>();
-        private Stack<IUndoable> toRedo = new Stack<IUndoable>();
-
+        private readonly Stack<IUndoable> toUndo = new Stack<IUndoable>();
+        private readonly Stack<IUndoable> toRedo = new Stack<IUndoable>();
         
         public void Push(IUndoable action)
         {

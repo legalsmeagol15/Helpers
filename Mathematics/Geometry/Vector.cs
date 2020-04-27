@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dependency;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +14,8 @@ namespace Mathematics.Geometry
         public Dependency.Number X { get; private set; }
         /// <summary>The y-coordinate.</summary>
         public Dependency.Number Y { get; private set; }
+        public Number LengthSquared => (X * X) + (Y * Y);
+
         /// <summary>Creates a new two-dimensional vector.</summary>
         public VectorN(Dependency.Number x, Dependency.Number y) { X = x; Y = y; }
 

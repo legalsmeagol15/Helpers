@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 
 namespace DataStructures.Undo
 {
-    public sealed class Undoable : IUndoable
+    public delegate void UndoableEventHandler(object sender, Undoable u);
+    
+    public sealed class Undoable : EventArgs, IUndoable
     {
         public readonly Action Undo, Redo;
         public Undoable(Action undo, Action redo) { this.Undo = undo; this.Redo = redo; }

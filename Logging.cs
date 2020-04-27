@@ -94,7 +94,7 @@ namespace Helpers
             if (facility == null)
                 facility = Facility ?? DEFAULT_FACILITY;
             if (OutputsToFile)
-                throw new NotImplementedException();
+                Logged?.Invoke(sender, new LogEventArgs(Facility, severity, "TODO:  Not Implemented - outputsToFile"));
             if (OutputsToEvent)
                 Logged?.Invoke(sender, new LogEventArgs(Facility, severity, message));            
         }
