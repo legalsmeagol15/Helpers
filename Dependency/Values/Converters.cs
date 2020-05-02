@@ -8,7 +8,7 @@ namespace Dependency.Values
 {
     internal class Converter<T> : IConverter<T>
     {
-        private static IConverter<T> _Default;
+        private static readonly IConverter<T> _Default;
         static Converter()
         {
             if (typeof(int).Equals(typeof(T)))
