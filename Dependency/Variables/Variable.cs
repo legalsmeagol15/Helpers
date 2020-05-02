@@ -134,17 +134,19 @@ namespace Dependency.Variables
     public sealed class Variable<T> : Variable
     {
         // TODO:  does this replace a Blended<T> ?
-        private T _Cache = default(T);
+        private T _Cache = default;
         public Variable(T startingValue)
         {
             this._Converter = Dependency.Values.Converter<T>.Default;
             this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
             this.Contents = this._Converter.ConvertFrom(startingValue);
         }
-        public Variable(IEvaluateable contents = null, IConverter<T> converter = null) : base(contents)
+        public Variable(IEvaluateable contents = null, IConverter<T> converter = null)  // Don't call base.Contents(it will try to 
+                                                                                        // update Value before a IConverter is ready)
         {
             this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
             this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
+            this.Contents = contents ?? Null.Instance;
         }
         private readonly IConverter<T> _Converter;      // This should never be null
         private readonly TypeFlags _TypeGuarantee;
