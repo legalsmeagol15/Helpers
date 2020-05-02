@@ -21,7 +21,10 @@ namespace Dependency.Variables
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
         private IVariable Starter;
         public readonly IEvaluateable NewContents;
-        private IEnumerable<IEvaluateable> Indices = null;
+        private readonly IEnumerable<IEvaluateable> Indices = null;
+
+        private static long _Updating = 0;
+        public static long Updating => Interlocked.Read(ref _Updating);
 
 
         private Update(IVariable var, IEvaluateable newContents, IEnumerable<IEvaluateable> indices)
@@ -114,7 +117,10 @@ namespace Dependency.Variables
         }
 
         internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener) // TODO:  this should be done within the StructureLock read lock?
-            => _Tasks.Enqueue(Task.Run(() => Execute(source, listener)));
+        {
+            Interlocked.Increment(ref _Updating);
+            _Tasks.Enqueue(Task.Run(() => Execute(source, listener)));
+        }
 
         /// <summary>Executes this <see cref="Update"/> for the given 
         /// <seealso cref="ISyncUpdater"/> from the perspective of the given 
@@ -131,11 +137,11 @@ namespace Dependency.Variables
         {
             ISyncUpdater start = target;
             ISyncUpdater updatedChild = source as ISyncUpdater;
+            bool result = true;
             while (target != null)
             {
                 // If nothing was updated, return false.
-                if (!target.Update(this, updatedChild))
-                    return !target.Equals(start);
+                if (!target.Update(this, updatedChild)) { result = !target.Equals(start);break; }
 
                 // Since target was updated, enqueue its listeners and proceed.
                 if (target is IAsyncUpdater iv)
@@ -146,7 +152,9 @@ namespace Dependency.Variables
                 if (target is Reference)
                     throw new InvalidOperationException("A " + nameof(Reference) + " is not permitted to be a parent.");
             }
-            return true;
+
+            Interlocked.Decrement(ref _Updating);
+            return result;
         }
 
         /// <summary>Manages the thread access to a set of listeners.</summary>
