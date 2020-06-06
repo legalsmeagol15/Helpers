@@ -58,6 +58,9 @@ namespace Mathematics.Geometry
         /// </summary>
         public static IRect<T> GetUnion<T>(this IEnumerable<IBounded<T>> items) where T : struct, IComparable<T>
             => GetUnion(items.Select(item => item.Bounds));
+
+        public static Dependency.Number GetWidth(this IRect<Dependency.Number> rect) => rect.Right - rect.Left;
+        public static Dependency.Number GetHeight(this IRect<Dependency.Number> rect) => rect.Top - rect.Bottom;
     }
 
     /// <summary>

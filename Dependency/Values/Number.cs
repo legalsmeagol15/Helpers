@@ -11,7 +11,10 @@ namespace Dependency
     [DebuggerStepThrough]
     public struct Number : ILiteral<decimal>, ITypeGuarantee, IComparable<Number>
     {
-        // TODO:  allow a Number to be infinite.
+
+        // TODO:  allow a Number to be infinite?
+        public static readonly Number MaxValue = new Number(decimal.MaxValue);
+        public static readonly Number MinValue = new Number(decimal.MinValue);
         public static readonly Number Zero = new Number(0m);        
         public static readonly Number One = new Number(1m);
         public static readonly Number Pi = new Number((decimal)Math.PI);
@@ -108,7 +111,7 @@ namespace Dependency
         
         decimal ILiteral<decimal>.CLRValue => CLR_Value;
 
-        int IComparable<Number>.CompareTo(Number other) => CLR_Value.CompareTo(other.CLR_Value);
+        public int CompareTo(Number other) => CLR_Value.CompareTo(other.CLR_Value);
 
         IEvaluateable IEvaluateable.Value => this;
         TypeFlags ITypeGuarantee.TypeGuarantee => _TypeFlags;

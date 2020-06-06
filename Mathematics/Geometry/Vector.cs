@@ -30,8 +30,8 @@ namespace Mathematics.Geometry
         public void Normalize() { Dependency.Number len = GetLength(); X /= len; Y /= len; }
 
 #pragma warning disable 1591
-        public static VectorN operator +(VectorN a, VectorN b) { return new VectorN(a.X + b.X, a.Y + b.Y); }
-        public static VectorN operator -(VectorN a, VectorN b) { return new VectorN(a.X - b.X, a.Y - b.Y); }
+        public static VectorN operator +(VectorN a, IPoint<Number> b) { return new VectorN(a.X + b.X, a.Y + b.Y); }
+        public static VectorN operator -(VectorN a, IPoint<Number> b) { return new VectorN(a.X - b.X, a.Y - b.Y); }
         public static VectorN operator -(VectorN a) { return new VectorN(-a.X, -a.Y); }
         public static VectorN operator *(VectorN v, double d) { return new VectorN(v.X * d, v.Y * d); }
         public static VectorN operator *(double d, VectorN v) { return v * d; }
@@ -74,8 +74,8 @@ namespace Mathematics.Geometry
         public void Normalize() { double len = GetLength(); X /= len; Y /= len; }
 
 #pragma warning disable 1591
-        public static Vector operator +(Vector a, Vector b) { return new Vector(a.X + b.X, a.Y + b.Y); }
-        public static Vector operator -(Vector a, Vector b) { return new Vector(a.X - b.X, a.Y - b.Y); }
+        public static Vector operator +(Vector a, IPoint<Number> b) { return new Vector(a.X + b.X, a.Y + b.Y); }
+        public static Vector operator -(Vector a, IPoint<Number> b) { return new Vector(a.X - b.X, a.Y - b.Y); }
         public static Vector operator -(Vector a) { return new Vector(-a.X, -a.Y); }
         public static Vector operator *(Vector v, double d) { return new Vector(v.X * d, v.Y * d); }
         public static Vector operator *(double d, Vector v) { return v * d; }
