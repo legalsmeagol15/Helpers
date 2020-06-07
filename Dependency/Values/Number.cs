@@ -13,20 +13,24 @@ namespace Dependency
     {
 
         // TODO:  allow a Number to be infinite?
-        public static readonly Number MaxValue = new Number(decimal.MaxValue);
-        public static readonly Number MinValue = new Number(decimal.MinValue);
-        public static readonly Number Zero = new Number(0m);        
-        public static readonly Number One = new Number(1m);
-        public static readonly Number Pi = new Number((decimal)Math.PI);
-        public static readonly Number E = new Number((decimal)Math.E);
+        public static readonly Number MaxValue = new Number(decimal.MaxValue, true);
+        public static readonly Number MinValue = new Number(decimal.MinValue, true);
+        public static readonly Number Zero = new Number(0m, true);
+        public static readonly Number One = new Number(1m, true);
+        public static readonly Number Pi = new Number((decimal)Math.PI, false);
+        public static readonly Number E = new Number((decimal)Math.E, false);
 
         private readonly TypeFlags _TypeFlags;
 
         internal TypeFlags TypeFlags => _TypeFlags;
         internal decimal CLR_Value;
 
-        public Number(decimal m) { this.CLR_Value = m; this._TypeFlags = (_IsInteger(m)) ? TypeFlags.Integer : TypeFlags.RealAny; }
-        
+        public Number(decimal m) : this(m, _IsInteger(m)) { }
+        private Number(decimal m, bool isInt) // Some m's shouldn't check if they're ints, like MaxValue or MinValue
+        {
+            this.CLR_Value = m;
+            this._TypeFlags = isInt ? TypeFlags.Integer : TypeFlags.RealAny;
+        }
 
         public Number(double d) :
             this((double.IsNaN(d) || double.IsInfinity(d)) ? throw new InvalidCastException("Values NaN and infinity cannot be converted to a " + typeof(Number).Name + ".")
@@ -34,7 +38,7 @@ namespace Dependency
         { }
         public Number(int i) : this((decimal)i) { }
 
-        public static implicit operator Number(int i) => new Number((decimal)i);
+        public static implicit operator Number(int i) => new Number((decimal)i, false);
         public static implicit operator int(Number n) => (int)n.CLR_Value;
 
         public static implicit operator Number(double d) => new Number(d);
@@ -47,7 +51,7 @@ namespace Dependency
         public static implicit operator Number(bool b) => b ? Number.One : Number.Zero;
 
         public static implicit operator byte(Number n) => (byte)n.CLR_Value;
-        public static implicit operator Number(byte b) => new Number((decimal)b);
+        public static implicit operator Number(byte b) => new Number((decimal)b, false);
 
         public static ILiteral FromDouble(double d)
         {
@@ -56,18 +60,20 @@ namespace Dependency
             return new Number(d);
         }
 
-        
-        private static bool _IsInteger(decimal m) => (decimal)((int)m) ==  m;
+        /// <summary>Returns whether the given value is an integer.</summary>
+        /// <exception cref="OverflowException">Thrown if the given value is too large/small to be 
+        /// an int.</exception>
+        private static bool _IsInteger(decimal m) => (decimal)((int)m) == m;
         public bool IsInteger => _IsInteger(CLR_Value);
 
-        
+
 
         public static Number operator +(Number a, Number b) => new Number(a.CLR_Value + b.CLR_Value);
         public static Number operator -(Number n) => new Number(-n.CLR_Value);
         public static Number operator -(Number a, Number b) => new Number(a.CLR_Value - b.CLR_Value);
         public static Number operator *(Number a, Number b) => new Number(a.CLR_Value * b.CLR_Value);
         public static Number operator /(Number a, Number b) => new Number(a.CLR_Value / b.CLR_Value);
-        
+
         public static bool TryParse(string str, out Number n)
         {
             if (!decimal.TryParse(str, out decimal m)) { n = Zero; return false; }
@@ -94,10 +100,10 @@ namespace Dependency
             switch (obj)
             {
                 case Number n: return this.CLR_Value == n.CLR_Value;
-                case double d:return this.CLR_Value == (decimal)d;
-                case decimal m:return this.CLR_Value == m;
-                case int i:return this.CLR_Value == (decimal)i;
-            }            
+                case double d: return this.CLR_Value == (decimal)d;
+                case decimal m: return this.CLR_Value == m;
+                case int i: return this.CLR_Value == (decimal)i;
+            }
             return false;
         }
 
@@ -107,14 +113,14 @@ namespace Dependency
         public decimal ToDecimal() => CLR_Value;
         public double ToDouble() => (double)CLR_Value;
         public byte ToByte() => (byte)CLR_Value;
-        
-        
+
+
         decimal ILiteral<decimal>.CLRValue => CLR_Value;
 
         public int CompareTo(Number other) => CLR_Value.CompareTo(other.CLR_Value);
 
         IEvaluateable IEvaluateable.Value => this;
         TypeFlags ITypeGuarantee.TypeGuarantee => _TypeFlags;
-        
+
     }
 }
