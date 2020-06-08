@@ -194,7 +194,7 @@ namespace DataStructures.Threading
         /// Clears all work items out of the pipe.
         /// </summary>
         /// <param name="requestCancel">Specifies whether to attempt to cancel work on the current item.</param>
-        public void Flush(bool requestCancel = true)
+        public void Clear(bool requestCancel = true)
         {
             _Queue.Clear();
             if (requestCancel)
@@ -215,7 +215,7 @@ namespace DataStructures.Threading
         {
             //Raise the completion event for the just-done work item.
             base.OnRunWorkerCompleted(e);
-            Current = default(T);
+            Current = default;
 
             //If there are more on the queue, get the worker started on the next one.
             if (_Queue.Count > 0 && !IsBusy)
