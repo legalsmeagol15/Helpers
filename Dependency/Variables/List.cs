@@ -271,7 +271,7 @@ namespace Dependency.Variables
                 try
                 {
                     if (!Update.ForVariable(this, overrideContents).Execute()) return;
-                    if (List._Converter.TryConvert(Value, out T result))
+                    if (List._Converter.TryConvertTo(Value, out T result))
                         _Item = result;
 
                 }

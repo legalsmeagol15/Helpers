@@ -65,7 +65,7 @@ namespace Dependency
     public interface IConverter<T>
     {
         bool CanConvert(IEvaluateable ie);
-        bool TryConvert(IEvaluateable ie, out T target);
+        bool TryConvertTo(IEvaluateable ie, out T target);
         IEvaluateable ConvertFrom(T item);
         T ConvertTo(IEvaluateable item);
     }

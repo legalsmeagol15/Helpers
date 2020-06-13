@@ -66,7 +66,7 @@ namespace Dependency.Variables
 
         protected override void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
         {
-            if (_Converter.TryConvert(newValue, out T newClr))
+            if (_Converter.TryConvertTo(newValue, out T newClr))
                 _ClrValue = newClr;
             base.OnValueChanged(oldValue, newValue);
         }
