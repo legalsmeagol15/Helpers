@@ -20,6 +20,15 @@ namespace Helpers
         public ValueChangedArgs(T before, T after) { this.Before = before; this.After = after; }
     }
 
+    public delegate void PreviewHandler(object sender, PreviewEventArgs e);
+
+    public class PreviewEventArgs : EventArgs
+    {
+        public bool Cancel;
+        public readonly object Message;
+        public PreviewEventArgs(object message, bool cancel = false) { this.Message = message; this.Cancel = cancel; }
+    }
+
     /// <summary>
     /// Helper methods related to events.
     /// </summary>
