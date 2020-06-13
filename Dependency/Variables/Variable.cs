@@ -136,20 +136,6 @@ namespace Dependency.Variables
     }
 
 
-    public sealed class PreviewVariable : Variable
-    {
-        internal override void StartSetContents(IEvaluateable newContents)
-        {
-            var e = new PreviewEventArgs(newContents);
-            PreviewContentsChange?.Invoke(this, e);
-            if (!e.Cancel)
-                base.StartSetContents(newContents);
-        }
-
-        public event PreviewHandler PreviewContentsChange;
-    }
-
-
     public sealed class Variable<T> : Variable
     {
         // TODO:  does this replace a Blended<T> ?
