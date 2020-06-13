@@ -67,10 +67,15 @@ namespace Dependency.Variables
             }
             set
             {
-                // Use an update to kick off Parent's and listeners' updates as well.
-                var update = Update.ForVariable(this, value);
-                update.Execute();
+                StartSetContents(value);                
             }
+        }
+        internal virtual void StartSetContents(IEvaluateable newContents)
+        {
+            // The PreviewVariable has to override this.
+            // Use an update to kick off Parent's and listeners' updates as well.
+            var update = Update.ForVariable(this, newContents);
+            update.Execute();
         }
         /// <summary>Sets contents without starting a new update.</summary>
         protected void SetContents(IEvaluateable newContents) => _Contents = newContents;
@@ -128,6 +133,20 @@ namespace Dependency.Variables
 
         public static Variable<T> Typed<T>(IEvaluateable contents = null, IConverter<T> converter = null)
             => new Variable<T>(contents, converter);
+    }
+
+
+    public sealed class PreviewVariable : Variable
+    {
+        internal override void StartSetContents(IEvaluateable newContents)
+        {
+            var e = new PreviewEventArgs(newContents);
+            PreviewContentsChange?.Invoke(this, e);
+            if (!e.Cancel)
+                base.StartSetContents(newContents);
+        }
+
+        public event PreviewHandler PreviewContentsChange;
     }
 
 
