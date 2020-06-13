@@ -105,7 +105,7 @@
     <Compile Include="Dependency\Values\Range.cs" />
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
-    <Compile Include="Dependency\Variables\Blended.cs" />
+    <Compile Include="Dependency\Variables\Array.cs" />
     <Compile Include="Dependency\Variables\Formula.cs" />
     <Compile Include="Dependency\Variables\List.cs" />
     <Compile Include="Dependency\Variables\Receiver.cs" />
