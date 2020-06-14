@@ -77,7 +77,7 @@ namespace Dependency.Variables
                         // relations will be wrapped up automatically by the garbage collection.
                         if (iuv.Contents is ISyncUpdater idi_before) idi_before.Parent = null;
                         if (NewContents is ISyncUpdater idi_after) idi_after.Parent = (ISyncUpdater)iuv;
-                        if (!iuv.SetContents(NewContents))
+                        if (!iuv.CommitContents(NewContents))
                             throw new InvalidOperationException("Invalid contents: " + NewContents.ToString());
                     }
                     finally { StructureLock.ExitWriteLock(); }
@@ -87,7 +87,7 @@ namespace Dependency.Variables
                         newValue = new CircularityError(iuv);
 
                     // If the new value won't change the old value, no need to update listeners.
-                    if (!iuv.SetValue(newValue))
+                    if (!iuv.CommitValue(newValue))
                         return false;
                 }
 

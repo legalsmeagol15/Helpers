@@ -10,25 +10,7 @@ namespace Dependency.Variables
     public class Array : Variable, IIndexable
     {
         private readonly Variable[] _Items;
-        public IEvaluateable this[int idx]
-        {
-            get
-            {
-                if (idx >= 0 && idx <= _Items.Length) return _Items[idx];
-                ValueLock.EnterReadLock();
-                try { return new IndexingError(this, _Items, "Index " + idx + " out of range."); }
-                finally { ValueLock.ExitReadLock(); }
-
-            }
-            set
-            {
-                if (idx < 0 || idx >= _Items.Length)
-                    throw new IndexOutOfRangeException();
-                ValueLock.EnterWriteLock();
-                try { _Items[idx].Contents = value; }
-                finally { ValueLock.ExitWriteLock(); }
-            }
-        }
+        public IEvaluateable this[int idx] => _Items[idx];
 
         public Array(int size) {
             this._Items = new Variable[size];
@@ -77,7 +59,7 @@ namespace Dependency.Variables
         bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable item)
         {
             if (!(ordinal is Number n) || !n.IsInteger) { item = default; return false; }
-            item = this[(int)n];
+            item = this[n];
             return !(item is Error);
         }
 
@@ -85,4 +67,6 @@ namespace Dependency.Variables
             => new Vector(_Items.Select(i => i.Value));
 
     }
+
+    
 }

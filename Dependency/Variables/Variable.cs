@@ -53,7 +53,7 @@ namespace Dependency.Variables
             }
             finally { ValueLock.ExitWriteLock(); }
         }
-        bool IUpdatedVariable.SetValue(IEvaluateable newValue) => SetValue(newValue);
+        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => SetValue(newValue);
 
         private IEvaluateable _Contents = Null.Instance;
         public IEvaluateable Contents
@@ -74,7 +74,7 @@ namespace Dependency.Variables
 
         /// <summary>Sets contents without starting a new update.</summary>
         protected virtual bool SetContents(IEvaluateable newContents) { _Contents = newContents; return true; }
-        bool IUpdatedVariable.SetContents(IEvaluateable newContents) => SetContents(newContents);
+        bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => SetContents(newContents);
 
 
 
@@ -143,18 +143,18 @@ namespace Dependency.Variables
         public Variable(T startingValue)
         {
             this._Converter = Dependency.Values.Converter<T>.Default;
-            this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
+            this.TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
             this.Contents = this._Converter.ConvertFrom(startingValue);
         }
         public Variable(IEvaluateable contents = null, IConverter<T> converter = null)  // Don't call base.Contents(it will try to 
                                                                                         // update Value before a IConverter is ready)
         {
             this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
-            this._TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
+            this.TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
             this.Contents = contents ?? Null.Instance;
         }
         private readonly IConverter<T> _Converter;      // This should never be null
-        private readonly TypeFlags _TypeGuarantee;
+        public readonly TypeFlags TypeGuarantee;
         public T Get() => _Cache;
         public void Set(T newContents) => this.Contents = _Converter.ConvertFrom(newContents);
         public static implicit operator T(Variable<T> v) => v._Converter.ConvertTo(v.Value);

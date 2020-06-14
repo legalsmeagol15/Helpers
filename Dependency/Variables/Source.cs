@@ -68,9 +68,9 @@ namespace Dependency.Variables
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
         private readonly Update.ListenerManager _Listeners = new Update.ListenerManager();
 
-        bool IUpdatedVariable.SetContents(IEvaluateable newContent) => true;
+        bool IUpdatedVariable.CommitContents(IEvaluateable newContent) => true;
 
-        bool IUpdatedVariable.SetValue(IEvaluateable newValue) => true;
+        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => true;
 
         public event ValueChangedHandler<IEvaluateable> Updated;
     }
