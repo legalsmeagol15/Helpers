@@ -77,7 +77,8 @@ namespace Dependency.Variables
                         // relations will be wrapped up automatically by the garbage collection.
                         if (iuv.Contents is ISyncUpdater idi_before) idi_before.Parent = null;
                         if (NewContents is ISyncUpdater idi_after) idi_after.Parent = (ISyncUpdater)iuv;
-                        iuv.SetContents(NewContents);
+                        if (!iuv.SetContents(NewContents))
+                            throw new InvalidOperationException("Invalid contents: " + NewContents.ToString());
                     }
                     finally { StructureLock.ExitWriteLock(); }
 

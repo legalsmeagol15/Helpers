@@ -33,6 +33,16 @@ namespace Dependency
         }
         public Vector() { }
 
+        internal static Vector OfVariables(int size)
+        {
+            Vector vec = new Vector();
+            IEvaluateable[] ievs = new IEvaluateable[size];
+            for (int i = 0; i < size; i++)
+                ievs[i] = new Variable(Null.Instance) { Parent = vec };
+            vec.Inputs = ievs;
+            return vec;
+        }
+
         IEvaluateable IEvaluateable.Value => Value;
 
         public int Size => Inputs.Count;

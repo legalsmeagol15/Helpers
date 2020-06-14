@@ -15,7 +15,7 @@ using System.Diagnostics;
 
 namespace Dependency.Variables
 {
-    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>
+    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>, IVariable
     {
         // DO NOT implement IDisposable to clean up listeners.  The Variable should should clean up only when its 
         // listeners are already gone anyway.
@@ -28,21 +28,21 @@ namespace Dependency.Variables
         // 1, and evaluate accordingly.  Listeners are now inconsistent with Variable's current value, whcih is 2.
 
         private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
-        private readonly ReaderWriterLockSlim _ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
+        internal readonly ReaderWriterLockSlim ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
         public IEvaluateable Value
         {
             get
             {
-                _ValueLock.EnterReadLock();
+                ValueLock.EnterReadLock();
                 try { return _Value; }
-                finally { _ValueLock.ExitReadLock(); }
+                finally { ValueLock.ExitReadLock(); }
             }
         }
 
         private bool SetValue(IEvaluateable newValue)
         {
-            _ValueLock.EnterWriteLock();
+            ValueLock.EnterWriteLock();
             try
             {
                 if (_Value.Equals(newValue)) return false;
@@ -51,7 +51,7 @@ namespace Dependency.Variables
                 OnValueChanged(oldValue, newValue);
                 return true;
             }
-            finally { _ValueLock.ExitWriteLock(); }
+            finally { ValueLock.ExitWriteLock(); }
         }
         bool IUpdatedVariable.SetValue(IEvaluateable newValue) => SetValue(newValue);
 
@@ -67,19 +67,14 @@ namespace Dependency.Variables
             }
             set
             {
-                StartSetContents(value);                
+                var update = Update.ForVariable(this, value);
+                update.Execute();
             }
         }
-        internal virtual void StartSetContents(IEvaluateable newContents)
-        {
-            // The PreviewVariable has to override this.
-            // Use an update to kick off Parent's and listeners' updates as well.
-            var update = Update.ForVariable(this, newContents);
-            update.Execute();
-        }
+
         /// <summary>Sets contents without starting a new update.</summary>
-        protected void SetContents(IEvaluateable newContents) => _Contents = newContents;
-        void IUpdatedVariable.SetContents(IEvaluateable newContents) => SetContents(newContents);
+        protected virtual bool SetContents(IEvaluateable newContents) { _Contents = newContents; return true; }
+        bool IUpdatedVariable.SetContents(IEvaluateable newContents) => SetContents(newContents);
 
 
 
@@ -95,7 +90,7 @@ namespace Dependency.Variables
         public event ValueChangedHandler<IEvaluateable> Updated;
 
         /// <summary>Called immediately after the cached value is updated, from within a 
-        /// <seealso cref="Variable._ValueLock"/> write lock.  Invokes the 
+        /// <seealso cref="Variable.ValueLock"/> write lock.  Invokes the 
         /// <seealso cref="Updated"/> event.</summary>
         protected virtual void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
         {
@@ -115,6 +110,12 @@ namespace Dependency.Variables
         internal readonly Update.ListenerManager Listeners = new Update.ListenerManager();
 
         private ISyncUpdater _Parent = null;
+        /// <summary>
+        /// Usually a <see cref="Variable"/> won't have a parent, because the variable is intended 
+        /// to represent the top level of a synchronous unit.  But some variables are composed of 
+        /// sub-variables (such as, e.g., <seealso cref="Array"/>s), and in those cases, the sub-
+        /// variables must have a parent.
+        /// </summary>
         internal ISyncUpdater Parent
         {
             get => _Parent;
@@ -128,11 +129,10 @@ namespace Dependency.Variables
         }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(_Contents.Value);
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(Evaluate());
+        internal virtual IEvaluateable Evaluate() => _Contents.Value;
         #endregion
 
-        public static Variable<T> Typed<T>(IEvaluateable contents = null, IConverter<T> converter = null)
-            => new Variable<T>(contents, converter);
     }
 
 

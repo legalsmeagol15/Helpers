@@ -189,8 +189,9 @@ namespace Dependency
     internal interface IUpdatedVariable : IVariable
     {
         /// <summary>ONLY sets the contents.  Does nothing else.  This is called only within a 
-        /// <seealso cref="Update.StructureLock"/> write lock so don't lock again.</summary>
-        void SetContents(IEvaluateable newContent);
+        /// <seealso cref="Update.StructureLock"/> write lock so don't lock again.  The method 
+        /// should return whether update succeeded or not.</summary>
+        bool SetContents(IEvaluateable newContent);
         /// <summary>ONLY sets the value.  Does nothing else.  This is called only outside a 
         /// <seealso cref="Update.StructureLock"/> write lock, but within a read lock.  If the 
         /// <seealso cref="IUpdatedVariable"/>'s value requires locking, it is safe to lock within 
