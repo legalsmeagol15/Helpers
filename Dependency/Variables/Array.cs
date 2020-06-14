@@ -21,7 +21,7 @@ namespace Dependency.Variables
             this._Items = items.Select(item => new Variable(item) { Parent = this }).ToArray();
         }
 
-        protected override bool SetContents(IEvaluateable newContents)
+        internal override bool SetContents(IEvaluateable newContents)
         {
             // You can only replace the contents wholesale if the new contents is a vector 
             // containing items without parents.  Otherwise, you might re-assign the items' 

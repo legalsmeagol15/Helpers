@@ -73,7 +73,7 @@ namespace Dependency.Variables
         }
 
         /// <summary>Sets contents without starting a new update.</summary>
-        protected virtual bool SetContents(IEvaluateable newContents) { _Contents = newContents; return true; }
+        internal virtual bool SetContents(IEvaluateable newContents) { _Contents = newContents; return true; }
         bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => SetContents(newContents);
 
 
