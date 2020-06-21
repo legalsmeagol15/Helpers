@@ -55,7 +55,15 @@ namespace Dependency
     {
         bool TryGetSubcontext(string path, out IContext ctxt);
 
-        bool TryGetProperty(string path, out IEvaluateable source);
+        bool TryGetProperty(string path, out IEvaluateable property);
+    }
+
+    /// <summary>Generic objects of this class are used to make another object into an IContext.
+    /// </summary>
+    /// <typeparam name="T">Must be a struct</typeparam>
+    public interface IContextualizer<T> : IContext where T: new()
+    {
+        void Apply(Variable v, T newCLR);
     }
 
     /// <summary>

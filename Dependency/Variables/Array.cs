@@ -21,7 +21,7 @@ namespace Dependency.Variables
             this._Items = items.Select(item => new Variable(item) { Parent = this }).ToArray();
         }
 
-        internal override bool SetContents(IEvaluateable newContents)
+        internal override bool CommitContents(IEvaluateable newContents)
         {
             // You can only replace the contents wholesale if the new contents is a vector 
             // containing items without parents.  Otherwise, you might re-assign the items' 
@@ -53,7 +53,7 @@ namespace Dependency.Variables
             if (!changed)
                 return false;
             
-            return base.SetContents(newContents);
+            return base.CommitContents(newContents);
         }
 
         bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable item)

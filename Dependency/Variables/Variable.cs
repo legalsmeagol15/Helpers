@@ -15,6 +15,7 @@ using System.Diagnostics;
 
 namespace Dependency.Variables
 {
+    [Serializable]
     public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>, IVariable
     {
         // DO NOT implement IDisposable to clean up listeners.  The Variable should should clean up only when its 
@@ -40,7 +41,7 @@ namespace Dependency.Variables
             }
         }
 
-        private bool SetValue(IEvaluateable newValue)
+        internal virtual bool CommitValue(IEvaluateable newValue)
         {
             ValueLock.EnterWriteLock();
             try
@@ -53,7 +54,7 @@ namespace Dependency.Variables
             }
             finally { ValueLock.ExitWriteLock(); }
         }
-        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => SetValue(newValue);
+        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
 
         private IEvaluateable _Contents = Null.Instance;
         public IEvaluateable Contents
@@ -73,8 +74,8 @@ namespace Dependency.Variables
         }
 
         /// <summary>Sets contents without starting a new update.</summary>
-        internal virtual bool SetContents(IEvaluateable newContents) { _Contents = newContents; return true; }
-        bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => SetContents(newContents);
+        internal virtual bool CommitContents(IEvaluateable newContents) { _Contents = newContents; return true; }
+        bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => CommitContents(newContents);
 
 
 
@@ -129,7 +130,7 @@ namespace Dependency.Variables
         }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => SetValue(Evaluate());
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
         internal virtual IEvaluateable Evaluate() => _Contents.Value;
         #endregion
 

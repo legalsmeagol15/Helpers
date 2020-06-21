@@ -50,6 +50,12 @@ namespace UnitTests
         }
         
         [TestMethod]
+        public void Test_Contextualizer()
+        {
+            Struct<Mathematics.Geometry.VectorN> vectorVariable = new Struct<Mathematics.Geometry.VectorN>();
+        }
+
+        [TestMethod]
         public void Test_Indexing_Simple()
         {
             Common.AssertThrows<Dependency.Parse.SyntaxException>(() => Parse.FromString("no.references.without.context", null, null));

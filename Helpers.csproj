@@ -109,6 +109,7 @@
     <Compile Include="Dependency\Variables\Formula.cs" />
     <Compile Include="Dependency\Variables\Receiver.cs" />
     <Compile Include="Dependency\Variables\Source.cs" />
+    <Compile Include="Dependency\Variables\Struct.cs" />
     <Compile Include="Dependency\Variables\Transmitter.cs" />
     <Compile Include="Dependency\Variables\Update.cs" />
     <Compile Include="Dependency\Variables\Variable.cs" />
