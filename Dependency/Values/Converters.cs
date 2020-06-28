@@ -49,22 +49,22 @@ namespace Dependency.Values
         
         public static IConverter<T> Default => _Default;
         
-        bool IConverter<T>.CanConvert(IEvaluateable ie)
+        bool IConverter<T>.CanConvertDown(IEvaluateable ie)
         {
             throw new InvalidCastException("Cannot convert " + ie.GetType().Name + " to " + typeof(T).Name);
         }
 
-        IEvaluateable IConverter<T>.ConvertFrom(T item)
+        IEvaluateable IConverter<T>.ConvertUp(T item)
         {
             throw new InvalidCastException("Cannot convert " + item.GetType().Name + " to " + nameof(IEvaluateable));
         }
 
-        T IConverter<T>.ConvertTo(IEvaluateable ie)
+        T IConverter<T>.ConvertDown(IEvaluateable ie)
         {
             throw new InvalidCastException("Cannot convert " + ie.GetType().Name + " to " + typeof(T).Name);
         }
 
-        bool IConverter<T>.TryConvertTo(IEvaluateable ie, out T target)
+        bool IConverter<T>.TryConvertDown(IEvaluateable ie, out T target)
         {
             target = default(T);
             return false;
@@ -85,13 +85,13 @@ namespace Dependency.Values
             }
             public TypeFlags TypeGuarantee => _TypeGuarantee;
             
-            public bool CanConvert(IEvaluateable ie) => ie is E;
+            public bool CanConvertDown(IEvaluateable ie) => ie is E;
 
-            public IEvaluateable ConvertFrom(E item) => item;
+            public IEvaluateable ConvertUp(E item) => item;
 
-            public E ConvertTo(IEvaluateable item) => (E)item;
+            public E ConvertDown(IEvaluateable item) => (E)item;
 
-            public bool TryConvertTo(IEvaluateable ie, out E target)
+            public bool TryConvertDown(IEvaluateable ie, out E target)
             {
                 if (ie is E e) { target = e; return true; }
                 target = default;
@@ -103,13 +103,13 @@ namespace Dependency.Values
         {
             public TypeFlags TypeGuarantee => TypeFlags.Any;
 
-            public bool CanConvert(IEvaluateable ie) => true;
+            public bool CanConvertDown(IEvaluateable ie) => true;
 
-            public IEvaluateable ConvertFrom(T item) => (IEvaluateable)item;
+            public IEvaluateable ConvertUp(T item) => (IEvaluateable)item;
 
-            public T ConvertTo(IEvaluateable item) => (T)item;
+            public T ConvertDown(IEvaluateable item) => (T)item;
 
-            public bool TryConvertTo(IEvaluateable ie, out T target) { target = (T)ie; return true; }
+            public bool TryConvertDown(IEvaluateable ie, out T target) { target = (T)ie; return true; }
         }
     }
 
@@ -117,17 +117,17 @@ namespace Dependency.Values
     {
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Boolean;
 
-        bool IConverter<bool>.CanConvert(IEvaluateable ie) => ie is Dependency.Boolean;
+        bool IConverter<bool>.CanConvertDown(IEvaluateable ie) => ie is Dependency.Boolean;
 
-        IEvaluateable IConverter<bool>.ConvertFrom(bool item) => item ? Dependency.Boolean.True : Dependency.Boolean.False;
+        IEvaluateable IConverter<bool>.ConvertUp(bool item) => item ? Dependency.Boolean.True : Dependency.Boolean.False;
 
-        bool IConverter<bool>.ConvertTo(IEvaluateable item)
+        bool IConverter<bool>.ConvertDown(IEvaluateable item)
         {
             if (item is Dependency.Boolean b) return b;
             return false;
         }
 
-        bool IConverter<bool>.TryConvertTo(IEvaluateable ie, out bool target)
+        bool IConverter<bool>.TryConvertDown(IEvaluateable ie, out bool target)
         {
             if (ie is Dependency.Boolean b) { target = b; return true; }
             target = false;
@@ -138,16 +138,16 @@ namespace Dependency.Values
     {
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.RealAny;
 
-        bool IConverter<decimal>.CanConvert(IEvaluateable ie) => ie is Number n;
+        bool IConverter<decimal>.CanConvertDown(IEvaluateable ie) => ie is Number n;
 
-        IEvaluateable IConverter<decimal>.ConvertFrom(decimal item) => new Number(item);
+        IEvaluateable IConverter<decimal>.ConvertUp(decimal item) => new Number(item);
 
-        decimal IConverter<decimal>.ConvertTo(IEvaluateable item)
+        decimal IConverter<decimal>.ConvertDown(IEvaluateable item)
         {
             return ((Number)item).ToDecimal();
         }
 
-        bool IConverter<decimal>.TryConvertTo(IEvaluateable ie, out decimal target)
+        bool IConverter<decimal>.TryConvertDown(IEvaluateable ie, out decimal target)
         {
             if (ie is Number n) { target = n.ToDecimal(); return true; }
             else { target = 0m; return false; }
@@ -159,17 +159,17 @@ namespace Dependency.Values
     {
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.RealAny;
 
-        bool IConverter<double>.CanConvert(IEvaluateable ie) => ie is Number n;
+        bool IConverter<double>.CanConvertDown(IEvaluateable ie) => ie is Number n;
 
-        IEvaluateable IConverter<double>.ConvertFrom(double item) => new Number(item);
+        IEvaluateable IConverter<double>.ConvertUp(double item) => new Number(item);
 
-        bool IConverter<double>.TryConvertTo(IEvaluateable ie, out double target)
+        bool IConverter<double>.TryConvertDown(IEvaluateable ie, out double target)
         {
             if (ie is Number n) { target = n.ToDouble(); return true; }
             else { target = double.NaN; return false; }
         }
 
-        double IConverter<double>.ConvertTo(IEvaluateable item)
+        double IConverter<double>.ConvertDown(IEvaluateable item)
         {
             return ((Number)item).ToDouble();
         }
@@ -179,17 +179,17 @@ namespace Dependency.Values
     {
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Integer;
 
-        bool IConverter<int>.CanConvert(IEvaluateable ie) => ie is Number n && n.IsInteger;
+        bool IConverter<int>.CanConvertDown(IEvaluateable ie) => ie is Number n && n.IsInteger;
 
-        IEvaluateable IConverter<int>.ConvertFrom(int item) => new Number(item);
+        IEvaluateable IConverter<int>.ConvertUp(int item) => new Number(item);
 
-        bool IConverter<int>.TryConvertTo(IEvaluateable ie, out int target)
+        bool IConverter<int>.TryConvertDown(IEvaluateable ie, out int target)
         {
             if (ie is Number n && n.IsInteger) { target = n.ToInt(); return true; }
             else { target = 0; return false; }
         }
 
-        int IConverter<int>.ConvertTo(IEvaluateable item)
+        int IConverter<int>.ConvertDown(IEvaluateable item)
         {
             return ((Number)item).ToInt();
         }
@@ -199,12 +199,12 @@ namespace Dependency.Values
     {
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.String;
 
-        bool IConverter<string>.CanConvert(IEvaluateable ie) => true;
+        bool IConverter<string>.CanConvertDown(IEvaluateable ie) => true;
 
-        IEvaluateable IConverter<string>.ConvertFrom(string item) => new Dependency.String(item);
+        IEvaluateable IConverter<string>.ConvertUp(string item) => new Dependency.String(item);
 
-        bool IConverter<string>.TryConvertTo(IEvaluateable ie, out string target) { target = ie.ToString(); return true; }
-        string IConverter<string>.ConvertTo(IEvaluateable item)
+        bool IConverter<string>.TryConvertDown(IEvaluateable ie, out string target) { target = ie.ToString(); return true; }
+        string IConverter<string>.ConvertDown(IEvaluateable item)
         {
             return ((Number)item).ToString();
         }
@@ -212,17 +212,17 @@ namespace Dependency.Values
 
     public sealed class VectorNConverter : IConverter<VectorN>
     {
-        bool IConverter<VectorN>.CanConvert(IEvaluateable ie)
+        bool IConverter<VectorN>.CanConvertDown(IEvaluateable ie)
         {
             return ie is Vector v && v.Inputs.Count == 2 && v[0] is Number && v[1] is Number;
         }
 
-        IEvaluateable IConverter<VectorN>.ConvertFrom(VectorN item)
+        IEvaluateable IConverter<VectorN>.ConvertUp(VectorN item)
         {
             return new Vector((IEvaluateable)item.X, (IEvaluateable)item.Y);
         }
 
-        VectorN IConverter<VectorN>.ConvertTo(IEvaluateable item)
+        VectorN IConverter<VectorN>.ConvertDown(IEvaluateable item)
         {
             Vector v = (Vector)item;
             Number x = (Number)v[0];
@@ -230,7 +230,7 @@ namespace Dependency.Values
             return new VectorN(x, y);
         }
 
-        bool IConverter<VectorN>.TryConvertTo(IEvaluateable ie, out VectorN target)
+        bool IConverter<VectorN>.TryConvertDown(IEvaluateable ie, out VectorN target)
         {
             if (ie is Vector v && v.Inputs.Count == 2 && v[0] is Number x && v[1] is Number y)
             {
@@ -244,22 +244,22 @@ namespace Dependency.Values
 
     public sealed class VectorConverter<T> : IConverter<IPoint<T>>
     {
-        bool IConverter<IPoint<T>>.CanConvert(IEvaluateable ie)
+        bool IConverter<IPoint<T>>.CanConvertDown(IEvaluateable ie)
         {
             throw new NotImplementedException();
         }
 
-        IEvaluateable IConverter<IPoint<T>>.ConvertFrom(IPoint<T> item)
+        IEvaluateable IConverter<IPoint<T>>.ConvertUp(IPoint<T> item)
         {
             throw new NotImplementedException();
         }
 
-        IPoint<T> IConverter<IPoint<T>>.ConvertTo(IEvaluateable item)
+        IPoint<T> IConverter<IPoint<T>>.ConvertDown(IEvaluateable item)
         {
             throw new NotImplementedException();
         }
 
-        bool IConverter<IPoint<T>>.TryConvertTo(IEvaluateable ie, out IPoint<T> target)
+        bool IConverter<IPoint<T>>.TryConvertDown(IEvaluateable ie, out IPoint<T> target)
         {
             throw new NotImplementedException();
         }
@@ -270,13 +270,13 @@ namespace Dependency.Values
     {
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Any;
 
-        bool IConverter<IEvaluateable>.CanConvert(IEvaluateable ie) => true;
+        bool IConverter<IEvaluateable>.CanConvertDown(IEvaluateable ie) => true;
 
-        IEvaluateable IConverter<IEvaluateable>.ConvertFrom(IEvaluateable item) => item;
+        IEvaluateable IConverter<IEvaluateable>.ConvertUp(IEvaluateable item) => item;
 
-        bool IConverter<IEvaluateable>.TryConvertTo(IEvaluateable ie, out IEvaluateable target) { target = ie; return true; }
+        bool IConverter<IEvaluateable>.TryConvertDown(IEvaluateable ie, out IEvaluateable target) { target = ie; return true; }
 
-        IEvaluateable IConverter<IEvaluateable>.ConvertTo(IEvaluateable item) => item;
+        IEvaluateable IConverter<IEvaluateable>.ConvertDown(IEvaluateable item) => item;
     }
 
 

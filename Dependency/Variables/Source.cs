@@ -23,9 +23,9 @@ namespace Dependency.Variables
 
         TypeFlags ITypeGuarantee.TypeGuarantee => _TypeGuarantee;
 
-        IEvaluateable IEvaluateable.Value => _Converter.ConvertFrom(_Value);
+        IEvaluateable IEvaluateable.Value => _Converter.ConvertUp(_Value);
 
-        IEvaluateable IVariable.Contents => _Converter.ConvertFrom(_Value);
+        IEvaluateable IVariable.Contents => _Converter.ConvertUp(_Value);
 
         public Source(T startingValue, IConverter<T> converter = null)
         {
@@ -52,12 +52,12 @@ namespace Dependency.Variables
             // Though the value is changed in the CLR, kick off an update to notify listeners of any change.
             
             _Value = newValue;
-            IEvaluateable newContents = _Converter.ConvertFrom(newValue);
+            IEvaluateable newContents = _Converter.ConvertUp(newValue);
             Update update = Update.ForVariable(this, newContents);
             update.Execute();
             
             // Notify any CLR listeners to a change.
-            Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(_Converter.ConvertFrom(oldValue), newContents));
+            Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(_Converter.ConvertUp(oldValue), newContents));
 
             return;
         }

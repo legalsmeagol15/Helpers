@@ -112,7 +112,7 @@ namespace Dependency.Variables
                 if (newValue.Equals(_DepValue)) return false;
                 IEvaluateable oldValue = _DepValue;
                 _ValueLock.EnterWriteLock();
-                try { _DepValue = newValue; _Converter.TryConvertTo(_DepValue, out _CachedValue); }
+                try { _DepValue = newValue; _Converter.TryConvertDown(_DepValue, out _CachedValue); }
                 finally { _ValueLock.ExitWriteLock(); }
                 ValueChanged?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
                 return true;
