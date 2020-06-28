@@ -26,8 +26,6 @@ namespace Dependency.Variables
             // You can only replace the contents wholesale if the new contents is a vector 
             // containing items without parents.  Otherwise, you might re-assign the items' 
             // parents from the vector to this array, and that might not be the user's intent.
-            if (newContents.Equals(Contents)) 
-                return false;
             if (!(newContents is Vector vec))
                 throw new ArgumentException("New contents must be a vector.");
             if (vec.Size != _Items.Length)
