@@ -61,7 +61,7 @@ namespace Dependency
     /// <summary>Generic objects of this class are used to make another object into an IContext.
     /// </summary>
     /// <typeparam name="T">Must be a struct</typeparam>
-    public interface IContextualizer<T> : IContext
+    public interface IContextualizer<T> : IContext, INotifyUpdates<T>
     {
         /// <summary>When a host context value changes, it should apply the change to all sub-part 
         /// <seealso cref="Variable"/> objects.</summary>
@@ -73,6 +73,8 @@ namespace Dependency
         /// <summary>When a host's sub-part changes, it should generate a new value from the sub-
         /// parts.</summary>
         IEvaluateable ComposeValue();
+
+        
 
         /// <summary>Converts from the given object to a dependency value.  Cannot be allowed to 
         /// fail.</summary>

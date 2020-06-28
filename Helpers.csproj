@@ -106,7 +106,6 @@
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
     <Compile Include="Dependency\Variables\Array.cs" />
-    <Compile Include="Dependency\Variables\Contextualizers.cs" />
     <Compile Include="Dependency\Variables\Formula.cs" />
     <Compile Include="Dependency\Variables\Receiver.cs" />
     <Compile Include="Dependency\Variables\Source.cs" />

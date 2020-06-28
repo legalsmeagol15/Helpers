@@ -130,8 +130,8 @@ namespace Dependency.Variables
         }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => OnContentsUpdated(caller, updatedChild);
-        internal virtual bool OnContentsUpdated(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => OnChildUpdated(caller, updatedChild);
+        internal virtual bool OnChildUpdated(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
         internal virtual IEvaluateable Evaluate() => _Contents.Value;
         #endregion
 
@@ -172,13 +172,8 @@ namespace Dependency.Variables
             _Cache =  _Converter.ConvertDown(this.Value);
             if (oldCache ==  null) { if (_Cache == null) return; }                
             else if (oldCache.Equals(_Cache)) return;
-            base.OnValueChanged(oldValue, newValue);
-            ValueChanged?.Invoke(this, new ValueChangedArgs<T>(oldCache, _Cache));
+            base.OnValueChanged(oldValue, newValue); // Fires Updated event
         }
-        
-        public event ValueChangedHandler<T> ValueChanged;
-
-
     }
 
 
