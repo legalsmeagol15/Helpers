@@ -75,7 +75,7 @@ namespace Dependency.Variables
 
         /// <summary>Sets contents without starting a new update.</summary>
         internal virtual bool CommitContents(IEvaluateable newContents) { _Contents = newContents; return true; }
-        bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => CommitContents(newContents);
+        bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => (_Contents.Equals(newContents)) ? false : CommitContents(newContents); 
 
 
 
@@ -130,7 +130,8 @@ namespace Dependency.Variables
         }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => OnContentsUpdated(caller, updatedChild);
+        internal virtual bool OnContentsUpdated(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
         internal virtual IEvaluateable Evaluate() => _Contents.Value;
         #endregion
 
@@ -145,7 +146,7 @@ namespace Dependency.Variables
         {
             this._Converter = Dependency.Values.Converter<T>.Default;
             this.TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
-            this.Contents = this._Converter.ConvertFrom(startingValue);
+            this.Contents = this._Converter.ConvertUp(startingValue);
         }
         public Variable(IEvaluateable contents = null, IConverter<T> converter = null)  // Don't call base.Contents(it will try to 
                                                                                         // update Value before a IConverter is ready)
@@ -156,14 +157,19 @@ namespace Dependency.Variables
         }
         private readonly IConverter<T> _Converter;      // This should never be null
         public readonly TypeFlags TypeGuarantee;
+
+        /// <summary>
+        /// Returns the current <typeparamref name="T"/> value, or the last valid 
+        /// <typeparamref name="T"/> value, of this <see cref="Variable{T}"/>.
+        /// </summary>
         public T Get() => _Cache;
-        public void Set(T newContents) => this.Contents = _Converter.ConvertFrom(newContents);
-        public static implicit operator T(Variable<T> v) => v._Converter.ConvertTo(v.Value);
+        public void Set(T newContents) => this.Contents = _Converter.ConvertUp(newContents);
+        public static implicit operator T(Variable<T> v) => v._Converter.ConvertDown(v.Value);
 
         protected override void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
         {
             T oldCache = _Cache;            
-            _Cache =  _Converter.ConvertTo(this.Value);
+            _Cache =  _Converter.ConvertDown(this.Value);
             if (oldCache ==  null) { if (_Cache == null) return; }                
             else if (oldCache.Equals(_Cache)) return;
             base.OnValueChanged(oldValue, newValue);
@@ -171,6 +177,8 @@ namespace Dependency.Variables
         }
         
         public event ValueChangedHandler<T> ValueChanged;
+
+
     }
 
 
