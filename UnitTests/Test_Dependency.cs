@@ -53,7 +53,7 @@ namespace UnitTests
         public void Test_Contextualizer()
         {
             Struct<Mathematics.Geometry.VectorN> host = new Struct<Mathematics.Geometry.VectorN>();
-            AssertThrows<InvalidOperationException>(() => { object bad = host["no_exists"]; });
+            AssertThrows<ArgumentException>(() => { object bad = host["no_exists"]; });
 
             Variable xVar = (Variable)host["X"], yVar = (Variable)host["Y"];
             Assert.AreEqual(xVar.Value, 0);
@@ -63,7 +63,7 @@ namespace UnitTests
             Assert.AreEqual(host.Value, new Dependency.Vector(0, 0));
             Assert.AreEqual(host.Contents, new Dependency.Vector(0, 0));
 
-            host.Set(new Mathematics.Geometry.VectorN(1, 2));
+            host.Native = new Mathematics.Geometry.VectorN(1, 2);
             Assert.AreEqual(xVar.Value, 1);
             Assert.AreEqual(xVar.Contents, 1);
             Assert.AreEqual(yVar.Value, 2);

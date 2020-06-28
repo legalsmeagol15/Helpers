@@ -47,7 +47,8 @@ namespace Dependency.Values
                 _Default = new Converter<T>();
         }
         
-        public static IConverter<T> Default => _Default;
+        public static IConverter<T> Default
+            => _Default;
         
         bool IConverter<T>.CanConvertDown(IEvaluateable ie)
         {

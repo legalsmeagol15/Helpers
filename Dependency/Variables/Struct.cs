@@ -13,17 +13,14 @@ namespace Dependency.Variables
     public abstract class VariableStruct<T> : Variable, IContext where T : struct
     {
         protected readonly IConverter<T> Converter;
-        private readonly Dictionary<string, Variable> _Children = new Dictionary<string, Variable>();
         /// <summary>Whether or not the dependency value converts to a value CLR value.</summary>
         public bool IsValid { get; private set; }
         protected VariableStruct(IConverter<T> converter)
         {
             this.Converter = converter;
         }
-        protected void RegisterChildVariable(string name, Variable v)
+        protected void RegisterChildVariable(Variable v)
         {
-            name = name.ToLower();
-            _Children.Add(name, v);
             v.Parent = this;
         }
         private T _Native;
@@ -91,11 +88,11 @@ namespace Dependency.Variables
     {
         private readonly Dictionary<PropertyInfo, Variable> _Variables;
         private readonly Dictionary<Variable, dynamic> _Converters;
-        public Struct(IConverter<T> converter, T initial = default) : base(converter)
+        public Struct(IConverter<T> converter = null, T initial = default) : base(converter ?? Values.Converter<T>.Default)
         {
             _Variables = new Dictionary<PropertyInfo, Variable>();
             _Converters = new Dictionary<Variable, dynamic>();
-            foreach (PropertyInfo pinfo in typeof(T).GetProperties(BindingFlags.Instance | BindingFlags.Public){
+            foreach (PropertyInfo pinfo in typeof(T).GetProperties(BindingFlags.Instance | BindingFlags.Public)){
                 if (!pinfo.CanWrite || !pinfo.CanRead) continue;
                 if (!pinfo.PropertyType.IsValueType) continue;
                 dynamic clrValue = pinfo.GetValue(initial);
@@ -103,6 +100,9 @@ namespace Dependency.Variables
                 Variable v = new Variable(sub_converter.ConvertUp(clrValue));
                 _Converters[v] = sub_converter;
                 _Variables[pinfo] = v;
+
+                // This is important so value changes will work.
+                RegisterChildVariable(v);
             }
             Native = initial;
         }
@@ -132,8 +132,7 @@ namespace Dependency.Variables
                 Variable v = kvp.Value;
                 dynamic converter = _Converters[v];
 
-                if (!converter.TryConvertDown(v.Value, out dynamic nativeSubVal))
-                    nativeSubVal = pinfo.GetValue(Native);
+                dynamic nativeSubVal = converter.CanConvertDown(v.Value) ? converter.ConvertDown(v.Value) : pinfo.GetValue(Native);
                 pinfo.SetValue(asNative, nativeSubVal);
             }
 
@@ -141,6 +140,15 @@ namespace Dependency.Variables
             return Converter.ConvertUp(asNative);
         }
 
+        public IEvaluateable this[string name]
+        {
+            get
+            {
+                if (!TryGetProperty(name.ToLower(), out IEvaluateable result))
+                    throw new ArgumentException("No binding property named " + name);
+                return result;
+            }
+        }
         protected override bool TryGetProperty(string path, out IEvaluateable property)
         {
             path = path.ToLower();
