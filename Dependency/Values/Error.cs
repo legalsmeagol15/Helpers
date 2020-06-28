@@ -109,6 +109,11 @@ namespace Dependency
             && ListsEqual(Inputs, other.Inputs);
     }
 
+    public class ConversionError : Error
+    {
+        public ConversionError(IEvaluateable from, Type @to, string message = null) 
+            : base(message ?? "Cannot convertion " + from.ToString() + " to " + to.Name) { }
+    }
     public sealed class InputCountError : EvaluationError
     {
         internal TypeControl TypeControl;
