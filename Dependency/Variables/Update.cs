@@ -19,7 +19,7 @@ namespace Dependency.Variables
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
-        private IVariable Starter;
+        internal readonly IVariable Starter;
         public readonly IEvaluateable NewContents;
         private readonly IEnumerable<IEvaluateable> Indices = null;
 
@@ -29,7 +29,7 @@ namespace Dependency.Variables
 
         private Update(IVariable var, IEvaluateable newContents, IEnumerable<IEvaluateable> indices)
         {
-            this.Starter = var ?? throw new ArgumentNullException("var");
+            this.Starter = var ?? throw new ArgumentNullException(nameof(var));
             if (newContents == null) newContents = Dependency.Null.Instance;
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
@@ -52,6 +52,8 @@ namespace Dependency.Variables
 
         /// <summary>
         /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
+        /// This method is run for the starting <seealso cref="IVariable"/>, but also for each listener of that 
+        /// <seealso cref="IVariable"/>, and so on.
         /// </summary>
         /// <returns>Returns whether any change is made to the value of the <seealso cref="Update.Starter"/>.</returns>
         public bool Execute()
@@ -73,10 +75,11 @@ namespace Dependency.Variables
                     StructureLock.EnterWriteLock();
                     try
                     {
-                        // Update the contents tree.  The synchronous relations must be updated by hand, the asynchronous 
-                        // relations will be wrapped up automatically by the garbage collection.
+                        // Update the content's parent pointer.
                         if (iuv.Contents is ISyncUpdater idi_before) idi_before.Parent = null;
                         if (NewContents is ISyncUpdater idi_after) idi_after.Parent = (ISyncUpdater)iuv;
+
+                        // Commit the new contents
                         if (!iuv.CommitContents(NewContents))
                             throw new InvalidOperationException("Invalid contents: " + NewContents.ToString());
                     }
@@ -94,7 +97,7 @@ namespace Dependency.Variables
                 // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
                 // started.
                 if (Starter is ISyncUpdater isu)
-                    Execute(Starter as IAsyncUpdater, isu.Parent);
+                    _Execute(Starter as IAsyncUpdater, isu.Parent);
 
                 // Finally, if Starter updates asynchronously, kick off the asynchronous update.
                 if (Starter is IAsyncUpdater iau)
@@ -120,7 +123,7 @@ namespace Dependency.Variables
         internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener) // TODO:  this should be done within the StructureLock read lock?
         {
             Interlocked.Increment(ref _Updating);
-            _Tasks.Enqueue(Task.Run(() => Execute(source, listener)));
+            _Tasks.Enqueue(Task.Run(() => _Execute(source, listener)));
         }
 
         /// <summary>Executes this <see cref="Update"/> for the given 
@@ -134,7 +137,7 @@ namespace Dependency.Variables
         /// Parent will be the next item updated, and so on.</param>
         /// <returns>Returns true if any item's value was changed; otherwise, returns false.
         /// </returns>
-        private bool Execute(object source, ISyncUpdater target)
+        private bool _Execute(object source, ISyncUpdater target)
         {
             ISyncUpdater start = target;
             ISyncUpdater updatedChild = source as ISyncUpdater;
