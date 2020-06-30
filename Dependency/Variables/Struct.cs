@@ -166,6 +166,40 @@ namespace Dependency.Variables
 
     }
 
+    public sealed class VariableVectorN : VariableStruct<VectorN>
+    {
+
+        private readonly Variable _XVar, _YVar;
+        public VariableVectorN(VectorN initial = default) : base(Values.Converter<VectorN>.Default)
+        {
+            _XVar = new Variable(initial.X);
+            _YVar = new Variable(initial.Y);
+        }
+        protected override bool ApplyContents(VectorN newCLRValue)
+        {
+            
+            _XVar.Contents = newCLRValue.X;
+            _YVar.Contents = newCLRValue.Y;
+            return true;
+        }
+
+        protected override IEvaluateable ComposeValue() => new Dependency.Vector(_XVar.Value, _YVar.Value);
+
+        protected override void InvalidateContents(Error e)
+        {
+            _XVar.Contents = e;
+            _YVar.Contents = e;
+        }
+
+        protected override bool TryGetProperty(string path, out IEvaluateable property)
+        {
+            if (path.Equals("x") || path.Equals("X")) { property = _XVar; return true; }
+            if (path.Equals("y") || path.Equals("Y")) { property = _YVar; return true; }
+            property = default;
+            return false;
+        }
+    }
+
     public sealed class Struct<T> : VariableStruct<T> where T : struct
     {
         private readonly Dictionary<PropertyInfo, Variable> _Variables;
@@ -190,7 +224,6 @@ namespace Dependency.Variables
         }
         protected override bool ApplyContents(T newCLRValue)
         {
-            bool applied = false;
             foreach (var kvp in _Variables)
             {
                 PropertyInfo pinfo = kvp.Key;
@@ -198,9 +231,8 @@ namespace Dependency.Variables
                 dynamic converter = _Converters[v];
                 dynamic newSubCLRValue = pinfo.GetValue(newCLRValue);
                 v.Contents = converter.ConvertUp(newSubCLRValue);
-                applied = true;
             }
-            return applied;
+            return _Variables.Any();
         }
 
         protected override IEvaluateable ComposeValue()
