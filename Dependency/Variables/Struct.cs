@@ -172,8 +172,8 @@ namespace Dependency.Variables
         private readonly Variable _XVar, _YVar;
         public VariableVectorN(VectorN initial = default) : base(Values.Converter<VectorN>.Default)
         {
-            _XVar = new Variable(initial.X);
-            _YVar = new Variable(initial.Y);
+            _XVar = new Variable(initial.X) { Parent = this };
+            _YVar = new Variable(initial.Y) { Parent = this };
         }
         protected override bool ApplyContents(VectorN newCLRValue)
         {
@@ -208,17 +208,15 @@ namespace Dependency.Variables
         {
             _Variables = new Dictionary<PropertyInfo, Variable>();
             _Converters = new Dictionary<Variable, dynamic>();
-            foreach (PropertyInfo pinfo in typeof(T).GetProperties(BindingFlags.Instance | BindingFlags.Public)){
+            foreach (PropertyInfo pinfo in typeof(T).GetProperties(BindingFlags.Instance | BindingFlags.Public))
+            {
                 if (!pinfo.CanWrite || !pinfo.CanRead) continue;
                 if (!pinfo.PropertyType.IsValueType) continue;
                 dynamic clrValue = pinfo.GetValue(initial);
                 dynamic sub_converter = Dependency.Values.Converter.GetDefaultFor(clrValue);
-                Variable v = new Variable(sub_converter.ConvertUp(clrValue));
+                Variable v = new Variable(sub_converter.ConvertUp(clrValue)) { Parent = this };
                 _Converters[v] = sub_converter;
                 _Variables[pinfo] = v;
-
-                // This is important so value changes will work.
-                RegisterChildVariable(v);
             }
             Native = initial;
         }
