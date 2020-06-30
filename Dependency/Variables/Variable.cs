@@ -103,8 +103,7 @@ namespace Dependency.Variables
         #region Variable connection members
         internal virtual bool OnAddListener(ISyncUpdater isu) => Listeners.Add(isu);
         internal virtual bool OnRemoveListener(ISyncUpdater isu) => Listeners.Remove(isu);
-        internal virtual void OnParentChanged(ISyncUpdater oldParent, ISyncUpdater newParent)
-            => _Parent = newParent;
+        
         bool IAsyncUpdater.AddListener(ISyncUpdater isu) => OnAddListener(isu);
         bool IAsyncUpdater.RemoveListener(ISyncUpdater isu) => OnRemoveListener(isu);
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
@@ -117,17 +116,7 @@ namespace Dependency.Variables
         /// sub-variables (such as, e.g., <seealso cref="Array"/>s), and in those cases, the sub-
         /// variables must have a parent.
         /// </summary>
-        internal ISyncUpdater Parent
-        {
-            get => _Parent;
-            set
-            {
-                if (_Parent == null)
-                    if (value == null) return;
-                if (_Parent == value) return;
-                OnParentChanged(_Parent, value);
-            }
-        }
+        internal ISyncUpdater Parent { get; set; }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
         bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => OnChildUpdated(caller, updatedChild);

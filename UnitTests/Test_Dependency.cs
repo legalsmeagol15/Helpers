@@ -50,7 +50,7 @@ namespace UnitTests
         }
         
         [TestMethod]
-        public void Test_Contextualizer()
+        public void Test_Struct()
         {
             Struct<Mathematics.Geometry.VectorN> host = new Struct<Mathematics.Geometry.VectorN>();
             AssertThrows<ArgumentException>(() => { object bad = host["no_exists"]; });

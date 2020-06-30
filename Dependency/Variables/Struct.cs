@@ -5,13 +5,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dependency.Variables
 {
     [Serializable]
-    public abstract class VariableStruct<T> : Variable, IContext where T : struct
+    public abstract class VariableStruct<T> : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>, IVariable, IContext where T : struct
     {
+        protected enum Modes
+        {
+            NONE, UPDATING_CONTENTS, UPDATING_VALUE, UPDATING_CHILD_VALUE
+        }
+        protected Modes Mode { get; private set; } = Modes.NONE;
+        private readonly object _Lock = new object();
+
         protected readonly IConverter<T> Converter;
         /// <summary>Whether or not the dependency value converts to a value CLR value.</summary>
         public bool IsValid { get; private set; }
@@ -30,58 +38,132 @@ namespace Dependency.Variables
             set => this.Contents = Converter.ConvertUp(value);
         }
 
-        private bool _PassChildrensValueChangeUp = true;
-        internal override bool CommitContents(IEvaluateable newContents)
+        private IEvaluateable _Contents = Dependency.Null.Instance;
+        public IEvaluateable Contents
         {
-            bool changed = UpdateChildren(newContents);
-            changed |= base.CommitContents(newContents);
-            return changed;
+            get => _Contents;
+            set
+            {
+                Modes priorMode = Modes.NONE;
+                try
+                {
+                    Monitor.Enter(_Lock);
+                    if ((priorMode = Mode) != Modes.NONE)
+                        throw new InvalidOperationException("Cannot change contents while in state " + Mode.ToString());
+                    Mode = Modes.UPDATING_CONTENTS;
+                    if (Converter.TryConvertDown(value, out T newCLRValue) && ApplyContents(newCLRValue))
+                    {
+                        ApplyContents(newCLRValue);
+                        Update.ForVariable(this, value).Execute();
+                    }
+                    else 
+                        InvalidateContents(new ConversionError(value, typeof(T)));
+                }
+                catch (Exception e)
+                {
+                    InvalidateContents(new InvalidValueError("Unknown error applying new contents to sub-properties(" + e.ToString() + ")"));
+                }
+                finally { Mode = priorMode; Monitor.Exit(_Lock); }                
+            }
         }
-
-        private bool UpdateChildren(IEvaluateable newContents)
+        private bool CommitContents(IEvaluateable newContents)
         {
+            if (Contents.Equals(newContents)) return false;
+            _Contents = newContents;
+            return true;
+        }
+        bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => CommitContents(newContents);
+
+        /// <summary>The given CLR value must be dissected and applied to the appropriate sub-
+        /// properties' contents.</summary>        
+        /// <returns>Returns true if successful, false if not.</returns>
+        protected abstract bool ApplyContents(T newCLRValue);
+        /// <summary>The given value must be applied to all sub-properties in the event of a 
+        /// conversion failure.</summary>
+        protected abstract void InvalidateContents(Error e);
+        
+        protected abstract IEvaluateable ComposeValue();
+
+        private IEvaluateable _Value = Dependency.Null.Instance;
+        public IEvaluateable Value
+        {
+            get => _Value;
+            private set
+            {
+                IEvaluateable oldValue = _Value;
+                _Value = value;
+                Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, value));
+            }
+        }
+        public event ValueChangedHandler<IEvaluateable> Updated;
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+        {
+            Modes priorMode = Modes.NONE;
             try
             {
-                _PassChildrensValueChangeUp = false;
-                return (Converter.TryConvertDown(newContents, out T newCLRValue)
-                               && ApplyContents(newCLRValue));
-            }
-            finally { _PassChildrensValueChangeUp = true; }
-        }
-        protected abstract bool ApplyContents(T newCLRValue);
+                Monitor.Enter(_Lock);
+                priorMode = Mode;
 
-        internal override bool OnChildUpdated(Update caller, ISyncUpdater updatedChild)
+                // The update comes from the contents itself?
+                if (updatedChild.Equals(_Contents)) 
+                    return CommitValue(_Contents.Value);
+
+                // The update comes from a child after changing the Contents?
+                else if (Mode == Modes.UPDATING_CONTENTS)
+                    return false;
+
+                // The update comes from a child?  Force Contents to align.
+                Mode = Modes.UPDATING_CHILD_VALUE;
+                IEvaluateable syncedContents = ComposeValue();
+                CommitContents(syncedContents);
+                return CommitValue(syncedContents);
+            }
+            // Let exceptions through.
+            finally
+            {
+                Mode = priorMode; Monitor.Exit(_Lock);
+            }
+        }
+
+
+
+        
+        private bool CommitValue(IEvaluateable newValue)
         {
-            IEvaluateable evaluated = ComposeValue();
             bool changed = false;
-            if (updatedChild.Equals(this.Contents))
-            {
-                // The update came from the contents of this variable. Overwrite the contents of 
-                // the children.
-                changed |= UpdateChildren(evaluated);
-            }
-            {
-                // The update came from the child of this variable.  Overwrite the contents of 
-                // this host struct with a new converted value (but only if we're not in the 
-                // middle of an overwriting child update).
-                if (!_PassChildrensValueChangeUp) return false;
-                changed |= base.CommitContents(evaluated);
-            }
-            if (!Converter.TryConvertDown(evaluated, out T newCLR))
-                throw new InvalidCastException("Failed to convert " + evaluated.ToString() + " to native.");
-            else
-                _Native = newCLR;
-            changed |= CommitValue(evaluated);
+            if (Converter.TryConvertDown(newValue, out T clr) && !clr.Equals(_Native)) { _Native = clr; changed = true; }
+            if (!Value.Equals(newValue)) { Value = newValue; changed = true; }
             return changed;
         }
+        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
 
-        protected abstract IEvaluateable ComposeValue();
-        internal override IEvaluateable Evaluate() => ComposeValue();
+
+
+        internal ISyncUpdater Parent { get; set; }
+        ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
+
+
+        #region VariableStruct IContext members
 
         bool IContext.TryGetProperty(string path, out IEvaluateable property)
             => TryGetProperty(path, out property);
         protected abstract bool TryGetProperty(string path, out IEvaluateable property);
         bool IContext.TryGetSubcontext(string path, out IContext ctxt) { ctxt = default; return false; }
+
+        #endregion
+
+
+        #region VariableStruct IAsyncUpdate members (listeners)
+
+        internal readonly Update.ListenerManager Listeners = new Update.ListenerManager();
+        bool IAsyncUpdater.RemoveListener(ISyncUpdater listener) => Listeners.Remove(listener);
+
+        bool IAsyncUpdater.AddListener(ISyncUpdater listener) => Listeners.Add(listener);
+
+        IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
+
+        #endregion
+
     }
 
     public sealed class Struct<T> : VariableStruct<T> where T : struct
@@ -125,19 +207,25 @@ namespace Dependency.Variables
         {
             // Build a native struct.  Any sub-value that can't be reduced from a sub-property's 
             // current value should default to the current Native's sub-value.
-            T asNative = new T();
+            object boxedNative = new T();
             foreach (var kvp in _Variables)
             {
                 PropertyInfo pinfo = kvp.Key;
                 Variable v = kvp.Value;
                 dynamic converter = _Converters[v];
 
-                dynamic nativeSubVal = converter.CanConvertDown(v.Value) ? converter.ConvertDown(v.Value) : pinfo.GetValue(Native);
-                pinfo.SetValue(asNative, nativeSubVal);
+                object nativeSubVal = converter.CanConvertDown(v.Value) ? converter.ConvertDown(v.Value) : pinfo.GetValue(Native);
+               
+                pinfo.SetValue(boxedNative, nativeSubVal);
             }
 
             // Now convert the struct to a dependency value.
-            return Converter.ConvertUp(asNative);
+            return Converter.ConvertUp((T)boxedNative);
+        }
+
+        protected override void InvalidateContents(Error e)
+        {
+            foreach (Variable v in _Variables.Values) v.Contents = e;
         }
 
         public IEvaluateable this[string name]
