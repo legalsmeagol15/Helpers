@@ -11,7 +11,8 @@ using System.Threading.Tasks;
 namespace Dependency.Variables
 {
     [Serializable]
-    public abstract class VariableStruct<T> : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>, IVariable, IContext where T : struct
+    public abstract class VariableStruct<T> : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>, IContext, IVariable<T>
+        where T : struct
     {
         protected enum Modes
         {

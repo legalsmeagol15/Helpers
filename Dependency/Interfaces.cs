@@ -207,6 +207,10 @@ namespace Dependency
     {
         IEvaluateable Contents { get; }
     }
+    public interface IVariable<T> : IVariable
+    {
+        T Native { get; set; }
+    }
 
     internal interface IVariableCollection : IEnumerable<IEvaluateable>
     {

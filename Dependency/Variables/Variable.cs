@@ -126,7 +126,7 @@ namespace Dependency.Variables
     }
 
 
-    public sealed class Variable<T> : Variable
+    public sealed class Variable<T> : Variable, IVariable<T>
     {
         // TODO:  does this replace a Blended<T> ?
         private T _Cache = default;
@@ -146,12 +146,11 @@ namespace Dependency.Variables
         private readonly IConverter<T> _Converter;      // This should never be null
         public readonly TypeFlags TypeGuarantee;
 
-        /// <summary>
-        /// Returns the current <typeparamref name="T"/> value, or the last valid 
-        /// <typeparamref name="T"/> value, of this <see cref="Variable{T}"/>.
-        /// </summary>
-        public T Get() => _Cache;
-        public void Set(T newContents) => this.Contents = _Converter.ConvertUp(newContents);
+        public T Native
+        {
+            get => _Cache;
+            set { this.Contents = _Converter.ConvertUp(value); }
+        }
         public static implicit operator T(Variable<T> v) => v._Converter.ConvertDown(v.Value);
 
         protected override void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
