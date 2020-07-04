@@ -21,8 +21,6 @@ namespace Dependency.Variables
         private readonly object _Lock = new object();
 
         protected readonly IConverter<T> Converter;
-        /// <summary>Whether or not the dependency value converts to a value CLR value.</summary>
-        public bool IsValid { get; private set; }
         protected VariableStruct(IConverter<T> converter)
         {
             this.Converter = converter;
@@ -124,9 +122,6 @@ namespace Dependency.Variables
                 Mode = priorMode; Monitor.Exit(_Lock);
             }
         }
-
-
-
         
         private bool CommitValue(IEvaluateable newValue)
         {
@@ -146,7 +141,7 @@ namespace Dependency.Variables
         #region VariableStruct IContext members
 
         bool IContext.TryGetProperty(string path, out IEvaluateable property)
-            => TryGetProperty(path, out property);
+            => TryGetProperty(path.ToLower(), out property);
         protected abstract bool TryGetProperty(string path, out IEvaluateable property);
         bool IContext.TryGetSubcontext(string path, out IContext ctxt) { ctxt = default; return false; }
 
@@ -168,33 +163,33 @@ namespace Dependency.Variables
 
     public sealed class VariableVectorN : VariableStruct<VectorN>
     {
-
-        private readonly Variable _XVar, _YVar;
-        public VariableVectorN(VectorN initial = default) : base(Values.Converter<VectorN>.Default)
+        public readonly Variable X, Y;
+        public VariableVectorN(VectorN initial = default) : this(initial.X, initial.Y) { }
+        public VariableVectorN(IEvaluateable x, IEvaluateable y) : base(Values.Converter<VectorN>.Default)
         {
-            _XVar = new Variable(initial.X) { Parent = this };
-            _YVar = new Variable(initial.Y) { Parent = this };
+            X = new Variable(x) { Parent = this };
+            Y = new Variable(y) { Parent = this };
         }
         protected override bool ApplyContents(VectorN newCLRValue)
         {
             
-            _XVar.Contents = newCLRValue.X;
-            _YVar.Contents = newCLRValue.Y;
+            X.Contents = newCLRValue.X;
+            Y.Contents = newCLRValue.Y;
             return true;
         }
 
-        protected override IEvaluateable ComposeValue() => new Dependency.Vector(_XVar.Value, _YVar.Value);
+        protected override IEvaluateable ComposeValue() => new Dependency.Vector(X.Value, Y.Value);
 
         protected override void InvalidateContents(Error e)
         {
-            _XVar.Contents = e;
-            _YVar.Contents = e;
+            X.Contents = e;
+            Y.Contents = e;
         }
 
         protected override bool TryGetProperty(string path, out IEvaluateable property)
         {
-            if (path.Equals("x") || path.Equals("X")) { property = _XVar; return true; }
-            if (path.Equals("y") || path.Equals("Y")) { property = _YVar; return true; }
+            if (path.Equals("x") || path.Equals("X")) { property = X; return true; }
+            if (path.Equals("y") || path.Equals("Y")) { property = Y; return true; }
             property = default;
             return false;
         }
