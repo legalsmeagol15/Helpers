@@ -109,7 +109,6 @@ namespace Dependency.Variables
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
         internal readonly Update.ListenerManager Listeners = new Update.ListenerManager();
 
-        private ISyncUpdater _Parent = null;
         /// <summary>
         /// Usually a <see cref="Variable"/> won't have a parent, because the variable is intended 
         /// to represent the top level of a synchronous unit.  But some variables are composed of 
