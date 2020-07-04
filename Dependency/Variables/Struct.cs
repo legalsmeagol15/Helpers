@@ -10,15 +10,17 @@ using System.Threading.Tasks;
 
 namespace Dependency.Variables
 {
+    internal enum VariableMode
+    {
+        NONE, UPDATING_CONTENTS, UPDATING_VALUE, UPDATING_CHILD_VALUE
+    }
+
     [Serializable]
     public abstract class VariableStruct<T> : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>, IContext, IVariable<T>
         where T : struct
     {
-        protected enum Modes
-        {
-            NONE, UPDATING_CONTENTS, UPDATING_VALUE, UPDATING_CHILD_VALUE
-        }
-        protected Modes Mode { get; private set; } = Modes.NONE;
+        
+        internal VariableMode Mode { get; private set; } = VariableMode.NONE;
         private readonly object _Lock = new object();
 
         protected readonly IConverter<T> Converter;
@@ -43,14 +45,14 @@ namespace Dependency.Variables
             get => _Contents;
             set
             {
-                Modes priorMode = Modes.NONE;
+                VariableMode priorMode = VariableMode.NONE;
                 try
                 {
                     Monitor.Enter(_Lock);
-                    if ((priorMode = Mode) != Modes.NONE)
+                    if ((priorMode = Mode) != VariableMode.NONE)
                         throw new InvalidOperationException("Cannot change contents while in state " + Mode.ToString());
-                    Mode = Modes.UPDATING_CONTENTS;
-                    if (Converter.TryConvertDown(value, out T newCLRValue) && ApplyContents(newCLRValue))
+                    Mode = VariableMode.UPDATING_CONTENTS;
+                    if (Converter.TryConvertDown(value, out T newCLRValue))
                     {
                         ApplyContents(newCLRValue);
                         Update.ForVariable(this, value).Execute();
@@ -67,7 +69,7 @@ namespace Dependency.Variables
         }
         private bool CommitContents(IEvaluateable newContents)
         {
-            if (Contents.Equals(newContents)) return false;
+            if (_Contents.Equals(newContents)) return false;
             _Contents = newContents;
             return true;
         }
@@ -97,7 +99,7 @@ namespace Dependency.Variables
         public event ValueChangedHandler<IEvaluateable> Updated;
         bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
         {
-            Modes priorMode = Modes.NONE;
+            VariableMode priorMode = VariableMode.NONE;
             try
             {
                 Monitor.Enter(_Lock);
@@ -108,11 +110,11 @@ namespace Dependency.Variables
                     return CommitValue(_Contents.Value);
 
                 // The update comes from a child after changing the Contents?
-                else if (Mode == Modes.UPDATING_CONTENTS)
+                else if (Mode == VariableMode.UPDATING_CONTENTS)
                     return false;
 
                 // The update comes from a child?  Force Contents to align.
-                Mode = Modes.UPDATING_CHILD_VALUE;
+                Mode = VariableMode.UPDATING_CHILD_VALUE;
                 IEvaluateable syncedContents = ComposeValue();
                 CommitContents(syncedContents);
                 return CommitValue(syncedContents);
@@ -126,10 +128,15 @@ namespace Dependency.Variables
         
         private bool CommitValue(IEvaluateable newValue)
         {
-            bool changed = false;
-            if (Converter.TryConvertDown(newValue, out T clr) && !clr.Equals(_Native)) { _Native = clr; changed = true; }
-            if (!Value.Equals(newValue)) { Value = newValue; changed = true; }
-            return changed;
+            try
+            {
+                Monitor.Enter(_Lock);
+                bool changed = false;
+                if (Converter.TryConvertDown(newValue, out T clr) && !clr.Equals(_Native)) { _Native = clr; changed = true; }
+                if (!Value.Equals(newValue)) { Value = newValue; changed = true; }
+                return changed;
+            } finally { Monitor.Exit(_Lock); }
+            
         }
         bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
 

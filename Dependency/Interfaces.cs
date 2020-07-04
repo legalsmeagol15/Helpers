@@ -134,6 +134,12 @@ namespace Dependency
 
     internal interface IIndexable : IEvaluateable
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="ordinal">The evaluated ordinal value.</param>
+        /// <param name="val"></param>
+        /// <returns></returns>
         bool TryIndex(IEvaluateable ordinal, out IEvaluateable val);
     }
 

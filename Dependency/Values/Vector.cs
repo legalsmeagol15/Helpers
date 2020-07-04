@@ -23,6 +23,14 @@ namespace Dependency
                 return new IndexingError(this, Inputs, "Index " + idx + " out of range.");
             }
         }
+        internal bool InternalSet(int index, IEvaluateable content)
+        {
+            if (Inputs[index].Equals(content)) return false;
+            Inputs[index] = content;
+            if (_Value == null) return true;
+            _Value.Inputs[index] = content.Value;
+            return true;
+        }
         
         internal Vector(IEnumerable<IEvaluateable> contents) => Inputs = contents.ToArray();
         internal Vector(IList<IEvaluateable> contents) => Inputs = contents.ToArray();
@@ -106,6 +114,13 @@ namespace Dependency
             if (!(ordinal is Number n) || !n.IsInteger) { val = null; return false; }
             val= this[(int)n];
             return !(val is Error);
+        }
+
+        public static Vector operator +(Vector a, Vector b)
+        {
+            var inputs = a.Inputs.ToList();
+            inputs.AddRange(b.Inputs);
+            return new Vector(inputs);
         }
     }
 }
