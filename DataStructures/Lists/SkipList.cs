@@ -40,7 +40,7 @@ namespace DataStructures
                 Count++;
                 return n;
             }
-            else if (TryGetNode(item, out Node matchOrPreceding))
+            else if (TryGetBefore(item, out Node matchOrPreceding))
                 // match means the item is already on this list.
                 return null;
             else if (matchOrPreceding == null)
@@ -50,7 +50,7 @@ namespace DataStructures
         }
         public bool Remove(T item)
         {
-            if (!TryGetNode(item, out Node match)) return false;
+            if (!TryGetBefore(item, out Node match)) return false;
             match.Remove();
             return true;
         }
@@ -60,8 +60,10 @@ namespace DataStructures
             this._Tail.Clear();
             Count = 0;
         }
+        public T RemoveMax() => Tail.Remove();
+        public T RemoveMin() => Head.Remove();
 
-        public bool Contains(T item) => TryGetNode(item, out Node existing) && existing.Equals(item);
+        public bool Contains(T item) => TryGetBefore(item, out Node existing) && existing.Equals(item);
         /// <summary>
         /// Tries to find the <see cref="Node"/> containing the given <paramref name="item"/>. If 
         /// a matching <see cref="Node"/> exists, returns true and <paramref name="matchOrPrior"/> 
@@ -70,7 +72,7 @@ namespace DataStructures
         /// the preceding <see cref="Node"/>.  If no preceding <see cref="Node"/> exists, returns 
         /// false and <paramref name="matchOrPrior"/> will be null.
         /// </summary>
-        public bool TryGetNode(T item, out Node matchOrPrior)
+        public bool TryGetBefore(T item, out Node matchOrPrior)
         {
             IList<Node> pointers = _Head;
             int i = _Head.Count;
@@ -88,6 +90,25 @@ namespace DataStructures
             }
             matchOrPrior = target;
             return matchOrPrior != null && c==0;
+        }
+        public bool TryGetAfter(T item, out Node matchOrNext)
+        {
+            IList<Node> pointers = _Tail;
+            int i = _Tail.Count;
+            Node target = null;
+            int c = 0;
+            while (i >= 0)
+            {
+                Node prior_target = pointers[i--];
+                if (prior_target == null) continue;
+                c = prior_target.Item.CompareTo(item);
+                if (c > 0) continue;
+                if (c == 0) break;
+                i++;
+                pointers = (target = prior_target).PriorPointers;
+            }
+            matchOrNext = target;
+            return matchOrNext != null && c == 0;
         }
 
         void ICollection<T>.Add(T item) => Add(item);
