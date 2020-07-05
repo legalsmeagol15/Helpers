@@ -9,6 +9,228 @@ using System.Threading.Tasks;
 
 namespace DataStructures
 {
+
+    public sealed class SkipListB<T> : ICollection<T> where T: IComparable<T>
+    {
+        private int GetMaxHeight()
+            => Math.Max(Mathematics.Int32.Log(Count, 2) + 1, STARTING_MAXHEIGHT);
+        private const int STARTING_MAXHEIGHT = 4;
+        private Random _Rng = new Random();
+        public Node Head => _Head[0];
+        public Node Tail => _Tail[0];
+
+        public int Count { get; private set; }
+
+        private List<Node> _Head, _Tail;
+        
+        public SkipListB(IEnumerable<T> items)
+        {
+            _Head = new List<Node>(STARTING_MAXHEIGHT);
+            _Tail = new List<Node>(STARTING_MAXHEIGHT);
+            foreach (var item in items) Add(item);
+        }
+        public Node Add(T item)
+        {
+            if (Count == 0)
+            {
+                int height = _Rng.Next(GetMaxHeight());
+                Node n = new Node(this, item, height);
+                for (int i = 0; i < height; i++)
+                    _Head[i] = _Tail[i] = n;
+                Count++;
+                return n;
+            }
+            else if (TryGetNode(item, out Node matchOrPreceding))
+                // match means the item is already on this list.
+                return null;
+            else if (matchOrPreceding == null)
+                return this.Head.InsertBefore(item);
+            else
+                return matchOrPreceding.InsertAfter(item);
+        }
+        public bool Remove(T item)
+        {
+            if (!TryGetNode(item, out Node match)) return false;
+            match.Remove();
+            return true;
+        }
+        public void Clear()
+        {
+            this._Head.Clear();
+            this._Tail.Clear();
+            Count = 0;
+        }
+
+        public bool Contains(T item) => TryGetNode(item, out Node existing) && existing.Equals(item);
+        /// <summary>
+        /// Tries to find the <see cref="Node"/> containing the given <paramref name="item"/>. If 
+        /// a matching <see cref="Node"/> exists, returns true and <paramref name="matchOrPrior"/> 
+        /// will be that <see cref="Node"/>.  If no match exists but a preceding 
+        /// <see cref="Node"/> exists, returns false but <paramref name="matchOrPrior"/> will be 
+        /// the preceding <see cref="Node"/>.  If no preceding <see cref="Node"/> exists, returns 
+        /// false and <paramref name="matchOrPrior"/> will be null.
+        /// </summary>
+        public bool TryGetNode(T item, out Node matchOrPrior)
+        {
+            IList<Node> pointers = _Head;
+            int i = _Head.Count;
+            Node target = null;
+            int c = 0;
+            while (i >= 0)
+            {
+                Node next_target = pointers[i--];
+                if (next_target == null) continue;
+                c = next_target.Item.CompareTo(item);
+                if (c > 0) continue;
+                if (c == 0) break;
+                i++;
+                pointers = (target = next_target).NextPointers;
+            }
+            matchOrPrior = target;
+            return matchOrPrior != null && c==0;
+        }
+
+        void ICollection<T>.Add(T item) => Add(item);
+        bool ICollection<T>.IsReadOnly => false;
+        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
+        {
+            Node n = Head;
+            while (n != null && arrayIndex < array.Length)
+            { array[arrayIndex++] = n.Item; n = n.NextPointers[0]; }
+        }
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator()
+        {
+            Node n = Head;
+            while (n != null) { yield return n.Item; n = n.NextPointers[0]; }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            Node n = Head;
+            while (n != null) { yield return n.Item; n = n.NextPointers[0]; }
+        }
+
+        public sealed class Node
+        {   
+            public readonly SkipListB<T> Host;
+            public readonly T Item;
+            internal Node[] PriorPointers;
+            internal Node[] NextPointers;
+            public Node Prior => PriorPointers[0];
+            public Node Next => NextPointers[0];
+      
+            internal Node(SkipListB<T> host, T item, int height)
+            {
+                this.Host = host;
+                this.Item = item;
+                this.PriorPointers = new Node[height];
+                this.NextPointers = new Node[height];
+            }
+
+            public Node InsertBefore(T item)
+            {
+                if (item.CompareTo(Item) >= 0) 
+                    throw new InsertionException("Inserted item must compare < 0.");
+                Host.Count++;
+                int newHeight = Host._Rng.Next(Host.GetMaxHeight());
+                Node newNode = new Node(Host, item, newHeight);
+                newNode.UpdatePriors(this.Prior, newHeight);
+                newNode.UpdateNexts(this, newHeight);
+                return newNode;
+            }
+            public Node InsertAfter(T item)
+            {
+                if (item.CompareTo(Item) <= 0)
+                    throw new InsertionException("Inserted item must compare > 0.");
+                Host.Count++;
+                int newHeight = Host._Rng.Next(Host.GetMaxHeight());
+                Node newNode = new Node(Host, item, newHeight);
+                newNode.UpdatePriors(this, newHeight);
+                newNode.UpdateNexts(this.Next, newHeight);
+                return newNode;                
+            }
+            public T Remove()
+            {
+                Node prior = this.Prior, next = this.Next;
+                int height = this.NextPointers.Length;
+                if (prior != null)  // This will do both the prior updating and the next updating.
+                    prior.UpdateNexts(next, height);
+                Host.Count--;
+                return Item;
+            }
+            public T RemoveBefore()
+            {
+                Node toRemove = this.Prior;
+                if (toRemove == null) throw new Exception("Cannot delete prior to head.");
+                this.UpdatePriors(toRemove.Prior, toRemove.NextPointers.Length);
+                Host.Count--;
+                return toRemove.Item;
+            }
+            public T RemoveAfter()
+            {
+                Node toRemove = this.Next;
+                if (toRemove == null) throw new Exception("Cannot delete after tail.");
+                this.UpdateNexts(toRemove.Next, toRemove.PriorPointers.Length);
+                Host.Count--;
+                return toRemove.Item;
+            }
+
+            private void UpdateNexts(Node next, int height)
+            {
+                int i = 0;
+                while (i < height && next != null)
+                {
+                    if (i >= next.NextPointers.Length)
+                        next = next.NextPointers[i - 1];
+                    else
+                    {
+                        this.NextPointers[i] = next;
+                        next.PriorPointers[i] = this;
+                        i++;
+                    }
+                }
+                while (i < height)
+                {
+                    if (i >= Host._Tail.Count)
+                        Host._Tail.Add(this);
+                    else
+                        Host._Tail[i] = this;
+                    NextPointers[i] = null;
+                }
+            }
+            private void UpdatePriors(Node prior, int height)
+            {
+                int i = 0;
+                while (i < height && prior != null)
+                {
+                    if (i >= prior.PriorPointers.Length)
+                        prior = prior.PriorPointers[i - 1];
+                    else
+                    {
+                        this.PriorPointers[i] = prior;
+                        prior.NextPointers[i] = this;
+                        i++;
+                    }
+                }
+                while (i < height)
+                {
+                    if (i >= Host._Head.Count)
+                        Host._Head.Add(this);
+                    else
+                        Host._Head[i] = this;
+                    PriorPointers[i] = null;
+                }
+            }
+
+
+        }
+    }
+
+    public class InsertionException : Exception
+    {
+        public InsertionException(string message) : base(message) { }
+    }
     /// <summary>
     /// A link-based data structure which maintains its contents in sorted order.  For finding the appropriate position for each item 
     /// added or removed, the SkipList's asymptotic time complexity approaches O(log_2(n)), where 'n' is the number of items contained 
@@ -40,7 +262,7 @@ namespace DataStructures
     {
         private Node Head = null;
         private Node Tail = null;
-        internal const int DEFAULT_MAXHEIGHT = 4;
+        internal const int STARTING_MAXHEIGHT = 4;
         internal const double DEFAULT_ADJACENCY_FRACTION = 0.5;
 
 
@@ -109,11 +331,9 @@ namespace DataStructures
         /// </summary>
         private int GetMaxHeight(int count)
         {
-            return Math.Max(Mathematics.Int32.Log(count, Denom) + 1, DEFAULT_MAXHEIGHT);
+            return Math.Max(Mathematics.Int32.Log(count, Denom) + 1, STARTING_MAXHEIGHT);
         }
         #endregion
-
-
 
 
         #region SkipList contents modification
@@ -121,26 +341,30 @@ namespace DataStructures
         /// <summary>
         /// Ensures that the given item exists on this SkipList.
         /// </summary>        
-        /// <returns>Returns true if the list was changed in this operation; otherwise, returns false.</returns>
-        public bool Add(T item)
+        /// <returns>Returns the added node, if add was successful; otherwise, returns null.</returns>
+        public Node Add(T item)
         {
             //Case #0 - the list is currently empty.
             if (Head == null)
             {
-                Head = Node.FromKnownHeight(this, DEFAULT_MAXHEIGHT, item);
+                Head = Node.FromKnownHeight(this, STARTING_MAXHEIGHT, item);
                 Tail = Head;
                 Count = 1;
-                return true;
+                return Head;
             }
 
-            Node priorOrEqual = GetPriorOrEqual(item), result;
-            int maxHeight = GetMaxHeight(Count + 1);
+            Node priorOrEqual = GetPriorOrEqual(item);
+            Node result;
+            
             //Case #1 - adding a new head.
             if (priorOrEqual == null)
             {
                 //The result will be the new head.
+                int maxHeight = GetMaxHeight(Count + 1);
                 result = Node.FromKnownHeight(this, maxHeight, item);
                 int rndHeight = Node.GetRandomHeight(maxHeight, AdjacencyFraction);
+
+                // Replace head and tail "nodes" links.
                 Node[] replaceBackward = new Node[rndHeight], replaceForward = new Node[rndHeight];
                 for (int i = 0; i < rndHeight; i++)
                 {
@@ -157,16 +381,22 @@ namespace DataStructures
                 Head.Backward = replaceBackward;
                 Head.Forward = replaceForward;
                 Head = result;
+                ResizeHead(maxHeight);
+                ResizeTail(maxHeight);
+                Count++;
             }
             //Case #2 - priorOrEqual is non-null, and its data equals the item being added.
             else if (priorOrEqual.Data.CompareTo(item) == 0)
-                return false;
+                return null;
             //Case #3 - adding a new tail.
             else if (priorOrEqual == Tail)
             {
                 //The result will be the new tail.
+                int maxHeight = GetMaxHeight(Count + 1);
                 result = Node.FromKnownHeight(this, maxHeight, item);
                 int rndHeight = Node.GetRandomHeight(maxHeight, AdjacencyFraction);
+
+                // Replace head and tail "nodes" links.
                 Node[] replaceBackward = new Node[rndHeight], replaceForward = new Node[rndHeight];
                 for (int i = 0; i < rndHeight; i++)
                 {
@@ -183,22 +413,20 @@ namespace DataStructures
                 Tail.Backward = replaceBackward;
                 Tail.Forward = replaceForward;
                 Tail = result;
+                ResizeHead(maxHeight);
+                ResizeTail(maxHeight);
+                Count++;
             }
             //Case #4 - adding somewhere in the middle
             else
             {
                 result = priorOrEqual.InsertAfter(item);
+                int maxHeight = GetMaxHeight(Count);
+                ResizeHead(maxHeight);
+                ResizeTail(maxHeight);
             }
 
-            //Ensure that the Head and Tail are tall enough for the whole thing.
-            ResizeHead(maxHeight);
-            ResizeTail(maxHeight);
-
-
-            //Step #5 - finally, since the list was changed, return true.
-            Count++;
-
-            return true;
+            return result;
         }
         [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
         void ICollection<T>.Add(T item)
@@ -455,13 +683,14 @@ namespace DataStructures
                 Node result = Node.FromRandomHeight(Host, maxHeight, item, Host.AdjacencyFraction);
                 result.UpdateForwardLinks(this.Next);
                 result.UpdateBackwardLinks(this);
+                Host.Count++;
                 return result;
             }
             /// <summary>
             /// Updates all forward links of this node, starting with the link at Forward[0], which will be set to the given node.
             /// </summary>            
             /// <param name="next">The node to begin linking forward from this node.</param>
-            internal void UpdateForwardLinks(Node next)
+            private void UpdateForwardLinks(Node next)
             {
                 for (int i = 0; i < Forward.Length; i++)
                 {
@@ -474,7 +703,7 @@ namespace DataStructures
             /// Updates all backward links of this node, starting with the link at Backward[0], which will be set to the given node.
             /// </summary>
             /// <param name="prior">The node to begin linking back from this node.</param>
-            internal void UpdateBackwardLinks(Node prior)
+            private void UpdateBackwardLinks(Node prior)
             {
                 for (int i = 0; i < Backward.Length; i++)
                 {
@@ -560,7 +789,7 @@ namespace DataStructures
         /// <remarks>Depending on how many items must be skipped as the prior-or-equal is sought, this method ranged between an O(1) operation 
         /// or an O(n) operation depending on the distribution of random heights of the nodes, but the most common case will approach an 
         /// O(log n) operation.</remarks>
-        private Node GetPriorOrEqual(T item)
+        public Node GetPriorOrEqual(T item)
         {
             if (Head == null) return null;
             if (item.CompareTo(Head.Data) < 0) return null;
