@@ -141,6 +141,7 @@ namespace Dependency
         /// <param name="val"></param>
         /// <returns></returns>
         bool TryIndex(IEvaluateable ordinal, out IEvaluateable val);
+        event IndexingChangedHandler IndexChanged;
     }
 
 

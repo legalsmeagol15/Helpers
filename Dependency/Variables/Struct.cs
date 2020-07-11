@@ -22,6 +22,7 @@ namespace Dependency.Variables
         
         internal VariableMode Mode { get; private set; } = VariableMode.NONE;
         private readonly object _Lock = new object();
+        public bool IsValid { get; private set; } = true;
 
         protected readonly IConverter<T> Converter;
         protected VariableStruct(IConverter<T> converter)
@@ -57,7 +58,7 @@ namespace Dependency.Variables
                         ApplyContents(newCLRValue);
                         Update.ForVariable(this, value).Execute();
                     }
-                    else 
+                    else
                         InvalidateContents(new ConversionError(value, typeof(T)));
                 }
                 catch (Exception e)
@@ -132,11 +133,19 @@ namespace Dependency.Variables
             {
                 Monitor.Enter(_Lock);
                 bool changed = false;
-                if (Converter.TryConvertDown(newValue, out T clr) && !clr.Equals(_Native)) { _Native = clr; changed = true; }
+                if (Converter.TryConvertDown(newValue, out T clr) && !clr.Equals(_Native))
+                {
+                    _Native = clr;
+                    changed = true;
+                    IsValid = true;
+                }
+                else
+                    IsValid = false;
                 if (!Value.Equals(newValue)) { Value = newValue; changed = true; }
                 return changed;
-            } finally { Monitor.Exit(_Lock); }
-            
+            }
+            finally { Monitor.Exit(_Lock); }
+
         }
         bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
 
@@ -203,6 +212,10 @@ namespace Dependency.Variables
         }
     }
 
+    /// <summary>
+    /// Uses reflection to manage a CLR native struct.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public sealed class Struct<T> : VariableStruct<T> where T : struct
     {
         private readonly Dictionary<PropertyInfo, Variable> _Variables;

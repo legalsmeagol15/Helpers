@@ -49,40 +49,6 @@ namespace UnitTests
             Assert.IsTrue(v2.Value.Equals(v0.Value));
         }
         
-        [TestMethod]
-        public void Test_Struct()
-        {
-            Struct<Mathematics.Geometry.VectorN> host = new Struct<Mathematics.Geometry.VectorN>();
-            AssertThrows<ArgumentException>(() => { object bad = host["no_exists"]; });
-
-            Variable xVar = (Variable)host["X"], yVar = (Variable)host["Y"];
-            Assert.AreEqual(xVar.Value, 0);
-            Assert.AreEqual(xVar.Contents, 0);
-            Assert.AreEqual(yVar.Value, 0);
-            Assert.AreEqual(yVar.Contents, 0);
-            Assert.AreEqual(host.Value, new Dependency.Vector(0, 0));
-            Assert.AreEqual(host.Contents, new Dependency.Vector(0, 0));
-
-            host.Native = new Mathematics.Geometry.VectorN(1, 2);
-            Assert.AreEqual(xVar.Value, 1);
-            Assert.AreEqual(xVar.Contents, 1);
-            Assert.AreEqual(yVar.Value, 2);
-            Assert.AreEqual(yVar.Contents, 2);
-            Assert.AreEqual(host.Value, new Dependency.Vector(1, 2));
-            Assert.AreEqual(host.Contents, new Dependency.Vector(1, 2));
-
-
-            xVar.Contents = new Number(3);
-            Assert.AreEqual(xVar.Value, 3);
-            Assert.AreEqual(xVar.Contents, 3);
-            Assert.AreEqual(yVar.Value, 2);
-            Assert.AreEqual(yVar.Contents, 2);
-            Assert.AreEqual(host.Value, new Dependency.Vector(3, 2));
-            Assert.AreEqual(host.Contents, new Dependency.Vector(3, 2));
-
-
-
-        }
 
         [TestMethod]
         public void Test_Indexing_Simple()
@@ -210,6 +176,29 @@ namespace UnitTests
             }
         }
         
+        [TestMethod]
+        public void Test_List()
+        {
+            IEvaluateable updateValueOld, updateValueNew;
+            int updateCount = 0;
+
+            //Dependency.Variables.List<int> list = new Dependency.Variables.List<int>();
+            //list.Updated += _List_Updated;
+
+            //Assert.AreEqual(0, list.Count);
+            //list.Add(0);
+            //Assert.AreEqual(1, list.Count);
+
+            void _List_Updated(object sender, Helpers.ValueChangedArgs<IEvaluateable> e)
+            {
+                updateCount++;
+                updateValueOld = e.Before;
+                updateValueNew = e.After;
+            }
+        }
+
+        
+
         [TestMethod]
         public void Test_Numbers()
         {
@@ -373,6 +362,38 @@ namespace UnitTests
 
             //var timings = DoTiming(() => exp1.UpdateValue(), 512, 16);
             //PrintTimings(timings);
+        }
+
+        [TestMethod]
+        public void Test_Struct()
+        {
+            Struct<Mathematics.Geometry.VectorN> host = new Struct<Mathematics.Geometry.VectorN>();
+            AssertThrows<ArgumentException>(() => { object bad = host["no_exists"]; });
+
+            Variable xVar = (Variable)host["X"], yVar = (Variable)host["Y"];
+            Assert.AreEqual(xVar.Value, 0);
+            Assert.AreEqual(xVar.Contents, 0);
+            Assert.AreEqual(yVar.Value, 0);
+            Assert.AreEqual(yVar.Contents, 0);
+            Assert.AreEqual(host.Value, new Dependency.Vector(0, 0));
+            Assert.AreEqual(host.Contents, new Dependency.Vector(0, 0));
+
+            host.Native = new Mathematics.Geometry.VectorN(1, 2);
+            Assert.AreEqual(xVar.Value, 1);
+            Assert.AreEqual(xVar.Contents, 1);
+            Assert.AreEqual(yVar.Value, 2);
+            Assert.AreEqual(yVar.Contents, 2);
+            Assert.AreEqual(host.Value, new Dependency.Vector(1, 2));
+            Assert.AreEqual(host.Contents, new Dependency.Vector(1, 2));
+
+
+            xVar.Contents = new Number(3);
+            Assert.AreEqual(xVar.Value, 3);
+            Assert.AreEqual(xVar.Contents, 3);
+            Assert.AreEqual(yVar.Value, 2);
+            Assert.AreEqual(yVar.Contents, 2);
+            Assert.AreEqual(host.Value, new Dependency.Vector(3, 2));
+            Assert.AreEqual(host.Contents, new Dependency.Vector(3, 2));
         }
 
 
