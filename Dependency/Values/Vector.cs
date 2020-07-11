@@ -122,5 +122,10 @@ namespace Dependency
             inputs.AddRange(b.Inputs);
             return new Vector(inputs);
         }
+        event IndexingChangedHandler IIndexable.IndexChanged
+        {
+            add { throw new InvalidOperationException("Vectors are immutable, so their indexing never changes."); }
+            remove { throw new InvalidOperationException("Vectors are immutable, so their indexing never changes."); }
+        }
     }
 }

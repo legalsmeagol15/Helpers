@@ -64,6 +64,11 @@ namespace Dependency.Variables
         internal override IEvaluateable Evaluate()
             => new Vector(_Items.Select(i => i.Value));
 
+        event Functions.IndexingChangedHandler IIndexable.IndexChanged
+        {
+            add { throw new InvalidOperationException("Arrays are immutable, so their indexing never changes."); }
+            remove { throw new InvalidOperationException("Arrays are immutable, so their indexing never changes."); }
+        }
     }
 
     

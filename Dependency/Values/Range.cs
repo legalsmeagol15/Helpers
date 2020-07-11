@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Dependency.Functions;
 using Dependency.Variables;
 
 namespace Dependency.Values
@@ -13,9 +14,15 @@ namespace Dependency.Values
         public readonly IEvaluateable To;
         public bool IsNumeric => From is Number && To is Number;
         public bool IsInteger => From is Number na && na.IsInteger && To is Number nb && nb.IsInteger;
-        public Range(IEvaluateable @from, IEvaluateable @to) { this.From = from;this.To = to; }
+        public Range(IEvaluateable @from, IEvaluateable @to) { this.From = from; this.To = to; }
 
-        public bool  Contains(IEvaluateable item)
+        event IndexingChangedHandler IIndexable.IndexChanged
+        {
+            add { throw new InvalidOperationException("Range indexing never changed."); }
+            remove { throw new InvalidOperationException("Range indexing never changed."); }
+        }
+
+        public bool Contains(IEvaluateable item)
         {
             if (item is Number ni && From is Number na && To is Number nb && na <= ni && ni <= nb) return true;
             return false;
