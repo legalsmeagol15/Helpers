@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace DataStructures
 {
     /// <summary>Describes an interval set, which is a loss-tolerant data inclusion/exclusion set.</summary>
-    public interface IIntervalSet<T> where T : IComparable<T>
+    public interface IIntervalSet<T> : ICollection<T> where T : IComparable<T>
     {
         bool IsEmpty { get; }
         
@@ -20,9 +20,6 @@ namespace DataStructures
         bool IsPositiveInfinite { get; }
         
         bool IsNegativeInfinite { get; }
-
-        bool Contains(T item);
-        
 
         void MakeUniversal();
         void MakeEmpty();
@@ -133,6 +130,7 @@ namespace DataStructures
             Add(item, true, item, true);
             return true;
         }
+        void ICollection<T>.Add(T item) => Add(item);
         /// <summary>Unions with the given range to this <see cref="IntervalSet{T}"/>.</summary>
         /// <param name="start">The start of the range, inclusive.</param>
         /// <param name="end">The end of the range, inclusive.</param>
@@ -160,7 +158,7 @@ namespace DataStructures
             Inflections = Subtract(Inflections, new Inflection[] { Inflection.Start(start, removeStart),
                                                                     Inflection.End(end, removeEnd) });
         }
-
+        public void Clear() => MakeEmpty();
 
         /// <summary>Makes this set an universal <see cref="IntervalSet{T}"/>.</summary>
         public void MakeUniversal() => Inflections = new Inflection[] { Inflection.Universal };
@@ -505,6 +503,14 @@ namespace DataStructures
                     return Inflection.Empty;
             }
         }
+
+        void ICollection<T>.CopyTo(T[] array, int arrayIndex) { throw new NotImplementedException(); }
+        protected virtual IEnumerator<T> GetEnumerator() { throw new NotImplementedException(); }
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+        bool ICollection<T>.IsReadOnly => false;
+        protected virtual int Count { get { throw new NotImplementedException(); } }
+        int ICollection<T>.Count => this.Count;
     }
 
 
@@ -647,9 +653,10 @@ namespace DataStructures
             throw new NotImplementedException();
         }
 
+        
         /// <summary>Enumerates through this <see cref="DiscreteIntervalSet{T}"/>, returning one included item at a time.
         /// </summary>
-        public IEnumerator<T> GetEnumerator()
+        protected override IEnumerator<T> GetEnumerator()
         {
             if (Inflections.Length == 0) yield break;
             Inflection inf = Inflections[0];
