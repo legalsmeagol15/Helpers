@@ -105,7 +105,6 @@
     <Compile Include="Dependency\Values\Range.cs" />
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
-    <Compile Include="Dependency\Variables\Array.cs" />
     <Compile Include="Dependency\Variables\Formula.cs" />
     <Compile Include="Dependency\Variables\List.cs" />
     <Compile Include="Dependency\Variables\Receiver.cs" />
@@ -152,6 +151,7 @@
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include=".gitignore" />
     <Content Include="Dependency\Dependency.csproj" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
