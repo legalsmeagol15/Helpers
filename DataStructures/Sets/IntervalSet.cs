@@ -848,6 +848,15 @@ namespace DataStructures
 
     }
 
+    public sealed class NumberIntervalSet : IntervalSet<Dependency.Number>
+    {
+        public static NumberIntervalSet Infinite() { var result = new NumberIntervalSet(); result.MakeUniversal(); return result; }
+        public NumberIntervalSet(params Dependency.Number[] items) : base(items) { }
+
+        // TODO:  the overrides of the logical operators (and, or, etc...)  For now, I just need
+        // contains()
+
+    }
     public sealed class Float64IntervalSet : IntervalSet<double>
     {
         public Float64IntervalSet(params double[] items) : base(items) { }
