@@ -141,7 +141,13 @@ namespace Dependency
         /// <param name="val"></param>
         /// <returns></returns>
         bool TryIndex(IEvaluateable ordinal, out IEvaluateable val);
-        event IndexingChangedHandler IndexChanged;
+        bool ControlsReindex { get; }
+    }
+
+
+    internal interface IIndexingUpdater : IIndexable
+    {
+        void Reindex(IEvaluateable index = default);
     }
 
 
@@ -155,6 +161,7 @@ namespace Dependency
     {
         string Name { get; }
     }
+
     
     public interface INotifyUpdates<T>
     {

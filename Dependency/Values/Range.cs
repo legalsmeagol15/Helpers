@@ -16,12 +16,6 @@ namespace Dependency.Values
         public bool IsInteger => From is Number na && na.IsInteger && To is Number nb && nb.IsInteger;
         public Range(IEvaluateable @from, IEvaluateable @to) { this.From = from; this.To = to; }
 
-        event IndexingChangedHandler IIndexable.IndexChanged
-        {
-            add { throw new InvalidOperationException("Range indexing never changed."); }
-            remove { throw new InvalidOperationException("Range indexing never changed."); }
-        }
-
         public bool Contains(IEvaluateable item)
         {
             if (item is Number ni && From is Number na && To is Number nb && na <= ni && ni <= nb) return true;
@@ -33,6 +27,8 @@ namespace Dependency.Values
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Range;
 
         ISyncUpdater ISyncUpdater.Parent { get; set; } = null;
+
+        bool IIndexable.ControlsReindex => false;
 
         bool IContext.TryGetProperty(string path, out IEvaluateable source)
         {

@@ -1,6 +1,9 @@
-﻿using Helpers;
+﻿using DataStructures;
+using Dependency.Functions;
+using Helpers;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -8,112 +11,236 @@ using System.Threading.Tasks;
 
 namespace Dependency.Variables
 {
+    
+    public sealed class List<T> : IVariable<IList<T>>, ISyncUpdater, IAsyncUpdater, INotifyUpdates<IEvaluateable>, IIndexable, IUpdatedVariable
+    {
+        private enum Definition { SELF_DEFINED, MEMBER_DEFINED}
+        private Definition _DefinedBy = Definition.SELF_DEFINED;
+        private readonly object _Lock = new object();
+        private readonly IConverter<T> _MemberConverter;
+        private readonly Dictionary<int, IndexedVariable> _MemberVars;
+        private IList<T> _CachedList = null;
+        private IEvaluateable _Contents = Dependency.Null.Instance;
+        private IEvaluateable _Value = Dependency.Null.Instance;
+        bool IIndexable.ControlsReindex => true;
 
+
+        /// <summary>
+        /// A vector that always indicates a change in value, whenever asked.
+        /// </summary>
+        private class UnstableVector : ISyncUpdater
+        {
+            private readonly System.Collections.Generic.List<IEvaluateable> _Internal;
+            public UnstableVector(IEnumerable<IEvaluateable> items)
+            { 
+                this._Internal = new System.Collections.Generic.List<IEvaluateable>(items);
+            }
+
+            public void Add(IEvaluateable item) => _Internal.Add(item);
+            public void RemoveAt(int index) => _Internal.RemoveAt(index);
+            public void Clear() => _Internal.Clear();
+            public void InsertAt(int index, IEvaluateable item) => _Internal.Insert(index, item);
+            public IEvaluateable this[int index] { get => _Internal[index]; set => _Internal[index] = value; }
+
+            IEvaluateable IEvaluateable.Value => this;
+
+            public override bool Equals(object obj) => false;
+            public override int GetHashCode() => throw new InvalidOperationException();
+
+            public ISyncUpdater Parent { get; set; }
+            bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => true;
+        }
+        /// <summary>Wraps a <seealso cref="Variable{T}"/> to give it an index.</summary>
+        private class IndexedVariable : IVariable<T>, ISyncUpdater, IComparable<IndexedVariable>
+        {
+            private readonly Variable<T> _Wrapped;
+            public List<T> Parent => (List<T>)_Wrapped.Parent;
+            public int Index { get; internal set; }
+            public IndexedVariable(List<T> parent, IEvaluateable contents, int index)
+            {
+                this._Wrapped = new Variable<T>(contents, parent._MemberConverter) { Parent = parent };
+                this.Index = index;
+            }
+            public T Native { get => _Wrapped.Native; set => _Wrapped.Native = value; }
+
+            public IEvaluateable Contents
+            {
+                get => _Wrapped.Contents;
+                set
+                {
+                    IEvaluateable oldContents = _Wrapped.Contents;
+                    _Wrapped.Contents = value;
+                    if (!oldContents.Equals(value))
+                        Parent.MemberContentsChanged(this, oldContents, value);
+                }
+            }
+
+            public IEvaluateable Value => _Wrapped.Value;
+            ISyncUpdater ISyncUpdater.Parent { get=> _Wrapped.Parent; set => throw new InvalidOperationException(); }
+
+
+            bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+                => _Wrapped.OnChildUpdated(caller, updatedChild);
+
+            int IComparable<IndexedVariable>.CompareTo(IndexedVariable other)
+                => Index.CompareTo(other.Index);
+        }
+
+
+        private List (IConverter<T> memberConverter = null)
+        {
+            this._MemberVars = new Dictionary<int, IndexedVariable>();
+            this._MemberConverter = memberConverter ?? Dependency.Values.Converter<T>.Default;
+            if (this._MemberConverter is Dependency.Values.Converter<T>)
+                throw new ArgumentException("Invalid converter: " + typeof(T).Name);
+        }
+        public List(params T[] items) : this(items, null) { }
+        public List(IEnumerable<T> items, IConverter<T> memberConverter) : this(memberConverter)
+        {
+            this.Contents = new Vector(items.Select(item => memberConverter.ConvertUp(item)));
+        }
+
+        private bool TryGetMember(int index, out IndexedVariable variable)
+        {
+            // TODO:  members should be weakly referenced.
+            return _MemberVars.TryGetValue(index, out variable);
+        }
+        private void SetMember(int index, IndexedVariable variable)
+        {
+            // TODO:  members should be weakly referenced.
+            _MemberVars[index] = variable;
+        }
+
+        public IList<T> Native
+        {
+            get
+            {
+                if (this._CachedList == null)
+                    this._CachedList = new System.Collections.Generic.List<T>(this._MemberVars.Values.Select(v => this._MemberConverter.ConvertDown(v)));
+                return this._CachedList;
+            }
+            set
+            {
+                this.Contents = new Vector(value.Select(item => this._MemberConverter.ConvertUp(item)));
+            }
+        }
+
+
+        public IEvaluateable Contents
+        {
+            get => this._Contents;
+            set => SelfContentsChanged(this._Contents, value);
+        }
+        private void SelfContentsChanged(IEvaluateable oldContents, IEvaluateable newContents)
+        {
+            // I would expect the user to supply a Vector, but that's not guaranteed.
+            lock (_Lock)
+            {
+                if (oldContents.Equals(newContents)) return;
+                Update.ForVariable(this, newContents).Execute();
+                _MemberVars.Clear();
+                _DefinedBy = Definition.MEMBER_DEFINED;
+                //foreach (var listener in this.Listeners.OfType<Indexing>())
+                //    listener.Reindex();
+            }
+        }
+
+        private void MemberContentsChanged(IndexedVariable indexedVariable, IEvaluateable oldContents, IEvaluateable newContents)
+        {
+            Monitor.Enter(_Lock);
+            try
+            {
+                if (_DefinedBy == Definition.SELF_DEFINED)
+                {
+                    SetMember(indexedVariable.Index, indexedVariable);
+                    _DefinedBy = Definition.MEMBER_DEFINED;
+
+                }
+                else if (oldContents.Equals(newContents)) return;
+
+            }
+            finally { Monitor.Exit(_Lock); }
+        }
+
+
+        bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
+        {
+            Monitor.Enter(_Lock);
+            try
+            {
+                switch (_DefinedBy)
+                {
+                    case Definition.SELF_DEFINED when _Contents is IIndexable ii:
+                        return ii.TryIndex(ordinal, out val);
+                    case Definition.MEMBER_DEFINED when ordinal is Number n && n.IsInteger && TryGetMember((int)n, out IndexedVariable iv):
+                        val = iv; return true;
+                    default:
+                        val = default; return false;
+                }
+            }
+            finally { Monitor.Exit(_Lock); }            
+        }
+
+        bool IUpdatedVariable.CommitContents(IEvaluateable newContent)
+        {
+            if (_Contents.Equals(newContent)) return false;
+            _Contents = newContent;
+            return true;
+        }
+
+        public IEvaluateable Value
+        {
+            get => _Value;
+            private set
+            {
+                IEvaluateable oldValue = _Value;
+                _Value = value;
+                Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, value));
+            }
+        }
+        public event ValueChangedHandler<IEvaluateable> Updated;
+        ISyncUpdater ISyncUpdater.Parent { get; set; }
+        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+        {
+            Monitor.Enter(_Lock);
+            try
+            {
+                switch (_DefinedBy)
+                {
+                    case Definition.SELF_DEFINED: Value = _Contents.Value;
+                }
+            }
+            finally { Monitor.Exit(_Lock); }
+            
+            Definition priorDef = _DefinedBy;
+            switch (_DefinedBy)
+            {
+                case Definition.SELF_DEFINED_UPDATING_CONTENTS: return false;
+                case Definition.SELF_DEFINED:
+                    Debug.Assert(updatedChild.Equals(_Contents));
+                    return CommitValue(_Contents.Value);                    
+                case Definition.MEMBER_DEFINED:
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+            
+        #region List IASyncUpdate members (listeners)
+
+        internal readonly Update.ListenerManager Listeners = new Update.ListenerManager();
+        bool IAsyncUpdater.RemoveListener(ISyncUpdater listener) => Listeners.Remove(listener);
+
+        bool IAsyncUpdater.AddListener(ISyncUpdater listener) => Listeners.Add(listener);
+
+        IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
+
+        #endregion
+
+    }
 }
 //{
 //    public sealed class List<T> : IVariable<IList<T>>, ISyncUpdater, IAsyncUpdater, INotifyUpdates<IEvaluateable>, IIndexable, IUpdatedVariable
 //    {
-//        internal enum Definition
-//        {
-//            CONTEXT_DEFINED, MEMBER_DEFINED
-//        }
-//        private Definition DefinedBy = Definition.CONTEXT_DEFINED;
-//        private readonly object _Lock = new object();
-//        private readonly IConverter<T> _MemberConverter;
-//        private readonly Dictionary<int, IndexedVariable> _MemberVars;
-//        private IList<T> _Cache = null;
-//        private IEvaluateable _Contents, _Value = Dependency.Null.Instance;
-//        public bool IsValid { get; private set; } = true;
-//        internal VariableMode Mode { get; private set; } = VariableMode.NONE;
-
-//        private List(IConverter<T> memberConverter = null)
-//        {
-//            this._MemberVars = new Dictionary<int, IndexedVariable>();
-//            this._MemberConverter = memberConverter ?? Dependency.Values.Converter<T>.Default;
-//            if (this._MemberConverter is Dependency.Values.Converter<T>)
-//                throw new ArgumentException("Invalid converter: " + this._MemberConverter.GetType().Name);
-//        }
-//        public List(params T[] items) : this(items, null) { }
-//        public List(IEnumerable<T> items, IConverter<T> memberConverter) : this(memberConverter)
-//        {
-//            Contents = new Vector(items.Select(i => memberConverter.ConvertUp(i)));
-//        }
-//        public IList<T> Native
-//        {
-//            get
-//            {
-//                if (this._Cache == null)
-//                    this._Cache = new System.Collections.Generic.List<T>(this._MemberVars.Select(v => this._MemberConverter.ConvertDown(v.Value)));
-//                return this._Cache;
-//            }
-//            set
-//            {
-//                throw new NotImplementedException();
-//            }
-//        }
-//        public IEvaluateable Contents
-//        {
-//            get => this._Contents;
-//            set
-//            {
-//                VariableMode priorMode = VariableMode.NONE;
-//                try
-//                {
-//                    Monitor.Enter(_Lock);
-//                    if ((priorMode = Mode) != VariableMode.NONE)
-//                        throw new InvalidOperationException("Cannot changed contents while in state " + Mode.ToString());
-//                    Mode = VariableMode.UPDATING_CONTENTS;
-
-//                    // If new contents isn't a vector, the result is a conversion error for any 
-//                    // indexed member.
-//                    if (!(value is Vector v))
-//                    {
-//                        ConversionError ce = new ConversionError(value, typeof(Vector));
-//                        foreach (var mv in _MemberVars) mv.Contents = ce;
-//                    }
-//                    else
-//                    {
-//                        for (int i = 0; i < v.Inputs.Count; i++)
-//                        {
-//                            if (i < _MemberVars.Count)
-//                                _MemberVars[i].Contents = v[i];
-//                            else
-//                                _MemberVars.Add(new IndexedVariable(this, v[i], i));
-//                        }
-//                        while (_MemberVars.Count > v.Inputs.Count)
-//                            _MemberVars.Remove(_MemberVars.Count - 1);
-//                    }
-
-//                    // Fire an update.  This should force all indexing references to this variable 
-//                    // to re-index.
-//                    Update.ForVariable(this, this._Contents).Execute();
-//                }
-//                finally { Mode = priorMode; Monitor.Exit(_Lock); }
-//            }
-//        }
-
-//        bool IUpdatedVariable.CommitContents(IEvaluateable newContents)
-//        {
-//            if (_Contents.Equals(newContents)) return false;
-//            _Contents = newContents;
-//            return true;
-//        }
-
-//        public IEvaluateable Value
-//        {
-//            get => _Value;
-//            private set
-//            {
-//                IEvaluateable oldValue = _Value;
-//                _Value = value;
-//                Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, value));
-//            }
-//        }
-//        public event ValueChangedHandler<IEvaluateable> Updated;
-//        ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
-//        internal ISyncUpdater Parent { get; set; }
-
-//        IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
 
 //        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
 //        {
@@ -166,16 +293,6 @@ namespace Dependency.Variables
 
 
 
-//        #region List IASyncUpdate members (listeners)
-
-//        internal readonly Update.ListenerManager Listeners = new Update.ListenerManager();
-//        bool IAsyncUpdater.RemoveListener(ISyncUpdater listener) => Listeners.Remove(listener);
-
-//        bool IAsyncUpdater.AddListener(ISyncUpdater listener) => Listeners.Add(listener);
-
-//        IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
-
-//        #endregion
 
 
 

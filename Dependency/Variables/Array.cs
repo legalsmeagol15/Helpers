@@ -10,6 +10,9 @@ namespace Dependency.Variables
     public class Array : Variable, IIndexable
     {
         private readonly Variable[] _Items;
+
+        bool IIndexable.ControlsReindex => false;
+
         public IEvaluateable this[int idx] => _Items[idx];
 
         public Array(int size) {
@@ -28,8 +31,8 @@ namespace Dependency.Variables
             // parents from the vector to this array, and that might not be the user's intent.
             if (!(newContents is Vector vec))
                 throw new ArgumentException("New contents must be a vector.");
-            if (vec.Size != _Items.Length)
-                throw new ArgumentException("Invalid vector size (" + vec.Size + ").  Must be " + _Items.Length);
+            if (vec.Count != _Items.Length)
+                throw new ArgumentException("Invalid vector size (" + vec.Count + ").  Must be " + _Items.Length);
 
             IEvaluateable hasParent = vec.Inputs.FirstOrDefault(i => i.Value is ISyncUpdater isu && isu.Parent != null);
             if (hasParent != default)
@@ -63,12 +66,6 @@ namespace Dependency.Variables
 
         internal override IEvaluateable Evaluate()
             => new Vector(_Items.Select(i => i.Value));
-
-        event Functions.IndexingChangedHandler IIndexable.IndexChanged
-        {
-            add { throw new InvalidOperationException("Arrays are immutable, so their indexing never changes."); }
-            remove { throw new InvalidOperationException("Arrays are immutable, so their indexing never changes."); }
-        }
     }
 
     
