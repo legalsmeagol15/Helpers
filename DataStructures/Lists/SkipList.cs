@@ -10,8 +10,8 @@ using System.Threading.Tasks;
 namespace DataStructures
 {
     /// <summary>
-    /// A link-based data structure which maintains its contents in sorted order.  For finding the appropriate position for each item 
-    /// added or removed, the SkipList's asymptotic time complexity approaches O(log_2(n)), where 'n' is the number of items contained 
+    /// A link-based data structure which maintains its contents in sorted order, but finding the appropriate position for each item 
+    /// added or removed.  The SkipList's asymptotic time complexity approaches O(log_2(n)), where 'n' is the number of items contained 
     /// on the list.  It achieves this complexity by maintaining links with each item that may or may not skip over other items to 
     /// expedite comparisons.  Duplicate items are not allowed.
     /// <para/>The links from item to item will usually point to their immediately adjacent neighbors, while the rest will point to 
@@ -36,8 +36,10 @@ namespace DataStructures
     /// </remarks>
     [DebuggerDisplay("Count = {Count}")]
     [DefaultMember("Item")]
-    public sealed class SkipList<T> : ICollection<T> where T : IComparable<T>
+    public sealed class SkipList<T> : ICollection<T>
     {
+
+        private IComparer<T> Comparer;
         private Node Head = null;
         private Node Tail = null;
         internal const int DEFAULT_MAXHEIGHT = 4;
@@ -85,9 +87,25 @@ namespace DataStructures
         /// so this value can fine-tune the performance of the SkipList.</param>
         public SkipList(double adjacencyFraction = DEFAULT_ADJACENCY_FRACTION)
         {
+            if (typeof(IComparable<T>).IsAssignableFrom(typeof(T))) Comparer = Comparer<T>.Default;
+            else if (typeof(IComparable).IsAssignableFrom(typeof(T))) Comparer = Comparer<T>.Default;
+            else
+                throw new InvalidOperationException("An IComparer<" + typeof(T).Name + "> cannot be created automatically.");
             AdjacencyFraction = adjacencyFraction;
         }
-        
+        /// <summary>
+        /// Creates a new SkipList that uses the given comparator for internal sorting.
+        /// </summary>
+        /// <param name="comparer">The comparator to use for sorting.</param>
+        /// <param name="adjacencyFraction">Optional.  The value given will represent the expected fraction of items that reside in this 
+        /// SkipList with a "height" of 1.  Of those with a higher "height", the same fraction will have a "height" of 2, and of those 
+        /// higher than 2 the same fraction will have a height of "3", and so on.  A lower adjacency fraction will allow more skipping, 
+        /// so this value can fine-tune the performance of the SkipList.</param>
+        public SkipList(IComparer<T> comparer, double adjacencyFraction = DEFAULT_ADJACENCY_FRACTION)
+        {
+            AdjacencyFraction = adjacencyFraction;
+            Comparer = comparer;
+        }
         /// <summary>
         /// Creates a new SkipList and populates it with the given items.  If the type implements IComparable, a default comparator for that type 
         /// will be generated.  Otherwise, throws an exception.
@@ -127,7 +145,7 @@ namespace DataStructures
             //Case #0 - the list is currently empty.
             if (Head == null)
             {
-                Head = Node.FromKnownHeight(this, DEFAULT_MAXHEIGHT, item);
+                Head = Node.FromKnownHeight(DEFAULT_MAXHEIGHT, item);
                 Tail = Head;
                 Count = 1;
                 return true;
@@ -139,7 +157,7 @@ namespace DataStructures
             if (priorOrEqual == null)
             {
                 //The result will be the new head.
-                result = Node.FromKnownHeight(this, maxHeight, item);
+                result = Node.FromKnownHeight(maxHeight, item);
                 int rndHeight = Node.GetRandomHeight(maxHeight, AdjacencyFraction);
                 Node[] replaceBackward = new Node[rndHeight], replaceForward = new Node[rndHeight];
                 for (int i = 0; i < rndHeight; i++)
@@ -159,13 +177,13 @@ namespace DataStructures
                 Head = result;
             }
             //Case #2 - priorOrEqual is non-null, and its data equals the item being added.
-            else if (priorOrEqual.Data.CompareTo(item) == 0)
+            else if (Comparer.Compare(priorOrEqual.Data, item) == 0)
                 return false;
             //Case #3 - adding a new tail.
             else if (priorOrEqual == Tail)
             {
                 //The result will be the new tail.
-                result = Node.FromKnownHeight(this, maxHeight, item);
+                result = Node.FromKnownHeight(maxHeight, item);
                 int rndHeight = Node.GetRandomHeight(maxHeight, AdjacencyFraction);
                 Node[] replaceBackward = new Node[rndHeight], replaceForward = new Node[rndHeight];
                 for (int i = 0; i < rndHeight; i++)
@@ -187,7 +205,9 @@ namespace DataStructures
             //Case #4 - adding somewhere in the middle
             else
             {
-                result = priorOrEqual.InsertAfter(item);
+                result = Node.FromRandomHeight(maxHeight, item, AdjacencyFraction);
+                result.UpdateForwardLinks(priorOrEqual.Next);
+                result.UpdateBackwardLinks(priorOrEqual);
             }
 
             //Ensure that the Head and Tail are tall enough for the whole thing.
@@ -228,7 +248,7 @@ namespace DataStructures
             if (Count == 0) return false;
             Node toRemove = GetPriorOrEqual(item);
             if (toRemove == null) return false;
-            if (toRemove.Data.CompareTo(item) != 0) return false;
+            if (Comparer.Compare(toRemove.Data, item) != 0) return false;
 
             //From here, the item definitely exists to be removed.
             //Is it the sole item?
@@ -376,9 +396,8 @@ namespace DataStructures
         /// <summary>
         /// A lightweight data structure that holds the included data as well as a set of links to the previous and next nodes.
         /// </summary>
-        public sealed class Node
+        private class Node
         {
-            public readonly SkipList<T> Host;
             /// <summary>
             /// The included item represented at this node.
             /// </summary>
@@ -390,11 +409,11 @@ namespace DataStructures
             /// <summary>
             /// The forward links of this node.
             /// </summary>
-            internal Node[] Forward;
+            public Node[] Forward;
             /// <summary>
             /// The backward links of this node.
             /// </summary>
-            internal Node[] Backward;
+            public Node[] Backward;
             /// <summary>
             /// The immediately succeeding node after this node.
             /// </summary>
@@ -413,20 +432,19 @@ namespace DataStructures
             /// <summary>
             /// Creates a new node with the given height and data.
             /// </summary>
-            private Node(SkipList<T> host, int height, T data)
+            private Node(int height, T data)
             {
-                this.Host = host;
-                this.Forward = new Node[height];
-                this.Backward = new Node[height];
-                this.Data = data;
+                Forward = new Node[height];
+                Backward = new Node[height];
+                Data = data;
             }
 
             /// <summary>
             /// A factory-type constructor which returns a new node with the given height and data.
             /// </summary>
-            internal static Node FromKnownHeight(SkipList<T> host, int height, T data)
+            public static Node FromKnownHeight(int height, T data)
             {
-                return new Node(host, height, data);
+                return new Node(height, data);
             }
 
             /// <summary>
@@ -436,32 +454,23 @@ namespace DataStructures
             /// adjacency fraction is 1/2.</param>
             /// <param name="data">The data represented in this node.</param>
             /// <param name="adjacencyFraction"></param>
-            internal static Node FromRandomHeight(SkipList<T> host, int maxHeight, T data, double adjacencyFraction)
+            public static Node FromRandomHeight(int maxHeight, T data, double adjacencyFraction)
             {
 
-                return new Node(host, GetRandomHeight(maxHeight, adjacencyFraction), data);
+                return new Node(GetRandomHeight(maxHeight, adjacencyFraction), data);
             }
-            internal static int GetRandomHeight(int maxHeight, double adjacencyFraction)
+            public static int GetRandomHeight(int maxHeight, double adjacencyFraction)
             {
                 //Find a random height.  The probability of Height=1 is 1/2, for Height=2 is 1/4, for Height=3 is 1/8, etc.
                 int height = 1;
                 while (_Rng.NextDouble() < adjacencyFraction && ++height < maxHeight) ;
                 return height;
             }
-
-            public Node InsertAfter(T item)
-            {
-                var maxHeight = Host.GetMaxHeight(Host.Count + 1);
-                Node result = Node.FromRandomHeight(Host, maxHeight, item, Host.AdjacencyFraction);
-                result.UpdateForwardLinks(this.Next);
-                result.UpdateBackwardLinks(this);
-                return result;
-            }
             /// <summary>
             /// Updates all forward links of this node, starting with the link at Forward[0], which will be set to the given node.
             /// </summary>            
             /// <param name="next">The node to begin linking forward from this node.</param>
-            internal void UpdateForwardLinks(Node next)
+            public void UpdateForwardLinks(Node next)
             {
                 for (int i = 0; i < Forward.Length; i++)
                 {
@@ -474,7 +483,7 @@ namespace DataStructures
             /// Updates all backward links of this node, starting with the link at Backward[0], which will be set to the given node.
             /// </summary>
             /// <param name="prior">The node to begin linking back from this node.</param>
-            internal void UpdateBackwardLinks(Node prior)
+            public void UpdateBackwardLinks(Node prior)
             {
                 for (int i = 0; i < Backward.Length; i++)
                 {
@@ -550,7 +559,7 @@ namespace DataStructures
         {
             Node focus = GetPriorOrEqual(item);
             if (focus == null) return null;
-            return (focus.Data.CompareTo(item) == 0) ? focus : null;
+            return (Comparer.Compare(focus.Data, item) == 0) ? focus : null;
         }
 
         /// <summary>
@@ -563,13 +572,13 @@ namespace DataStructures
         private Node GetPriorOrEqual(T item)
         {
             if (Head == null) return null;
-            if (item.CompareTo(Head.Data) < 0) return null;
+            if (Comparer.Compare(item, Head.Data) < 0) return null;
 
             Node focus = Head;
             for (int i = Head.Height - 1; i >= 0; i--)
             {
                 Node next = focus.Forward[i];
-                while (next != null && item.CompareTo(next.Data) >= 0)
+                while (next != null && Comparer.Compare(item, next.Data) >= 0)
                 {
                     focus = next;
                     next = focus.Forward[i];
@@ -583,14 +592,14 @@ namespace DataStructures
         /// will be the item returned.
         /// </summary>
         public bool TryGetBefore(T item, out T before)
-        {
+        {   
             Node prior = GetPriorOrEqual(item);
             if (prior == null)
             {
                 before = default(T);
                 return false;
             }
-            if (item.CompareTo(prior.Data) == 0)
+            if (Comparer.Compare(item, prior.Data) == 0)
             {
                 prior = prior.Prior;
                 if (prior == null)
@@ -623,13 +632,13 @@ namespace DataStructures
         {
 
             if (Tail == null) return null;
-            if (item.CompareTo(Tail.Data) > 0) return null;
+            if (Comparer.Compare(item, Tail.Data) > 0) return null;
 
             Node focus = Tail;
             for (int i = Tail.Height - 1; i >= 0; i--)
             {
                 Node next = focus.Backward[i];
-                while (next != null && item.CompareTo(next.Data) <= 0)
+                while (next != null && Comparer.Compare(item, next.Data) <= 0)
                 {
                     focus = next;
                     next = focus.Backward[i];
@@ -662,7 +671,7 @@ namespace DataStructures
                 after = default(T);
                 return false;
             }
-            if (item.CompareTo(next.Data) == 0)
+            if (Comparer.Compare(item, next.Data) == 0)
             {
                 next = next.Next;
                 if (next == null)

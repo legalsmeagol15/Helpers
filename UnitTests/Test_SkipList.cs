@@ -58,6 +58,24 @@ namespace UnitTests
             
         }
 
+        [TestMethod]
+        [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+        public void SkipList_Constructor_AutoComparators()
+        {
+            //This method excluded from code coverage analysis due to assert.fails that are not reached.
+            SkipList<TestJunk> skipJunk = new SkipList<TestJunk>();
+            
+            try
+            {
+                SkipList<System.Windows.Point> skipA = new SkipList<System.Windows.Point>();
+                Assert.Fail();
+            }
+            catch(Exception ex)
+            {
+                if (ex is AssertFailedException) Assert.Fail();
+            }
+        }
+
         [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
         private struct TestJunk : IComparable
         {
@@ -111,7 +129,7 @@ namespace UnitTests
             for (int i = 0; i < 200; i++)
                 rndList.Add(rnd.Next(int.MinValue, int.MaxValue));
 
-            SkipList<int> skipA = new SkipList<int>(1.0/3.0);
+            SkipList<int> skipA = new SkipList<int>(Comparer<int>.Default, 1.0/3.0);
             for (int i = 0; i < 200; i++) skipA.Add(rndList[i]);
             for (int i = 0; i < 200; i++)
                 Assert.IsTrue(skipA.Contains(rndList[i]));
