@@ -476,7 +476,7 @@ namespace Dependency
                 IEvaluateable ordinal = Node.Next.Remove();
                 if (ordinal is Bracket b) ordinal = b.Contents;
                 else throw new ParsingException(this, "Second input for " + typeof(Indexing).Name + " must be a bracketed clause.");
-                Indexing idxing = new Indexing() { Inputs = new IEvaluateable[] { @base, ordinal } };
+                Indexing idxing = new Indexing(  @base, ordinal  );
                 Node.Contents = idxing;
                 _ = null;
                 return true;
