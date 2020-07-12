@@ -31,7 +31,7 @@ namespace Dependency.Functions
 
         /// <summary>The indexed value.  For example, the <see cref="Head"/> in "Points[A1]" would 
         /// be the point found at the A1 spot within Points.</summary>
-        internal IEvaluateable Head => Inputs[2] as IAsyncUpdater;
+        internal IEvaluateable Head => Inputs[2];
 
         // Cache these because updates must have StructureLock held
         private IEvaluateable _CachedBaseValue;
@@ -48,9 +48,18 @@ namespace Dependency.Functions
             this._CachedOrdinalValue = Dependency.Null.Instance;
             this.Inputs = new IEvaluateable[] { @base, ordinal, NonIndexable };
 
-            // What is the @base in the context of a reference?
-            if (@base is IAsyncUpdater iau_base) iau_base.AddListener(this);
-            if (ordinal is IAsyncUpdater iau_ordinal) iau_ordinal.AddListener(this);
+            if (@base is ISyncUpdater isu_base && isu_base.Parent == null)
+                isu_base.Parent = this;
+            else if (@base is IAsyncUpdater iau_base)
+                iau_base.AddListener(this);
+            if (ordinal is ISyncUpdater isu_ordinal && isu_ordinal.Parent == null)
+                isu_ordinal.Parent = this;
+            else if (ordinal is IAsyncUpdater iau_ordinal)
+                iau_ordinal.AddListener(this);
+
+            _CachedBaseValue = @base.Value;
+            _CachedOrdinalValue = ordinal.Value;
+            Reindex();
         }
 
         private readonly IndexingError OutOfRange;
@@ -62,7 +71,7 @@ namespace Dependency.Functions
             {
                 if (!(_CachedBaseValue is IIndexable baseIndexable))
                 {
-                    if (Head.Value != NonIndexable || Value != NonIndexable)
+                    if (Head == null || Head.Value != NonIndexable || Value != NonIndexable)
                     {
                         Inputs[2] = (Value = NonIndexable);
                         return true;
@@ -90,6 +99,15 @@ namespace Dependency.Functions
         }
         bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
         {
+            if (updatedChild == null)
+            {
+                _CachedBaseValue = Base.Value;
+                _CachedOrdinalValue = Ordinal.Value;
+            }
+
+            if (Head == null || Head is Error)
+                return Reindex();
+
             // Most common case - the head's value is the one that was changed.
             if (Head.Equals(updatedChild))
             {

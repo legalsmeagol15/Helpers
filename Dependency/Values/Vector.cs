@@ -74,11 +74,8 @@ namespace Dependency
 
         internal Vector(IEnumerable<IEvaluateable> contents)
         {
-            _Members = new System.Collections.Generic.List<IEvaluateable>();
-            int idx = 0;
+            _Members = new System.Collections.Generic.List<IEvaluateable>();            
             Inputs = contents;
-            foreach (IEvaluateable c in contents)
-                _Members.Add(new IndexWrapper(this, idx++, c));
         }
         internal Vector(IList<IEvaluateable> contents) : this((IEnumerable<IEvaluateable>)contents) { }
         public Vector(params IEvaluateable[] contents) : this((IEnumerable<IEvaluateable>)contents) { }

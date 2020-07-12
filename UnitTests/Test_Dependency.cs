@@ -64,14 +64,13 @@ namespace UnitTests
             root.Add("v0", v0);
             Variable v1 = new Variable();
             IEvaluateable idxing = Parse.FromString("v0[2]", null, root);
-            Update update = Update.ForVariable(v1, idxing);
-            update.Execute();
+            v1.Contents = idxing;
             Assert.AreEqual(v1.Value, vec[2]);
 
 
             // Show that value changes propogate through.
             vec = new Vector(20, 21, 22);
-            update = Update.ForVariable(v0, vec);
+            Update update = Update.ForVariable(v0, vec);
             update.Execute();
             Assert.AreEqual(v1.Value, vec[2]);
 
