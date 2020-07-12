@@ -89,7 +89,7 @@ namespace Dependency.Functions
             finally { Update.StructureLock.ExitWriteLock(); }
         }
         bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
-        {            
+        {
             // Most common case - the head's value is the one that was changed.
             if (Head.Equals(updatedChild))
             {

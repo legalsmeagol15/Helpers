@@ -165,7 +165,7 @@ namespace Dependency
                     return false;
             return true;
         }
-        public override int GetHashCode() => throw new NotImplementedException();
+        public override int GetHashCode() => base.GetHashCode(); // The mem location determines hash.
         public override string ToString() => "{" + string.Join(",", _Members.Select(i => i.ToString())) + "}";
 
         #region Vector IList implementations
