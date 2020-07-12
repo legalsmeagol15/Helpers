@@ -189,7 +189,7 @@ namespace Dependency
                         case ")":
                             parsed = __Parse();
                             if (exp is Parenthetical p) { p.Contents = (parsed.Length != 1) ? new Vector(parsed) : parsed[0]; return Expression.ExpressionType.PAREN; }
-                            else if (exp is NamedFunction nf) { nf.Inputs = (parsed.Length == 1 && parsed[0] is Vector v) ? v.Inputs : parsed; return Expression.ExpressionType.PAREN; }
+                            else if (exp is NamedFunction nf) { nf.Inputs = (parsed.Length == 1 && parsed[0] is Vector v) ? v.Inputs.ToArray() : parsed; return Expression.ExpressionType.PAREN; }
                             throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " cannot be closed by ')'.");
                         case "]":
                             parsed = __Parse();

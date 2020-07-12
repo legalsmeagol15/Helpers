@@ -215,7 +215,7 @@ namespace Dependency.Values
     {
         bool IConverter<VectorN>.CanConvertDown(IEvaluateable ie)
         {
-            return ie is Vector v && v.Inputs.Count == 2 && v[0] is Number && v[1] is Number;
+            return ie is Vector v && v.Count == 2 && v[0] is Number && v[1] is Number;
         }
 
         IEvaluateable IConverter<VectorN>.ConvertUp(VectorN item)
@@ -233,7 +233,7 @@ namespace Dependency.Values
 
         bool IConverter<VectorN>.TryConvertDown(IEvaluateable ie, out VectorN target)
         {
-            if (ie is Vector v && v.Inputs.Count == 2 && v[0] is Number x && v[1] is Number y)
+            if (ie is Vector v && v.Count == 2 && v[0] is Number x && v[1] is Number y)
             {
                 target = new VectorN(x, y);
                 return true;

@@ -41,6 +41,15 @@ namespace Dependency
             public override string ToString() => Evaluateable.ToString();
         }
         private readonly IList<IEvaluateable> _Members;
+        public IEnumerable<IEvaluateable> Inputs
+        {
+            get => _Members.Select(m => ((IndexWrapper)m).Evaluateable);
+            internal set {
+                _Members.Clear();
+                if (_Value != null) _Value.Clear();
+                AddRange(value);
+            }
+        }
         private Vector _Value = null;
         IEvaluateable IEvaluateable.Value => Value;
         public Vector Value => _Value ?? (_Value = new Vector(_Members.Select(i => i.Value)) { Parent = this});
@@ -67,6 +76,7 @@ namespace Dependency
         {
             _Members = new System.Collections.Generic.List<IEvaluateable>();
             int idx = 0;
+            Inputs = contents;
             foreach (IEvaluateable c in contents)
                 _Members.Add(new IndexWrapper(this, idx++, c));
         }
@@ -206,6 +216,29 @@ namespace Dependency
             if (_Value != null)
                 _Value._Members.Add(item.Value);
             SignalReindex(_Members.Count - 1);
+        }
+
+        public void AddRange(IEnumerable<IEvaluateable> items)
+        {
+            int minIdx = _Members.Count;
+            if (_Value != null)
+            {
+                _Value.Clear();
+                foreach (IEvaluateable item in items)
+                {
+                    IndexWrapper wrapper = new IndexWrapper(this, _Members.Count, item);
+                    _Members.Add(wrapper);
+                    _Value._Members.Add(item.Value);
+                }
+            } else
+            {
+                foreach (IEvaluateable item in items)
+                {
+                    IndexWrapper wrapper = new IndexWrapper(this, _Members.Count, item);
+                    _Members.Add(wrapper);
+                }
+            }
+            SignalReindex(minIdx, _Members.Count);
         }
 
         public void Clear()
