@@ -16,30 +16,7 @@ namespace Dependency
     // Should a Vector be mutable, or should it not?  I've gone back and forth.  At this point, I'm 
     // saying YES.
     {
-        private struct IndexWrapper : ISyncUpdater, IEvaluateable
-        {
-            public int Index;
-            public IEvaluateable Evaluateable;
-            public IndexWrapper(Vector parent, int index, IEvaluateable evaluateable)
-            {
-                this.Parent = parent;
-                this.Index = index;
-                this.Evaluateable = evaluateable;
-            }
-            public Vector Parent;
-            ISyncUpdater ISyncUpdater.Parent { get => Parent; set => throw new NotImplementedException(); }
-            IEvaluateable IEvaluateable.Value => Evaluateable.Value;
-            bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
-            {
-                Debug.Assert(updatedChild == Evaluateable);
-                return true;
-            }
-            public override bool Equals(object obj)
-                => obj is IndexWrapper other && Evaluateable.Equals(other.Evaluateable);
-            public override int GetHashCode()
-                => throw new NotImplementedException();
-            public override string ToString() => Evaluateable.ToString();
-        }
+        
         private readonly IList<IEvaluateable> _Members;
         public IEnumerable<IEvaluateable> Inputs
         {
@@ -271,8 +248,32 @@ namespace Dependency
             }
         }
 
-        
+
 
         #endregion
+
+        private struct IndexWrapper : ISyncUpdater, IEvaluateable
+        {
+            public int Index;
+            public IEvaluateable Evaluateable;
+            public IndexWrapper(Vector parent, int index, IEvaluateable evaluateable)
+            {
+                this.Parent = parent;
+                this.Index = index;
+                this.Evaluateable = evaluateable;
+            }
+            public Vector Parent;
+            ISyncUpdater ISyncUpdater.Parent { get => Parent; set => throw new NotImplementedException(); }
+            IEvaluateable IEvaluateable.Value => Evaluateable.Value;
+            bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+            {
+                Debug.Assert(updatedChild == Evaluateable);
+                return true;
+            }
+            public override bool Equals(object obj) => false;
+            public override int GetHashCode()
+                => throw new NotImplementedException();
+            public override string ToString() => Evaluateable.ToString();
+        }
     }
 }
