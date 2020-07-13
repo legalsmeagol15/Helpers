@@ -117,15 +117,9 @@ namespace Dependency
 
         private void SignalReindex(int startIndex, int endIndex = -1)
         {
-            if (Parent is IIndexingUpdater iiu)
-            {
-                do
-                {
-                    iiu.Reindex(new Number(startIndex));
-                } while (startIndex++ <= endIndex);
-            }
-            else if (Parent is Indexing ii)
-                // I don't know if this is even possible.
+            if (Parent is IIndexedDynamic iiu)
+                iiu.Reindex(startIndex, endIndex);
+            else if (Parent is Indexing ii) // I don't know if this is even possible. Won't this be a bug? 
                 ii.Reindex();
         }
         bool IIndexable.ControlsReindex => true;

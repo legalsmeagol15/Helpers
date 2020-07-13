@@ -145,9 +145,10 @@ namespace Dependency
     }
 
 
-    internal interface IIndexingUpdater : IIndexable
+    internal interface IIndexedDynamic : IIndexable
     {
-        void Reindex(IEvaluateable index = default);
+        void Reindex(IEnumerable<IEvaluateable> keys);
+        void Reindex(int start, int end);
     }
 
 
