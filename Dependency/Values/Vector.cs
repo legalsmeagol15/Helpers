@@ -129,7 +129,7 @@ namespace Dependency
             if (!(obj is Vector other)) return false;
             if (Count != other.Count) return false;
             for (int i = 0; i < Count; i++)
-                if (!Equals(_Members[i], other._Members[i]))
+                if (!Equals(_Members[i].Value, other._Members[i].Value))
                     return false;
             return true;
         }
