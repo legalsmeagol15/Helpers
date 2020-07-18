@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dependency;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -848,13 +849,39 @@ namespace DataStructures
 
     }
 
-    public sealed class NumberIntervalSet : IntervalSet<Dependency.Number>
+    public sealed class NumberIntervalSet : IntervalSet<Dependency.Number>, ICollection<Dependency.IEvaluateable>
     {
+       
         public static NumberIntervalSet Infinite() { var result = new NumberIntervalSet(); result.MakeUniversal(); return result; }
+
         public NumberIntervalSet(params Dependency.Number[] items) : base(items) { }
 
         // TODO:  the overrides of the logical operators (and, or, etc...)  For now, I just need
         // contains()
+
+
+        int ICollection<IEvaluateable>.Count
+           => throw new NotImplementedException("TODO:  return a value only if contents are discrete.");
+
+        bool ICollection<IEvaluateable>.IsReadOnly => true;
+
+        void ICollection<IEvaluateable>.Add(IEvaluateable item)
+        {
+            if (item is Number n) this.Add(n);
+            throw new InvalidOperationException();
+        }
+
+        void ICollection<IEvaluateable>.Clear() => this.Clear();
+
+        bool ICollection<IEvaluateable>.Contains(IEvaluateable item) => item is Number n && this.Contains(n);
+
+        void ICollection<IEvaluateable>.CopyTo(IEvaluateable[] array, int arrayIndex)
+            => throw new NotImplementedException("TODO:  copy only if contents are discrete.");
+
+        bool ICollection<IEvaluateable>.Remove(IEvaluateable item) => item is Number n && this.Remove(n);
+
+        IEnumerator<IEvaluateable> IEnumerable<IEvaluateable>.GetEnumerator()
+            => this.OfType<IEvaluateable>().GetEnumerator();
 
     }
     public sealed class Float64IntervalSet : IntervalSet<double>
