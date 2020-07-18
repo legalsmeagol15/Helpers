@@ -162,48 +162,6 @@ namespace Dependency
             public DependencyPointer Dependee;
         }
 
-        /// <summary>Returns whether the given object is part of a dependency circularity.</summary>
-        /// <param name="start">The object at which to start searching.  If a route back to this object is discovered, 
-        /// a circularity is found.</param>
-        internal static bool TryFindCircularity(IVariable start)
-        {
-            // If the starting object depends on nothing, circularity would be impossible.
-            if (!GetReferences(start.Contents).Any())
-                return false;
-
-            Stack<object> stack = new Stack<object>();
-            HashSet<object> visited = new HashSet<object>();
-            _AppendListenersOf(start);
-
-            while (stack.Count > 0)
-            {
-                object focus = stack.Pop();
-
-                // If this item has already been visited, no need to follow it.
-                if (!visited.Add(focus)) continue;
-
-                // If we've found our way back to the start, that is a circularity.
-                if (focus.Equals(start)) return true;
-
-                // Append the focus's listeners.
-                _AppendListenersOf(focus);
-
-                // The evaluated value of the new contents may cause a circular reference too, for example, if the 
-                // evaluated value is itself a formula.
-                while (focus is IEvaluateable ie && !focus.Equals(ie.Value) && ie.Value != null)
-                    focus = ie.Value;
-            }
-
-            // No circularity found.
-            return false;
-
-            void _AppendListenersOf(object obj)
-            {
-                if (obj is ISyncUpdater isu && isu.Parent != null) stack.Push(isu.Parent);
-                if (obj is IAsyncUpdater iau) foreach (var l in iau.GetListeners()) stack.Push(l);
-            }
-        }
-
         /// <summary>
         /// Recalculates everything below the given <seealso cref="IEvaluateable"/>, down to to the point of 
         /// asynchronous <seealso cref="Reference"/> sources.

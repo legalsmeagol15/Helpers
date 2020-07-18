@@ -14,8 +14,9 @@ namespace Dependency.Variables
 {
     public sealed class Update
     {
-        // Like a SQL transaction
+        public static readonly NumberIntervalSet UniversalSet = NumberIntervalSet.Infinite();
 
+        // Like a SQL transaction
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
         private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
@@ -56,7 +57,7 @@ namespace Dependency.Variables
         /// <seealso cref="IVariable"/>, and so on.
         /// </summary>
         /// <returns>Returns whether any change is made to the value of the <seealso cref="Update.Starter"/>.</returns>
-        public bool Execute()
+        public bool Execute(bool checkCircularity=true)
         {
             try
             {
@@ -86,8 +87,8 @@ namespace Dependency.Variables
                     finally { StructureLock.ExitWriteLock(); }
 
                     // If the iuv is now part of a circularity, the new value will be a CircularityError
-                    if (Helpers.TryFindCircularity(iuv))
-                        newValue = new CircularityError(iuv);
+                    if (checkCircularity && Helpers.TryFindDependency(iuv, out var path))
+                        newValue = new CircularityError(iuv, path);
 
                     // If the new value won't change the old value, no need to update listeners.
                     if (!iuv.CommitValue(newValue))
