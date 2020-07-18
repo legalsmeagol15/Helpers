@@ -15,9 +15,9 @@ namespace Dependency
 
     public static class Helpers
     {
-       
 
-        public static string  GetRelativeString(IContext origin)
+
+        public static string GetRelativeString(IContext origin)
         {
             throw new NotImplementedException();
         }
@@ -87,6 +87,81 @@ namespace Dependency
             }
         }
 
+        /// <summary>
+        /// Returns whether a dependency exists from the given item, upon itself.  The path returned is 
+        /// guaranteed to be the shortest possible dependency path.
+        /// </summary>
+        public static bool TryFindDependency(IEvaluateable item, out IEnumerable<IEvaluateable> path)
+        {
+            // This method works by going backwards, checking if the starter depends on its parents/listeners
+            List<IEvaluateable> dependees = new List<IEvaluateable>();
+            if (item is ISyncUpdater isu && isu.Parent != null)
+                dependees.Add(isu.Parent);
+            if (item is IAsyncUpdater iau)
+                dependees.AddRange(iau.GetListeners());
+            return TryFindDependency(new IEvaluateable[] { item }, dependees, out path);
+        }
+        /// <summary>
+        /// Returns whether a dependency exists from the given item, upon the given 
+        /// item.  The path returned is guaranteed to be the shortest possible path.
+        /// </summary>
+        public static bool TryFindDependency(IEvaluateable dependent, IEvaluateable dependee, out IEnumerable<IEvaluateable> path)
+            => TryFindDependency(new IEvaluateable[] { dependent }, new IEvaluateable[] { dependee }, out path);
+        /// <summary>
+        /// Returns whether a dependency exists among the given dependents upon the given 
+        /// dependees.  The returned path is guaranteed to be the shortest possible path from any 
+        /// of the dependents to any of the dependees.
+        /// </summary>
+        public static bool TryFindDependency(IEnumerable<IEvaluateable> dependents,
+                                             IEnumerable<IEvaluateable> dependees,
+                                             out IEnumerable<IEvaluateable> path)
+        {
+            if (!dependents.Any()) { path = default; return false; }
+            HashSet<IEvaluateable> realDependents
+                = new HashSet<IEvaluateable>(dependents.Where(d => d is ISyncUpdater || d is IAsyncUpdater));
+
+            // Must be a queue, not a stack, so depth will be the true minimal depth.
+            HashSet<IEvaluateable> wasEnqueued = new HashSet<IEvaluateable>();
+            Queue<DependencyPointer> queue = new Queue<DependencyPointer>();
+            foreach (var dee in dependees.Where(d => d is ISyncUpdater || d is IAsyncUpdater))
+                if (wasEnqueued.Add(dee))
+                    queue.Enqueue(new DependencyPointer() { Dependent = dee, Dependee = null, Depth = 0 });
+
+            while (queue.Count > 0)
+            {
+                var focus = queue.Dequeue();
+                IEvaluateable focus_dent = focus.Dependent;
+
+                // Did we find a route to the specified dependents?
+                if (realDependents.Contains(focus_dent))
+                {
+                    List<IEvaluateable> resultPath = new List<IEvaluateable>();
+                    while (focus != null) { resultPath.Add(focus.Dependent); focus = focus.Dependee; }
+                    path = resultPath;
+                    return true;
+                }
+
+                // Enqueue any parent/listeners who are dependent on the current focus, but 
+                // haven't been enqueued yet.
+                if (focus_dent is ISyncUpdater isu && isu.Parent != null && wasEnqueued.Add(isu.Parent))
+                    queue.Enqueue(new DependencyPointer() { Dependee = focus, Dependent = isu.Parent, Depth = focus.Depth + 1 });
+                if (focus_dent is IAsyncUpdater iau)
+                    foreach (var listener in iau.GetListeners())
+                        if (wasEnqueued.Add(listener))
+                            queue.Enqueue(new DependencyPointer() { Dependee = focus, Dependent = listener, Depth = focus.Depth + 1 });
+            }
+
+            // No dependency found.
+            path = default;
+            return false;
+        }
+        private class DependencyPointer
+        {
+            public IEvaluateable Dependent;
+            public int Depth = 0;
+            public DependencyPointer Dependee;
+        }
+
         /// <summary>Returns whether the given object is part of a dependency circularity.</summary>
         /// <param name="start">The object at which to start searching.  If a route back to this object is discovered, 
         /// a circularity is found.</param>
@@ -99,11 +174,11 @@ namespace Dependency
             Stack<object> stack = new Stack<object>();
             HashSet<object> visited = new HashSet<object>();
             _AppendListenersOf(start);
-            
+
             while (stack.Count > 0)
             {
                 object focus = stack.Pop();
-                
+
                 // If this item has already been visited, no need to follow it.
                 if (!visited.Add(focus)) continue;
 
@@ -128,7 +203,7 @@ namespace Dependency
                 if (obj is IAsyncUpdater iau) foreach (var l in iau.GetListeners()) stack.Push(l);
             }
         }
-        
+
         /// <summary>
         /// Recalculates everything below the given <seealso cref="IEvaluateable"/>, down to to the point of 
         /// asynchronous <seealso cref="Reference"/> sources.
