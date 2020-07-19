@@ -118,7 +118,8 @@ namespace Dependency.Variables
         internal ISyncUpdater Parent { get; set; }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => OnChildUpdated(caller, updatedChild);
+        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+            => OnChildUpdated(caller, updatedChild) ? Update.UniversalSet : null;
         internal virtual bool OnChildUpdated(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
         internal virtual IEvaluateable Evaluate() => _Contents.Value;
         #endregion

@@ -15,7 +15,8 @@ namespace Dependency.Variables
     public sealed class Source<T> : IAsyncUpdater, IVariable, IUpdatedVariable, ITypeGuarantee, ISyncUpdater
     {
         ISyncUpdater ISyncUpdater.Parent { get; set; }
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild) => true;
+        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+            => Dependency.Variables.Update.UniversalSet;
         
         private T _Value;
         private readonly IConverter<T> _Converter;

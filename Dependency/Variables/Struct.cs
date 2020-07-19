@@ -98,7 +98,10 @@ namespace Dependency.Variables
             }
         }
         public event ValueChangedHandler<IEvaluateable> Updated;
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+
+        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller,
+                                                       ISyncUpdater updatedChild, 
+                                                       ICollection<IEvaluateable> updatedDomain)        
         {
             VariableMode priorMode = VariableMode.NONE;
             try
@@ -108,17 +111,17 @@ namespace Dependency.Variables
 
                 // The update comes from the contents itself?
                 if (updatedChild.Equals(_Contents)) 
-                    return CommitValue(_Contents.Value);
+                    return CommitValue(_Contents.Value) ? Update.UniversalSet : null;
 
                 // The update comes from a child after changing the Contents?
                 else if (Mode == VariableMode.UPDATING_CONTENTS)
-                    return false;
+                    return null;
 
                 // The update comes from a child?  Force Contents to align.
                 Mode = VariableMode.UPDATING_CHILD_VALUE;
                 IEvaluateable syncedContents = ComposeValue();
                 CommitContents(syncedContents);
-                return CommitValue(syncedContents);
+                return CommitValue(syncedContents) ? Update.UniversalSet : null;
             }
             // Let exceptions through.
             finally

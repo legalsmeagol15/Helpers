@@ -31,28 +31,35 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value; }
 
-        bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild)
+        ICollection<IEvaluateable> ISyncUpdater.Update(Variables.Update update, 
+                                                       ISyncUpdater updatedChild, 
+                                                       ICollection<IEvaluateable> updatedDomain)
         {
             // TODO:  since I know which child was updated, it makes sense to cache the evaluations and updated only the changed one.
             if (updatedChild != null && updatedChild.Value is Error err)
             {
-                if (Value.Equals(err)) return false;
+                if (Value.Equals(err)) return null;
                 Value = err;
-                return true;
+                return updatedDomain;
             }
             else return Update(EvaluateInputs());
         }
-        public bool Update() => Update(EvaluateInputs());
+        public ICollection<IEvaluateable> Update(ICollection<IEvaluateable> updatedDomain) 
+            => Update(EvaluateInputs(), updatedDomain);
 
         [DebuggerStepThrough]
         protected virtual IEvaluateable[] EvaluateInputs() => _Inputs.Select(s => s.Value).ToArray();
 
         /// <summary>
-        /// Attempts to update by calling the inheriting <seealso cref="Function.Update(IEvaluateable[])"/> method.  
+        /// Attempts to update by calling the inheriting 
+        /// <seealso cref="Function.Evaluate(IEvaluateable[], int, ICollection{IEvaluateable}, out ICollection{IEvaluateable})"/> 
+        /// method.  
         /// The <seealso cref="Function.Value"/> will be set to this result
-        /// <para/>1. If the given <paramref name="evalInputs"/> match one of the <seealso cref="Functions"/>'s 
-        /// associated <seealso cref="TypeControl.Constraint"/>s, the evaluation will be returned accordingly by 
-        /// returning the result of the <seealso cref="Function.Update(IEvaluateable[])"/> method.  
+        /// <para/>1. If the given <paramref name="evalInputs"/> matches one of the 
+        /// <seealso cref="Functions"/>'s associated <seealso cref="TypeControl.Constraint"/>s, 
+        /// the evaluation will be returned accordingly by returning the result of the 
+        /// <seealso cref="Function.Evaluate(IEvaluateable[], int, ICollection{IEvaluateable}, out ICollection{IEvaluateable})"/> 
+        /// method.
         /// <para/>2. If one of the given <paramref name="evalInputs"/> is an <seealso cref="Error"/>, that 
         /// <seealso cref="Error"/> will be returned.
         /// <para/>3. If no <seealso cref="TypeControl.Constraint"/> matches the count of 
@@ -62,17 +69,19 @@ namespace Dependency.Functions
         /// </summary>
         /// <param name="evalInputs">The evaluate inputs for this <seealso cref="Function"/> to perform its operation 
         /// on.</param>
-        /// <returns>Returns true if <seealso cref="Value"/> is changed by this method; otherwise, returns false.
+        /// <param name="updatedDomain">The indices updated below.</param>
+        /// <returns>Returns the collection of updated indices, if a change was made; otherwise, returns null.
         /// </returns>
-        protected bool Update(IEvaluateable[] evalInputs)
+        protected ICollection<IEvaluateable> Update(IEvaluateable[] evalInputs, ICollection<IEvaluateable> updatedDomain)
         {
             TypeControl tc;
             if (this is ICacheValidator icv) tc = icv.TypeControl ?? (icv.TypeControl = TypeControl.GetConstraints(this.GetType()));
             else tc = TypeControl.GetConstraints(this.GetType());
 
             IEvaluateable newValue;
+            ICollection<IEvaluateable> updatedIndices = null;
             if (tc.TryMatchTypes(evalInputs, out int bestConstraint, out int unmatchedArg, out Error firstError))
-                newValue = Evaluate(evalInputs, bestConstraint);
+                newValue = Evaluate(evalInputs, bestConstraint, updatedDomain,  out updatedIndices);
             else if (firstError != null)
                 newValue = firstError;
             else if (bestConstraint < 0)
@@ -80,19 +89,36 @@ namespace Dependency.Functions
             else
                 newValue = new TypeMismatchError(this, evalInputs, bestConstraint, unmatchedArg, tc);
 
-            if (newValue.Equals(Value)) return false;
+            if (newValue.Equals(Value)) return null;
             Value = newValue;
-            return true;
+            return updatedIndices;
         }
-        
+
+        /// <summary>
+        /// A function will call this method to evaluate the given evaluated inputs.
+        /// </summary>
+        /// <param name="evaluatedInputs"></param>
+        /// <param name="constraintIndex"></param>
+        /// <param name="updatedDomain">The indices that were updated below.</param>
+        /// <param name="indices">Out.  The indices for which the value was changed.</param>
+        /// <returns></returns>
+        protected virtual IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex, ICollection<IEvaluateable> updatedDomain, out ICollection<IEvaluateable> indices)
+        {
+            IEvaluateable result = Evaluate(evaluatedInputs, constraintIndex);
+            indices = (result == null) ? default : Dependency.Variables.Update.UniversalSet;
+            return result;
+        }
+
         /// <summary>
         /// A function will call this method to evaluate the given evaluated inputs.
         /// </summary>
         /// <param name="evaluatedInputs"></param>
         /// <param name="constraintIndex"></param>
         /// <returns></returns>
-        protected abstract IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex);
+        protected virtual IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
+            => throw new InvalidOperationException("At least one method of " + nameof(Evaluate) + " must be overridden.");
 
+        
         public override string ToString() 
             => this.GetType().Name + "(" + string.Join(",", this._Inputs.Select(i => i.ToString())) + ")";
 

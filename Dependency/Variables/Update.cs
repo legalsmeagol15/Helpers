@@ -98,7 +98,7 @@ namespace Dependency.Variables
                 // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
                 // started.
                 if (Starter is ISyncUpdater isu)
-                    _Execute(Starter as IAsyncUpdater, isu.Parent);
+                    _Execute(isu, isu.Parent);
 
                 // Finally, if Starter updates asynchronously, kick off the asynchronous update.
                 if (Starter is IAsyncUpdater iau)
@@ -120,7 +120,7 @@ namespace Dependency.Variables
             // Done.
             return true;
         }
-
+        
         internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener) // TODO:  this should be done within the StructureLock read lock?
         {
             Interlocked.Increment(ref _Updating);
@@ -136,17 +136,20 @@ namespace Dependency.Variables
         /// <seealso cref="IAsyncUpdater"/>, or an object that implements both.</param>
         /// <param name="target">The item which will be updated.  The <paramref name="target"/>'s 
         /// Parent will be the next item updated, and so on.</param>
+        /// <param name="updatedDomain">The domain indexes that were updated below.</param>
         /// <returns>Returns true if any item's value was changed; otherwise, returns false.
         /// </returns>
-        private bool _Execute(object source, ISyncUpdater target)
+        private bool _Execute(object source, ISyncUpdater target, ICollection<IEvaluateable> updatedDomain=null)
         {
+            if (updatedDomain == null) updatedDomain = UniversalSet;
             ISyncUpdater start = target;
             ISyncUpdater updatedChild = source as ISyncUpdater;
             bool result = true;
             while (target != null)
             {
                 // If nothing was updated, return false.
-                if (!target.Update(this, updatedChild)) { result = !target.Equals(start);break; }
+                updatedDomain = target.Update(this, updatedChild, updatedDomain);
+                if (updatedDomain == null || !updatedDomain.Any()) { result = !target.Equals(start); break; }
 
                 // Since target was updated, enqueue its listeners and proceed.
                 if (target is IAsyncUpdater iv)

@@ -163,8 +163,8 @@ namespace Dependency
         }
 
         /// <summary>
-        /// Recalculates everything below the given <seealso cref="IEvaluateable"/>, down to to the point of 
-        /// asynchronous <seealso cref="Reference"/> sources.
+        /// Recalculates everything below the given <seealso cref="IEvaluateable"/>, down to 
+        /// (but not including) references to asynchronous <seealso cref="Reference"/> sources.
         /// <para/>This method should be used only on the creation of an <seealso cref="IEvaluateable"/>.  It is more 
         /// expensive than the bottom-update <seealso cref="Dependency.Variables.Update"/> process.
         /// </summary>
@@ -172,17 +172,18 @@ namespace Dependency
         public static IEvaluateable Recalculate(IEvaluateable ieval)
         {
             const ISyncUpdater nullChild = null;
+            ICollection<IEvaluateable> universalSet = Dependency.Variables.Update.UniversalSet;
             return _RecursiveRecalc(ieval);
 
             IEvaluateable _RecursiveRecalc(IEvaluateable focus)
-            {
+            {   
                 switch (focus)
                 {
                     case IVariable iv:  // Variables are presumed to be up-to-date.
                         break;
                     case IFunction ifunc:
                         foreach (var input in ifunc.Inputs) _RecursiveRecalc(input);
-                        ifunc.Update(null, nullChild);
+                        ifunc.Update(null, nullChild, universalSet);
                         break;
                     case IExpression ie:
                         return _RecursiveRecalc(ie.Contents);

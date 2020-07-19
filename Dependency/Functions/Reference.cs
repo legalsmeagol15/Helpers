@@ -49,8 +49,9 @@ namespace Dependency.Functions
             reference._Steps[0].Input = originInput;
             return true;
         }
+
+        ICollection<IEvaluateable> ISyncUpdater.Update(Dependency.Variables.Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
         
-        bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild)
         {
             // Find the index of the child that changed.
             int stepIdx = 0;
@@ -77,7 +78,7 @@ namespace Dependency.Functions
 
                         // If the input's value hasn't changed (and the input's value is a struct or literal) then no change 
                         // will occur later down the line.
-                        if (inputValue.Equals(step.Context) && !inputValue.GetType().IsClass) return false;
+                        if (inputValue.Equals(step.Context) && !inputValue.GetType().IsClass) return null;
 
                         // Is the input's new value a valid context?  If not, this evaluates to an error.
                         ctxt = inputValue as IContext;
@@ -115,7 +116,7 @@ namespace Dependency.Functions
                         break;
                     }
                     else if (prop.Equals(nextStep.Input))
-                        return false;
+                        return null;
                     else if (prop is IAsyncUpdater)
                     {
                         newNextContext = null;
@@ -141,8 +142,8 @@ namespace Dependency.Functions
                     }
 
                     // Apply the new Input and Context
-                    if (newNextInput != null && newNextInput.Equals(nextStep.Input)) return false;
-                    if (newNextContext != null && newNextContext.Equals(nextStep.Context)) return false;
+                    if (newNextInput != null && newNextInput.Equals(nextStep.Input)) return null;
+                    if (newNextContext != null && newNextContext.Equals(nextStep.Context)) return null;
                     if (nextStep.Input is IAsyncUpdater ivi)
                         ivi.RemoveListener(this);
                     if (newNextInput is IAsyncUpdater new_ivi)
@@ -161,9 +162,9 @@ namespace Dependency.Functions
                 else newValue = new ContextWrapper(lastStep.Context);
             }
 
-            if (newValue.Equals(Value)) return false;
+            if (newValue.Equals(Value)) return null;
             Value = newValue;
-            return true;
+            return updatedDomain;
         }
 
         /// <summary>

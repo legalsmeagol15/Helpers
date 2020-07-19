@@ -97,7 +97,7 @@ namespace Dependency.Functions
             }
             finally { Update.StructureLock.ExitWriteLock(); }
         }
-        bool ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
         {
             if (updatedChild == null)
             {
@@ -106,36 +106,36 @@ namespace Dependency.Functions
             }
 
             if (Head == null || Head is Error)
-                return Reindex();
+                return Reindex() ? Update.UniversalSet : null;
 
             // Most common case - the head's value is the one that was changed.
             if (Head.Equals(updatedChild))
             {
-                if (Head.Value.Equals(Value)) return false;
+                if (Head.Value.Equals(Value)) return null;
                 Value = Head.Value;
 
                 // If the Base controls re-indexing, just pass the change signal up the line.
                 if (Base is IIndexable ii && ii.ControlsReindex)
-                    return true;         
+                    return Update.UniversalSet ;         
 
-                return Reindex();
+                return Reindex() ? Update.UniversalSet : null;
             }
 
             // Did the base's value change?
             else if (updatedChild == null || updatedChild.Equals(Base))
             {
                 IEvaluateable newBaseValue = Base.Value;                
-                if (newBaseValue.Equals(_CachedBaseValue)) return false;                
+                if (newBaseValue.Equals(_CachedBaseValue)) return null;                
                 _CachedBaseValue = newBaseValue;
-                return Reindex();
+                return Reindex() ? Update.UniversalSet : null;
             }
 
             // Otherwise, the updated child is the ordinal.  Is it a non-change?
             else if (Ordinal.Value.Equals(_CachedOrdinalValue))
-                return false;
+                return null;
 
             // Finally, it must be an ordinal change.  Do a Reindex()
-            return Reindex();
+            return Reindex() ? Update.UniversalSet : null;
         }
 
 

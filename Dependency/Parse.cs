@@ -1,6 +1,7 @@
 ﻿using DataStructures;
 using Dependency.Functions;
 using Dependency.Operators;
+using Dependency.Variables;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -476,7 +477,7 @@ namespace Dependency
                 IEvaluateable ordinal = Node.Next.Remove();
                 if (ordinal is Bracket b) ordinal = b.Contents;
                 else throw new ParsingException(this, "Second input for " + typeof(Indexing).Name + " must be a bracketed clause.");
-                Indexing idxing = new Indexing(  @base, ordinal  );
+                Indexing idxing = new Indexing(@base, ordinal);
                 Node.Contents = idxing;
                 _ = null;
                 return true;
@@ -585,13 +586,14 @@ namespace Dependency
                 if (Node.Previous == null)
                 {
                     if (!Reference.TryCreate(Root, Path, out r))
-                        throw new SyntaxException("", Path, "Failed to parse reference \""+Path+"\" from origin.");
-                } else
+                        throw new SyntaxException("", Path, "Failed to parse reference \"" + Path + "\" from origin.");
+                }
+                else
                 {
                     if (!Reference.TryCreate(Node.Previous.Remove(), Path, out r))
                         throw new SyntaxException("", Path, "Failed to parse reference \"" + Path + "\".");
                 }
-                
+
                 Node.Contents = r;
                 _ = null;
                 return true;
@@ -751,9 +753,10 @@ namespace Dependency
 
             bool IContext.TryGetSubcontext(string path, out IContext ctxt) => ((IContext)Contents).TryGetSubcontext(path, out ctxt);
 
-            bool IContext.TryGetProperty(string  path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
+            bool IContext.TryGetProperty(string path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild) => true;
+            ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+                => updatedDomain;
         }
 
 
@@ -770,9 +773,12 @@ namespace Dependency
 
             IEvaluateable IEvaluateable.Value => _Contents.Value;
 
+            ISyncUpdater ISyncUpdater.Parent { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            bool ISyncUpdater.Update(Variables.Update update, ISyncUpdater updatedChild) => true;
+            ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+                => updatedDomain;
         }
 
 

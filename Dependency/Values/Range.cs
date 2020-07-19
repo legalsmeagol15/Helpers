@@ -59,6 +59,7 @@ namespace Dependency.Values
             return false;
         }
 
-        bool ISyncUpdater.Update(Update u, ISyncUpdater uc) => true;
+        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+            => updatedDomain;
     }
 }

@@ -100,6 +100,7 @@
     <Compile Include="Dependency\Values\Complex.cs" />
     <Compile Include="Dependency\Values\Converters.cs" />
     <Compile Include="Dependency\Values\Error.cs" />
+    <Compile Include="Dependency\Values\Indexed.cs" />
     <Compile Include="Dependency\Values\Null.cs" />
     <Compile Include="Dependency\Values\Number.cs" />
     <Compile Include="Dependency\Values\Range.cs" />
