@@ -109,8 +109,8 @@ namespace Dependency.Variables
                 priorMode = Mode;
 
                 // The update comes from the contents itself?
-                if (updatedChild.Equals(_Contents)) 
-                    return CommitValue(_Contents.Value) ? Update.UniversalSet : null;
+                if (updatedChild.Equals(_Contents))
+                    return CommitValue(_Contents.Value);
 
                 // The update comes from a child after changing the Contents?
                 else if (Mode == VariableMode.UPDATING_CONTENTS)
@@ -120,7 +120,7 @@ namespace Dependency.Variables
                 Mode = VariableMode.UPDATING_CHILD_VALUE;
                 IEvaluateable syncedContents = ComposeValue();
                 CommitContents(syncedContents);
-                return CommitValue(syncedContents) ? Update.UniversalSet : null;
+                return CommitValue(syncedContents);
             }
             // Let exceptions through.
             finally
@@ -129,7 +129,7 @@ namespace Dependency.Variables
             }
         }
         
-        private bool CommitValue(IEvaluateable newValue)
+        ITrueSet<IEvaluateable> CommitValue(IEvaluateable newValue)
         {
             try
             {
@@ -144,12 +144,14 @@ namespace Dependency.Variables
                 else
                     IsValid = false;
                 if (!Value.Equals(newValue)) { Value = newValue; changed = true; }
-                return changed;
+
+                // TODO:  return only the changed properties' names as Dependency.Strings?
+                return changed ? Update.UniversalSet : null;
             }
             finally { Monitor.Exit(_Lock); }
 
         }
-        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
+        ITrueSet<IEvaluateable> IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
 
 
 

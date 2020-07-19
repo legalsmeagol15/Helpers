@@ -71,7 +71,7 @@ namespace Dependency.Variables
 
         bool IUpdatedVariable.CommitContents(IEvaluateable newContent) => true;
 
-        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => true;
+        ITrueSet<IEvaluateable> IUpdatedVariable.CommitValue(IEvaluateable newValue) => Update.UniversalSet;
 
         public event ValueChangedHandler<IEvaluateable> Updated;
     }

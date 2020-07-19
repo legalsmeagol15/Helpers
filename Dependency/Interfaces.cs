@@ -244,7 +244,8 @@ namespace Dependency
         /// <seealso cref="Update.StructureLock"/> write lock, but within a read lock.  If the 
         /// <seealso cref="IUpdatedVariable"/>'s value requires locking, it is safe to lock within 
         /// the implementation of this method.</summary>
-        bool CommitValue(IEvaluateable newValue);
+        /// <returns>Returns the set of indices changed.</returns>
+        ITrueSet<IEvaluateable> CommitValue(IEvaluateable newValue);
     }
 
 

@@ -63,6 +63,7 @@ namespace Dependency.Variables
             {
                 StructureLock.EnterUpgradeableReadLock();
 
+                ITrueSet<IEvaluateable> indices = UniversalSet;
                 if (Starter is IUpdatedVariable iuv)
                 {
                     // If the new contents equal the old contents, it can't possibly matter.
@@ -91,22 +92,22 @@ namespace Dependency.Variables
                     if (checkCircularity && Helpers.TryFindDependency(NewContents, Starter, out var path))
                         newValue = new CircularityError(iuv, path);
 
-                    // If the new value won't change the old value, no need to update listeners.
-                    if (!iuv.CommitValue(newValue))
-                        return false;
+                    // If the new value is no different from the old value, no need to update listeners.
+                    indices = iuv.CommitValue(newValue);
+                    if (indices == null || indices.IsEmpty) return false;                    
                 }
 
                 // The value must have changed.  If Starter updates synchronously,  get the 
                 // synchronous update started, but we DON'T CALL STARTER'S UPDATE() method because 
                 // we might have forced the value to be a circularity error.
                 if (Starter is ISyncUpdater isu)
-                    _Execute(isu, isu.Parent, UniversalSet);
+                    _Execute(isu, isu.Parent, indices);
 
                 // Finally, if Starter updates asynchronously, kick off the asynchronous update.
                 if (Starter is IAsyncUpdater iau)
                 {
                     foreach (var listener in iau.GetListeners())
-                        Enqueue(iau, listener, UniversalSet);
+                        Enqueue(iau, listener, indices);
                 }
             }
             finally { StructureLock.ExitUpgradeableReadLock(); }

@@ -41,20 +41,20 @@ namespace Dependency.Variables
             }
         }
 
-        internal virtual bool CommitValue(IEvaluateable newValue)
+        internal virtual ITrueSet<IEvaluateable> CommitValue(IEvaluateable newValue)
         {
             ValueLock.EnterWriteLock();
             try
             {
-                if (_Value.Equals(newValue)) return false;
+                if (_Value.Equals(newValue)) return null;
                 IEvaluateable oldValue = _Value;
                 _Value = newValue;
                 OnValueChanged(oldValue, newValue);
-                return true;
+                return Update.UniversalSet;
             }
             finally { ValueLock.ExitWriteLock(); }
         }
-        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
+        ITrueSet<IEvaluateable> IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
 
         private IEvaluateable _Contents = Null.Instance;
         public IEvaluateable Contents
@@ -119,8 +119,8 @@ namespace Dependency.Variables
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
         ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
-            => OnChildUpdated(caller, updatedChild) ? Update.UniversalSet : null;
-        internal virtual bool OnChildUpdated(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
+            => CommitValue(Evaluate());
+
         internal virtual IEvaluateable Evaluate() => _Contents.Value;
         #endregion
 
