@@ -175,10 +175,9 @@ namespace Dependency.Variables
                         Enqueue(iv, listener, indices);
                 child = target;
                 target = target.Parent;
-                Debug.Assert(!(target is IReference), "A " + nameof(IReference) + " is not permitted to be an " + nameof(ISyncUpdater) + " parent.");
             }
 
-            result = !target.Equals(first_target);
+            result = first_target == null ? target != null : !first_target.Equals(target);
             Interlocked.Decrement(ref _Updating);
             return result;
         }
