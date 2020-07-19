@@ -137,7 +137,7 @@ namespace DataStructures
         /// <param name="end">The end of the range, inclusive.</param>
         public void Add(T start, T end) => Add(start, true, end, true);
         /// <summary>Unions with the given range to this <see cref="IntervalSet{T}"/>.</summary>
-        public void Add(T start, bool includeStart, T end, bool includeEnd)
+        public virtual void Add(T start, bool includeStart, T end, bool includeEnd)
         {
             Inflections = Or(Inflections, new Inflection[] { Inflection.Start(start, includeStart),
                                                                  Inflection.End(end, includeEnd) });
@@ -154,12 +154,12 @@ namespace DataStructures
         /// <summary>Removes the given range of items.</summary>
         public void Remove(T start, T end) => Remove(start, true, end, true);
         /// <summary>Removes the given range of items.</summary>
-        public void Remove(T start, bool removeStart, T end, bool removeEnd)
+        public virtual void Remove(T start, bool removeStart, T end, bool removeEnd)
         {
             Inflections = Subtract(Inflections, new Inflection[] { Inflection.Start(start, removeStart),
                                                                     Inflection.End(end, removeEnd) });
         }
-        public void Clear() => MakeEmpty();
+        void ICollection<T>.Clear() => MakeEmpty();
 
         /// <summary>Makes this set an universal <see cref="IntervalSet{T}"/>.</summary>
         public void MakeUniversal() => Inflections = new Inflection[] { Inflection.Universal };
@@ -193,11 +193,6 @@ namespace DataStructures
         }
 
         #endregion
-
-
-
-
-
 
 
 
@@ -387,10 +382,10 @@ namespace DataStructures
             private readonly Flags _Flags;
 
             /// <summary>A universal inflection.</summary>
-            public static readonly Inflection Universal = new Inflection(default(T), Flags.UNIVERSAL);
+            public static readonly Inflection Universal = new Inflection(default, Flags.UNIVERSAL);
 
             /// <summary>An empty inflection.  Used only for signaling and composition.</summary>
-            internal static readonly Inflection Empty = new Inflection(default(T), Flags.ERROR);
+            internal static readonly Inflection Empty = new Inflection(default, Flags.ERROR);
 
             /// <summary>The point in the universe marked by this <see cref="Inflection"/>.</summary>
             public readonly T Point;
@@ -849,6 +844,45 @@ namespace DataStructures
 
     }
 
+    public sealed class NumberIntIntervalSet : DiscreteIntervalSet<Number>, ICollection<IEvaluateable>
+    {
+        [DebuggerStepThrough]
+        static NumberIntIntervalSet()
+        {
+            GetNext = (item) => ++item;
+            GetPrevious = (item) => --item;
+        }
+
+        public static NumberIntIntervalSet Infinite() { var result = new NumberIntIntervalSet(); result.MakeUniversal(); return result; }
+        
+
+        int ICollection<IEvaluateable>.Count => throw new NotImplementedException();
+
+        bool ICollection<IEvaluateable>.IsReadOnly => true;
+
+
+        void ICollection<IEvaluateable>.Add(IEvaluateable item)
+        {
+            if (item is Number n && n.IsInteger) this.Add(n);
+            throw new InvalidOperationException();
+        }
+
+        void ICollection<IEvaluateable>.Clear() => MakeEmpty();
+
+        bool ICollection<IEvaluateable>.Contains(IEvaluateable item)
+            => this.Contains((Number)item);
+
+        void ICollection<IEvaluateable>.CopyTo(IEvaluateable[] array, int arrayIndex)
+            => throw new NotImplementedException();
+
+        IEnumerator<IEvaluateable> IEnumerable<IEvaluateable>.GetEnumerator()
+            => this.OfType<IEvaluateable>().GetEnumerator();
+
+        bool ICollection<IEvaluateable>.Remove(IEvaluateable item)
+            => this.Remove((Number)item);
+    }
+
+
     public sealed class NumberIntervalSet : IntervalSet<Dependency.Number>, ICollection<Dependency.IEvaluateable>
     {
        
@@ -863,7 +897,7 @@ namespace DataStructures
         int ICollection<IEvaluateable>.Count
            => throw new NotImplementedException("TODO:  return a value only if contents are discrete.");
 
-        bool ICollection<IEvaluateable>.IsReadOnly => true;
+        bool ICollection<IEvaluateable>.IsReadOnly => false;
 
         void ICollection<IEvaluateable>.Add(IEvaluateable item)
         {
@@ -871,7 +905,7 @@ namespace DataStructures
             throw new InvalidOperationException();
         }
 
-        void ICollection<IEvaluateable>.Clear() => this.Clear();
+        void ICollection<IEvaluateable>.Clear() => this.MakeEmpty();
 
         bool ICollection<IEvaluateable>.Contains(IEvaluateable item) => item is Number n && this.Contains(n);
 

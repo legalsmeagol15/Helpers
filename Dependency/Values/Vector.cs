@@ -18,7 +18,7 @@ namespace Dependency
     // Should a Vector be mutable, or should it not?  I've gone back and forth.  At this point, I'm 
     // saying YES.
     {
-        private readonly IList<Indexed<Number>> _MemberContents;
+        private readonly List<Indexed<Number>> _MemberContents = new List<Indexed<Number>>();
         public IEnumerable<IEvaluateable> Inputs
         {
             get => _MemberContents.Select(m => m.Contents);

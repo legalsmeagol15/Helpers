@@ -14,7 +14,7 @@ namespace Dependency.Variables
 {
     public sealed class Update
     {
-        public static readonly NumberIntervalSet UniversalSet = NumberIntervalSet.Infinite();
+        public static readonly ICollection<IEvaluateable> UniversalSet = NumberIntIntervalSet.Infinite();
 
         // Like a SQL transaction
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
@@ -149,7 +149,13 @@ namespace Dependency.Variables
             {
                 // If nothing was updated, return false.
                 updatedDomain = target.Update(this, updatedChild, updatedDomain);
-                if (updatedDomain == null || !updatedDomain.Any()) { result = !target.Equals(start); break; }
+                if (updatedDomain == null
+                    || (updatedDomain is IIntervalSet<Number> intervals && intervals.IsEmpty)
+                    || (!(updatedDomain is IIntervalSet<Number>) && !updatedDomain.Any()))
+                {
+                    result = !target.Equals(start);
+                    break;
+                }
 
                 // Since target was updated, enqueue its listeners and proceed.
                 if (target is IAsyncUpdater iv)

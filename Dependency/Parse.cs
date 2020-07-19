@@ -773,7 +773,7 @@ namespace Dependency
 
             IEvaluateable IEvaluateable.Value => _Contents.Value;
 
-            ISyncUpdater ISyncUpdater.Parent { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+            ISyncUpdater ISyncUpdater.Parent { get; set; }
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
