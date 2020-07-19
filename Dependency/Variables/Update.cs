@@ -14,7 +14,7 @@ namespace Dependency.Variables
 {
     public sealed class Update
     {
-        public static readonly ICollection<IEvaluateable> UniversalSet = NumberIntIntervalSet.Infinite();
+        public static readonly ITrueSet<IEvaluateable> UniversalSet = NumberIntIntervalSet.Infinite();
 
         // Like a SQL transaction
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
@@ -57,7 +57,7 @@ namespace Dependency.Variables
         /// <seealso cref="IVariable"/>, and so on.
         /// </summary>
         /// <returns>Returns whether any change is made to the value of the <seealso cref="Update.Starter"/>.</returns>
-        public bool Execute(bool checkCircularity=true)
+        public bool Execute(bool checkCircularity = true)
         {
             try
             {
@@ -86,8 +86,9 @@ namespace Dependency.Variables
                     }
                     finally { StructureLock.ExitWriteLock(); }
 
-                    // If the iuv is now part of a circularity, the new value will be a CircularityError
-                    if (checkCircularity && Helpers.TryFindDependency(iuv, out var path))
+                    // If the iuv is now part of a circularity, the new value will be a CircularityError.
+                    // TODO:  should I check TryFindDependency(newValue, Starter, out var path) separately?
+                    if (checkCircularity && Helpers.TryFindDependency(NewContents, Starter, out var path))
                         newValue = new CircularityError(iuv, path);
 
                     // If the new value won't change the old value, no need to update listeners.
@@ -95,16 +96,17 @@ namespace Dependency.Variables
                         return false;
                 }
 
-                // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
-                // started.
+                // The value must have changed.  If Starter updates synchronously,  get the 
+                // synchronous update started, but we DON'T CALL STARTER'S UPDATE() method because 
+                // we might have forced the value to be a circularity error.
                 if (Starter is ISyncUpdater isu)
-                    _Execute(isu, isu.Parent);
+                    _Execute(isu, isu.Parent, UniversalSet);
 
                 // Finally, if Starter updates asynchronously, kick off the asynchronous update.
                 if (Starter is IAsyncUpdater iau)
                 {
                     foreach (var listener in iau.GetListeners())
-                        Enqueue(iau, listener);
+                        Enqueue(iau, listener, UniversalSet);
                 }
             }
             finally { StructureLock.ExitUpgradeableReadLock(); }
@@ -120,11 +122,11 @@ namespace Dependency.Variables
             // Done.
             return true;
         }
-        
-        internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener) // TODO:  this should be done within the StructureLock read lock?
+
+        internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener, ITrueSet<IEvaluateable> indices) // TODO:  this should be done within the StructureLock read lock?
         {
             Interlocked.Increment(ref _Updating);
-            _Tasks.Enqueue(Task.Run(() => _Execute(source, listener)));
+            _Tasks.Enqueue(Task.Run(() => _Execute(source as ISyncUpdater, listener, indices)));
         }
 
         /// <summary>Executes this <see cref="Update"/> for the given 
@@ -136,37 +138,47 @@ namespace Dependency.Variables
         /// <seealso cref="IAsyncUpdater"/>, or an object that implements both.</param>
         /// <param name="target">The item which will be updated.  The <paramref name="target"/>'s 
         /// Parent will be the next item updated, and so on.</param>
-        /// <param name="updatedDomain">The domain indexes that were updated below.</param>
+        /// <param name="indices">The domain indexes that were updated below.</param>
         /// <returns>Returns true if any item's value was changed; otherwise, returns false.
         /// </returns>
-        private bool _Execute(object source, ISyncUpdater target, ICollection<IEvaluateable> updatedDomain=null)
+        private bool _Execute(object source, ISyncUpdater target, ITrueSet<IEvaluateable> indices)
         {
-            if (updatedDomain == null) updatedDomain = UniversalSet;
-            ISyncUpdater start = target;
-            ISyncUpdater updatedChild = source as ISyncUpdater;
+            if (indices == null || indices.IsEmpty) return false;
+            ISyncUpdater first_target = target, child = source as ISyncUpdater;
             bool result = true;
-            while (target != null)
+            while (target is ISyncUpdater parent)
             {
-                // If nothing was updated, return false.
-                updatedDomain = target.Update(this, updatedChild, updatedDomain);
-                if (updatedDomain == null
-                    || (updatedDomain is IIntervalSet<Number> intervals && intervals.IsEmpty)
-                    || (!(updatedDomain is IIntervalSet<Number>) && !updatedDomain.Any()))
+                var newIndices = indices;
+                // Indexers get first crack at updating.
+                if (parent is IIndexedUpdater indexed_parent)
                 {
-                    result = !target.Equals(start);
-                    break;
+                    indices = indexed_parent.UpdateIndexed(this, child, indices);                    
+                }
+                else if (!indices.IsUniversal)
+                {
+                    // This is here just as a clue that implementation isn't right.
+                    Debug.Fail("Non-universal indices shouldn't be handled by " + target.GetType().Name);
+                }
+                else
+                {
+                    // Most cases will be non-indexers.
+                    indices = parent.Update(this, child);                    
                 }
 
-                // Since target was updated, enqueue its listeners and proceed.
+                if (indices == null || indices.IsEmpty)
+                    break;
+
+                // We're done with updating the target.  Since target was updated, enqueue its 
+                // listeners and proceed.
                 if (target is IAsyncUpdater iv)
                     foreach (var listener in iv.GetListeners())
-                        Enqueue(iv, listener);
-                updatedChild = target;
+                        Enqueue(iv, listener, indices);
+                child = target;
                 target = target.Parent;
-                if (target is Reference)
-                    throw new InvalidOperationException("A " + nameof(Reference) + " is not permitted to be a parent.");
+                Debug.Assert(!(target is IReference), "A " + nameof(IReference) + " is not permitted to be an " + nameof(ISyncUpdater) + " parent.");
             }
 
+            result = !target.Equals(first_target);
             Interlocked.Decrement(ref _Updating);
             return result;
         }
@@ -217,7 +229,7 @@ namespace Dependency.Variables
                 while (stack.Count > 0)
                 {
                     object focus = stack.Pop();
-                    if (!visited.Add(focus)) 
+                    if (!visited.Add(focus))
                         continue;
                     foreach (System.Reflection.FieldInfo fInfo in focus.GetType().GetFields(System.Reflection.BindingFlags.Instance
                                                                                             | System.Reflection.BindingFlags.Public
@@ -227,7 +239,7 @@ namespace Dependency.Variables
 
                         // If the property is a subcontext, that subcontext might have listener 
                         // References that name the given context.
-                        if (val is IContext sub_ctxt) 
+                        if (val is IContext sub_ctxt)
                             stack.Push(sub_ctxt);
 
                         // Any property that has async listeners might have References naming the 

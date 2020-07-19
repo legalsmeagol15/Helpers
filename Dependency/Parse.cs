@@ -739,7 +739,7 @@ namespace Dependency
         /// <seealso cref="Contents"/>.  The value of a <see cref="Curly"/> is the contents of the 
         /// <seealso cref="IAsyncUpdater"/> indicated by the <seealso cref="Contents"/>.
         /// </summary>
-        internal sealed class Curly : IExpression, IContext, ISyncUpdater
+        internal sealed class Curly : IExpression, IContext, IIndexedUpdater
         {
             /// <summary>The vector that this bracket object contains.</summary>
             public Vector Contents { get; }
@@ -755,15 +755,21 @@ namespace Dependency
 
             bool IContext.TryGetProperty(string path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
-                => updatedDomain;
+            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+                => Update.UniversalSet;
+
+            ITrueSet<IEvaluateable> IIndexedUpdater.UpdateIndexed(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indices)
+            {
+                Debug.Assert(updatedChild == this.Contents);
+                return indices;
+            }
         }
 
 
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Contents"/> of a 
         /// <see cref="Parenthetical"/>.</summary>
-        internal sealed class Parenthetical : IExpression, ISyncUpdater
+        internal sealed class Parenthetical : IExpression, IIndexedUpdater
         {
             public ISyncUpdater Parent { get; set; }
             /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
@@ -777,8 +783,11 @@ namespace Dependency
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
-                => updatedDomain;
+            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+                => Update.UniversalSet;
+
+            ITrueSet<IEvaluateable> IIndexedUpdater.UpdateIndexed(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indices)
+                => indices;
         }
 
 

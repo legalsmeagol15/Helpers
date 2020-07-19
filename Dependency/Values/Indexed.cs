@@ -1,4 +1,5 @@
-﻿using Dependency.Variables;
+﻿using DataStructures;
+using Dependency.Variables;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -47,11 +48,11 @@ namespace Dependency.Values
             this.Index = index;
         }
 
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
         {
             Debug.Assert(updatedChild == Contents);
-            if (updatedDomain.Contains(Index)) return new IEvaluateable[] { Index };
-            throw new NotImplementedException("What happens when a different index arrives at an " + nameof(Indexed<ByT>) + "?"); 
+            if (_Contents is Number n) return new NumberIntIntervalSet(n);
+            throw new NotImplementedException("Haven't implemented indexing for non-number.");            
         }
     }
 }

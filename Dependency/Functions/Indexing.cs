@@ -1,4 +1,5 @@
-﻿using Dependency.Variables;
+﻿using DataStructures;
+using Dependency.Variables;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -76,7 +77,7 @@ namespace Dependency.Functions
                         Inputs[2] = (Value = NonIndexable);
                         return true;
                     }
-                }                    
+                }
                 else if (baseIndexable.TryIndex(_CachedOrdinalValue, out IEvaluateable newHead))
                 {
                     if (newHead.Equals(Head)) return false;
@@ -97,7 +98,7 @@ namespace Dependency.Functions
             }
             finally { Update.StructureLock.ExitWriteLock(); }
         }
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
         {
             if (updatedChild == null)
             {
@@ -116,7 +117,7 @@ namespace Dependency.Functions
 
                 // If the Base controls re-indexing, just pass the change signal up the line.
                 if (Base is IIndexable ii && ii.ControlsReindex)
-                    return Update.UniversalSet ;         
+                    return Update.UniversalSet;
 
                 return Reindex() ? Update.UniversalSet : null;
             }
@@ -124,8 +125,8 @@ namespace Dependency.Functions
             // Did the base's value change?
             else if (updatedChild == null || updatedChild.Equals(Base))
             {
-                IEvaluateable newBaseValue = Base.Value;                
-                if (newBaseValue.Equals(_CachedBaseValue)) return null;                
+                IEvaluateable newBaseValue = Base.Value;
+                if (newBaseValue.Equals(_CachedBaseValue)) return null;
                 _CachedBaseValue = newBaseValue;
                 return Reindex() ? Update.UniversalSet : null;
             }

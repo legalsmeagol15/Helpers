@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DataStructures;
 using Dependency.Functions;
 using Dependency.Variables;
 
 namespace Dependency.Values
 {
-    public class Range : IEvaluateable, ITypeGuarantee, IContext, IIndexable, ISyncUpdater
+    public class Range : IEvaluateable, ITypeGuarantee, IContext, IIndexable, IIndexedUpdater
     {
         public readonly IEvaluateable From;
         public readonly IEvaluateable To;
@@ -59,7 +60,10 @@ namespace Dependency.Values
             return false;
         }
 
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
-            => updatedDomain;
+        ITrueSet<IEvaluateable> IIndexedUpdater.UpdateIndexed(Update caller, ISyncUpdater updatedChild, DataStructures.ITrueSet<IEvaluateable> indices)
+            => throw new NotImplementedException();
+           
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+           => Update.UniversalSet;
     }
 }

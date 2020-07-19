@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DataStructures;
 using Dependency.Functions;
 using Dependency.Values;
 using Dependency.Variables;
@@ -13,7 +14,7 @@ using Dependency.Variables;
 namespace Dependency
 {
 
-    public sealed class Vector : ITypeGuarantee, IContext, ISyncUpdater, IIndexable, IList<IEvaluateable>
+    public sealed class Vector : ITypeGuarantee, IContext, IIndexedUpdater, IIndexable, IList<IEvaluateable>
     // Though a Vector has inputs, it CANNOT be a Function.
     // Should a Vector be mutable, or should it not?  I've gone back and forth.  At this point, I'm 
     // saying YES.
@@ -80,17 +81,22 @@ namespace Dependency
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Vector;
         internal ISyncUpdater Parent { get; set; }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = Value; } }
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller,
-                                                       ISyncUpdater updatedChild,
-                                                       ICollection<IEvaluateable> updatedDomain)
+
+        ITrueSet<IEvaluateable> IIndexedUpdater.UpdateIndexed(Update caller,
+                                                              ISyncUpdater updatedChild,
+                                                              ITrueSet<IEvaluateable> updatedDomain)
         {
             Indexed<Number> wrapper = (Indexed<Number>)updatedChild;
             Debug.Assert(updatedDomain != null
-                         && updatedDomain.Contains(wrapper.Index)
-                         && updatedDomain.All(d => d.Equals(wrapper.Index)));
+                         && updatedDomain.Contains(wrapper.Index));
             if (_Value != null)
                 _Value._MemberContents[wrapper.Index].Contents = wrapper.Value;
             return updatedDomain;
+        }
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+        {
+            Debug.Fail("Only the updateIndexed method should be called on vector.");
+            throw new InvalidOperationException();
         }
 
         bool IIndexable.ControlsReindex => true;
