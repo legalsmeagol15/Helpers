@@ -11,17 +11,15 @@ using System.Threading.Tasks;
 
 namespace DataStructures
 {
-    public interface ITrueSet<T> 
+    /// <summary>Describes an interval set, which is a loss-tolerant data inclusion/exclusion set.</summary>
+    public interface IIntervalSet<T> : ICollection<T> where T : IComparable<T>
     {
         bool IsEmpty { get; }
+        
         bool IsUniversal { get; }
-        bool Contains(T item);
-    }
-    /// <summary>Describes an interval set, which is a loss-tolerant data inclusion/exclusion set.</summary>
-    public interface IIntervalSet<T> : ITrueSet<T>, ICollection<T> where T : IComparable<T>
-    {
+        
         bool IsPositiveInfinite { get; }
-
+        
         bool IsNegativeInfinite { get; }
 
         void MakeUniversal();
@@ -88,11 +86,11 @@ namespace DataStructures
             return inf.HasAfter;
         }
 
-        private int GetPrecedingIndex(T item)
+        private int GetPrecedingIndex (T item)
         {
             if (Inflections.Length == 0) return -1;
             if (Inflections[0].IsUniversal) return 0;
-            if (item.CompareTo(Inflections[0].Point) < 0) return -1;
+            if (item.CompareTo( Inflections[0].Point) <0) return -1;
 
             // Get the inflection at or preceding the given item.
             int min = 0, max = Inflections.Length;
@@ -139,7 +137,7 @@ namespace DataStructures
         /// <param name="end">The end of the range, inclusive.</param>
         public void Add(T start, T end) => Add(start, true, end, true);
         /// <summary>Unions with the given range to this <see cref="IntervalSet{T}"/>.</summary>
-        public virtual void Add(T start, bool includeStart, T end, bool includeEnd)
+        public void Add(T start, bool includeStart, T end, bool includeEnd)
         {
             Inflections = Or(Inflections, new Inflection[] { Inflection.Start(start, includeStart),
                                                                  Inflection.End(end, includeEnd) });
@@ -156,12 +154,12 @@ namespace DataStructures
         /// <summary>Removes the given range of items.</summary>
         public void Remove(T start, T end) => Remove(start, true, end, true);
         /// <summary>Removes the given range of items.</summary>
-        public virtual void Remove(T start, bool removeStart, T end, bool removeEnd)
+        public void Remove(T start, bool removeStart, T end, bool removeEnd)
         {
             Inflections = Subtract(Inflections, new Inflection[] { Inflection.Start(start, removeStart),
                                                                     Inflection.End(end, removeEnd) });
         }
-        void ICollection<T>.Clear() => MakeEmpty();
+        public void Clear() => MakeEmpty();
 
         /// <summary>Makes this set an universal <see cref="IntervalSet{T}"/>.</summary>
         public void MakeUniversal() => Inflections = new Inflection[] { Inflection.Universal };
@@ -171,7 +169,7 @@ namespace DataStructures
         public void MakePositiveInfinite()
         {
             if (Inflections.Length == 0)
-                Inflections = new Inflection[] { Inflection.Universal };
+                Inflections = new Inflection[] { Inflection.Universal };  
             else
             {
                 Inflection inf = Inflections[Inflections.Length - 1];
@@ -190,11 +188,16 @@ namespace DataStructures
                 Inflection inf = Inflections[0];
                 Inflections[0] = Inflection.Compose(inf.Point, true, inf.IsIncluded, inf.HasAfter);
             }
-
+            
 
         }
 
         #endregion
+
+
+
+
+
 
 
 
@@ -207,7 +210,7 @@ namespace DataStructures
             copy.Inflections = this.Inflections.ToArray();
             return copy;
         }
-
+        
 
         /// <summary>Returns the inverse of the given <see cref="Inflection"/> array.</summary>
         protected virtual Inflection[] Not(Inflection[] inflections)
@@ -313,7 +316,7 @@ namespace DataStructures
 
         #endregion
 
-
+        
 
         /// <summary>Returns interval set equality.</summary>
         public static bool operator ==(IntervalSet<T> a, IntervalSet<T> b)
@@ -352,7 +355,7 @@ namespace DataStructures
             Inflection last = Inflections[Inflections.Length - 1];
             StringBuilder sb = new StringBuilder();
             sb.Append((first.IsEnd || (first.IsSingleton && !first.IsIncluded)) ? "<." : "");
-            for (int i = 0; i < Inflections.Length - 1; i++)
+            for (int i = 0; i < Inflections.Length-1; i++)
             {
                 Inflection inf = Inflections[i];
                 sb.Append(inf.ToString());
@@ -360,7 +363,7 @@ namespace DataStructures
             }
             sb.Append(last.ToString());
             sb.Append((last.IsStart || (last.IsSingleton && !last.IsIncluded)) ? ".>" : "");
-            return sb.ToString();
+            return sb.ToString();            
         }
 
         /// <summary>Marks a change in an interval set between inclusion and exclusion, or vice versa.</summary>
@@ -384,10 +387,10 @@ namespace DataStructures
             private readonly Flags _Flags;
 
             /// <summary>A universal inflection.</summary>
-            public static readonly Inflection Universal = new Inflection(default, Flags.UNIVERSAL);
+            public static readonly Inflection Universal = new Inflection(default(T), Flags.UNIVERSAL);
 
             /// <summary>An empty inflection.  Used only for signaling and composition.</summary>
-            internal static readonly Inflection Empty = new Inflection(default, Flags.ERROR);
+            internal static readonly Inflection Empty = new Inflection(default(T), Flags.ERROR);
 
             /// <summary>The point in the universe marked by this <see cref="Inflection"/>.</summary>
             public readonly T Point;
@@ -403,14 +406,14 @@ namespace DataStructures
             public bool IsUniversal => (_Flags & Flags.UNIVERSAL) != Flags.ERROR;
             /// <summary>Returns whether this inflection represents a singleton.</summary>
             public bool IsSingleton => (_Flags & Flags.SINGLETON) != Flags.ERROR;
-
+            
             /// <summary>
             /// Used only to signal that a composed inflection has no contents.  An empty <see cref="IntervalSet{T}"/> 
             /// will have no Inflections in its <seealso cref="IntervalSet{T}.Inflections"/> property.
             /// </summary>
             internal bool IsEmpty => _Flags == Flags.ERROR;
             internal bool HasBefore => (_Flags & Flags.HAS_BEFORE_MASK) != Flags.ERROR;
-
+            
             internal bool HasAfter => (_Flags & Flags.HAS_AFTER_MASK) != Flags.ERROR;
             [DebuggerStepThrough]
             public bool IsSameDirection(Inflection other) => !IsSingleton && !other.IsSingleton && IsStart == other.IsStart && IsEnd == other.IsEnd;
@@ -434,7 +437,7 @@ namespace DataStructures
             }
 
 
-
+            
 
             /// <summary>Conveniently cases the given inflection to its <see cref="Point"/>.</summary>
             public static implicit operator T(Inflection f) { return f.Point; }
@@ -443,7 +446,7 @@ namespace DataStructures
             public bool IsBefore(Inflection other) => (Point.CompareTo(other.Point) < 0);
             [DebuggerStepThrough]
             public bool IsAfter(Inflection other) => (Point.CompareTo(other.Point) > 0);
-
+            
 
             /// <summary>
             /// Two <see cref="Inflection"/> structs are equal if their <see cref="Point"/> compare equally, and they 
@@ -451,7 +454,7 @@ namespace DataStructures
             /// </summary>            
             public override bool Equals(object obj)
                 => (obj is Inflection f)
-                    && this.Point.CompareTo(f.Point) == 0
+                    && this.Point.CompareTo(f.Point)==0
                     && this._Flags == f._Flags;
 
             /// <summary>Returns the hashcode of the <see cref="Point"/>.</summary>
@@ -467,7 +470,7 @@ namespace DataStructures
                 if (IsUniversal) return "<..>";
                 return "<empty>";
             }
-
+            
             /// <summary>
             /// Returns a mirror of this <see cref="Inflection"/>, with the same <see cref="Point"/> but the opposite 
             /// direction and the <seealso cref="IsIncluded"/> value flipped..
@@ -479,7 +482,7 @@ namespace DataStructures
                 if (inf.IsSingleton) return Inflection.Singleton(inf.Point, !inf.IsIncluded);
                 throw new InvalidOperationException("An inflection of type " + inf.ToString() + " cannot be mirrored.");
             }
-
+            
             public static Inflection Compose(T point, bool before, bool pt, bool after)
             {
                 if (before)
@@ -633,25 +636,25 @@ namespace DataStructures
                 else
                     throw new SetIntegrityException("Invalid inflection for appending: " + inf.ToString());
             }
-
-
-
+            
+            
+            
         }
-
-
+        
+        
         /// <summary>Returns the included inflection points in this <see cref="DiscreteIntervalSet{T}"/>.</summary>        
         public override IEnumerable<T> GetInflections()
         {
             foreach (Inflection f in Inflections)
                 yield return (f.IsIncluded ? f.Point : GetNext(f.Point));
         }
-
+        
         public IEnumerable<T> Reverse()
         {
             throw new NotImplementedException();
         }
 
-
+        
         /// <summary>Enumerates through this <see cref="DiscreteIntervalSet{T}"/>, returning one included item at a time.
         /// </summary>
         protected override IEnumerator<T> GetEnumerator()
@@ -669,7 +672,7 @@ namespace DataStructures
                 yield break;
             for (int idx = 1; idx < Inflections.Length; idx++)
             {
-                Inflection nextInf = Inflections[idx];
+                Inflection nextInf = Inflections[idx];                
                 while (inf.HasAfter || (inf.IsSingleton && !inf.IsIncluded))
                 {
                     T pt = GetNext(inf.Point);
@@ -677,15 +680,15 @@ namespace DataStructures
                     {
                         yield return pt;
                         pt = GetNext(pt);
-
+                        
                     }
                     if (++idx >= Inflections.Length) break;
                     inf = nextInf;
                     if (inf.IsIncluded)
-                        yield return inf.Point;
+                        yield return inf.Point;                    
                     nextInf = Inflections[idx];
                 }
-
+                
                 inf = nextInf;
                 if (inf.IsIncluded)
                     yield return inf.Point;
@@ -697,13 +700,13 @@ namespace DataStructures
                 T pt = inf.Point;
                 while (true)
                     yield return (pt = GetNext(pt));
-            }
+            }            
         }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-
-
+        
+        
     }
 
 
@@ -846,37 +849,40 @@ namespace DataStructures
 
     }
 
-    public sealed class NumberIntIntervalSet : DiscreteIntervalSet<Number>, ITrueSet<IEvaluateable>
+    public sealed class NumberIntervalSet : IntervalSet<Dependency.Number>, ICollection<Dependency.IEvaluateable>
     {
-        [DebuggerStepThrough]
-        static NumberIntIntervalSet()
-        {
-            GetNext = (item) => ++item;
-            GetPrevious = (item) => --item;
-        }
-
-        public static NumberIntIntervalSet Infinite() { var result = new NumberIntIntervalSet(); result.MakeUniversal(); return result; }
-
-        bool ITrueSet<IEvaluateable>.Contains(IEvaluateable item) => this.Contains((Number)item);
-
-        public NumberIntIntervalSet(params Number[] numbers) : base(numbers) { }
-
-        // TODO:  the overrides of the logical operators (and, or, etc...)  For now, I just need
-        // contains()
-    }
-
-
-    public sealed class NumberIntervalSet : IntervalSet<Dependency.Number>, ITrueSet<IEvaluateable>
-    {
-
+       
         public static NumberIntervalSet Infinite() { var result = new NumberIntervalSet(); result.MakeUniversal(); return result; }
 
         public NumberIntervalSet(params Dependency.Number[] items) : base(items) { }
 
-        bool ITrueSet<IEvaluateable>.Contains(IEvaluateable item) => this.Contains((Number)item);
-
         // TODO:  the overrides of the logical operators (and, or, etc...)  For now, I just need
-        // contains()        
+        // contains()
+
+
+        int ICollection<IEvaluateable>.Count
+           => throw new NotImplementedException("TODO:  return a value only if contents are discrete.");
+
+        bool ICollection<IEvaluateable>.IsReadOnly => true;
+
+        void ICollection<IEvaluateable>.Add(IEvaluateable item)
+        {
+            if (item is Number n) this.Add(n);
+            throw new InvalidOperationException();
+        }
+
+        void ICollection<IEvaluateable>.Clear() => this.Clear();
+
+        bool ICollection<IEvaluateable>.Contains(IEvaluateable item) => item is Number n && this.Contains(n);
+
+        void ICollection<IEvaluateable>.CopyTo(IEvaluateable[] array, int arrayIndex)
+            => throw new NotImplementedException("TODO:  copy only if contents are discrete.");
+
+        bool ICollection<IEvaluateable>.Remove(IEvaluateable item) => item is Number n && this.Remove(n);
+
+        IEnumerator<IEvaluateable> IEnumerable<IEvaluateable>.GetEnumerator()
+            => this.OfType<IEvaluateable>().GetEnumerator();
+
     }
     public sealed class Float64IntervalSet : IntervalSet<double>
     {

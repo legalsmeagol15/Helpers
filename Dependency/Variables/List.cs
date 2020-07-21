@@ -11,10 +11,6 @@ using System.Threading.Tasks;
 
 namespace Dependency.Variables
 {
-    //public sealed class List<T> : IVariable<List<T>>, IIndexedUpdater, IAsyncUpdater, INotifyUpdates<IEvaluateable>, IUpdatedVariable
-    //{
-
-    //}
     //public sealed class List<T> : IVariable<IList<T>>, ISyncUpdater, IAsyncUpdater, INotifyUpdates<IEvaluateable>, IIndexedDynamic, IUpdatedVariable
     //{
     //    private IEvaluateable _Contents;

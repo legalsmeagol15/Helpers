@@ -172,6 +172,7 @@ namespace Dependency
         public static IEvaluateable Recalculate(IEvaluateable ieval)
         {
             const ISyncUpdater nullChild = null;
+            ICollection<IEvaluateable> universalSet = Dependency.Variables.Update.UniversalSet;
             return _RecursiveRecalc(ieval);
 
             IEvaluateable _RecursiveRecalc(IEvaluateable focus)
@@ -182,7 +183,7 @@ namespace Dependency
                         break;
                     case IFunction ifunc:
                         foreach (var input in ifunc.Inputs) _RecursiveRecalc(input);
-                        ifunc.Update(null, nullChild);
+                        ifunc.Update(null, nullChild, universalSet);
                         break;
                     case IExpression ie:
                         return _RecursiveRecalc(ie.Contents);

@@ -739,7 +739,7 @@ namespace Dependency
         /// <seealso cref="Contents"/>.  The value of a <see cref="Curly"/> is the contents of the 
         /// <seealso cref="IAsyncUpdater"/> indicated by the <seealso cref="Contents"/>.
         /// </summary>
-        internal sealed class Curly : IExpression, IContext, IIndexedUpdater
+        internal sealed class Curly : IExpression, IContext, ISyncUpdater
         {
             /// <summary>The vector that this bracket object contains.</summary>
             public Vector Contents { get; }
@@ -755,21 +755,15 @@ namespace Dependency
 
             bool IContext.TryGetProperty(string path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
-                => Update.UniversalSet;
-
-            ITrueSet<IEvaluateable> IIndexedUpdater.UpdateIndexed(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indices)
-            {
-                Debug.Assert(updatedChild == this.Contents);
-                return indices;
-            }
+            ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+                => updatedDomain;
         }
 
 
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Contents"/> of a 
         /// <see cref="Parenthetical"/>.</summary>
-        internal sealed class Parenthetical : IExpression, IIndexedUpdater
+        internal sealed class Parenthetical : IExpression, ISyncUpdater
         {
             public ISyncUpdater Parent { get; set; }
             /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
@@ -779,15 +773,12 @@ namespace Dependency
 
             IEvaluateable IEvaluateable.Value => _Contents.Value;
 
-            ISyncUpdater ISyncUpdater.Parent { get; set; }
+            ISyncUpdater ISyncUpdater.Parent { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
-                => Update.UniversalSet;
-
-            ITrueSet<IEvaluateable> IIndexedUpdater.UpdateIndexed(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indices)
-                => indices;
+            ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+                => updatedDomain;
         }
 
 

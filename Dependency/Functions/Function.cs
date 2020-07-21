@@ -1,5 +1,4 @@
-﻿using DataStructures;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -32,19 +31,20 @@ namespace Dependency.Functions
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value; }
 
-        ITrueSet<IEvaluateable> ISyncUpdater.Update(Variables.Update update, 
-                                                       ISyncUpdater updatedChild)
+        ICollection<IEvaluateable> ISyncUpdater.Update(Variables.Update update, 
+                                                       ISyncUpdater updatedChild, 
+                                                       ICollection<IEvaluateable> updatedDomain)
         {
             // TODO:  since I know which child was updated, it makes sense to cache the evaluations and updated only the changed one.
             if (updatedChild != null && updatedChild.Value is Error err)
             {
                 if (Value.Equals(err)) return null;
                 Value = err;
-                return Dependency.Variables.Update.UniversalSet;
+                return updatedDomain;
             }
             else return Update(EvaluateInputs());
         }
-        public ITrueSet<IEvaluateable> Update(ICollection<IEvaluateable> updatedDomain) 
+        public ICollection<IEvaluateable> Update(ICollection<IEvaluateable> updatedDomain) 
             => Update(EvaluateInputs(), updatedDomain);
 
         [DebuggerStepThrough]
@@ -52,13 +52,13 @@ namespace Dependency.Functions
 
         /// <summary>
         /// Attempts to update by calling the inheriting 
-        /// <seealso cref="Function.Evaluate(IEvaluateable[], int, ICollection{IEvaluateable}, out ITrueSet{IEvaluateable})"/>
+        /// <seealso cref="Function.Evaluate(IEvaluateable[], int, ICollection{IEvaluateable}, out ICollection{IEvaluateable})"/> 
         /// method.  
         /// The <seealso cref="Function.Value"/> will be set to this result
         /// <para/>1. If the given <paramref name="evalInputs"/> matches one of the 
         /// <seealso cref="Functions"/>'s associated <seealso cref="TypeControl.Constraint"/>s, 
         /// the evaluation will be returned accordingly by returning the result of the 
-        /// <seealso cref="Function.Evaluate(IEvaluateable[], int, ICollection{IEvaluateable}, out ITrueSet{IEvaluateable})"/>
+        /// <seealso cref="Function.Evaluate(IEvaluateable[], int, ICollection{IEvaluateable}, out ICollection{IEvaluateable})"/> 
         /// method.
         /// <para/>2. If one of the given <paramref name="evalInputs"/> is an <seealso cref="Error"/>, that 
         /// <seealso cref="Error"/> will be returned.
@@ -72,14 +72,14 @@ namespace Dependency.Functions
         /// <param name="updatedDomain">The indices updated below.</param>
         /// <returns>Returns the collection of updated indices, if a change was made; otherwise, returns null.
         /// </returns>
-        protected ITrueSet<IEvaluateable> Update(IEvaluateable[] evalInputs, ICollection<IEvaluateable> updatedDomain)
+        protected ICollection<IEvaluateable> Update(IEvaluateable[] evalInputs, ICollection<IEvaluateable> updatedDomain)
         {
             TypeControl tc;
             if (this is ICacheValidator icv) tc = icv.TypeControl ?? (icv.TypeControl = TypeControl.GetConstraints(this.GetType()));
             else tc = TypeControl.GetConstraints(this.GetType());
 
             IEvaluateable newValue;
-            ITrueSet<IEvaluateable> updatedIndices = null;
+            ICollection<IEvaluateable> updatedIndices = null;
             if (tc.TryMatchTypes(evalInputs, out int bestConstraint, out int unmatchedArg, out Error firstError))
                 newValue = Evaluate(evalInputs, bestConstraint, updatedDomain,  out updatedIndices);
             else if (firstError != null)
@@ -102,10 +102,7 @@ namespace Dependency.Functions
         /// <param name="updatedDomain">The indices that were updated below.</param>
         /// <param name="indices">Out.  The indices for which the value was changed.</param>
         /// <returns></returns>
-        protected virtual IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, 
-                                                 int constraintIndex, 
-                                                 ICollection<IEvaluateable> updatedDomain, 
-                                                 out ITrueSet<IEvaluateable> indices)
+        protected virtual IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex, ICollection<IEvaluateable> updatedDomain, out ICollection<IEvaluateable> indices)
         {
             IEvaluateable result = Evaluate(evaluatedInputs, constraintIndex);
             indices = (result == null) ? default : Dependency.Variables.Update.UniversalSet;

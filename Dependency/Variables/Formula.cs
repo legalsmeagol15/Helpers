@@ -102,7 +102,7 @@ namespace Dependency.Variables
             finally { Update.StructureLock.ExitUpgradeableReadLock(); }
         }
 
-        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
             => SetValue(GetInnerFormula().Value) ? Update.UniversalSet : null;
         
         private bool SetValue(IEvaluateable newValue)

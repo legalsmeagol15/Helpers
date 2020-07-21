@@ -1,5 +1,4 @@
-﻿using DataStructures;
-using Helpers;
+﻿using Helpers;
 using Mathematics.Geometry;
 using System;
 using System.Collections.Generic;
@@ -100,7 +99,9 @@ namespace Dependency.Variables
         }
         public event ValueChangedHandler<IEvaluateable> Updated;
 
-        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)        
+        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller,
+                                                       ISyncUpdater updatedChild, 
+                                                       ICollection<IEvaluateable> updatedDomain)        
         {
             VariableMode priorMode = VariableMode.NONE;
             try
@@ -109,8 +110,8 @@ namespace Dependency.Variables
                 priorMode = Mode;
 
                 // The update comes from the contents itself?
-                if (updatedChild.Equals(_Contents))
-                    return CommitValue(_Contents.Value);
+                if (updatedChild.Equals(_Contents)) 
+                    return CommitValue(_Contents.Value) ? Update.UniversalSet : null;
 
                 // The update comes from a child after changing the Contents?
                 else if (Mode == VariableMode.UPDATING_CONTENTS)
@@ -120,7 +121,7 @@ namespace Dependency.Variables
                 Mode = VariableMode.UPDATING_CHILD_VALUE;
                 IEvaluateable syncedContents = ComposeValue();
                 CommitContents(syncedContents);
-                return CommitValue(syncedContents);
+                return CommitValue(syncedContents) ? Update.UniversalSet : null;
             }
             // Let exceptions through.
             finally
@@ -129,7 +130,7 @@ namespace Dependency.Variables
             }
         }
         
-        ITrueSet<IEvaluateable> CommitValue(IEvaluateable newValue)
+        private bool CommitValue(IEvaluateable newValue)
         {
             try
             {
@@ -144,14 +145,12 @@ namespace Dependency.Variables
                 else
                     IsValid = false;
                 if (!Value.Equals(newValue)) { Value = newValue; changed = true; }
-
-                // TODO:  return only the changed properties' names as Dependency.Strings?
-                return changed ? Update.UniversalSet : null;
+                return changed;
             }
             finally { Monitor.Exit(_Lock); }
 
         }
-        ITrueSet<IEvaluateable> IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
+        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => CommitValue(newValue);
 
 
 

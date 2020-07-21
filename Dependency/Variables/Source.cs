@@ -15,9 +15,9 @@ namespace Dependency.Variables
     public sealed class Source<T> : IAsyncUpdater, IVariable, IUpdatedVariable, ITypeGuarantee, ISyncUpdater
     {
         ISyncUpdater ISyncUpdater.Parent { get; set; }
-        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild)
+        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
             => Dependency.Variables.Update.UniversalSet;
-
+        
         private T _Value;
         private readonly IConverter<T> _Converter;
         private readonly TypeFlags _TypeGuarantee;
@@ -35,7 +35,7 @@ namespace Dependency.Variables
             this._Value = startingValue;
         }
 
-
+        
 
         public T Get() => _Value;
         public void Set(T newValue)
@@ -51,12 +51,12 @@ namespace Dependency.Variables
                 return;
 
             // Though the value is changed in the CLR, kick off an update to notify listeners of any change.
-
+            
             _Value = newValue;
             IEvaluateable newContents = _Converter.ConvertUp(newValue);
             Update update = Update.ForVariable(this, newContents);
             update.Execute();
-
+            
             // Notify any CLR listeners to a change.
             Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(_Converter.ConvertUp(oldValue), newContents));
 
@@ -71,7 +71,7 @@ namespace Dependency.Variables
 
         bool IUpdatedVariable.CommitContents(IEvaluateable newContent) => true;
 
-        ITrueSet<IEvaluateable> IUpdatedVariable.CommitValue(IEvaluateable newValue) => Update.UniversalSet;
+        bool IUpdatedVariable.CommitValue(IEvaluateable newValue) => true;
 
         public event ValueChangedHandler<IEvaluateable> Updated;
     }

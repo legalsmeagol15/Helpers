@@ -7,7 +7,6 @@ using Dependency.Functions;
 using Dependency.Variables;
 using Helpers;
 using System.Threading;
-using DataStructures;
 
 namespace Dependency
 {
@@ -179,11 +178,6 @@ namespace Dependency
         IContext Parent { get; set; }
     }
 
-    internal interface IIndexedUpdater : ISyncUpdater
-    {
-        ITrueSet<IEvaluateable> UpdateIndexed(Update caller, ISyncUpdater updatedChild, 
-                                              DataStructures.ITrueSet<IEvaluateable> indices);
-    }
 
     /// <summary>
     /// An <seealso cref="IEvaluateable"/> object that will synchronously pass changes in value up through an 
@@ -199,16 +193,18 @@ namespace Dependency
 
         /// <summary>Compel the <seealso cref="ISyncUpdater"/> to update its stored value.  This 
         /// method is called after the given <paramref name="updatedChild"/> has been updated with 
-        /// a new value.</summary>
+        /// a new value for the given <paramref name="updatedDomain"/>.</summary>
         /// <param name="updatedChild">The child that was updated who is passing on the update to 
         /// this <seealso cref="ISyncUpdater"/>.  If null, no child was update to cause this call 
-        /// to <see cref="Update(Update,ISyncUpdater)"/>.</param>
+        /// to <see cref="Update(Update,ISyncUpdater,ICollection{IEvaluateable})"/>.</param>
         /// <param name="caller">The <seealso cref="Dependency.Variables.Update"/> which is managing the update 
         /// procedure.</param>
+        /// <param name="updatedDomain">The indices of the update from the 
+        /// <paramref name="updatedChild"/> below.</param>
         /// <returns>Returns the set of updated indices, if a change was made.  If indexing is 
         /// irrelevent, this may return a universal set.  If no change was made, this may return 
         /// null or an empty set.</returns>
-        ITrueSet<IEvaluateable> Update(Update caller, ISyncUpdater updatedChild);
+        ICollection<IEvaluateable> Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain);
     }
 
 
@@ -244,8 +240,7 @@ namespace Dependency
         /// <seealso cref="Update.StructureLock"/> write lock, but within a read lock.  If the 
         /// <seealso cref="IUpdatedVariable"/>'s value requires locking, it is safe to lock within 
         /// the implementation of this method.</summary>
-        /// <returns>Returns the set of indices changed.</returns>
-        ITrueSet<IEvaluateable> CommitValue(IEvaluateable newValue);
+        bool CommitValue(IEvaluateable newValue);
     }
 
 

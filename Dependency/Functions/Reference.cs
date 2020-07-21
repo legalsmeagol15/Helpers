@@ -1,5 +1,4 @@
-﻿using DataStructures;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -9,7 +8,7 @@ using System.Threading.Tasks;
 namespace Dependency.Functions
 {
         
-    internal sealed class Reference : IFunction, IDisposable, IReference, IIndexedUpdater
+    internal sealed class Reference : IFunction, IDisposable, IReference
     {
         // Cannot implement Function directly because the count of Inputs can change.
 
@@ -51,18 +50,8 @@ namespace Dependency.Functions
             return true;
         }
 
-        ITrueSet<IEvaluateable> IIndexedUpdater.UpdateIndexed(Dependency.Variables.Update caller, 
-                                                              ISyncUpdater updatedChild, 
-                                                              ITrueSet<IEvaluateable> indices)
-        {
-            var result = Update(caller, updatedChild);
-            if (result == null || result.IsEmpty) return null;
-            return indices;
-        }
-
-        ITrueSet<IEvaluateable> ISyncUpdater.Update(Dependency.Variables.Update caller, ISyncUpdater updatedChild)
-            => Update(caller, updatedChild);
-        private ITrueSet<IEvaluateable> Update(Dependency.Variables.Update caller, ISyncUpdater updatedChild) 
+        ICollection<IEvaluateable> ISyncUpdater.Update(Dependency.Variables.Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+        
         {
             // Find the index of the child that changed.
             int stepIdx = 0;
@@ -175,7 +164,7 @@ namespace Dependency.Functions
 
             if (newValue.Equals(Value)) return null;
             Value = newValue;
-            return Dependency.Variables.Update.UniversalSet;
+            return updatedDomain;
         }
 
         /// <summary>
