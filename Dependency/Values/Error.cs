@@ -29,9 +29,10 @@ namespace Dependency
 
     public sealed class CircularityError : Error
     {
-        internal readonly IVariable Origin;
+        internal readonly IEvaluateable Origin;
         internal readonly IEnumerable<IEvaluateable> Path;
-        internal CircularityError(IVariable origin, IEnumerable<IEvaluateable> path) : base("Circular reference.") { this.Origin = origin; this.Path = path; }
+        internal CircularityError(IVariable origin, IEnumerable<IEvaluateable> path) : base("Circular reference from variable.") { this.Origin = origin; this.Path = path; }
+        internal CircularityError(IReference origin, IEnumerable<IEvaluateable> path) : base("Circular reference.") { this.Origin = origin; this.Path = path; }
     }
     public sealed class InvalidValueError : Error
     {

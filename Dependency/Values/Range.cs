@@ -52,7 +52,7 @@ namespace Dependency.Values
 
         bool IContext.TryGetSubcontext(string path, out IContext ctxt) { ctxt = null; return false; }
 
-        bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
+        bool IIndexed.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
         {
             if (IsNumeric && ordinal is Number nv)
             { val = ((Number)From) + nv; return true; }

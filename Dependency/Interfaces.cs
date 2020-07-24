@@ -133,7 +133,7 @@ namespace Dependency
         bool TryCreate(string token, out NamedFunction nf);
     }
 
-    internal interface IIndexable : ISyncUpdater
+    public interface IIndexed
     {
         /// <summary>
         /// 
@@ -142,6 +142,9 @@ namespace Dependency
         /// <param name="val"></param>
         /// <returns></returns>
         bool TryIndex(IEvaluateable ordinal, out IEvaluateable val);
+    }
+    internal interface IIndexable : IIndexed, ISyncUpdater
+    {        
         bool ControlsReindex { get; }
     }
 
@@ -164,7 +167,7 @@ namespace Dependency
         event ValueChangedHandler<T> Updated;
     }
 
-    public interface IReference
+    public interface IReference : IEvaluateable
     {
         IEnumerable<IEvaluateable> GetComposers();
     }

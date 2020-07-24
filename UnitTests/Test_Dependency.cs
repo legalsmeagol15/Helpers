@@ -24,7 +24,7 @@ namespace UnitTests
         [TestMethod]
         public void Test_Circularity_Detection()
         {
-            SimpleContext root = new SimpleContext();
+            TestConext root = new TestConext();
             Variable v0 = new Variable(), v1 = new Variable(), v2 = new Variable();
             root.Add("v0", v0);
             root.Add("v1", v1);
@@ -55,7 +55,7 @@ namespace UnitTests
         {
             Common.AssertThrows<Dependency.Parse.SyntaxException>(() => Parse.FromString("no.references.without.context", null, null));
 
-            SimpleContext root = new SimpleContext();
+            TestConext root = new TestConext();
             Parse.FromString("what.is.this", null, root);
 
             // Show that new references have the correct values.
@@ -82,7 +82,7 @@ namespace UnitTests
             // Show that subcontext properties can be referenced in deeper paths.
             v1.Contents = Parse.FromString("v0", null, root);
             v2.Contents = Parse.FromString("v0", null, root);
-            SimpleContext sub1 = new SimpleContext();
+            TestConext sub1 = new TestConext();
             root.Add("sub1", sub1);
             sub1.Add("v1", v1);
             IEvaluateable ref_sub1_v1 = Parse.FromString("sub1.v1", null, root);
@@ -94,7 +94,7 @@ namespace UnitTests
             v0.Contents = vec;
             Assert.AreEqual(v3.Value, vec);
 
-            SimpleContext sub2 = new SimpleContext();
+            TestConext sub2 = new TestConext();
             sub1.Add("sub2", sub2);
             sub2.Add("v2", v2);
             Variable v4 = new Variable(Parse.FromString("sub1.sub2.v2[2]", null, root));
@@ -116,7 +116,32 @@ namespace UnitTests
         {
             // The point of this method is to test the the functionality of the follow complex expression:
             // drawings[spreadsheet.c5].splineA.Xs.count + 5
-            throw new NotImplementedException();
+
+            //setup
+            var master = new TestConext();
+            var drawings = new TestConext();
+            master.Add("drawings", drawings);
+            var head = new TestConext();
+            drawings[new Number(0)] = new Number(20);
+            var spreadsheet = new TestConext();
+            drawings[new Number(1)] = head;
+            
+            var c5 = new Variable(Number.Zero);            
+            spreadsheet.Add("c5", c5);
+
+            var splineA = new TestConext();
+            head.Add("splineA", splineA);
+
+            var Xs = new TestConext();
+            splineA.Add("Xs", Xs);
+
+            Variable count = new Variable(new Number(10));
+            Xs.Add("count", count);
+
+            // Now try instantiation.
+            Variable host = new Variable();
+            host.Contents = Parse.FromString("drawings[spreadsheet.c5].splineA.Xs.count + 5",null , master);
+            
         }
         
         [TestMethod]
@@ -138,7 +163,7 @@ namespace UnitTests
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
-            SimpleContext root = new SimpleContext();
+            TestConext root = new TestConext();
             root.Add("v0", vStart);
             System.Collections.Generic.List<Variable> vars = new System.Collections.Generic.List<Variable>();
             for (int i = 1; i <= numVars; i++)
@@ -268,7 +293,7 @@ namespace UnitTests
             Assert.IsTrue(new Number(23) != new Number(24));
 
             Assert.IsTrue(new Number(24).Equals(new Number(24)));
-            Assert.IsFalse(new Number(25).Equals(new SimpleContext()));
+            Assert.IsFalse(new Number(25).Equals(new TestConext()));
 
             Assert.AreEqual(new Number(27).ToString(), "27");
 
@@ -296,7 +321,7 @@ namespace UnitTests
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
-            SimpleContext root = new SimpleContext();
+            TestConext root = new TestConext();
             root.Add("v0", vStart);
             System.Collections.Generic.List<Variable> vars = new System.Collections.Generic.List<Variable>();
             for (int i = 1; i <= numVars; i++)
@@ -421,7 +446,7 @@ namespace UnitTests
             IFunctionFactory functions = new Dependency.Functions.ReflectedFunctionFactory();
 
             Variable vStart = new Variable(Dependency.Number.One);
-            SimpleContext root = new SimpleContext();
+            TestConext root = new TestConext();
             root.Add("vstart", vStart);
 
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
@@ -589,12 +614,16 @@ namespace UnitTests
 
     [ExcludeFromCodeCoverage]
     [DebuggerStepThrough]
-    internal class SimpleContext : IContext
+    internal class TestConext : IContext, IIndexed, IEvaluateable
     {
+        private readonly Dictionary<IEvaluateable, IEvaluateable> _Indices = new Dictionary<IEvaluateable, IEvaluateable>();
         private readonly Dictionary<object, Variable> _Variables = new Dictionary<object, Variable>();
-        private readonly Dictionary<object, SimpleContext> _Subcontexts = new Dictionary<object, SimpleContext>();
+        private readonly Dictionary<object, TestConext> _Subcontexts = new Dictionary<object, TestConext>();
+
+        IEvaluateable IEvaluateable.Value => this;
+
         public void Add(object key, Variable variable) => _Variables.Add(key, variable);
-        public void Add(object key, SimpleContext subcontext) => _Subcontexts.Add(key, subcontext);
+        public void Add(object key, TestConext subcontext) => _Subcontexts.Add(key, subcontext);
 
         public bool TryGetProperty(string  token, out IEvaluateable source)
         {
@@ -605,12 +634,22 @@ namespace UnitTests
 
         public bool TryGetSubcontext(string token, out IContext ctxt)
         {
-            if (_Subcontexts.TryGetValue(token, out SimpleContext sc)) { ctxt = sc; return true; }
+            if (_Subcontexts.TryGetValue(token, out TestConext sc)) { ctxt = sc; return true; }
             ctxt = null;
             return false;
         }
 
         public override bool Equals(object obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
+
+        public bool TryIndex(IEvaluateable ordinal, out IEvaluateable val)
+            => _Indices.TryGetValue(ordinal, out val);
+
+        public IEvaluateable this[IEvaluateable ordinal]
+        {
+            get => _Indices[ordinal];
+            set { _Indices[ordinal] = value; }
+        }
+
     }
 }

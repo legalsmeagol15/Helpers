@@ -110,7 +110,7 @@ namespace Dependency
             wrapper = default;
             return false;
         }
-        bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
+        bool IIndexed.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
         {
             if (this.TryIndexWrapper(ordinal, out var wrapper))
             {

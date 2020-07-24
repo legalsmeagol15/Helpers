@@ -84,7 +84,12 @@ namespace Dependency.Functions
                     if (Head is IAsyncUpdater iau_old) iau_old.RemoveListener(this);
                     if (newHead is IAsyncUpdater iau_new) iau_new.AddListener(this);
                     Inputs[2] = newHead;
-                    Value = Head.Value;
+                    IEvaluateable newValue = Head.Value;
+                    if (Helpers.TryFindDependency(Head, this, out IEnumerable<IEvaluateable> path))
+                    {
+                        newValue = new CircularityError(this, path);
+                    }
+                    Value = newValue;
                     return true;
                 }
                 else if (Head != OutOfRange || Value != OutOfRange)
