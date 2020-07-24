@@ -2,6 +2,7 @@
 using Dependency.Functions;
 using Dependency.Operators;
 using Dependency.Variables;
+using Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -755,8 +756,8 @@ namespace Dependency
 
             bool IContext.TryGetProperty(string path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
 
-            ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
-                => updatedDomain;
+            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
+                => indexedDomain;
         }
 
 
@@ -773,12 +774,12 @@ namespace Dependency
 
             IEvaluateable IEvaluateable.Value => _Contents.Value;
 
-            ISyncUpdater ISyncUpdater.Parent { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+            ISyncUpdater ISyncUpdater.Parent { get; set; }
 
             public override string ToString() => "( " + Contents.ToString() + " )";
 
-            ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
-                => updatedDomain;
+            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
+                => indexedDomain;
         }
 
 

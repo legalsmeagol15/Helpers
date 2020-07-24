@@ -7,6 +7,7 @@ using Dependency.Functions;
 using Dependency.Variables;
 using Helpers;
 using System.Threading;
+using Mathematics;
 
 namespace Dependency
 {
@@ -193,18 +194,16 @@ namespace Dependency
 
         /// <summary>Compel the <seealso cref="ISyncUpdater"/> to update its stored value.  This 
         /// method is called after the given <paramref name="updatedChild"/> has been updated with 
-        /// a new value for the given <paramref name="updatedDomain"/>.</summary>
+        /// a new value for the given <paramref name="indexDomain"/>.</summary>
         /// <param name="updatedChild">The child that was updated who is passing on the update to 
         /// this <seealso cref="ISyncUpdater"/>.  If null, no child was update to cause this call 
-        /// to <see cref="Update(Update,ISyncUpdater,ICollection{IEvaluateable})"/>.</param>
+        /// to <see cref="Update(Update,ISyncUpdater,ITrueSet{IEvaluateable})"/>.</param>
         /// <param name="caller">The <seealso cref="Dependency.Variables.Update"/> which is managing the update 
         /// procedure.</param>
-        /// <param name="updatedDomain">The indices of the update from the 
+        /// <param name="indexDomain">The indices of the update from the 
         /// <paramref name="updatedChild"/> below.</param>
-        /// <returns>Returns the set of updated indices, if a change was made.  If indexing is 
-        /// irrelevent, this may return a universal set.  If no change was made, this may return 
-        /// null or an empty set.</returns>
-        ICollection<IEvaluateable> Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain);
+        /// <returns>Returns the set for which the update is applicable.</returns>
+        ITrueSet<IEvaluateable> Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexDomain);
     }
 
 

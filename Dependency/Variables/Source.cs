@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Helpers;
 using DataStructures;
+using Mathematics;
 
 namespace Dependency.Variables
 {
@@ -15,8 +16,8 @@ namespace Dependency.Variables
     public sealed class Source<T> : IAsyncUpdater, IVariable, IUpdatedVariable, ITypeGuarantee, ISyncUpdater
     {
         ISyncUpdater ISyncUpdater.Parent { get; set; }
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
-            => Dependency.Variables.Update.UniversalSet;
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> updatedDomain)
+            => Update.UniversalSet;
         
         private T _Value;
         private readonly IConverter<T> _Converter;

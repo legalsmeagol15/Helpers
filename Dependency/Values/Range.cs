@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Dependency.Functions;
 using Dependency.Variables;
+using Mathematics;
 
 namespace Dependency.Values
 {
@@ -59,7 +60,7 @@ namespace Dependency.Values
             return false;
         }
 
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
-            => updatedDomain;
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
+            => throw new NotImplementedException();
     }
 }

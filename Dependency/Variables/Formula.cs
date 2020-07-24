@@ -1,5 +1,6 @@
 ﻿using DataStructures;
 using Helpers;
+using Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -102,7 +103,7 @@ namespace Dependency.Variables
             finally { Update.StructureLock.ExitUpgradeableReadLock(); }
         }
 
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
             => SetValue(GetInnerFormula().Value) ? Update.UniversalSet : null;
         
         private bool SetValue(IEvaluateable newValue)

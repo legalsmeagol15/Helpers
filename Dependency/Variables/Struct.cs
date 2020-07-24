@@ -1,4 +1,5 @@
 ﻿using Helpers;
+using Mathematics;
 using Mathematics.Geometry;
 using System;
 using System.Collections.Generic;
@@ -99,9 +100,9 @@ namespace Dependency.Variables
         }
         public event ValueChangedHandler<IEvaluateable> Updated;
 
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller,
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller,
                                                        ISyncUpdater updatedChild, 
-                                                       ICollection<IEvaluateable> updatedDomain)        
+                                                       ITrueSet<IEvaluateable> updatedDomain)        
         {
             VariableMode priorMode = VariableMode.NONE;
             try

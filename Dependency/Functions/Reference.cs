@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Mathematics;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -50,7 +51,7 @@ namespace Dependency.Functions
             return true;
         }
 
-        ICollection<IEvaluateable> ISyncUpdater.Update(Dependency.Variables.Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Dependency.Variables.Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> updatedDomain)
         
         {
             // Find the index of the child that changed.

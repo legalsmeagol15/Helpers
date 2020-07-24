@@ -1,4 +1,5 @@
 ﻿using Dependency.Variables;
+using Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -97,7 +98,7 @@ namespace Dependency.Functions
             }
             finally { Update.StructureLock.ExitWriteLock(); }
         }
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> updatedDomain)
         {
             if (updatedChild == null)
             {

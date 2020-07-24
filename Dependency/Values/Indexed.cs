@@ -1,4 +1,5 @@
 ﻿using Dependency.Variables;
+using Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -47,11 +48,12 @@ namespace Dependency.Values
             this.Index = index;
         }
 
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
         {
             Debug.Assert(updatedChild == Contents);
-            if (updatedDomain.Contains(Index)) return new IEvaluateable[] { Index };
-            throw new NotImplementedException("What happens when a different index arrives at an " + nameof(Indexed<ByT>) + "?"); 
+            Debug.Assert(indexedDomain.IsUniversal, "Misuse of " + nameof(Indexed<ByT>) + " - this class should exist only as a client of an " + nameof(IIndexable) + " and should only receive universal indices.");
+            Debug.Assert(Value == Contents.Value);
+            return indexedDomain;
         }
     }
 }

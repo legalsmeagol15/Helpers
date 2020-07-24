@@ -172,7 +172,7 @@ namespace Dependency
         public static IEvaluateable Recalculate(IEvaluateable ieval)
         {
             const ISyncUpdater nullChild = null;
-            ICollection<IEvaluateable> universalSet = Dependency.Variables.Update.UniversalSet;
+            var universalSet = Dependency.Variables.Update.UniversalSet;
             return _RecursiveRecalc(ieval);
 
             IEvaluateable _RecursiveRecalc(IEvaluateable focus)

@@ -12,6 +12,7 @@ using DataStructures;
 using System.Threading;
 using Dependency.Functions;
 using System.Diagnostics;
+using Mathematics;
 
 namespace Dependency.Variables
 {
@@ -118,7 +119,7 @@ namespace Dependency.Variables
         internal ISyncUpdater Parent { get; set; }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = value; } }
 
-        ICollection<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ICollection<IEvaluateable> updatedDomain)
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> updatedDomain)
             => OnChildUpdated(caller, updatedChild) ? Update.UniversalSet : null;
         internal virtual bool OnChildUpdated(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
         internal virtual IEvaluateable Evaluate() => _Contents.Value;

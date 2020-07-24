@@ -1,4 +1,5 @@
 ﻿using Dependency;
+using Mathematics;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,12 +13,8 @@ using System.Threading.Tasks;
 namespace DataStructures
 {
     /// <summary>Describes an interval set, which is a loss-tolerant data inclusion/exclusion set.</summary>
-    public interface IIntervalSet<T> : ICollection<T> where T : IComparable<T>
+    public interface IIntervalSet<T> : Mathematics.ITrueSet<T>, ICollection<T> where T : IComparable<T>
     {
-        bool IsEmpty { get; }
-        
-        bool IsUniversal { get; }
-        
         bool IsPositiveInfinite { get; }
         
         bool IsNegativeInfinite { get; }
@@ -72,6 +69,10 @@ namespace DataStructures
         /// <summary>Returns whether this <see cref="IntervalSet{T}"/> represents a negative-infinite set.</summary>
         public bool IsNegativeInfinite => Inflections.Length > 0 && Inflections[0].IsEnd;
 
+        ITrueSet<T> ITrueSet<T>.And(ITrueSet<T> other) => throw new NotImplementedException();
+        ITrueSet<T> ITrueSet<T>.Or(ITrueSet<T> other) => throw new NotImplementedException();
+        ITrueSet<T> ITrueSet<T>.Not() => throw new NotImplementedException();
+
         /// <summary>Returns whether the given item is included in this <see cref="IntervalSet{T}"/>.</summary>
         public bool Contains(T item)
         {
@@ -120,7 +121,7 @@ namespace DataStructures
         /// <summary>Returns the inflection points of this <see cref="IntervalSet{T}"/>.</summary>
         public virtual IEnumerable<T> GetInflections() { foreach (Inflection f in Inflections) yield return f.Point; }
 
-
+        
 
         #region IntervalSet in-place contents manipulation
         /// <summary>Adds the given singleton to this <see cref="IntervalSet{T}"/>.</summary>
@@ -849,40 +850,54 @@ namespace DataStructures
 
     }
 
-    public sealed class NumberIntervalSet : IntervalSet<Dependency.Number>, ICollection<Dependency.IEvaluateable>
+    public sealed class NumberIntegerSet : DiscreteIntervalSet<Number>, ITrueSet<IEvaluateable>
     {
-       
-        public static NumberIntervalSet Infinite() { var result = new NumberIntervalSet(); result.MakeUniversal(); return result; }
+        public NumberIntegerSet(params Number[] numbers) : base(numbers) { }
+        bool ITrueSet<IEvaluateable>.Contains(IEvaluateable item) => this.Contains((Number)item);
 
+        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.And(ITrueSet<IEvaluateable> other)
+        {
+            throw new NotImplementedException();
+        }
+
+
+        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Not()
+        {
+            throw new NotImplementedException();
+        }
+
+        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Or(ITrueSet<IEvaluateable> other)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public sealed class NumberIntervalSet : IntervalSet<Number>, ITrueSet<IEvaluateable>
+    {
+        public static NumberIntervalSet Infinite() { var result = new NumberIntervalSet(); result.MakeUniversal(); return result; }
+        
         public NumberIntervalSet(params Dependency.Number[] items) : base(items) { }
 
         // TODO:  the overrides of the logical operators (and, or, etc...)  For now, I just need
         // contains()
 
 
-        int ICollection<IEvaluateable>.Count
-           => throw new NotImplementedException("TODO:  return a value only if contents are discrete.");
+        bool ITrueSet<IEvaluateable>.Contains(IEvaluateable item) => this.Contains((Number)item);
 
-        bool ICollection<IEvaluateable>.IsReadOnly => true;
-
-        void ICollection<IEvaluateable>.Add(IEvaluateable item)
+        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.And(ITrueSet<IEvaluateable> other)
         {
-            if (item is Number n) this.Add(n);
-            throw new InvalidOperationException();
+            throw new NotImplementedException();
         }
 
-        void ICollection<IEvaluateable>.Clear() => this.Clear();
+        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Or(ITrueSet<IEvaluateable> other)
+        {
+            throw new NotImplementedException();
+        }
 
-        bool ICollection<IEvaluateable>.Contains(IEvaluateable item) => item is Number n && this.Contains(n);
-
-        void ICollection<IEvaluateable>.CopyTo(IEvaluateable[] array, int arrayIndex)
-            => throw new NotImplementedException("TODO:  copy only if contents are discrete.");
-
-        bool ICollection<IEvaluateable>.Remove(IEvaluateable item) => item is Number n && this.Remove(n);
-
-        IEnumerator<IEvaluateable> IEnumerable<IEvaluateable>.GetEnumerator()
-            => this.OfType<IEvaluateable>().GetEnumerator();
-
+        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Not()
+        {
+            throw new NotImplementedException();
+        }
     }
     public sealed class Float64IntervalSet : IntervalSet<double>
     {

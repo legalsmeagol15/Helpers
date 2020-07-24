@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections;
+using Mathematics;
 
 namespace Dependency.Variables
 {
@@ -87,7 +88,7 @@ namespace Dependency.Variables
                     finally { StructureLock.ExitWriteLock(); }
 
                     // If the iuv is now part of a circularity, the new value will be a CircularityError
-                    if (checkCircularity && Helpers.TryFindDependency(iuv, out var path))
+                    if (checkCircularity && Helpers.TryFindDependency(NewContents, Starter, out var path))
                         newValue = new CircularityError(iuv, path);
 
                     // If the new value won't change the old value, no need to update listeners.
@@ -136,20 +137,20 @@ namespace Dependency.Variables
         /// <seealso cref="IAsyncUpdater"/>, or an object that implements both.</param>
         /// <param name="target">The item which will be updated.  The <paramref name="target"/>'s 
         /// Parent will be the next item updated, and so on.</param>
-        /// <param name="updatedDomain">The domain indexes that were updated below.</param>
+        /// <param name="indexedDomain">The domain indexes that were updated below.</param>
         /// <returns>Returns true if any item's value was changed; otherwise, returns false.
         /// </returns>
-        private bool _Execute(object source, ISyncUpdater target, ICollection<IEvaluateable> updatedDomain=null)
+        private bool _Execute(object source, ISyncUpdater target, ITrueSet<IEvaluateable> indexedDomain=null)
         {
-            if (updatedDomain == null) updatedDomain = UniversalSet;
+            if (indexedDomain == null) indexedDomain = UniversalSet;
             ISyncUpdater start = target;
             ISyncUpdater updatedChild = source as ISyncUpdater;
             bool result = true;
             while (target != null)
             {
                 // If nothing was updated, return false.
-                updatedDomain = target.Update(this, updatedChild, updatedDomain);
-                if (updatedDomain == null || !updatedDomain.Any()) { result = !target.Equals(start); break; }
+                indexedDomain = target.Update(this, updatedChild, indexedDomain);
+                if (indexedDomain == null || indexedDomain.IsEmpty) { result = !target.Equals(start); break; }
 
                 // Since target was updated, enqueue its listeners and proceed.
                 if (target is IAsyncUpdater iv)

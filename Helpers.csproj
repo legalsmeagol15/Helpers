@@ -118,6 +118,7 @@
     <Compile Include="Events.cs" />
     <Compile Include="Logging.cs" />
     <Compile Include="Mathematics\Geometry\Rect.cs" />
+    <Compile Include="Mathematics\ITrueSet.cs" />
     <Compile Include="Mathematics\Random.cs" />
     <Compile Include="Networking.cs" />
     <Compile Include="Time.cs" />
