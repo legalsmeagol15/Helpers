@@ -657,10 +657,10 @@ namespace Dependency
         private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
         private const string SpacePattern = @"(?<spacePattern>\s+)";
         //private const string RefPattern = @"(?<referencePattern>\.)";
-        private const string RefPattern = @"(?<referencePattern>\.?[_a-zA-Z]\w*(?:\.[_a-zA-Z]\w*)*)";
+        private const string RefPattern = @"(?<referencePattern>(\.?_?[_\w\d]*)+)";
 
-        private static string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, NumPattern, SpacePattern, RefPattern);
-        private static Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);
+        private static readonly string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, NumPattern, SpacePattern, RefPattern);
+        private static readonly Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);
 
         #endregion
 
