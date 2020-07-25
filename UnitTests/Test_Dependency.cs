@@ -389,6 +389,49 @@ namespace UnitTests
         }
 
         [TestMethod]
+        public void Test_Regex()
+        {
+            // It's a complicated regex I use to break up strings.  Here's where it is tested.
+            FieldInfo regexField = typeof(Dependency.Parse).GetField("_Regex", BindingFlags.NonPublic | BindingFlags.Static);
+            Regex regex = (Regex)regexField.GetValue(null);
+            _AssertPatterns("3x", "3", "numPattern", "x", "referencePattern");
+
+            void _AssertPatterns(string str, params string[] patterns)
+            {
+                MatchCollection matches = regex.Matches(str);
+                HashSet<string> validNames = new HashSet<string>(regex.GetGroupNames().Where(name => !Int32.TryParse(name, out int _)));
+
+                int i = 0;
+                Assert.IsTrue(matches.Count*2 <= patterns.Length, "More matches than expected.");
+                Assert.IsTrue(matches.Count*2 >= patterns.Length, "Fewer matches than expected.");
+                foreach (Match m in matches)
+                {
+                    string matchedGroup = null;
+                    string expected = patterns[i * 2], pattern = patterns[(i * 2) + 1];
+                    if (!validNames.Contains(pattern))
+                        throw new ArgumentException("Pattern \"" + pattern + "\" is not a valid pattern.  Select from: " + string.Join(",", validNames));
+                    foreach (string gname in validNames)
+                    {
+                        string value = m.Groups[gname].Value;
+                        if (string.IsNullOrWhiteSpace(value)) continue;
+                        Assert.AreEqual(expected, value, "Expected string did not match.");                        
+                        Assert.IsNull(matchedGroup, "Group \"" + matchedGroup + "\" already matched \"" + expected + "\".  Group \"" + gname + "\" cannot also do so.");
+                        Assert.AreEqual(pattern, gname, "Expected pattern wrong for match \"" + expected + "\"");
+                        matchedGroup = gname;
+                    }
+                    Assert.IsNotNull(matchedGroup, "Could not determine matched group for \"" + expected + "\"");
+                    i++;
+                }
+                
+                
+            }
+        }
+        private class MatchSorter : IComparer<Match>
+        {
+            int IComparer<Match>.Compare(Match x, Match y) => x.Index.CompareTo(y.Index);
+        }
+
+        [TestMethod]
         public void Test_Struct()
         {
             Struct<Mathematics.Geometry.VectorN> host = new Struct<Mathematics.Geometry.VectorN>();
