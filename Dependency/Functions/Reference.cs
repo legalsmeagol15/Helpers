@@ -16,7 +16,9 @@ namespace Dependency.Functions
         // This is not intended to be a parent of anything else.
         
         public readonly bool IsAbsolute;
-        public ISyncUpdater Parent { get; set; }
+        public ISyncUpdater Parent {
+            get; 
+            set; }
         private readonly Step[] _Steps;
         
         public IEvaluateable Value { get; private set; } = Dependency.Null.Instance;

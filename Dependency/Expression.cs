@@ -143,8 +143,9 @@ namespace Dependency
 
                 // Enqueue any parent/listeners who are dependent on the current focus, but 
                 // haven't been enqueued yet.
-                if (focus_dent is ISyncUpdater isu && isu.Parent != null && wasEnqueued.Add(isu.Parent))
-                    queue.Enqueue(new DependencyPointer() { Dependee = focus, Dependent = isu.Parent, Depth = focus.Depth + 1 });
+                if (focus_dent is ISyncUpdater isu && isu.Parent != null)
+                    if (wasEnqueued.Add(isu.Parent))
+                        queue.Enqueue(new DependencyPointer() { Dependee = focus, Dependent = isu.Parent, Depth = focus.Depth + 1 });
                 if (focus_dent is IAsyncUpdater iau)
                     foreach (var listener in iau.GetListeners())
                         if (wasEnqueued.Add(listener))

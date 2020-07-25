@@ -395,6 +395,7 @@ namespace UnitTests
             FieldInfo regexField = typeof(Dependency.Parse).GetField("_Regex", BindingFlags.NonPublic | BindingFlags.Static);
             Regex regex = (Regex)regexField.GetValue(null);
             _AssertPatterns("3x", "3", "numPattern", "x", "referencePattern");
+            _AssertPatterns("v1", "v1", "referencePattern");
 
             void _AssertPatterns(string str, params string[] patterns)
             {
