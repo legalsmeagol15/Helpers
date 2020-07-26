@@ -69,19 +69,14 @@ namespace Dependency
     }
     public class ReferenceError : Error
     {
-        public readonly object Origin;
-        public readonly bool IsAbsolute;
-        public readonly string[] Steps;
-        internal ReferenceError(string message, object origin, bool isAbsolute, string[] steps) : base(message) { this.Origin = origin; this.IsAbsolute = isAbsolute; this.Steps = steps; }
+        public readonly IReference Complainant;
+        internal ReferenceError(Functions.Reference complainant, string message) : base(message) { this.Complainant = complainant; }
         public override bool Equals(object obj)
         {
             ReferenceError re = obj as ReferenceError;
             if (re == null) return false;
+            if (!Complainant.Equals(re.Complainant)) return false;
             if (Message != re.Message) return false;
-            if (!Origin.Equals(re.Origin)) return false;
-            if (IsAbsolute != re.IsAbsolute) return false;
-            if (Steps.Length != re.Steps.Length) return false;
-            for (int i = 0; i < Steps.Length; i++) if (!Steps[i].Equals(re.Steps[i])) return false;
             return true;
         }
     }

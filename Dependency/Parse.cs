@@ -83,7 +83,8 @@ namespace Dependency
                     // At last, just add the token as a string.
                     if (rootContext != null && Regex.IsMatch(token, RefPattern, RegexOptions.IgnorePatternWhitespace))
                     {
-                        TokenReference tr = new TokenReference(rootContext, token) { Index = splitIdx - 1 };
+                        Token.Priorities p = token.StartsWith(".") ? Token.Priorities.DynamicRefer : Token.Priorities.Refer;
+                        TokenReference tr = new TokenReference(rootContext, token, p) { Index = splitIdx - 1 };
                         heap.Enqueue(tr);
                         tr.Node = inputs.AddLast(tr);
                         continue;
@@ -92,7 +93,10 @@ namespace Dependency
                     // There are a few undecideable tokens that I'm allowing to be parsed.
                     if (token == ".")
                     {
-                        TokenReference tr = new TokenReference(rootContext, token) { Index = splitIdx - 1 };
+                        TokenReference tr = new TokenReference(rootContext, token, Token.Priorities.DynamicRefer)
+                        {
+                            Index = splitIdx - 1
+                        };
                         heap.Enqueue(tr);
                         tr.Node = inputs.AddLast(tr);
                         continue;
@@ -585,47 +589,64 @@ namespace Dependency
             }
         }
 
-        internal sealed class TokenDynamicReference : Token
-        {
-            protected internal override Priorities Priority => Priorities.DynamicRefer;
-            private IContext Root;
-            private readonly string Path;
-            public TokenDynamicReference(IContext root, string path) { this.Root = root; this.Path = path; }
-            protected internal override bool TryParse(out Token replacement)
-            {
-                Debug.Assert(Node != null);
-                Debug.Assert(Node.List != null);
-
-                //Reference r = new Reference();
-                
-                throw new NotImplementedException();
-            }
-        }
         internal sealed class TokenReference : Token
         {
-            protected internal override Priorities Priority => Priorities.Refer;
+            private readonly Priorities _Priority;
+            protected internal override Priorities Priority => _Priority;
             private readonly IContext Root;
             private readonly string Path;
-            public TokenReference(IContext root, string path) { this.Root = root; this.Path = path; }
+            public TokenReference(IContext root, string path, Priorities priority)
+            {
+                this.Root = root;
+                this.Path = path;
+                this._Priority = priority;
+            }
             protected internal override bool TryParse(out Token _)
             {
                 Debug.Assert(Node != null);
                 Debug.Assert(Node.List != null);
-
-                Reference r;
-                if (Node.Previous == null)
-                {
-                    if (!Reference.TryCreate(Root, Path, out r))
-                        throw new SyntaxException("", Path, "Failed to parse reference \"" + Path + "\" from origin.");
-                }
-                else
-                {
-                    if (!Reference.TryCreate(Node.Previous.Remove(), Path, out r))
-                        throw new SyntaxException("", Path, "Failed to parse reference \"" + Path + "\".");
-                }
-                Node.Contents = r;
                 _ = null;
-                return true;
+                string[] splits = Path.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                switch (_Priority)
+                {
+                    case Priorities.Refer:
+                        Node.Contents = Reference.CreateAnchored(Root, splits);
+                        return true;
+                    case Priorities.DynamicRefer:
+                        List<IEvaluateable> ievs = new List<IEvaluateable>(2);
+                        if (Path.StartsWith("."))
+                        {
+                            if (Node.Previous == null)
+                            {
+                                // Edge case:  a dynamic path that looks like ".one.two.three" that is 
+                                // the leftmost token must anchor to the root.  It's not allowed to be 
+                                // dynamic after all.
+                                if (Path.EndsWith("."))
+                                    throw new SyntaxException("Dangling literal path \"" + Path + "\"");
+                                Node.Contents = Reference.CreateAnchored(Root, splits);
+                                return true;
+                            }
+                            ievs.Add(Node.Previous.Remove());
+                        }
+                        for (int i = 0; i < splits.Length; i++)
+                        {
+                            if (Node.Next == null)
+                                throw new SyntaxException("Dangling path \"" + string.Join(".", splits.Skip(i)) + (Path.EndsWith(".") ? "." : "") + "\"");
+                            string s = splits[i];
+                            ievs.Add(Node.Next.Remove());
+                        }
+                        if (Path.EndsWith("."))
+                        {
+                            if (Node.Next == null)
+                                throw new SyntaxException("Dangling path \"" + Path + "\"");
+                            ievs.Add(Node.Next.Remove());
+                        }
+                        Node.Contents = Reference.CreateDynamic(ievs);
+                        return true;
+                    default:
+                        throw new NotImplementedException();
+
+                }
             }
         }
 
@@ -686,154 +707,154 @@ namespace Dependency
         private const string SpacePattern = @"(?<spacePattern>\s+)";
         //private const string RefPattern = @"(?<referencePattern>\.)";
         private const string RefPattern = @"(?<referencePattern>((\.?(?!\d)\w+)(\.(?!\d)\w+)* | (?<=[\)\]\}]+)\.))";
-        
+
         private static readonly string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, NumPattern, SpacePattern, RefPattern);
         private static readonly Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);
 
         #endregion
 
-/**
- * RefPattern is complicated.  The following rules should apply:
- ===OK===
- v1
- v1.v2
- .v1.v2
- ._v1._v2
- ).
- ].
- }.
- ===NO===
- .
- v2.
- 2v2
- 2_v_2
- 2.1
- .2
- 2.
- -2.1
- */
+        /**
+         * RefPattern is complicated.  The following rules should apply:
+         ===OK===
+         v1
+         v1.v2
+         .v1.v2
+         ._v1._v2
+         ).
+         ].
+         }.
+         ===NO===
+         .
+         v2.
+         2v2
+         2_v_2
+         2.1
+         .2
+         2.
+         -2.1
+         */
 
 
 
-#region Parser Exceptions
+        #region Parser Exceptions
 
-public class SyntaxException : Exception
-{
-    public readonly string Parsed;
-    public readonly string Token;
-    public SyntaxException(string parsed, string failedToken, string message, Exception inner = null) : base(message, inner)
-    {
-        this.Parsed = parsed;
-        this.Token = failedToken;
-    }
-    public SyntaxException(string message, Exception inner = null) : base(message, inner)
-    {
-        if (inner is SyntaxException se)
+        public class SyntaxException : Exception
         {
-            Parsed = se.Parsed;
-            Token = se.Token;
+            public readonly string Parsed;
+            public readonly string Token;
+            public SyntaxException(string parsed, string failedToken, string message, Exception inner = null) : base(message, inner)
+            {
+                this.Parsed = parsed;
+                this.Token = failedToken;
+            }
+            public SyntaxException(string message, Exception inner = null) : base(message, inner)
+            {
+                if (inner is SyntaxException se)
+                {
+                    Parsed = se.Parsed;
+                    Token = se.Token;
+                }
+            }
         }
+
+        public class EmptySyntaxException : SyntaxException
+        {
+            public EmptySyntaxException(string parsed, string message = "Empty contents.") : base(parsed, "", message) { }
+        }
+
+        internal class NestingSyntaxException : SyntaxException
+        {
+            internal NestingSyntaxException(string parsed, string failedToken, string message) : base(parsed, failedToken, message) { }
+        }
+
+        public class ParsingException : SyntaxException
+        {
+            internal readonly Token Complainant;
+            internal ParsingException(Token complainant, string message) : base("", "", message)
+            {
+                this.Complainant = complainant;
+            }
+        }
+
+        internal class ReferenceException : SyntaxException
+        {
+            public readonly Reference Incomplete;
+            internal ReferenceException(Reference incomplete, string message) : base(message) { this.Incomplete = incomplete; }
+        }
+
+        internal class UnrecognizedTokenException : SyntaxException
+        {
+            internal UnrecognizedTokenException(string parsed, string failedToken, string message = null)
+                : base(parsed, failedToken, message ?? "The token " + failedToken + " is not recognized.") { }
+        }
+
+        #endregion
+
+
+
+        #region Parser LR expressions
+
+        /// <summary>
+        /// Used to build a LR clause, but this will not actually be stored in the dependency tree (an 
+        /// <seealso cref="Indexing"/> will take its place.
+        /// </summary>
+        internal sealed class Bracket : IExpression, IEvaluateable
+        {
+            // IEvaluateable is implemented solely to make this class fit on an IEnumerable<IEvaluateable>
+            public IEvaluateable Contents { get; internal set; }
+            IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// A curly-bracket clause.  The only legal contents of a <see cref="Curly"/> would be a 
+        /// <seealso cref="Contents"/>.  The value of a <see cref="Curly"/> is the contents of the 
+        /// <seealso cref="IAsyncUpdater"/> indicated by the <seealso cref="Contents"/>.
+        /// </summary>
+        internal sealed class Curly : IExpression, IContext, ISyncUpdater
+        {
+            /// <summary>The vector that this bracket object contains.</summary>
+            public Vector Contents { get; }
+            IEvaluateable IExpression.Contents => this.Contents;
+
+            IEvaluateable IEvaluateable.Value => Contents;
+
+            ISyncUpdater ISyncUpdater.Parent { get; set; }
+
+            public override string ToString() => '{' + Contents.ToString() + '}';
+
+            bool IContext.TryGetSubcontext(string path, out IContext ctxt) => ((IContext)Contents).TryGetSubcontext(path, out ctxt);
+
+            bool IContext.TryGetProperty(string path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
+
+            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
+                => indexedDomain;
+        }
+
+
+        /// <summary>
+        /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Contents"/> of a 
+        /// <see cref="Parenthetical"/>.</summary>
+        internal sealed class Parenthetical : IExpression, ISyncUpdater
+        {
+            public ISyncUpdater Parent { get; set; }
+            /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
+            /// operation performed in the tree.</summary>
+            public IEvaluateable Contents { get => _Contents; internal set { _Contents = value; if (_Contents is ISyncUpdater ide) ide.Parent = this; } }
+            private IEvaluateable _Contents;
+
+            IEvaluateable IEvaluateable.Value => _Contents.Value;
+
+            ISyncUpdater ISyncUpdater.Parent { get; set; }
+
+            public override string ToString() => "( " + Contents.ToString() + " )";
+
+            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
+                => indexedDomain;
+        }
+
+
+
+
+        #endregion
     }
-}
-
-public class EmptySyntaxException : SyntaxException
-{
-    public EmptySyntaxException(string parsed, string message = "Empty contents.") : base(parsed, "", message) { }
-}
-
-internal class NestingSyntaxException : SyntaxException
-{
-    internal NestingSyntaxException(string parsed, string failedToken, string message) : base(parsed, failedToken, message) { }
-}
-
-public class ParsingException : SyntaxException
-{
-    internal readonly Token Complainant;
-    internal ParsingException(Token complainant, string message) : base("", "", message)
-    {
-        this.Complainant = complainant;
-    }
-}
-
-internal class ReferenceException : SyntaxException
-{
-    public readonly Reference Incomplete;
-    internal ReferenceException(Reference incomplete, string message) : base(message) { this.Incomplete = incomplete; }
-}
-
-internal class UnrecognizedTokenException : SyntaxException
-{
-    internal UnrecognizedTokenException(string parsed, string failedToken, string message = null)
-        : base(parsed, failedToken, message ?? "The token " + failedToken + " is not recognized.") { }
-}
-
-#endregion
-
-
-
-#region Parser LR expressions
-
-/// <summary>
-/// Used to build a LR clause, but this will not actually be stored in the dependency tree (an 
-/// <seealso cref="Indexing"/> will take its place.
-/// </summary>
-internal sealed class Bracket : IExpression, IEvaluateable
-{
-    // IEvaluateable is implemented solely to make this class fit on an IEnumerable<IEvaluateable>
-    public IEvaluateable Contents { get; internal set; }
-    IEvaluateable IEvaluateable.Value => throw new NotImplementedException();
-}
-
-/// <summary>
-/// A curly-bracket clause.  The only legal contents of a <see cref="Curly"/> would be a 
-/// <seealso cref="Contents"/>.  The value of a <see cref="Curly"/> is the contents of the 
-/// <seealso cref="IAsyncUpdater"/> indicated by the <seealso cref="Contents"/>.
-/// </summary>
-internal sealed class Curly : IExpression, IContext, ISyncUpdater
-{
-    /// <summary>The vector that this bracket object contains.</summary>
-    public Vector Contents { get; }
-    IEvaluateable IExpression.Contents => this.Contents;
-
-    IEvaluateable IEvaluateable.Value => Contents;
-
-    ISyncUpdater ISyncUpdater.Parent { get; set; }
-
-    public override string ToString() => '{' + Contents.ToString() + '}';
-
-    bool IContext.TryGetSubcontext(string path, out IContext ctxt) => ((IContext)Contents).TryGetSubcontext(path, out ctxt);
-
-    bool IContext.TryGetProperty(string path, out IEvaluateable source) => Contents.TryGetProperty(path, out source);
-
-    ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
-        => indexedDomain;
-}
-
-
-/// <summary>
-/// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Contents"/> of a 
-/// <see cref="Parenthetical"/>.</summary>
-internal sealed class Parenthetical : IExpression, ISyncUpdater
-{
-    public ISyncUpdater Parent { get; set; }
-    /// <summary>The head of the parsed evaluation tree.  If this is a function or operation, it is the last 
-    /// operation performed in the tree.</summary>
-    public IEvaluateable Contents { get => _Contents; internal set { _Contents = value; if (_Contents is ISyncUpdater ide) ide.Parent = this; } }
-    private IEvaluateable _Contents;
-
-    IEvaluateable IEvaluateable.Value => _Contents.Value;
-
-    ISyncUpdater ISyncUpdater.Parent { get; set; }
-
-    public override string ToString() => "( " + Contents.ToString() + " )";
-
-    ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
-        => indexedDomain;
-}
-
-
-
-
-#endregion
-}
 }
