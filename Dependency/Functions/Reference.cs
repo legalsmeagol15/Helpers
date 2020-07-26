@@ -29,7 +29,7 @@ namespace Dependency.Functions
             if (legs.Count == 0) throw new ArgumentException("Empty path", nameof(path));
             Head = legs[0];            
             for (int i = 0; i < legs.Count - 1; i++)
-                legs[i] = legs[i + 1];
+                legs[i].Next = legs[i + 1];
         }
 
         public static Reference CreateAnchored(IContext anchor, params string[] path)
@@ -85,15 +85,17 @@ namespace Dependency.Functions
             internal static bool Update(PathLeg leg)
             {
                 // Making this static forces use to work through the traversed leg.
-                int idx = 0;
-                IEvaluateable newValue = leg.Contents.Value;
-                if (Helpers.TryFindDependency(leg.Value, leg.Parent, out var circ_path))
-                    newValue = new CircularityError(leg.Parent, circ_path);
-                if (newValue.Equals(leg.Value))
-                    return false;
-                leg.Value = newValue;
+               
                 while (leg.Next != null)
                 {
+                    // For the pre-tail legs, identify the new leg value.
+                    IEvaluateable newValue = leg.Contents.Value;
+                    if (Helpers.TryFindDependency(leg.Value, leg.Parent, out var circ_path))
+                        return _Invalidate(leg, new CircularityError(leg, circ_path));
+                    if (newValue.Equals(leg.Value))
+                        return false;
+                    leg.Value = newValue;
+
                     IContext next_ctxt = null;
                     if (leg.Value is Dependency.String quote)
                     {
@@ -105,15 +107,21 @@ namespace Dependency.Functions
                             next_ctxt = sub_i_c as IContext;
                     }
                     if (next_ctxt == null)
-                        return _Invalidate(leg.Next, new ReferenceError(leg.Parent, "Invalid path \"" + leg.Value + "\" at " + idx + "."));
+                        return _Invalidate(leg, new ReferenceError(leg.Parent, "Invalid path \"" + string.Join(".", leg.Parent.GetPath()) + "\"."));
                     if (next_ctxt.Equals(leg.Next.Context))
                         return false;
                     leg = leg.Next;
                     leg.Context = next_ctxt;
-                    idx++;
                 }
-                // We're now at the last leg.  We know for sure that the value has changed and the 
-                // context has changed.
+                // We're now at the last leg.  Identify the last value.
+                IEvaluateable last_newValue = leg.Contents.Value;
+                if (Helpers.TryFindDependency(leg.Value, leg.Parent, out var last_circ_path))
+                    return _Invalidate(leg, new CircularityError(leg, last_circ_path));
+                if (last_newValue.Equals(leg.Value))
+                    return false;
+                leg.Value = last_newValue;
+
+                // We now know the last value changed, let's see if the tail changed.
                 IEvaluateable newTail = null;
                 if (leg.IsDynamic)
                     newTail = leg.Value;
@@ -125,11 +133,13 @@ namespace Dependency.Functions
                         newTail = p;
                 }
                 if (newTail == null)
-                    return _Invalidate(leg.Next, new ReferenceError(leg.Parent, "Invalid path \"" + leg.Value + "\" at " + idx + "."));
-                if (Helpers.TryFindDependency(newTail, leg.Parent, out circ_path))
-                    newTail = new CircularityError(leg.Parent, circ_path);
+                    return _Invalidate(leg, new ReferenceError(leg.Parent, "Invalid path \"" + string.Join(".", leg.Parent.GetPath()) + "\"."));
+                if (Helpers.TryFindDependency(newTail, leg.Parent, out var tail_circ_path))
+                    return _Invalidate(leg, new CircularityError(leg, tail_circ_path));
                 if (newTail.Equals(leg.Parent.Tail)) 
                     return false;
+
+                // The tail changed.  Update listeners and then update the tail.
                 if (leg.Parent.Tail is IAsyncUpdater iau_old)
                     iau_old.RemoveListener(leg.Parent);
                 if (newTail is IAsyncUpdater iau_new)
@@ -137,17 +147,15 @@ namespace Dependency.Functions
                 leg.Parent.Tail = newTail;
                 return true;
 
-                bool _Invalidate(PathLeg pl, ReferenceError err)
+                bool _Invalidate(PathLeg pl, Error err)
                 {
                     // Returns whether the last path was changed.
                     while (pl.Next != null)
                     {
-                        pl.Context = null;
+                        if (err.Equals(pl.Value)) return false;
+                        pl.Value = err;
                         pl = pl.Next;
                     }
-                    pl.Context = null;
-                    if (err.Equals(pl.Value)) return false;
-                    pl.Value = err;
                     if (err.Equals(pl.Parent.Tail)) return false;
                     pl.Parent.Tail = err;
                     return true;
