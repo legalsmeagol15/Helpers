@@ -73,10 +73,12 @@ namespace Dependency.Functions
             {
                 // Making this static forces use to work through the traversed leg.
                 int idx = 0;
-                IEvaluateable oldValue = leg.Value;
-                leg.Value = ((IEvaluateable)leg.Contents).Value;
-                if (leg.Value.Equals(oldValue))
+                IEvaluateable newValue = leg.Contents.Value;
+                if (Helpers.TryFindDependency(leg.Value, leg.Parent, out var circ_path))
+                    newValue = new CircularityError(leg.Parent, circ_path);
+                if (newValue.Equals(leg.Value))
                     return false;
+                leg.Value = newValue;
                 while (leg.Next != null)
                 {
                     IContext next_ctxt = null;

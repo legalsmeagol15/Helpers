@@ -105,8 +105,8 @@ namespace Dependency
         /// Returns whether a dependency exists from the given item, upon the given 
         /// item.  The path returned is guaranteed to be the shortest possible path.
         /// </summary>
-        public static bool TryFindDependency(IEvaluateable dependent, IEvaluateable dependee, out IEnumerable<IEvaluateable> path)
-            => TryFindDependency(new IEvaluateable[] { dependent }, new IEvaluateable[] { dependee }, out path);
+        public static bool TryFindDependency(IEvaluateable dependent, IEvaluateable dependee, out IEnumerable<IEvaluateable> circular_path)
+            => TryFindDependency(new IEvaluateable[] { dependent }, new IEvaluateable[] { dependee }, out circular_path);
         /// <summary>
         /// Returns whether a dependency exists among the given dependents upon the given 
         /// dependees.  The returned path is guaranteed to be the shortest possible path from any 
