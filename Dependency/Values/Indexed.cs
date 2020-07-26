@@ -55,5 +55,6 @@ namespace Dependency.Values
             Debug.Assert(Value == Contents.Value);
             return indexedDomain;
         }
+        public override string ToString() => Index.ToString() + ":" + Value.ToString();
     }
 }

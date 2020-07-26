@@ -86,7 +86,7 @@ namespace Dependency.Variables
         public override string ToString()
         {
             if (Contents.Equals(Value)) return "{Variable} = " + Value.ToString();
-            return Contents.ToString() + " = " + Value.ToString();
+            return "{Variable} =?= " + Contents.ToString();
         }
 
         public event ValueChangedHandler<IEvaluateable> Updated;

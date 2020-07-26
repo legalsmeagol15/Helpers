@@ -116,6 +116,8 @@ namespace Dependency
                                              IEnumerable<IEvaluateable> dependees,
                                              out IEnumerable<IEvaluateable> path)
         {
+            // This method will go listener-ward to look for dependencies.
+
             if (!dependents.Any()) { path = default; return false; }
             HashSet<IEvaluateable> realDependents
                 = new HashSet<IEvaluateable>(dependents.Where(d => d is ISyncUpdater || d is IAsyncUpdater));
@@ -188,6 +190,23 @@ namespace Dependency
                         break;
                     case IExpression ie:
                         return _RecursiveRecalc(ie.Contents);
+                    case Vector v:
+                        foreach (var c in v.GetContents()) _RecursiveRecalc(c);
+                        break;
+                    case Reference r:
+                        var path = r.Head;
+                        while (path != null)
+                        {
+                            _RecursiveRecalc(path.Contents);
+                            path = path.Next;
+                        }                            
+                        Reference.PathLeg.Update(r.Head);
+                        r.Update();
+                        break;
+                    default:
+                        Debug.Assert(!(focus is ISyncUpdater), "Haven't implemented " + nameof(Recalculate) + " for sync " + focus.GetType().Name);
+                        Debug.Assert(!(focus is IAsyncUpdater), "Haven't implemented " + nameof(Recalculate) + " for async " + focus.GetType().Name);
+                        break;
                 }
                 return focus.Value;
             }

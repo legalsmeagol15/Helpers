@@ -19,6 +19,7 @@ namespace Dependency
     // saying YES.
     {
         private readonly List<Indexed<Number>> _MemberContents = new List<Indexed<Number>>();
+        internal IEnumerable<IEvaluateable> GetContents() => _MemberContents.Select(idxed => idxed.Contents);
         public IEnumerable<IEvaluateable> Inputs
         {
             get => _MemberContents.Select(m => m.Contents);

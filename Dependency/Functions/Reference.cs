@@ -15,43 +15,55 @@ namespace Dependency.Functions
         internal PathLeg Head;
         public IEvaluateable Tail;
         public IEvaluateable Value { get; private set; }
-        public ISyncUpdater Parent { get; set; }
+        public ISyncUpdater Parent
+        {
+            get;
+            set;
+        }
 
         private Reference(IContext anchor, IEnumerable<IEvaluateable> path)
         {
             List<PathLeg> legs = new List<PathLeg>();
             foreach (IEvaluateable iev in path)
-                legs.Add(new PathLeg(this, iev, legs.Count == 0 && anchor == null));
+                legs.Add(new PathLeg(anchor, this, iev, legs.Count == 0 && anchor == null));
             if (legs.Count == 0) throw new ArgumentException("Empty path", nameof(path));
-            Head = legs[0];
+            Head = legs[0];            
             for (int i = 0; i < legs.Count - 1; i++)
                 legs[i] = legs[i + 1];
         }
 
         public static Reference CreateAnchored(IContext anchor, params string[] path)
         {
-            List<IEvaluateable> splitpaths = new List<IEvaluateable>();
-            foreach (string p0 in path)
-                foreach (string p1 in p0.Split('.'))
-                    if (!string.IsNullOrWhiteSpace(p1))
-                        splitpaths.Add(new Dependency.String(p1));
-            return new Reference(anchor, splitpaths);
+            Debug.Assert(!path.Any(p => p.Contains(".")));
+            return new Reference(anchor, path.Select(p => (IEvaluateable)new Dependency.String(p)));
         }
         public static Reference CreateDynamic(IEnumerable<IEvaluateable> path)
             => new Reference(null, path);
 
-        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexDomain)
-        {
-            if (Value.Equals(Tail)) return null;
-            Value = Tail;
-            return Update.UniversalSet;
-        }
 
-        IEnumerable<IEvaluateable> IReference.GetComposers()
+        internal bool Update()
+        {
+            if (Value == null)
+            {
+                if (Tail == null || Tail.Value == null) return false;
+            }
+            else if (Value.Equals(Tail.Value))
+                return false;            
+            Value = Tail.Value;
+            return true;
+        }
+        ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexDomain)
+            => Update() ? Dependency.Variables.Update.UniversalSet : null;
+
+        IEnumerable<IEvaluateable> IReference.GetComposers() => GetContents();
+        IEnumerable<string> GetPath() => GetContents().Select(c => c.Value.ToString());
+        internal IEnumerable<IEvaluateable> GetContents()
         {
             PathLeg leg = Head;
-            while (leg !=null) { yield return leg.Contents; leg = leg.Next; }
+            while (leg != null) { yield return leg.Contents; leg = leg.Next; }
         }
+
+        public override string ToString() => "->" + string.Join(".", GetPath());
 
         internal class PathLeg : ISyncUpdater
         {
@@ -62,14 +74,15 @@ namespace Dependency.Functions
             public Reference Parent { get; private set; }
             ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value as Reference; }
             public readonly bool IsDynamic;
-            public PathLeg(Reference parent, IEvaluateable contents, bool isDynamic=false )
+            public PathLeg(IContext context, Reference parent, IEvaluateable contents, bool isDynamic)
             {
+                this.Context = context;
                 this.Parent = parent;
                 this.IsDynamic = isDynamic;
                 this.Contents = contents ?? throw new ArgumentNullException(nameof(Contents));
             }
             
-            private static bool Update(PathLeg leg)
+            internal static bool Update(PathLeg leg)
             {
                 // Making this static forces use to work through the traversed leg.
                 int idx = 0;
@@ -113,6 +126,14 @@ namespace Dependency.Functions
                 }
                 if (newTail == null)
                     return _Invalidate(leg.Next, new ReferenceError(leg.Parent, "Invalid path \"" + leg.Value + "\" at " + idx + "."));
+                if (Helpers.TryFindDependency(newTail, leg.Parent, out circ_path))
+                    newTail = new CircularityError(leg.Parent, circ_path);
+                if (newTail.Equals(leg.Parent.Tail)) 
+                    return false;
+                if (leg.Parent.Tail is IAsyncUpdater iau_old)
+                    iau_old.RemoveListener(leg.Parent);
+                if (newTail is IAsyncUpdater iau_new)
+                    iau_new.AddListener(leg.Parent);
                 leg.Parent.Tail = newTail;
                 return true;
 
@@ -135,8 +156,9 @@ namespace Dependency.Functions
             ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexDomain)
                 =>Update(this) ? Dependency.Variables.Update.UniversalSet : null;
 
-            public override string ToString() => "..." + Value.ToString() + "...";
+            //public override string ToString() => "..." + Value.ToString() + "...";
         }
+
     }
     //internal sealed class Reference : IFunction, IDisposable, IReference
     //{
