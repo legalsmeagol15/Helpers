@@ -12,6 +12,7 @@ namespace Dependency.Functions
 
     internal sealed class Reference : IReference, ISyncUpdater
     {
+        // TODO:  the PathLegs could be iterated more quickly if they were in a List<PathLeg> instead of linked list.
         internal PathLeg Head;
         public IEvaluateable Tail;
         public IEvaluateable Value { get; private set; }
