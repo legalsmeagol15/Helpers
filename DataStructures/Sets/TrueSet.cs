@@ -17,7 +17,7 @@ namespace DataStructures.Sets
     /// state, where it tracks only inclusions and presumes everything else is exclused).
     /// </remarks>
     /// <typeparam name="T"></typeparam>
-    public class TrueSet<T> : ISet<T>, ITrueSet<T>
+    public sealed class TrueSet<T> : ISet<T>, ITrueSet<T>
     {
         private readonly ISet<T> _Internal;
         private TrueSet(HashSet<T> newInternal, bool isUniversal = false)
