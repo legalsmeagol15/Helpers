@@ -850,55 +850,57 @@ namespace DataStructures
 
     }
 
-    public sealed class NumberIntegerSet : DiscreteIntervalSet<Number>, ITrueSet<IEvaluateable>
-    {
-        public NumberIntegerSet(params Number[] numbers) : base(numbers) { }
-        bool ITrueSet<IEvaluateable>.Contains(IEvaluateable item) => this.Contains((Number)item);
+    //public sealed class NumberIntegerSet : DiscreteIntervalSet<Number>, ITrueSet<IEvaluateable>
+    //{
+    //    public static readonly NumberIntegerSet Empty = new NumberIntegerSet();
+    //    public static NumberIntegerSet Infinite() { NumberIntegerSet result = new NumberIntegerSet(); result.MakeUniversal(); return result; }
+    //    public NumberIntegerSet(params Number[] numbers) : base(numbers) { }
+    //    bool ITrueSet<IEvaluateable>.Contains(IEvaluateable item) => this.Contains((Number)item);
 
-        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.And(ITrueSet<IEvaluateable> other)
-        {
-            throw new NotImplementedException();
-        }
+    //    ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.And(ITrueSet<IEvaluateable> other)
+    //    {
+    //        throw new NotImplementedException();
+    //    }
 
 
-        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Not()
-        {
-            throw new NotImplementedException();
-        }
+    //    ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Not()
+    //    {
+    //        throw new NotImplementedException();
+    //    }
 
-        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Or(ITrueSet<IEvaluateable> other)
-        {
-            throw new NotImplementedException();
-        }
-    }
+    //    ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Or(ITrueSet<IEvaluateable> other)
+    //    {
+    //        throw new NotImplementedException();
+    //    }
+    //}
 
-    public sealed class NumberIntervalSet : IntervalSet<Number>, ITrueSet<IEvaluateable>
-    {
-        public static NumberIntervalSet Infinite() { var result = new NumberIntervalSet(); result.MakeUniversal(); return result; }
+    //public sealed class NumberIntervalSet : IntervalSet<Number>, ITrueSet<IEvaluateable>
+    //{
+    //    public static NumberIntervalSet Infinite() { var result = new NumberIntervalSet(); result.MakeUniversal(); return result; }
         
-        public NumberIntervalSet(params Dependency.Number[] items) : base(items) { }
+    //    public NumberIntervalSet(params Dependency.Number[] items) : base(items) { }
 
-        // TODO:  the overrides of the logical operators (and, or, etc...)  For now, I just need
-        // contains()
+    //    // TODO:  the overrides of the logical operators (and, or, etc...)  For now, I just need
+    //    // contains()
 
 
-        bool ITrueSet<IEvaluateable>.Contains(IEvaluateable item) => this.Contains((Number)item);
+    //    bool ITrueSet<IEvaluateable>.Contains(IEvaluateable item) => this.Contains((Number)item);
 
-        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.And(ITrueSet<IEvaluateable> other)
-        {
-            throw new NotImplementedException();
-        }
+    //    ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.And(ITrueSet<IEvaluateable> other)
+    //    {
+    //        throw new NotImplementedException();
+    //    }
 
-        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Or(ITrueSet<IEvaluateable> other)
-        {
-            throw new NotImplementedException();
-        }
+    //    ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Or(ITrueSet<IEvaluateable> other)
+    //    {
+    //        throw new NotImplementedException();
+    //    }
 
-        ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Not()
-        {
-            throw new NotImplementedException();
-        }
-    }
+    //    ITrueSet<IEvaluateable> ITrueSet<IEvaluateable>.Not()
+    //    {
+    //        throw new NotImplementedException();
+    //    }
+    //}
     public sealed class Float64IntervalSet : IntervalSet<double>
     {
         public Float64IntervalSet(params double[] items) : base(items) { }
