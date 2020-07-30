@@ -22,7 +22,7 @@ namespace Mathematics
         }
     }
     //TODO:  move this into the Set static class
-    public interface ITrueSet<T>
+    public interface ITrueSet<T> : IEnumerable<T>
     {
         bool IsEmpty { get; }
         bool IsUniversal { get; }
