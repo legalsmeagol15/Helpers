@@ -15,8 +15,8 @@ namespace Dependency.Variables
 {
     public sealed class Update
     {
-        public static readonly NumberIntervalSet UniversalSet = NumberIntervalSet.Infinite();
-
+        public static readonly ITrueSet<IEvaluateable> UniversalSet = DataStructures.Sets.TrueSet<IEvaluateable>.CreateUniversal();
+        
         // Like a SQL transaction
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
         private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
@@ -99,18 +99,19 @@ namespace Dependency.Variables
                 // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
                 // started.
                 if (Starter is ISyncUpdater isu)
-                    _Execute(isu, isu.Parent);
+                    _Execute(isu, isu.Parent, UniversalSet);
 
                 // Finally, if Starter updates asynchronously, kick off the asynchronous update.
                 if (Starter is IAsyncUpdater iau)
                 {
                     foreach (var listener in iau.GetListeners())
-                        Enqueue(iau, listener);
+                        Enqueue(iau, listener, UniversalSet);
                 }
             }
             finally { StructureLock.ExitUpgradeableReadLock(); }
 
             // Force all the tasks to finish.  StructureLock should not be held.
+            // TODO:  separate this into a Finish() method
             while (_Tasks.TryDequeue(out Task t))
             {
                 t.Wait();
@@ -122,10 +123,10 @@ namespace Dependency.Variables
             return true;
         }
         
-        internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener) // TODO:  this should be done within the StructureLock read lock?
+        internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener, ITrueSet<IEvaluateable> indices) // TODO:  this should be done within the StructureLock read lock?
         {
             Interlocked.Increment(ref _Updating);
-            _Tasks.Enqueue(Task.Run(() => _Execute(source, listener)));
+            _Tasks.Enqueue(Task.Run(() => _Execute(source, listener, indices)));
         }
 
         /// <summary>Executes this <see cref="Update"/> for the given 
@@ -150,12 +151,13 @@ namespace Dependency.Variables
             {
                 // If nothing was updated, return false.
                 indexedDomain = target.Update(this, updatedChild, indexedDomain);
-                if (indexedDomain == null || indexedDomain.IsEmpty) { result = !target.Equals(start); break; }
+                if (indexedDomain == null 
+                    || indexedDomain.IsEmpty) { result = !target.Equals(start); break; }
 
                 // Since target was updated, enqueue its listeners and proceed.
                 if (target is IAsyncUpdater iv)
                     foreach (var listener in iv.GetListeners())
-                        Enqueue(iv, listener);
+                        Enqueue(iv, listener, indexedDomain);
                 updatedChild = target;
                 target = target.Parent;
                 if (target is Reference)
