@@ -50,15 +50,21 @@ namespace Dependency.Variables
 
         public static Update ForCollection(IVariable var, params IEvaluateable[] indices) => new Update(var, null, indices);
 
-
-
         /// <summary>
-        /// Updates this object's <seealso cref="Update.Starter"/> with the given <seealso cref="Update.NewContents"/>.
-        /// This method is run for the starting <seealso cref="IVariable"/>, but also for each listener of that 
-        /// <seealso cref="IVariable"/>, and so on.
+        /// Updates this object's <seealso cref="Update.Starter"/> with the given 
+        /// <seealso cref="Update.NewContents"/>, and then ensures it reaches conclusion.
+        /// </summary>
+        public void Execute()
+        {
+            Start(true);
+            Finish();
+        }
+        /// <summary>
+        /// Starts the update for this object's <seealso cref="Update.Starter"/> with the given 
+        /// <seealso cref="Update.NewContents"/>.
         /// </summary>
         /// <returns>Returns whether any change is made to the value of the <seealso cref="Update.Starter"/>.</returns>
-        public bool Execute(bool checkCircularity=true)
+        public bool Start(bool checkCircularity=true)
         {
             try
             {
@@ -110,17 +116,23 @@ namespace Dependency.Variables
             }
             finally { StructureLock.ExitUpgradeableReadLock(); }
 
+           
+
+            // Done.  The user may separately call Finish()
+            return true;
+        }
+        /// <summary>
+        /// Force all updates on the queue to finish.
+        /// </summary>
+        public static void Finish()
+        { 
             // Force all the tasks to finish.  StructureLock should not be held.
-            // TODO:  separate this into a Finish() method
             while (_Tasks.TryDequeue(out Task t))
             {
                 t.Wait();
                 if (t.Exception != null)
                     throw new Exception("TODO:  a meaningful  message", t.Exception);
             }
-
-            // Done.
-            return true;
         }
         
         internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener, ITrueSet<IEvaluateable> indices) // TODO:  this should be done within the StructureLock read lock?
