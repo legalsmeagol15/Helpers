@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using DataStructures.Sets;
 using Dependency.Functions;
 using Dependency.Values;
 using Dependency.Variables;
@@ -13,6 +15,9 @@ using Mathematics;
 namespace Dependency
 {
 
+    /// <summary>
+    /// Represents an indexable set of <seealso cref="IEvaluateable"/> values.      /// 
+    /// </summary>
     public sealed class Vector : ITypeGuarantee, IContext, ISyncUpdater, IIndexable, IList<IEvaluateable>
     // Though a Vector has inputs, it CANNOT be a Function.
     // Should a Vector be mutable, or should it not?  I've gone back and forth.  At this point, I'm 
@@ -31,7 +36,7 @@ namespace Dependency
             }
         }
         private Vector _Value = null;
-        IEvaluateable IEvaluateable.Value => Value;
+        IEvaluateable IEvaluateable.Value => this.Value;
         public Vector Value => _Value ?? (_Value = new Vector(_MemberContents.Select(i => i.Value)) { Parent = this });
         public IEvaluateable this[int idx]
         {
@@ -81,19 +86,36 @@ namespace Dependency
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Vector;
         internal ISyncUpdater Parent { get; set; }
         ISyncUpdater ISyncUpdater.Parent { get => Parent; set { Parent = Value; } }
+        private readonly object _UpdateLock = new object();
+        internal ITrueSet<IEvaluateable> Update(ITrueSet<IEvaluateable> updatedIndices)
+        {
+            if (_Value == null) return updatedIndices;
+            TrueSet<IEvaluateable> changed = new TrueSet<IEvaluateable>();
+            foreach (Number idx in updatedIndices.OfType<Number>())
+            {
+                IEvaluateable newValue = _MemberContents[idx].Value;
+                if (_Value[idx].Equals(newValue)) continue;
+                _Value[idx] = _MemberContents[idx].Value;
+                changed.Add(idx);
+            }
+            return changed.IsEmpty ? null : changed;
+        }
         ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller,
                                                        ISyncUpdater updatedChild,
                                                        ITrueSet<IEvaluateable> updatedDomain)
-        {
-            Indexed<Number> wrapper = (Indexed<Number>)updatedChild;
-            Debug.Assert(updatedDomain != null
-                         && updatedDomain.Contains(wrapper.Index));
-            if (_Value != null)
-                _Value._MemberContents[wrapper.Index].Contents = wrapper.Value;
-            return updatedDomain;
+        {   
+            lock (_UpdateLock)
+            {
+                
+                // The Vector's updates must be serialized because there is a race condition with 
+                // the indices coming from the update below.  
+                Indexed<Number> wrapper = (Indexed<Number>)updatedChild;
+                Debug.Assert(updatedDomain != null
+                             && updatedDomain.Contains(wrapper.Index));
+                return Update(updatedDomain);
+            }
+            
         }
-
-        bool IIndexable.ControlsReindex => true;
 
         bool ICollection<IEvaluateable>.IsReadOnly => false;
 
@@ -111,7 +133,7 @@ namespace Dependency
             wrapper = default;
             return false;
         }
-        bool IIndexed.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
+        bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
         {
             if (this.TryIndexWrapper(ordinal, out var wrapper))
             {
@@ -122,6 +144,7 @@ namespace Dependency
             return false;
         }
 
+        /// <summary>Returns true iff all members are alls Equals().</summary>
         public override bool Equals(object obj)
         {
             if (!(obj is Vector other)) return false;
@@ -131,8 +154,12 @@ namespace Dependency
                     return false;
             return true;
         }
+
+        internal Vector GetValueInternal() => _Value;
+        internal void ClearValueInternal() => _Value = null;
+
         public override int GetHashCode() => base.GetHashCode(); // The mem location determines hash.
-        public override string ToString() => "{" + string.Join(",", _MemberContents.Take(3).Select(i => i.ToString())) + (_MemberContents.Count > 3 ? "..." : "") + "}";
+        public override string ToString() => "{" + string.Join(",", _MemberContents.Take(3).Select(i => i.Contents.ToString())) + (_MemberContents.Count > 3 ? "..." : "") + "}";
 
         #region Vector IList implementations
 
@@ -228,6 +255,11 @@ namespace Dependency
 
 
         #endregion
+
+        void IIndexable.IndexedContentsChanged(IEvaluateable index, IEvaluateable value)
+        {
+            if (_Value != null) _Value[(Number)index] = value;
+        }
 
     }
 }

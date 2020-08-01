@@ -74,10 +74,18 @@ namespace Dependency.Functions
                 {
                     if (Head == null || Head.Value != NonIndexable || Value != NonIndexable)
                     {
-                        Inputs[2] = (Value = NonIndexable);
+                        Inputs[2] = NonIndexable;
+                        if (NonIndexable.Equals(Value)) return false;
+                        Value = NonIndexable;
                         return true;
                     }
-                }                    
+                }                   
+                else if (_CachedOrdinalValue is Error e)
+                {
+                    if (Value.Equals(e)) return false;
+                    Value = e;
+                    return true;
+                }
                 else if (baseIndexable.TryIndex(_CachedOrdinalValue, out IEvaluateable newHead))
                 {
                     if (newHead.Equals(Head)) return false;
@@ -85,6 +93,7 @@ namespace Dependency.Functions
                     if (newHead is IAsyncUpdater iau_new) iau_new.AddListener(this);
                     Inputs[2] = newHead;
                     IEvaluateable newValue = Head.Value;
+                    if (newValue.Equals(Value)) return false;
                     if (Helpers.TryFindDependency(Head, this, out IEnumerable<IEvaluateable> path))
                     {
                         newValue = new CircularityError(this, path);
@@ -121,7 +130,7 @@ namespace Dependency.Functions
                 Value = Head.Value;
 
                 // If the Base controls re-indexing, just pass the change signal up the line.
-                if (Base is IIndexable ii && ii.ControlsReindex)
+                if (Base is IIndexable ii)
                     return Update.UniversalSet ;         
 
                 return Reindex() ? Update.UniversalSet : null;
@@ -130,8 +139,8 @@ namespace Dependency.Functions
             // Did the base's value change?
             else if (updatedChild == null || updatedChild.Equals(Base))
             {
-                IEvaluateable newBaseValue = Base.Value;                
-                if (newBaseValue.Equals(_CachedBaseValue)) return null;                
+                IEvaluateable newBaseValue = Base.Value;                  
+                if (newBaseValue != null && newBaseValue.Equals(_CachedBaseValue)) return null;                
                 _CachedBaseValue = newBaseValue;
                 return Reindex() ? Update.UniversalSet : null;
             }

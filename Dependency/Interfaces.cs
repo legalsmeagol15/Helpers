@@ -133,8 +133,10 @@ namespace Dependency
         bool TryCreate(string token, out NamedFunction nf);
     }
 
-    public interface IIndexed
+    public interface IIndexable 
     {
+        void IndexedContentsChanged(IEvaluateable index, IEvaluateable value);
+
         /// <summary>
         /// 
         /// </summary>
@@ -143,11 +145,6 @@ namespace Dependency
         /// <returns></returns>
         bool TryIndex(IEvaluateable ordinal, out IEvaluateable val);
     }
-    internal interface IIndexable : IIndexed, ISyncUpdater
-    {        
-        bool ControlsReindex { get; }
-    }
-
 
     public interface ILiteral : IEvaluateable { }
     internal interface ILiteral<TClr> : ILiteral

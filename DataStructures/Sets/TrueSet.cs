@@ -23,11 +23,11 @@ namespace DataStructures.Sets
         private TrueSet(HashSet<T> newInternal, bool isUniversal = false)
         {
             this._Internal = newInternal;
-            _IsUniversal = isUniversal;
+            this._IsUniversal = isUniversal;
         }
         public TrueSet(IEnumerable<T> items = null) : this(items == null ? new HashSet<T>() : new HashSet<T>(items)) { }
         public TrueSet(params T[] items) : this(items == null ? new HashSet<T>() : new HashSet<T>(items)) { }
-        public TrueSet<T> CreateUniversal() => new TrueSet<T>(new HashSet<T>(), true);
+        public static TrueSet<T> CreateUniversal() => new TrueSet<T>(new HashSet<T>(), true);
 
         public bool IsEmpty => !_IsUniversal && _Internal.Count == 0;
 

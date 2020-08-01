@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,8 +30,6 @@ namespace Dependency.Values
 
         ISyncUpdater ISyncUpdater.Parent { get; set; } = null;
 
-        bool IIndexable.ControlsReindex => false;
-
         bool IContext.TryGetProperty(string path, out IEvaluateable source)
         {
             switch (path.ToLower())
@@ -52,7 +51,7 @@ namespace Dependency.Values
 
         bool IContext.TryGetSubcontext(string path, out IContext ctxt) { ctxt = null; return false; }
 
-        bool IIndexed.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
+        bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
         {
             if (IsNumeric && ordinal is Number nv)
             { val = ((Number)From) + nv; return true; }
@@ -62,5 +61,9 @@ namespace Dependency.Values
 
         ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
             => throw new NotImplementedException();
+        void IIndexable.IndexedContentsChanged(IEvaluateable index, IEvaluateable value)
+        {
+            Debug.Fail("This should be impossible.  Ranges do not maintain contents relationships.  That's one of the reasons to have a range.");
+        }
     }
 }

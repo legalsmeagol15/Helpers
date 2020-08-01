@@ -192,6 +192,7 @@ namespace Dependency
                         return _RecursiveRecalc(ie.Contents);
                     case Vector v:
                         foreach (var c in v.GetContents()) _RecursiveRecalc(c);
+                        v.Update(universalSet);
                         break;
                     case Reference r:
                         var path = r.Head;
@@ -201,6 +202,7 @@ namespace Dependency
                             path = path.Next;
                         }                            
                         Reference.PathLeg.Update(r.Head);
+                        _RecursiveRecalc(r.Tail);
                         r.Update();
                         break;
                     default:

@@ -14,12 +14,13 @@ namespace Dependency.Values
     /// associates a <see cref="Index"/> to it.  Its job is to constrain the updated domain when 
     /// the <see cref="Contents"/> is updated.
     /// </summary>
-    /// <typeparam name="ByT"></typeparam>
+    /// <typeparam name="ByT">The type of value to index by.  For example, in a number-based 
+    /// list, the <typeparamref name="ByT"/> would be <seealso cref="Number"/>.</typeparam>
     internal sealed class Indexed<ByT> : ISyncUpdater where ByT : IEvaluateable
     {
-        public ByT Index { get; set; }
-        public IIndexable Parent { get; set; }
-        ISyncUpdater ISyncUpdater.Parent { get => this.Parent; set { this.Parent = (IIndexable)value; } }
+        public ByT Index { get; internal set; }
+        public IIndexable Parent { get; internal set; }
+        ISyncUpdater ISyncUpdater.Parent { get => (ISyncUpdater)this.Parent; set { this.Parent = (IIndexable)value; } }
 
         public IEvaluateable Value => Contents.Value;
 
@@ -37,6 +38,8 @@ namespace Dependency.Values
                     Debug.Assert(isu_new.Parent == null);
                     isu_new.Parent = this;
                 }
+                if (this.Parent != null)
+                    this.Parent.IndexedContentsChanged(Index, value);
             }
         }
 
@@ -51,10 +54,21 @@ namespace Dependency.Values
         ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexedDomain)
         {
             Debug.Assert(updatedChild == Contents);
-            Debug.Assert(indexedDomain.IsUniversal, "Misuse of " + nameof(Indexed<ByT>) + " - this class should exist only as a client of an " + nameof(IIndexable) + " and should only receive universal indices.");
-            Debug.Assert(Value == Contents.Value);
+            if (!indexedDomain.Contains(Index)) return null;
             return indexedDomain;
         }
+
+        internal bool SetError()
+        {
+            if (_Contents is IVariable v && !(v.Contents is IndexingError))
+            {
+                Update.ForVariable(v, new IndexingError(this.Parent, null, "Invalid index: " + this.Index.ToString())).Execute();
+                return true;
+            }
+            return false;
+                
+        }
+
         public override string ToString() => Index.ToString() + ":" + Value.ToString();
     }
 }

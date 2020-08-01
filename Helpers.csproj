@@ -59,9 +59,11 @@
     <Compile Include="DataStructures\Lists.cs" />
     <Compile Include="DataStructures\Maps\CompositeKeyDictionary.cs" />
     <Compile Include="DataStructures\Prioritized.cs" />
+    <Compile Include="DataStructures\Sets\TrueSet.cs" />
     <Compile Include="DataStructures\Sets\WeakReferenceSet.cs" />
     <Compile Include="DataStructures\Sets\DisjointSet.cs" />
     <Compile Include="DataStructures\Threading\Atomic.cs" />
+    <Compile Include="DataStructures\Threading\LimitedConcurrencyTaskScheduler.cs" />
     <Compile Include="DataStructures\Trees\DynamicHeap.cs" />
     <Compile Include="DataStructures\Lists\DynamicLinkedList.cs" />
     <Compile Include="DataStructures\Sets\Extensions.cs" />
@@ -107,7 +109,7 @@
     <Compile Include="Dependency\Values\String.cs" />
     <Compile Include="Dependency\Values\Vector.cs" />
     <Compile Include="Dependency\Variables\Formula.cs" />
-    <Compile Include="Dependency\Variables\List.cs" />
+    <Compile Include="Dependency\Variables\Listing.cs" />
     <Compile Include="Dependency\Variables\Receiver.cs" />
     <Compile Include="Dependency\Variables\Source.cs" />
     <Compile Include="Dependency\Variables\Struct.cs" />

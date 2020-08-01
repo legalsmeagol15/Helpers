@@ -19,8 +19,8 @@ namespace Dependency.Variables
         
         // Like a SQL transaction
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-        private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
-        private readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
+       //  private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
+        private static readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
         internal readonly IVariable Starter;
         public readonly IEvaluateable NewContents;
         private readonly IEnumerable<IEvaluateable> Indices = null;

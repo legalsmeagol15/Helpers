@@ -24,7 +24,7 @@ namespace UnitTests
         [TestMethod]
         public void Test_Circularity_Detection()
         {
-            TestConext root = new TestConext();
+            TestContext root = new TestContext();
             Variable v0 = new Variable(), v1 = new Variable(), v2 = new Variable();
             root.Add("v0", v0);
             root.Add("v1", v1);
@@ -55,7 +55,7 @@ namespace UnitTests
         {
             Common.AssertThrows<Dependency.Parse.SyntaxException>(() => Parse.FromString("no.references.without.context", null, null));
 
-            TestConext root = new TestConext();
+            TestContext root = new TestContext();
             Parse.FromString("what.is.this", null, root);
 
             // Show that new references have the correct values.
@@ -64,13 +64,14 @@ namespace UnitTests
             root.Add("v0", v0);
             Variable v1 = new Variable();
             IEvaluateable idxing = Parse.FromString("v0[2]", null, root);
-            v1.Contents = idxing;
+            Update update = Update.ForVariable(v1, idxing);
+            update.Execute();
             Assert.AreEqual(v1.Value, vec[2]);
 
 
             // Show that value changes propogate through.
             vec = new Vector(20, 21, 22);
-            Update update = Update.ForVariable(v0, vec);
+            update = Update.ForVariable(v0, vec);
             update.Execute();
             Assert.AreEqual(v1.Value, vec[2]);
 
@@ -82,7 +83,7 @@ namespace UnitTests
             // Show that subcontext properties can be referenced in deeper paths.
             v1.Contents = Parse.FromString("v0", null, root);
             v2.Contents = Parse.FromString("v0", null, root);
-            TestConext sub1 = new TestConext();
+            TestContext sub1 = new TestContext();
             root.Add("sub1", sub1);
             sub1.Add("v1", v1);
             IEvaluateable ref_sub1_v1 = Parse.FromString("sub1.v1", null, root);
@@ -94,7 +95,7 @@ namespace UnitTests
             v0.Contents = vec;
             Assert.AreEqual(v3.Value, vec);
 
-            TestConext sub2 = new TestConext();
+            TestContext sub2 = new TestContext();
             sub1.Add("sub2", sub2);
             sub2.Add("v2", v2);
             Variable v4 = new Variable(Parse.FromString("sub1.sub2.v2[2]", null, root));
@@ -118,21 +119,21 @@ namespace UnitTests
             // drawings[spreadsheet.c5].splineA.Xs.count + 5
 
             //setup
-            var master = new TestConext();
-            var drawings = new TestConext();
+            var master = new TestContext();
+            var drawings = new TestContext();
             master.Add("drawings", drawings);
-            var head = new TestConext();
+            var head = new TestContext();
             drawings[new Number(0)] = new Number(20);
-            var spreadsheet = new TestConext();
+            var spreadsheet = new TestContext();
             drawings[new Number(1)] = head;
             
             var c5 = new Variable(Number.Zero);            
             spreadsheet.Add("c5", c5);
 
-            var splineA = new TestConext();
+            var splineA = new TestContext();
             head.Add("splineA", splineA);
 
-            var Xs = new TestConext();
+            var Xs = new TestContext();
             splineA.Add("Xs", Xs);
 
             Variable count = new Variable(new Number(10));
@@ -163,7 +164,7 @@ namespace UnitTests
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
-            TestConext root = new TestConext();
+            TestContext root = new TestContext();
             root.Add("v0", vStart);
             System.Collections.Generic.List<Variable> vars = new System.Collections.Generic.List<Variable>();
             for (int i = 1; i <= numVars; i++)
@@ -293,7 +294,7 @@ namespace UnitTests
             Assert.IsTrue(new Number(23) != new Number(24));
 
             Assert.IsTrue(new Number(24).Equals(new Number(24)));
-            Assert.IsFalse(new Number(25).Equals(new TestConext()));
+            Assert.IsFalse(new Number(25).Equals(new TestContext()));
 
             Assert.AreEqual(new Number(27).ToString(), "27");
 
@@ -321,7 +322,7 @@ namespace UnitTests
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
             Assert.AreEqual(Dependency.Number.One, vStart.Value);
 
-            TestConext root = new TestConext();
+            TestContext root = new TestContext();
             root.Add("v0", vStart);
             System.Collections.Generic.List<Variable> vars = new System.Collections.Generic.List<Variable>();
             for (int i = 1; i <= numVars; i++)
@@ -443,16 +444,16 @@ namespace UnitTests
             Assert.AreEqual(xVar.Contents, 0);
             Assert.AreEqual(yVar.Value, 0);
             Assert.AreEqual(yVar.Contents, 0);
-            Assert.AreEqual(host.Value, new Dependency.Vector(0, 0));
-            Assert.AreEqual(host.Contents, new Dependency.Vector(0, 0));
+            Assert.AreEqual(new Dependency.Vector(0, 0), host.Value);
+            Assert.AreEqual(new Dependency.Vector(0, 0), host.Contents);
 
             host.Native = new Mathematics.Geometry.VectorN(1, 2);
             Assert.AreEqual(xVar.Value, 1);
             Assert.AreEqual(xVar.Contents, 1);
             Assert.AreEqual(yVar.Value, 2);
             Assert.AreEqual(yVar.Contents, 2);
-            Assert.AreEqual(host.Value, new Dependency.Vector(1, 2));
-            Assert.AreEqual(host.Contents, new Dependency.Vector(1, 2));
+            Assert.AreEqual(new Dependency.Vector(1, 2), host.Value );
+            Assert.AreEqual(new Dependency.Vector(1, 2), host.Contents);
 
 
             xVar.Contents = new Number(3);
@@ -460,8 +461,8 @@ namespace UnitTests
             Assert.AreEqual(xVar.Contents, 3);
             Assert.AreEqual(yVar.Value, 2);
             Assert.AreEqual(yVar.Contents, 2);
-            Assert.AreEqual(host.Value, new Dependency.Vector(3, 2));
-            Assert.AreEqual(host.Contents, new Dependency.Vector(3, 2));
+            Assert.AreEqual(new Dependency.Vector(3, 2), host.Value);
+            Assert.AreEqual(new Dependency.Vector(3, 2), host.Contents);
         }
 
 
@@ -490,7 +491,7 @@ namespace UnitTests
             IFunctionFactory functions = new Dependency.Functions.ReflectedFunctionFactory();
 
             Variable vStart = new Variable(Dependency.Number.One);
-            TestConext root = new TestConext();
+            TestContext root = new TestContext();
             root.Add("vstart", vStart);
 
             Assert.AreEqual(Dependency.Number.One, vStart.Contents);
@@ -657,17 +658,17 @@ namespace UnitTests
 
 
     [ExcludeFromCodeCoverage]
-    [DebuggerStepThrough]
-    internal class TestConext : IContext, IIndexed, IEvaluateable
+//    [DebuggerStepThrough]
+    internal class TestContext : IContext, IIndexable, IEvaluateable
     {
         private readonly Dictionary<IEvaluateable, IEvaluateable> _Indices = new Dictionary<IEvaluateable, IEvaluateable>();
         private readonly Dictionary<object, Variable> _Variables = new Dictionary<object, Variable>();
-        private readonly Dictionary<object, TestConext> _Subcontexts = new Dictionary<object, TestConext>();
+        private readonly Dictionary<object, TestContext> _Subcontexts = new Dictionary<object, TestContext>();
 
         IEvaluateable IEvaluateable.Value => this;
 
         public void Add(object key, Variable variable) => _Variables.Add(key, variable);
-        public void Add(object key, TestConext subcontext) => _Subcontexts.Add(key, subcontext);
+        public void Add(object key, TestContext subcontext) => _Subcontexts.Add(key, subcontext);
 
         public bool TryGetProperty(string  token, out IEvaluateable source)
         {
@@ -678,7 +679,7 @@ namespace UnitTests
 
         public bool TryGetSubcontext(string token, out IContext ctxt)
         {
-            if (_Subcontexts.TryGetValue(token, out TestConext sc)) { ctxt = sc; return true; }
+            if (_Subcontexts.TryGetValue(token, out TestContext sc)) { ctxt = sc; return true; }
             ctxt = null;
             return false;
         }
@@ -688,6 +689,12 @@ namespace UnitTests
 
         public bool TryIndex(IEvaluateable ordinal, out IEvaluateable val)
             => _Indices.TryGetValue(ordinal, out val);
+
+        void IIndexable.IndexedContentsChanged(IEvaluateable index, IEvaluateable value)
+        {
+            throw new NotImplementedException();
+        }
+
 
         public IEvaluateable this[IEvaluateable ordinal]
         {
