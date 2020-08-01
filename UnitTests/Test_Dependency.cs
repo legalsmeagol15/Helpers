@@ -157,7 +157,7 @@ namespace UnitTests
             // 361 ms update 1000 vars over 100 times, or 3 ms/run
             // 376 ms update 1000 vars over 100 times, or 3 ms/run
             int numVars = 1000;
-            bool timeUpdates = false;
+            bool timeUpdates = true;
 
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
@@ -314,7 +314,7 @@ namespace UnitTests
             // 43 ms update 1000 vars over 100 times, or 0 ms/run
             // 36 ms update 1000 vars over 100 times, or 0 ms/run
             int numVars = 1000;
-            bool timeUpdates = false;
+            bool timeUpdates = true;
 
             // Test linear transmission  of a value by changing contents.
             Variable vStart = new Variable(Dependency.Number.One);
