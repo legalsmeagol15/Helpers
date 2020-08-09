@@ -17,13 +17,13 @@ namespace Dependency
     {
         public static Expression FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
         {
-            List<string> splits = new List<string>();
+            //List<string> splits = new List<string>();            
             //string[] splits = _Regex.Split(str);
             MatchCollection matches = _Regex.Matches(str);
-            foreach (Match m in matches)
-                if (!string.IsNullOrWhiteSpace(m.Value))
-                    splits.Add(m.Value);
-            int splitIdx = 0;
+            StringBuilder reconstituted = new StringBuilder();
+            List<Match> matchList = new List<Match>();
+            int lrIdx = 0;
+            int matchIdx = 0;
 
             try
             {
@@ -31,11 +31,12 @@ namespace Dependency
                 _TokenizeAndParse(e);
                 return e;
             }
+            catch (UnrecognizedTokenException) { throw; }
             catch (SyntaxException s)
             {
                 // This is a normal exception occurring due to a bad input string.
                 // Nobody else is allowed to throw a non-child SyntaxException.
-                throw new SyntaxException(s.Parsed ?? _ComposeParsed(), s.Token, s.Message, s);
+                throw new SyntaxException(s.Parsed ?? reconstituted.ToString(), s.Token, s.Message, s);
             }
             catch (Exception) // e)
             {
@@ -44,67 +45,63 @@ namespace Dependency
                 throw;
             }
 
-            string _ComposeParsed() => string.Join("", splits.Take(splitIdx));
-
             IEvaluateable _TokenizeAndParse(IExpression exp)
             {
                 DynamicLinkedList<IEvaluateable> inputs = new DynamicLinkedList<IEvaluateable>();
                 Heap<Token> heap = new Heap<Token>();
-                while (splitIdx < splits.Count)
+                while (matchIdx < matches.Count)
                 {
-                    string token = splits[splitIdx++];
-                    if (string.IsNullOrWhiteSpace(token)) continue;
-
-                    // See if a sub-expression can be started or finished.
-                    Expression.ExpressionType exp_type;
-                    if ((exp_type = __TryStartSubExpression(token)) != Expression.ExpressionType.NONE) continue;
-                    if ((exp_type = __TryFinish(token)) != Expression.ExpressionType.NONE) return exp;
-
-                    // Handle literals
-                    if (Number.TryParse(token, out Number n)) { inputs.AddLast(n); continue; }
-                    if (bool.TryParse(token, out bool b)) { inputs.AddLast(Dependency.Boolean.FromBool(b)); continue; }
-                    if (String.TryUnquote(token, out string s)) { inputs.AddLast(new Dependency.String(s)); continue; }
-
-                    // An operator?
-                    if (__TryCreateToken(token, out Token t))
+                    Match m = matches[matchIdx++];
+                    if (lrIdx != m.Index)
                     {
-                        heap.Enqueue(t);
-                        t.Node = inputs.AddLast(t);
-                        continue;
+                        string bad_token = str.Substring(lrIdx, m.Index - lrIdx);
+                        throw new UnrecognizedTokenException(reconstituted.ToString(), bad_token, "Unrecognized token: " + bad_token);
+                    }
+                    else
+                    {
+                        lrIdx += m.Length;
+                        reconstituted.Append(m.Value);
                     }
 
-                    // A named function?
-                    if (functions != null && functions.TryCreate(token, out NamedFunction f))
+                    string token = m.Value;
+                    GroupCollection gs = m.Groups;
+                    string pattern = "";
+                    foreach (Group g in gs)
                     {
-                        inputs.AddLast(_TokenizeAndParse(f));
-                        continue;
+                        if (!g.Success || g.Length <= 0) continue;
+                        dynamic g_dyn = (dynamic)g; // Weird little wrinkle in Regex                        
+                        pattern = g_dyn.Name;
+                        if (!string.IsNullOrWhiteSpace(pattern) && pattern != "0") break;
                     }
 
-                    // At last, just add the token as a string.
-                    if (rootContext != null && Regex.IsMatch(token, RefPattern, RegexOptions.IgnorePatternWhitespace))
+                    switch (pattern)
                     {
-                        Token.Priorities p = token.StartsWith(".") ? Token.Priorities.DynamicRefer : Token.Priorities.Refer;
-                        TokenReference tr = new TokenReference(rootContext, token, p) { Index = splitIdx - 1 };
-                        heap.Enqueue(tr);
-                        tr.Node = inputs.AddLast(tr);
-                        continue;
+                        case QUOTES: inputs.AddLast(new Dependency.String(token)); continue;
+                        case OPENERS when __TryStartSubExpression(token, m.Index) != Expression.ExpressionType.NONE: continue;
+                        case CLOSERS when __TryFinish(token) != Expression.ExpressionType.NONE: return exp;
+                        case NUMBERS when Number.TryParse(token, out Number n): inputs.AddLast(n); continue;
+                        case BOOLS: inputs.AddLast(bool.Parse(token) ? Boolean.True : Boolean.False); continue;
+                        case OPERATORS when __TryCreateOperator(token, m.Index, out Token t): heap.Enqueue(t); t.Node = inputs.AddLast(t); continue;
+                        case DOTS when __TryCreateReference(token, m.Index): continue;
+                        case REF_STRINGS when functions != null && functions.TryCreate(token, out NamedFunction nf): inputs.AddLast(_TokenizeAndParse(nf)); continue;
+                        case REF_STRINGS when __TryCreateReference(token, m.Index): continue;
+                        case REF_STRINGS: inputs.AddLast(new Dependency.String(token)); continue;
+                        case SPACES: continue;
+                        default:
+                            string bad_token = str.Substring(m.Index, m.Length);
+                            throw new UnrecognizedTokenException(reconstituted.ToString(), bad_token, "Token could not be parsed: " + bad_token + ", pattern=" + pattern);
                     }
-
-                    // There are a few undecideable tokens that I'm allowing to be parsed.
-                    if (token == ".")
-                    {
-                        TokenReference tr = new TokenReference(rootContext, token, Token.Priorities.DynamicRefer)
-                        {
-                            Index = splitIdx - 1
-                        };
-                        heap.Enqueue(tr);
-                        tr.Node = inputs.AddLast(tr);
-                        continue;
-                    }
-                    throw new UnrecognizedTokenException(_ComposeParsed(), token);
                 }
 
-                // We're out of tokens.  Parse, and stuff the result into the given expression.
+                // If there's anything left of the string, then it has matched nothing.
+                if (lrIdx != str.Length)
+                {
+                    string bad_token = str.Substring(lrIdx);
+                    throw new UnrecognizedTokenException(reconstituted.ToString(), bad_token, "Unrecognized token: " + bad_token);
+                }
+
+
+                // We've created all the tokens.  Parse, and stuff the result into the given expression.
                 __TryFinish("");
                 Expression e = (Expression)exp;
                 var fullParsed = __Parse();
@@ -153,32 +150,41 @@ namespace Dependency
                     return allLegs.Select(leg => leg.Count == 1 ? leg[0] : new Vector(leg.ToArray())).ToArray();
                 }
 
-                bool __TryCreateToken(string tokenString, out Token resultToken)
+                bool __TryCreateReference(string token, int index)
+                {
+                    if (rootContext == null) return false;
+                    TokenReference tr = new TokenReference(rootContext, token) { Index = index };
+                    heap.Enqueue(tr);
+                    tr.Node = inputs.AddLast(tr);
+                    return true;
+                }
+
+                bool __TryCreateOperator(string tokenString, int index, out Token resultToken)
                 {
                     switch (tokenString)
                     {
-                        case "-": resultToken = new TokenMinus() { Index = splitIdx - 1 }; return true;
-                        case "!": resultToken = new TokenBang() { Index = splitIdx - 1 }; return true;
-                        case "~": resultToken = new TokenTilde() { Index = splitIdx - 1 }; return true;
-                        case "+": resultToken = new TokenPlus() { Index = splitIdx - 1 }; return true;
-                        case "*": resultToken = new TokenStar() { Index = splitIdx - 1 }; return true;
-                        case "/": resultToken = new TokenSlash() { Index = splitIdx - 1 }; return true;
-                        case "^": resultToken = new TokenHat() { Index = splitIdx - 1 }; return true;
-                        case "&": resultToken = new TokenAmpersand() { Index = splitIdx - 1 }; return true;
-                        case "|": resultToken = new TokenPipe() { Index = splitIdx - 1 }; return true;
-                        case ":": resultToken = new TokenColon() { Index = splitIdx - 1 }; return true;
-                        case "$": resultToken = new TokenDollar() { Index = splitIdx - 1 }; return true;
-                        case "?": resultToken = new TokenQuestion() { Index = splitIdx - 1 }; return true;
-                        case ">": resultToken = new TokenGreaterThan() { Index = splitIdx - 1 }; return true;
-                        case "<": resultToken = new TokenLessThan() { Index = splitIdx - 1 }; return true;
-                        case "=": resultToken = new TokenEquals() { Index = splitIdx - 1 }; return true;
-                        case ",": resultToken = new TokenComma() { Index = splitIdx - 1 }; return true;
+                        case "-": resultToken = new TokenMinus() { Index = index }; return true;
+                        case "!": resultToken = new TokenBang() { Index = index }; return true;
+                        case "~": resultToken = new TokenTilde() { Index = index }; return true;
+                        case "+": resultToken = new TokenPlus() { Index = index }; return true;
+                        case "*": resultToken = new TokenStar() { Index = index }; return true;
+                        case "/": resultToken = new TokenSlash() { Index = index }; return true;
+                        case "^": resultToken = new TokenHat() { Index = index }; return true;
+                        case "&": resultToken = new TokenAmpersand() { Index = index }; return true;
+                        case "|": resultToken = new TokenPipe() { Index = index }; return true;
+                        case ":": resultToken = new TokenColon() { Index = index }; return true;
+                        case "$": resultToken = new TokenDollar() { Index = index }; return true;
+                        case "?": resultToken = new TokenQuestion() { Index = index }; return true;
+                        case ">": resultToken = new TokenGreaterThan() { Index = index }; return true;
+                        case "<": resultToken = new TokenLessThan() { Index = index }; return true;
+                        case "=": resultToken = new TokenEquals() { Index = index }; return true;
+                        case ",": resultToken = new TokenComma() { Index = index }; return true;
                     }
                     resultToken = null;
                     return false;
                 }
 
-                Expression.ExpressionType __TryStartSubExpression(string token)
+                Expression.ExpressionType __TryStartSubExpression(string token, int index)
                 {
                     switch (token)
                     {
@@ -190,7 +196,7 @@ namespace Dependency
                             return Expression.ExpressionType.CURLY;
                         case "[":
                             // Add the contents, then add a token for LR parsing
-                            TokenIndexing tr = new TokenIndexing() { Index = splitIdx - 1 };
+                            TokenIndexing tr = new TokenIndexing() { Index = index };
                             heap.Enqueue(tr);
                             tr.Node = inputs.AddLast(tr);
                             inputs.AddLast(_TokenizeAndParse(new Bracket()));
@@ -208,17 +214,17 @@ namespace Dependency
                             parsed = __Parse();
                             if (exp is Parenthetical p) { p.Contents = (parsed.Length != 1) ? new Vector(parsed) : parsed[0]; return Expression.ExpressionType.PAREN; }
                             else if (exp is NamedFunction nf) { nf.Inputs = (parsed.Length == 1 && parsed[0] is Vector v) ? v.Inputs.ToArray() : parsed; return Expression.ExpressionType.PAREN; }
-                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " cannot be closed by ')'.");
+                            throw new NestingSyntaxException(reconstituted.ToString(), token, exp.GetType().Name + " cannot be closed by ')'.");
                         case "]":
                             parsed = __Parse();
                             if (exp is Bracket b) { b.Contents = (parsed.Length != 1) ? new Vector(parsed) : parsed[0]; return Expression.ExpressionType.BRACKET; }
-                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " cannot be closed by ']'.");
+                            throw new NestingSyntaxException(reconstituted.ToString(), token, exp.GetType().Name + " cannot be closed by ']'.");
                         case "}":
                             if (exp is Curly) return Expression.ExpressionType.CURLY;
-                            throw new NestingSyntaxException(_ComposeParsed(), token, exp.GetType().Name + " cannot be closed by '}'.");
+                            throw new NestingSyntaxException(reconstituted.ToString(), token, exp.GetType().Name + " cannot be closed by '}'.");
                         case "":
                             if (exp is Expression) return Expression.ExpressionType.NAKED;
-                            throw new NestingSyntaxException(_ComposeParsed(), token, "Only general " + typeof(Expression).Name + "s can be closed without a token.");
+                            throw new NestingSyntaxException(reconstituted.ToString(), token, "Only general " + typeof(Expression).Name + "s can be closed without a token.");
                     }
                     return Expression.ExpressionType.NONE;
                 }
@@ -247,8 +253,8 @@ namespace Dependency
 
             protected internal enum Priorities
             {
-                Refer = 30,
                 Index = 40,
+                Refer = 45,
                 Question = 50,
                 And = 100,
                 Or = 101,
@@ -591,62 +597,33 @@ namespace Dependency
 
         internal sealed class TokenReference : Token
         {
-            private readonly Priorities _Priority;
-            protected internal override Priorities Priority => _Priority;
+            protected internal override Priorities Priority => Priorities.Refer;
             private readonly IContext Root;
             private readonly string Path;
-            public TokenReference(IContext root, string path, Priorities priority)
+            public TokenReference(IContext root, string path)
             {
                 this.Root = root;
                 this.Path = path;
-                this._Priority = priority;
             }
             protected internal override bool TryParse(out Token _)
             {
                 Debug.Assert(Node != null);
                 Debug.Assert(Node.List != null);
+                Debug.Assert(Node.Contents != null);
+                Debug.Assert(!string.IsNullOrWhiteSpace(Path));
                 _ = null;
-                string[] splits = Path.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
-                switch (_Priority)
+                if (Path == "." && Node.Next != null && Node.Previous != null)
+                    Node.Contents = Reference.FromPath(Node.Previous.Remove(), Node.Next.Remove());
+                else if (Node.Previous == null)
                 {
-                    case Priorities.Refer:
-                        Node.Contents = Reference.CreateAnchored(Root, splits);
-                        return true;
-                    case Priorities.DynamicRefer:
-                        List<IEvaluateable> ievs = new List<IEvaluateable>(2);
-                        if (Path.StartsWith("."))
-                        {
-                            if (Node.Previous == null)
-                            {
-                                // Edge case:  a dynamic path that looks like ".one.two.three" that is 
-                                // the leftmost token must anchor to the root.  It's not allowed to be 
-                                // dynamic after all.
-                                if (Path.EndsWith("."))
-                                    throw new SyntaxException("Dangling literal path \"" + Path + "\"");
-                                Node.Contents = Reference.CreateAnchored(Root, splits);
-                                return true;
-                            }
-                            ievs.Add(Node.Previous.Remove());
-                        }
-                        for (int i = 0; i < splits.Length; i++)
-                        {
-                            if (Node.Next == null)
-                                throw new SyntaxException("Dangling path \"" + string.Join(".", splits.Skip(i)) + (Path.EndsWith(".") ? "." : "") + "\"");
-                            string s = splits[i];
-                            ievs.Add(Node.Next.Remove());
-                        }
-                        if (Path.EndsWith("."))
-                        {
-                            if (Node.Next == null)
-                                throw new SyntaxException("Dangling path \"" + Path + "\"");
-                            ievs.Add(Node.Next.Remove());
-                        }
-                        Node.Contents = Reference.CreateDynamic(ievs);
-                        return true;
-                    default:
-                        throw new NotImplementedException();
-
+                    if (this.Root == null) return false;
+                    Node.Contents = Reference.FromRoot(this.Root, new Dependency.String(Path));
                 }
+                else if (Node.Previous is IContext prev_ctxt)
+                    Node.Contents = Reference.FromRoot(prev_ctxt, new Dependency.String(Path));
+                else
+                    Node.Contents = Reference.FromPath(Node.Previous.Remove(), new Dependency.String(Path));
+                return true;
             }
         }
 
@@ -700,39 +677,46 @@ namespace Dependency
 
         #region Parser RegEx members
 
-        private const string OpenerPattern = @"(?<openerPattern>[\(\[{])";
-        private const string CloserPattern = @"(?<closerPattern>[\)\]}])";
-        private const string OperPattern = @"(?<operPattern>[+-/*&|^~!><=])";
-        private const string NumPattern = @"(?<numPattern>(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))";
-        private const string SpacePattern = @"(?<spacePattern>\s+)";
-        //private const string RefPattern = @"(?<referencePattern>\.)";
-        private const string RefPattern = @"(?<referencePattern>((\.?(?!\d)\w+)(\.(?!\d)\w+)* | (?<=[\)\]\}]+)\.))";
 
-        private static readonly string _Pattern = string.Join(" | ", String.PARSE_PATTERN, OpenerPattern, CloserPattern, OperPattern, NumPattern, SpacePattern, RefPattern);
+
+        //=============================================================================================================================================
+
+        //                                                         Capture any \w, but not starting with \d
+        //                                                                        vvv
+        //    (?<refString>(?:    (?<=(?<![\.\"])\d+)    |   (?<![\w\"]+))    [_a-zA-Z]\w*    (?![\"]))
+        //                                ^^^                     ^^^                            ^^^ 
+        //            if preceded by 0-9, not after .  -or-  not preceded with \w           not followed by "               
+        //=============================================================================================================================================
+        //                   May follow 1+ \w, or nothing       May precede any \w, but not start with \d
+        //                                       vvv                         vvv
+        //      (?<dotPattern>              (?<=[\w]+|)    \.         (?=[_a-zA-z]\w*))
+        //=============================================================================================================================================
+        private const string OPENERS = "openers";
+        private const string CLOSERS = "closers";
+        private const string OPERATORS = "operators";
+        private const string NUMBERS = "numbers";
+        private const string BOOLS = "bools";
+        private const string QUOTES = "quotes";
+        private const string REF_STRINGS = "ref_strings";
+        private const string DOTS = "dots";
+        private const string SPACES = "spaces";
+
+        private static readonly string[] _Tokens =
+        {
+            @"(?<"+QUOTES+">)\"[^\"]*\"",
+            @"(?<"+OPENERS+@">[\(\[{])",
+            @"(?<"+CLOSERS+@">[\)\]}])",
+            @"(?<"+OPERATORS+@">[+-/*&|^~!><=])",
+            @"(?<"+NUMBERS+@">(?<!\w+)(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))",
+            @"(?<"+BOOLS+"> true|false)",
+            @"(?<"+REF_STRINGS+">  (?:(?<=(?<![\\.\"])\\d+)  |  (?<![\\w\"]+))  [_a-zA-Z]\\w*      (?![\"]))",
+            @"(?<"+DOTS+@">(?<=[\w]+|)  \.  (?=[_a-zA-z]\w*))",
+            @"(?<"+SPACES+@">\s+)"
+        };
+        private static readonly string _Pattern = string.Join(" | ", _Tokens);
         private static readonly Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);
 
         #endregion
-
-        /**
-         * RefPattern is complicated.  The following rules should apply:
-         ===OK===
-         v1
-         v1.v2
-         .v1.v2
-         ._v1._v2
-         ).
-         ].
-         }.
-         ===NO===
-         .
-         v2.
-         2v2
-         2_v_2
-         2.1
-         .2
-         2.
-         -2.1
-         */
 
 
 

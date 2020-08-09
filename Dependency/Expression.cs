@@ -44,7 +44,7 @@ namespace Dependency
         {
             switch (iev)
             {
-                case Dependency.String ds: return ds.Value;
+                case Dependency.String ds: return ds._Value;
                 case Number n: return (n.IsInteger) ? (int)n : (decimal)n;
                 default: return iev;
             }
@@ -195,15 +195,10 @@ namespace Dependency
                         v.Update(universalSet);
                         break;
                     case Reference r:
-                        var path = r.Head;
-                        while (path != null)
-                        {
-                            _RecursiveRecalc(path.Contents);
-                            path = path.Next;
-                        }                            
-                        Reference.PathLeg.Update(r.Head);
-                        _RecursiveRecalc(r.Tail);
-                        r.Update();
+                        _RecursiveRecalc(r.Base);
+                        _RecursiveRecalc(r.Path);
+                        r.Update(r.Base);
+                        _RecursiveRecalc(r.Subject);
                         break;
                     default:
                         Debug.Assert(!(focus is ISyncUpdater), "Haven't implemented " + nameof(Recalculate) + " for sync " + focus.GetType().Name);

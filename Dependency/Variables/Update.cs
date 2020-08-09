@@ -16,10 +16,10 @@ namespace Dependency.Variables
     public sealed class Update
     {
         public static readonly ITrueSet<IEvaluateable> UniversalSet = DataStructures.Sets.TrueSet<IEvaluateable>.CreateUniversal();
-        
+
         // Like a SQL transaction
         internal static readonly ReaderWriterLockSlim StructureLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
-       //  private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
+        //  private readonly ConcurrentQueue<ISyncUpdater> _Items = new ConcurrentQueue<ISyncUpdater>();
         private static readonly ConcurrentQueue<Task> _Tasks = new ConcurrentQueue<Task>();
         internal readonly IVariable Starter;
         public readonly IEvaluateable NewContents;
@@ -64,7 +64,7 @@ namespace Dependency.Variables
         /// <seealso cref="Update.NewContents"/>.
         /// </summary>
         /// <returns>Returns whether any change is made to the value of the <seealso cref="Update.Starter"/>.</returns>
-        public bool Start(bool checkCircularity=true)
+        public bool Start(bool checkCircularity = true)
         {
             try
             {
@@ -84,8 +84,10 @@ namespace Dependency.Variables
                     try
                     {
                         // Update the content's parent pointer.
-                        if (iuv.Contents is ISyncUpdater idi_before) idi_before.Parent = null;
-                        if (NewContents is ISyncUpdater idi_after) idi_after.Parent = (ISyncUpdater)iuv;
+                        if (iuv.Contents is ISyncUpdater idi_before && ReferenceEquals(idi_before.Parent, iuv))
+                            idi_before.Parent = null;
+                        if (NewContents is ISyncUpdater idi_after)
+                            idi_after.Parent = (ISyncUpdater)iuv;
 
                         // Commit the new contents
                         if (!iuv.CommitContents(NewContents))
@@ -116,7 +118,7 @@ namespace Dependency.Variables
             }
             finally { StructureLock.ExitUpgradeableReadLock(); }
 
-           
+
 
             // Done.  The user may separately call Finish()
             return true;
@@ -125,7 +127,7 @@ namespace Dependency.Variables
         /// Force all updates on the queue to finish.
         /// </summary>
         public static void Finish()
-        { 
+        {
             // Force all the tasks to finish.  StructureLock should not be held.
             while (_Tasks.TryDequeue(out Task t))
             {
@@ -134,7 +136,7 @@ namespace Dependency.Variables
                     throw new Exception("TODO:  a meaningful  message", t.Exception);
             }
         }
-        
+
         internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener, ITrueSet<IEvaluateable> indices) // TODO:  this should be done within the StructureLock read lock?
         {
             Interlocked.Increment(ref _Updating);
@@ -153,7 +155,7 @@ namespace Dependency.Variables
         /// <param name="indexedDomain">The domain indexes that were updated below.</param>
         /// <returns>Returns true if any item's value was changed; otherwise, returns false.
         /// </returns>
-        private bool _Execute(object source, ISyncUpdater target, ITrueSet<IEvaluateable> indexedDomain=null)
+        private bool _Execute(object source, ISyncUpdater target, ITrueSet<IEvaluateable> indexedDomain = null)
         {
             if (indexedDomain == null) indexedDomain = UniversalSet;
             ISyncUpdater start = target;
@@ -163,7 +165,7 @@ namespace Dependency.Variables
             {
                 // If nothing was updated, return false.
                 indexedDomain = target.Update(this, updatedChild, indexedDomain);
-                if (indexedDomain == null 
+                if (indexedDomain == null
                     || indexedDomain.IsEmpty) { result = !target.Equals(start); break; }
 
                 // Since target was updated, enqueue its listeners and proceed.

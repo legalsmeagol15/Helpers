@@ -125,9 +125,10 @@ namespace UnitTests
             var head = new TestContext();
             drawings[new Number(0)] = new Number(20);
             var spreadsheet = new TestContext();
+            master.Add("spreadsheet", spreadsheet);
             drawings[new Number(1)] = head;
             
-            var c5 = new Variable(Number.Zero);            
+            var c5 = new Variable(Number.One);            
             spreadsheet.Add("c5", c5);
 
             var splineA = new TestContext();
@@ -142,7 +143,8 @@ namespace UnitTests
             // Now try instantiation.
             Variable host = new Variable();
             host.Contents = Parse.FromString("drawings[spreadsheet.c5].splineA.Xs.count + 5",null , master);
-            
+
+            Assert.AreEqual(Number.One, host.Value);
         }
         
         [TestMethod]
@@ -395,9 +397,15 @@ namespace UnitTests
             // It's a complicated regex I use to break up strings.  Here's where it is tested.
             FieldInfo regexField = typeof(Dependency.Parse).GetField("_Regex", BindingFlags.NonPublic | BindingFlags.Static);
             Regex regex = (Regex)regexField.GetValue(null);
-            _AssertPatterns("3x", "3", "numPattern", "x", "referencePattern");
-            _AssertPatterns("v1", "v1", "referencePattern");
+            Console.WriteLine(regex.ToString());
+            _AssertPatterns("3x", "3", "numbers", "x", "ref_strings");
+            _AssertPatterns("v1", "v1", "ref_strings");
 
+            var names = regex.GetGroupNames();
+            var numbers = regex.GetGroupNumbers();
+            var ms = regex.Matches("3x+7.2+(spreadsheet.c5)");
+            
+            Console.WriteLine(ms);
             void _AssertPatterns(string str, params string[] patterns)
             {
                 MatchCollection matches = regex.Matches(str);

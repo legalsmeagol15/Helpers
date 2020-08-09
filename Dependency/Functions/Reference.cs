@@ -12,159 +12,98 @@ namespace Dependency.Functions
 
     internal sealed class Reference : IReference, ISyncUpdater
     {
-        // TODO:  the PathLegs could be iterated more quickly if they were in a List<PathLeg> instead of linked list.
-        internal PathLeg Head;
-        public IEvaluateable Tail;
+        public readonly IEvaluateable Base;
+        public readonly IEvaluateable Path;
+        public IEvaluateable Subject;   //Contents
+
+        public bool IsStatic =>
+            !(this.Base is IAsyncUpdater || this.Base is ISyncUpdater
+              || this.Path is IAsyncUpdater || this.Path is ISyncUpdater);
+
+        private Reference(IEvaluateable @base, IEvaluateable path)
+        {
+            this.Base = @base;
+            this.Path = path;
+        }
+        private Reference(IContext root, IEvaluateable path)
+        {
+            this.Base = new IEvalCtxt(this, root);
+            this.Path = path;
+        }
+        public static Reference FromPath(IEvaluateable @base, IEvaluateable path)
+            => new Reference(@base, path);
+        public static Reference FromRoot(IContext root, IEvaluateable path)
+            => new Reference(root, path);
+
+
+        public ISyncUpdater Parent { get; set; }
+
         public IEvaluateable Value { get; private set; }
-        public ISyncUpdater Parent
-        {
-            get;
-            set;
-        }
 
-        private Reference(IContext anchor, IEnumerable<IEvaluateable> path)
+        internal bool Update(IEvaluateable updatedChild)
         {
-            List<PathLeg> legs = new List<PathLeg>();
-            foreach (IEvaluateable iev in path)
-                legs.Add(new PathLeg(anchor, this, iev, legs.Count == 0 && anchor == null));
-            if (legs.Count == 0) throw new ArgumentException("Empty path", nameof(path));
-            Head = legs[0];
-            for (int i = 0; i < legs.Count - 1; i++)
-                legs[i].Next = legs[i + 1];
-        }
-
-        public static Reference CreateAnchored(IContext anchor, params string[] path)
-        {
-            Debug.Assert(!path.Any(p => p.Contains(".")));
-            return new Reference(anchor, path.Select(p => (IEvaluateable)new Dependency.String(p)));
-        }
-        public static Reference CreateDynamic(IEnumerable<IEvaluateable> path)
-            => new Reference(null, path);
-
-
-        internal bool Update()
-        {
-            if (Value == null)
+            if (ReferenceEquals(updatedChild, Base) || ReferenceEquals(updatedChild, Path))
             {
-                if (Tail == null || Tail.Value == null) return false;
+                IEvaluateable newSubject;
+                if (!(Base.Value is IContext ctxt))
+                    newSubject = new ReferenceError(this, "Base of type " + Base.Value.GetType().Name + " is not indexable.");
+                else if (!(Path.Value is Dependency.String q))
+                    newSubject = new ReferenceError(this, "Path of type " + Path.Value.GetType().Name + " is an invalid reference path.");
+                else if (ctxt.TryGetSubcontext(q.ToString(), out IContext subj_ctxt))
+                    newSubject = new IEvalCtxt(this, subj_ctxt);
+                else if (!ctxt.TryGetProperty(q.ToString(), out newSubject))
+                    newSubject = new ReferenceError(this, "Invalid reference path: " + q.ToString());
+                Debug.Assert(newSubject != null);
+                if (newSubject.Equals(Subject)) return false;
+                if (Subject is IAsyncUpdater iau_old) iau_old.RemoveListener(this);
+                Subject = newSubject;
+                if (Subject is IAsyncUpdater iau_new) iau_new.AddListener(this);
             }
-            else if (Value.Equals(Tail.Value))
-                return false;
-            Value = Tail.Value;
+            IEvaluateable newValue = Subject.Value;
+            if (newValue.Equals(Value)) return false;
+            Value = newValue;
             return true;
         }
         ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexDomain)
-            => Update() ? Dependency.Variables.Update.UniversalSet : null;
+            => Update(updatedChild) ? Dependency.Variables.Update.UniversalSet : null;
 
-        IEnumerable<IEvaluateable> IReference.GetComposers() => GetContents();
-        IEnumerable<string> GetPath() => GetContents().Select(c => c.Value.ToString());
-        internal IEnumerable<IEvaluateable> GetContents()
+        IEnumerable<IEvaluateable> IReference.GetComposers()
         {
-            PathLeg leg = Head;
-            while (leg != null) { yield return leg.Contents; leg = leg.Next; }
+            yield return Base;
+            yield return Path;
+            yield return Subject;
         }
 
-        public override string ToString() => "->" + string.Join(".", GetPath());
-
-        internal class PathLeg : ISyncUpdater
+        public override string ToString()
         {
-            public IEvaluateable Contents { get; set; }
-            public IEvaluateable Value { get; private set; }
-            public IContext Context { get; private set; }
-            public PathLeg Next { get; internal set; }
-            public Reference Parent { get; private set; }
-            ISyncUpdater ISyncUpdater.Parent { get => Parent; set => Parent = value as Reference; }
-            public readonly bool IsDynamic;
-            public PathLeg(IContext context, Reference parent, IEvaluateable contents, bool isDynamic)
-            {
-                this.Context = context;
-                this.Parent = parent;
-                this.IsDynamic = isDynamic;
-                this.Contents = contents ?? throw new ArgumentNullException(nameof(Contents));
-            }
-
-            internal static bool Update(PathLeg leg)
-            {
-                // This should be a static method.  It prevents me from making some stupid mistakes.
-
-                while (leg.Next != null)
-                {
-                    // For the pre-tail legs, identify the new leg value.
-                    IEvaluateable newValue = leg.Contents.Value;
-                    if (Helpers.TryFindDependency(leg.Value, leg.Parent, out var circ_path))
-                        return _Invalidate(leg, new CircularityError(leg, circ_path));
-                    if (newValue.Equals(leg.Value))
-                        return false;
-                    leg.Value = newValue;
-
-                    IContext next_ctxt = null;
-                    if (leg.Value is Dependency.String quote)
-                    {
-                        if (leg.IsDynamic)
-                            next_ctxt = leg.Value as IContext;
-                        else if (leg.Context.TryGetSubcontext(quote, out var sub_c))
-                            next_ctxt = sub_c;
-                        else if (leg.Context.TryGetProperty(quote, out var sub_i_c))
-                            next_ctxt = sub_i_c as IContext;
-                    }
-                    if (next_ctxt == null)
-                        return _Invalidate(leg, new ReferenceError(leg.Parent, "Invalid path \"" + string.Join(".", leg.Parent.GetPath()) + "\"."));
-                    if (next_ctxt.Equals(leg.Next.Context))
-                        return false;
-                    leg = leg.Next;
-                    leg.Context = next_ctxt;
-                }
-                // We're now at the last leg.  Identify the last value.
-                IEvaluateable last_newValue = leg.Contents.Value;
-                if (Helpers.TryFindDependency(leg.Value, leg.Parent, out var last_circ_path))
-                    return _Invalidate(leg, new CircularityError(leg, last_circ_path));
-                if (last_newValue.Equals(leg.Value))
-                    return false;
-                leg.Value = last_newValue;
-
-                // We now know the last value changed, let's see if the tail changed.
-                IEvaluateable newTail = null;
-                if (leg.IsDynamic)
-                    newTail = leg.Value;
-                else if (leg.Value is Dependency.String q)
-                {
-                    if (leg.Context.TryGetSubcontext(q, out IContext c))
-                        newTail = c as IEvaluateable;
-                    else if (leg.Context.TryGetProperty(q, out IEvaluateable p))
-                        newTail = p;
-                }
-                if (newTail == null)
-                    return _Invalidate(leg, new ReferenceError(leg.Parent, "Invalid path \"" + string.Join(".", leg.Parent.GetPath()) + "\"."));
-                if (Helpers.TryFindDependency(newTail, leg.Parent, out var tail_circ_path))
-                    return _Invalidate(leg, new CircularityError(leg, tail_circ_path));
-                if (newTail.Equals(leg.Parent.Tail))
-                    return false;
-
-                // The tail changed.  Update listeners and then update the tail.
-                if (leg.Parent.Tail is IAsyncUpdater iau_old)
-                    iau_old.RemoveListener(leg.Parent);
-                if (newTail is IAsyncUpdater iau_new)
-                    iau_new.AddListener(leg.Parent);
-                leg.Parent.Tail = newTail;
-                return true;
-
-                bool _Invalidate(PathLeg pl, Error err)
-                {
-                    // Returns whether the last path was changed.
-                    while (pl.Next != null)
-                    {
-                        if (err.Equals(pl.Value)) return false;
-                        pl.Value = err;
-                        pl = pl.Next;
-                    }
-                    if (err.Equals(pl.Parent.Tail)) return false;
-                    pl.Parent.Tail = err;
-                    return true;
-                }
-            }
-            ITrueSet<IEvaluateable> ISyncUpdater.Update(Update caller, ISyncUpdater updatedChild, ITrueSet<IEvaluateable> indexDomain)
-                => Update(this) ? Dependency.Variables.Update.UniversalSet : null;
+            if (Base is Reference) return Path.ToString() + ".";
+            if (Base is IEvalCtxt) return ".";
+            return Base.ToString() + "." + Path.ToString();
         }
 
+        private sealed class IEvalCtxt : IEvaluateable, IContext
+        {
+            private readonly IContext _Root;
+            private readonly Reference _Host;
+            internal IEvalCtxt(Reference host, IContext ctxt)
+            {
+                Debug.Assert(host != null);
+                Debug.Assert(ctxt != null);
+                this._Host = host;
+                this._Root = ctxt;
+            }
+
+            IEvaluateable IEvaluateable.Value => this;
+
+            public bool TryGetProperty(string path, out IEvaluateable property)
+                => _Root.TryGetProperty(path, out property);
+
+            public bool TryGetSubcontext(string path, out IContext ctxt)
+                => _Root.TryGetSubcontext(path, out ctxt);
+
+            public override bool Equals(object obj)
+                => obj is IEvalCtxt other && other._Root.Equals(_Root) && other._Host.Equals(_Host);
+            public override int GetHashCode() => _Root.GetHashCode();
+        }
     }
 }
