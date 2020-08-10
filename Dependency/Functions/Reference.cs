@@ -24,12 +24,17 @@ namespace Dependency.Functions
         {
             this.Base = @base;
             this.Path = path;
+            Helpers.SetParent(this, this.Base, false);
+            Helpers.SetParent(this, this.Parent, false);
         }
         private Reference(IContext root, IEvaluateable path)
         {
             this.Base = new IEvalCtxt(this, root);
             this.Path = path;
+            Helpers.SetParent(this, this.Base, false);
+            Helpers.SetParent(this, this.Parent, false);
         }
+        
         public static Reference FromPath(IEvaluateable @base, IEvaluateable path)
             => new Reference(@base, path);
         public static Reference FromRoot(IContext root, IEvaluateable path)
@@ -46,11 +51,16 @@ namespace Dependency.Functions
             {
                 IEvaluateable newSubject;
                 if (!(Base.Value is IContext ctxt))
-                    newSubject = new ReferenceError(this, "Base of type " + Base.Value.GetType().Name + " is not indexable.");
+                    newSubject = new ReferenceError(this, "Base value of type " + Base.Value.GetType().Name + " is not indexable.");
                 else if (!(Path.Value is Dependency.String q))
-                    newSubject = new ReferenceError(this, "Path of type " + Path.Value.GetType().Name + " is an invalid reference path.");
+                    newSubject = new ReferenceError(this, "Path value of type " + Path.Value.GetType().Name + " is an invalid reference path.");
                 else if (ctxt.TryGetSubcontext(q.ToString(), out IContext subj_ctxt))
-                    newSubject = new IEvalCtxt(this, subj_ctxt);
+                {
+                    if (subj_ctxt is IEvaluateable already_ieval)
+                        newSubject = already_ieval;
+                    else 
+                        newSubject = new IEvalCtxt(this, subj_ctxt);
+                }                    
                 else if (!ctxt.TryGetProperty(q.ToString(), out newSubject))
                     newSubject = new ReferenceError(this, "Invalid reference path: " + q.ToString());
                 Debug.Assert(newSubject != null);
@@ -76,8 +86,7 @@ namespace Dependency.Functions
 
         public override string ToString()
         {
-            if (Base is Reference) return Path.ToString() + ".";
-            if (Base is IEvalCtxt) return ".";
+            if (Base is IEvalCtxt) return "<root>." + Path.ToString() ;
             return Base.ToString() + "." + Path.ToString();
         }
 

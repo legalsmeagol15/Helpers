@@ -44,7 +44,7 @@ namespace Dependency
             {
                 if (TryIndexWrapper(new Number(idx), out var wrapper))
                     return wrapper.Contents;
-                return new IndexingError(this, (IList<IEvaluateable>)_MemberContents, "Index " + idx + " out of range.");
+                return new IndexingError(null, "Index " + idx + " out of range.");
             }
             set
             {

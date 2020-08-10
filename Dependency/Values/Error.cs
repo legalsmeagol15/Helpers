@@ -76,21 +76,21 @@ namespace Dependency
     public class ReferenceError : Error
     {
         public readonly IReference Complainant;
-        internal ReferenceError(Functions.Reference complainant, string message) : base(message) { this.Complainant = complainant; }
+        internal ReferenceError(IReference complainant, string message) : base(message) { this.Complainant = complainant; }
         public override bool Equals(object obj)
         {
-            ReferenceError re = obj as ReferenceError;
-            if (re == null) return false;
+            if (!(obj is ReferenceError re)) return false;
             if (!Complainant.Equals(re.Complainant)) return false;
             if (Message != re.Message) return false;
             return true;
         }
     }
 
-    public sealed class IndexingError : EvaluationError
+    public sealed class IndexingError : ReferenceError
     {
-        internal IndexingError(object complainant, IList<IEvaluateable> inputs, string message)
-            : base(complainant, inputs, message) { }
+        public IndexingError(IReference complainant, string message) : base(complainant, message) { }
+        public override bool Equals(object obj)
+            => obj is IndexingError && base.Equals(obj);
     }
 
     public class EvaluationError : Error

@@ -142,7 +142,9 @@ namespace UnitTests
 
             // Now try instantiation.
             Variable host = new Variable();
-            host.Contents = Parse.FromString("drawings[spreadsheet.c5].splineA.Xs.count + 5",null , master);
+            var newContents = Parse.FromString("drawings[spreadsheet.c5].splineA.Xs.count + 5",null , master);
+            Update u = Update.ForVariable(host, newContents);
+            u.Execute();
 
             Assert.AreEqual(Number.One, host.Value);
         }

@@ -62,7 +62,7 @@ namespace Dependency.Values
         {
             if (_Contents is IVariable v && !(v.Contents is IndexingError))
             {
-                Update.ForVariable(v, new IndexingError(this.Parent, null, "Invalid index: " + this.Index.ToString())).Execute();
+                Update.ForVariable(v, new IndexingError(null, "Invalid index: " + this.Index.ToString())).Execute();
                 return true;
             }
             return false;

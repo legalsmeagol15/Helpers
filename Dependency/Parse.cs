@@ -87,9 +87,10 @@ namespace Dependency
                         case REF_STRINGS when __TryCreateReference(token, m.Index): continue;
                         case REF_STRINGS: inputs.AddLast(new Dependency.String(token)); continue;
                         case SPACES: continue;
+                        case VECTORIZERS: continue;
                         default:
                             string bad_token = str.Substring(m.Index, m.Length);
-                            throw new UnrecognizedTokenException(reconstituted.ToString(), bad_token, "Token could not be parsed: " + bad_token + ", pattern=" + pattern);
+                            throw new UnrecognizedTokenException(reconstituted.ToString(), bad_token, "Token could not be parsed: \"" + bad_token + "\", pattern=" + pattern);
                     }
                 }
 
@@ -253,8 +254,8 @@ namespace Dependency
 
             protected internal enum Priorities
             {
-                Index = 40,
-                Refer = 45,
+                Refer = 40,
+                Index = Refer,                
                 Question = 50,
                 And = 100,
                 Or = 101,
@@ -274,7 +275,8 @@ namespace Dependency
                 GreaterThanOrEquals = 902,
                 LessThanOrEquals = 903,
                 Equals = 1000,
-                DynamicRefer = 1030,
+                //Refer = 1030,
+                //Index = 1040,
                 Comma = 10000,
                 Semicolon = 10100
             }
@@ -500,7 +502,7 @@ namespace Dependency
                 IEvaluateable @base = Node.Previous.Remove();
                 IEvaluateable ordinal = Node.Next.Remove();
                 if (ordinal is Bracket b) ordinal = b.Contents;
-                else throw new ParsingException(this, "Second input for " + typeof(Indexing).Name + " must be a bracketed clause.");
+                else throw new ParsingException(this, "Second input for " + typeof(Indexing).Name + " must be a bracketed clause (was a " +ordinal.GetType().Name + ")" );
                 Indexing idxing = new Indexing(@base, ordinal);
                 Node.Contents = idxing;
                 _ = null;
@@ -611,13 +613,24 @@ namespace Dependency
                 Debug.Assert(Node.List != null);
                 Debug.Assert(Node.Contents != null);
                 Debug.Assert(!string.IsNullOrWhiteSpace(Path));
+                Debug.Assert(this.Root != null);
                 _ = null;
-                if (Path == "." && Node.Next != null && Node.Previous != null)
-                    Node.Contents = Reference.FromPath(Node.Previous.Remove(), Node.Next.Remove());
-                else if (Node.Previous == null)
-                {
-                    if (this.Root == null) return false;
+                if (Node.Previous == null)
                     Node.Contents = Reference.FromRoot(this.Root, new Dependency.String(Path));
+                else if (Path == ".")
+                    Node.Contents = Reference.FromPath(Node.Previous.Remove(), new Dependency.String(Path));
+                else if (Node.Previous.Contents is Reference prev_ref)
+                {
+                    Reference r;
+                    if (prev_ref.Path.Equals("."))
+                    {
+                        r = Reference.FromPath(prev_ref.Base, new Dependency.String(Path));
+                        Node.Previous.Remove();
+                        if (prev_ref.Base is ISyncUpdater prev_child) prev_child.Parent = r;
+                    }
+                    else
+                        r = Reference.FromPath(Node.Previous.Remove(), new Dependency.String(Path));
+                    Node.Contents = r;
                 }
                 else if (Node.Previous is IContext prev_ctxt)
                     Node.Contents = Reference.FromRoot(prev_ctxt, new Dependency.String(Path));
@@ -625,6 +638,7 @@ namespace Dependency
                     Node.Contents = Reference.FromPath(Node.Previous.Remove(), new Dependency.String(Path));
                 return true;
             }
+            public override string ToString() => "TokenReference \"" + Path + "\"";
         }
 
         internal sealed class TokenSemicolon : Token
@@ -700,18 +714,20 @@ namespace Dependency
         private const string REF_STRINGS = "ref_strings";
         private const string DOTS = "dots";
         private const string SPACES = "spaces";
+        private const string VECTORIZERS = "vectorizers";
 
         private static readonly string[] _Tokens =
         {
             @"(?<"+QUOTES+">)\"[^\"]*\"",
             @"(?<"+OPENERS+@">[\(\[{])",
             @"(?<"+CLOSERS+@">[\)\]}])",
-            @"(?<"+OPERATORS+@">[+-/*&|^~!><=])",
+            @"(?<"+OPERATORS+@">[\+\-\/\*\&\|\^\~\!\>\<\=])",
             @"(?<"+NUMBERS+@">(?<!\w+)(?:-)? (?: \d+\.\d* | \d*\.\d+ | \d+ ))",
             @"(?<"+BOOLS+"> true|false)",
             @"(?<"+REF_STRINGS+">  (?:(?<=(?<![\\.\"])\\d+)  |  (?<![\\w\"]+))  [_a-zA-Z]\\w*      (?![\"]))",
             @"(?<"+DOTS+@">(?<=[\w]+|)  \.  (?=[_a-zA-z]\w*))",
-            @"(?<"+SPACES+@">\s+)"
+            @"(?<"+SPACES+@">\s+)",
+            @"(?<"+VECTORIZERS+@">[,;])",
         };
         private static readonly string _Pattern = string.Join(" | ", _Tokens);
         private static readonly Regex _Regex = new Regex(_Pattern, RegexOptions.IgnorePatternWhitespace);

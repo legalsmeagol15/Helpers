@@ -199,6 +199,14 @@ namespace Dependency
                         _RecursiveRecalc(r.Path);
                         r.Update(r.Base);
                         _RecursiveRecalc(r.Subject);
+                        r.Update(r.Subject);
+                        break;
+                    case Indexing idxing:
+                        _RecursiveRecalc(idxing.Base);
+                        _RecursiveRecalc(idxing.Ordinal);
+                        idxing.Update(idxing.Base);
+                        _RecursiveRecalc(idxing.Subject);
+                        idxing.Update(idxing.Subject);
                         break;
                     default:
                         Debug.Assert(!(focus is ISyncUpdater), "Haven't implemented " + nameof(Recalculate) + " for sync " + focus.GetType().Name);
@@ -207,6 +215,13 @@ namespace Dependency
                 }
                 return focus.Value;
             }
+        }
+
+        internal static void SetParent(ISyncUpdater parent, object child, bool checkParent = true)
+        {
+            if (!(child is ISyncUpdater isu)) return;
+            Debug.Assert(!checkParent || isu.Parent == null || isu.Parent == parent);
+            isu.Parent = parent;
         }
     }
 
