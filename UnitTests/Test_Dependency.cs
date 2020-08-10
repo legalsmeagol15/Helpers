@@ -146,6 +146,7 @@ namespace UnitTests
             Update u = Update.ForVariable(host, newContents);
             u.Execute();
 
+            // Check that the initial value is correct.
             Assert.AreEqual(new Number(15), host.Value);
         }
         
