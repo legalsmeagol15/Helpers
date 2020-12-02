@@ -197,11 +197,6 @@ namespace DataStructures
 
 
 
-
-
-
-
-
         #region IntervalSet inflection logic
 
         /// <summary>Returns a set-equal copy of this <see cref="IntervalSet{T}"/>.</summary>
@@ -714,6 +709,8 @@ namespace DataStructures
     /// <summary>An discrete interval set whose contents are standard 4-byte <see cref="int"/>s.</summary>
     public sealed class Int32IntervalSet : DiscreteIntervalSet<int>
     {
+        public static Int32IntervalSet Infinite() =>new Int32IntervalSet(Inflection.Universal);
+
         [DebuggerStepThrough]
         static Int32IntervalSet()
         {

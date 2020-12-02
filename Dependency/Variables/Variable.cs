@@ -17,7 +17,7 @@ using Mathematics;
 namespace Dependency.Variables
 {
     [Serializable]
-    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>, IVariable
+    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, IVariable
     {
         // DO NOT implement IDisposable to clean up listeners.  The Variable should should clean up only when its 
         // listeners are already gone anyway.
@@ -48,9 +48,8 @@ namespace Dependency.Variables
             try
             {
                 if (_Value.Equals(newValue)) return false;
-                IEvaluateable oldValue = _Value;
                 _Value = newValue;
-                OnValueChanged(oldValue, newValue);
+                OnValueChanged();
                 return true;
             }
             finally { ValueLock.ExitWriteLock(); }
@@ -89,14 +88,15 @@ namespace Dependency.Variables
             return "{Variable} =?= " + Contents.ToString();
         }
 
-        public event ValueChangedHandler<IEvaluateable> Updated;
+        public event EventHandler Updated;
 
-        /// <summary>Called immediately after the cached value is updated, from within a 
-        /// <seealso cref="Variable.ValueLock"/> write lock.  Invokes the 
-        /// <seealso cref="Updated"/> event.</summary>
-        protected virtual void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
+        /// <summary>Called immediately after the cached value is updated.</summary>
+        protected virtual void OnValueChanged()
         {
-            Updated?.Invoke(this, new ValueChangedArgs<IEvaluateable>(oldValue, newValue));
+            // Cannot be a ValueChangedHandler because there is no guarantee that the last-most 
+            // change will be received last by any consumers.
+            if (Updated != null)
+                Events.InvokeAsynchronous(this, Updated, new EventArgs());
         }
 
 
@@ -155,13 +155,13 @@ namespace Dependency.Variables
         }
         public static implicit operator T(Variable<T> v) => v._Converter.ConvertDown(v.Value);
 
-        protected override void OnValueChanged(IEvaluateable oldValue, IEvaluateable newValue)
+        protected override void OnValueChanged()
         {
             T oldCache = _Cache;            
             _Cache =  _Converter.ConvertDown(this.Value);
             if (oldCache ==  null) { if (_Cache == null) return; }                
             else if (oldCache.Equals(_Cache)) return;
-            base.OnValueChanged(oldValue, newValue); // Fires Updated event
+            base.OnValueChanged(); // Fires Updated event
         }
     }
 

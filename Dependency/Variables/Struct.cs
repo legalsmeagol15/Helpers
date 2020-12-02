@@ -17,7 +17,7 @@ namespace Dependency.Variables
     }
 
     [Serializable]
-    public abstract class VariableStruct<T> : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, INotifyUpdates<IEvaluateable>, IContext, IVariable<T>
+    public abstract class VariableStruct<T> : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, IContext, IVariable<T>
         where T : struct
     {
         

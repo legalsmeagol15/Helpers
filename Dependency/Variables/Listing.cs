@@ -4,6 +4,7 @@ using Dependency.Values;
 using Helpers;
 using Mathematics;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -15,19 +16,19 @@ namespace Dependency.Variables
 {
     /// <summary>
     /// For variables that can exhibit <seealso cref="List{T}"/>-like behaviors.  Note that any 
-    /// <seealso cref="Variable{T}"/> can hold a <seealso cref="Vector"/> as its contents or 
+    /// <seealso cref="Variable"/> can hold a <seealso cref="Vector"/> as its contents or 
     /// value, but the <see cref="Listing{T}"/> allows for indexed binding and updating.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public sealed class Listing<T>: IVariable<IList<T>>, IIndexable, ISyncUpdater, IAsyncUpdater,
-                                    IUpdatedVariable
+    public sealed class Listing<T> : IVariable<IList<T>>, IIndexable, ISyncUpdater, IAsyncUpdater,
+                                    IUpdatedVariable, IList<T>
     {
         // TODO:  "Listing<T>" is a stupid class name.  Rethink this.  Just don't collide the name with regular List<T>.
         private readonly Dictionary<int, WeakReference<Indexed<Number>>> _Members;
         private readonly IConverter<T> _MemberConverter;
 
         public Listing(params IEvaluateable[] contents) : this(null, contents) { }
-        public Listing(IConverter<T> converter=null, params IEvaluateable[] contents)
+        public Listing(IConverter<T> converter = null, params IEvaluateable[] contents)
         {
             this._MemberConverter = converter ?? Dependency.Values.Converter<T>.Default;
             this._Contents = new Vector(contents);
@@ -39,7 +40,7 @@ namespace Dependency.Variables
             get => _Contents;
             set
             {
-                Update.ForVariable(this, value).Execute();                
+                Update.ForVariable(this, value).Execute();
                 if (value is Vector v)
                 {
                     Update.StructureLock.EnterWriteLock();
@@ -68,12 +69,13 @@ namespace Dependency.Variables
                                 toRemove.Add(idx);
                             }
                         }
-                        foreach (int tr in toRemove) 
+                        foreach (int tr in toRemove)
                             _Members.Remove(tr);
-                    } finally { Update.StructureLock.ExitWriteLock(); }                    
-                }                
+                    }
+                    finally { Update.StructureLock.ExitWriteLock(); }
+                }
             }
-        }        
+        }
         public IEvaluateable Value => Contents.Value;
 
 
@@ -82,7 +84,7 @@ namespace Dependency.Variables
         {
             get
             {
-                if (_Native != null) 
+                if (_Native != null)
                     return _Native;
                 if (!(_Contents is Vector v_contents))
                     return _Native = null;
@@ -107,8 +109,8 @@ namespace Dependency.Variables
             if (!(ordinal is Number n) || !n.IsInteger) { val = default; return false; }
             if (!(_Contents is Vector v)) { val = default; return false; }
             int idx = (int)n;
-            if (idx < 0 || idx>=v.Count) { val = default;return false; }
-            if (_Members.TryGetValue(idx, out WeakReference<Indexed<Number>> wr) 
+            if (idx < 0 || idx >= v.Count) { val = default; return false; }
+            if (_Members.TryGetValue(idx, out WeakReference<Indexed<Number>> wr)
                 && wr.TryGetTarget(out Indexed<Number> idxed))
             {
                 val = idxed;
@@ -116,7 +118,7 @@ namespace Dependency.Variables
             }
             else
             {
-                idxed = new Indexed<Number>(this,v[idx], idx);
+                idxed = new Indexed<Number>(this, v[idx], idx);
                 wr = new WeakReference<Indexed<Number>>(idxed);
                 _Members[idx] = wr;
                 val = idxed;
@@ -140,6 +142,7 @@ namespace Dependency.Variables
             if (!(Contents is Vector v_contents))
             {
                 // We don't cache the old value, so nothing to compare against.
+                OnListingChanged(Update.UniversalSet);
                 return Update.UniversalSet;
             }
             if (indexDomain.IsUniversal || updatedChild.Equals(Contents))
@@ -147,6 +150,7 @@ namespace Dependency.Variables
                 // The contents are to completely change, no matter what.
                 v_contents.ClearValueInternal();
                 _Native = null;
+                OnListingChanged(Update.UniversalSet);
                 return Update.UniversalSet;
             }
             Vector current_v_value = v_contents.GetValueInternal();
@@ -156,6 +160,7 @@ namespace Dependency.Variables
                 // any listeners or parents for this list.
                 Debug.Assert(this._Parent == null);
                 Debug.Assert(_Listeners.Count == 0);
+                OnListingChanged(indexDomain);
                 return indexDomain;
             }
 
@@ -167,6 +172,7 @@ namespace Dependency.Variables
                 if (idx >= 0 && idx < current_v_value.Count)
                     current_v_value[idx] = updatedChild.Value;
             }
+            OnListingChanged(indexDomain);
             return indexDomain;
         }
         bool IUpdatedVariable.CommitValue(IEvaluateable newValue)
@@ -182,18 +188,94 @@ namespace Dependency.Variables
             return true;
         }
 
-        private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();        
+        private readonly WeakReferenceSet<ISyncUpdater> _Listeners = new WeakReferenceSet<ISyncUpdater>();
         bool IAsyncUpdater.RemoveListener(ISyncUpdater listener) => _Listeners.Remove(listener);
         bool IAsyncUpdater.AddListener(ISyncUpdater listener) => _Listeners.Add(listener);
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => _Listeners;
+
+
+
+        #region ListingChanged members
+
+        public class ListingChangedEventArgs : EventArgs
+        {
+            public readonly DiscreteIntervalSet<int> Indices;
+            public ListingChangedEventArgs(DiscreteIntervalSet<int> indices) { this.Indices = indices; }
+        }
+
+        public delegate void ListingChangedEventHandler(object sender, ListingChangedEventArgs e);
+        public event ListingChangedEventHandler ListingChanged;
+
+        /// <summary>Called immediately after the cached value is updated.</summary>
+        private void OnListingChanged(ITrueSet<IEvaluateable> changedIndices)
+        {
+            // Cannot be a ValueChangedHandler because there is no guarantee that the last-most 
+            // change will be received last by any consumers.
+            if (ListingChanged != null)
+            {
+                var handlers = ListingChanged.GetInvocationList();
+                if (handlers.Length > 0)
+                {
+                    Int32IntervalSet iis = changedIndices.IsUniversal ?
+                                           Int32IntervalSet.Infinite() :
+                                           new Int32IntervalSet(changedIndices.OfType<Number>().Select(n => (int)n).ToArray());
+                    ListingChangedEventArgs e = new ListingChangedEventArgs(iis);
+                    Events.InvokeAsynchronous(this, ListingChanged, e);
+                }
+            }
+        }
+
+        #endregion
+
+
+
+        #region Listing IList<T> members
+
+        public int Count => Native.Count;
+
+        public bool IsReadOnly => Native.IsReadOnly;
+
+        public T this[int index] { get => Native[index]; set => throw new NotImplementedException(); }
+
+        public int IndexOf(T item) => Native.IndexOf(item);
+
+        public void Insert(int index, T item)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void RemoveAt(int index)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Add(T item)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Clear()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Remove(T item)
+        {
+            throw new NotImplementedException();
+        }
+
+
+        public bool Contains(T item) => Native.Contains(item);
+
+        void ICollection<T>.CopyTo(T[] array, int arrayIndex) => Native.CopyTo(array, arrayIndex);
+
+
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => Native.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => Native.GetEnumerator();
+
+
+        #endregion
     }
 
-        
-
-
-    //    bool IIndexable.TryIndex(IEvaluateable ordinal, out IEvaluateable val)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-    //}
 }

@@ -157,12 +157,6 @@ namespace Dependency
         string Name { get; }
     }
 
-    
-    public interface INotifyUpdates<T>
-    {
-        /// <summary>Fired when the <see cref="IAsyncUpdater"/>'s cached value changes.</summary>
-        event ValueChangedHandler<T> Updated;
-    }
 
     public interface IReference : IEvaluateable
     {
