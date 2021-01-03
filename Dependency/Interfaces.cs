@@ -59,34 +59,34 @@ namespace Dependency
         bool TryGetProperty(string path, out IEvaluateable property);
     }
 
-    /// <summary>Generic objects of this class are used to make another object into an IContext.
-    /// </summary>
-    /// <typeparam name="T">Must be a struct</typeparam>
-    public interface IContextualizer<T> : IContext, INotifyUpdates<T>
-    {
-        /// <summary>When a host context value changes, it should apply the change to all sub-part 
-        /// <seealso cref="Variable"/> objects.</summary>
-        /// <param name="newCLR">The new CLR value of the host.</param>
-        /// <returns>Returns true if a sub-variable's contents were updated; otherwise, returns 
-        /// false.</returns>
-        bool ApplyContents(T newCLR);
+    ///// <summary>Generic objects of this class are used to make another object into an IContext.
+    ///// </summary>
+    ///// <typeparam name="T">Must be a struct</typeparam>
+    //public interface IContextualizer<T> : IContext, INotifyUpdates<T>
+    //{
+    //    /// <summary>When a host context value changes, it should apply the change to all sub-part 
+    //    /// <seealso cref="Variable"/> objects.</summary>
+    //    /// <param name="newCLR">The new CLR value of the host.</param>
+    //    /// <returns>Returns true if a sub-variable's contents were updated; otherwise, returns 
+    //    /// false.</returns>
+    //    bool ApplyContents(T newCLR);
 
-        /// <summary>When a host's sub-part changes, it should generate a new value from the sub-
-        /// parts.</summary>
-        IEvaluateable ComposeValue();
+    //    /// <summary>When a host's sub-part changes, it should generate a new value from the sub-
+    //    /// parts.</summary>
+    //    IEvaluateable ComposeValue();
 
         
 
-        /// <summary>Converts from the given object to a dependency value.  Cannot be allowed to 
-        /// fail.</summary>
-        IEvaluateable ConvertUp(T obj);
+    //    /// <summary>Converts from the given object to a dependency value.  Cannot be allowed to 
+    //    /// fail.</summary>
+    //    IEvaluateable ConvertUp(T obj);
 
-        /// <summary>
-        /// Converts from the given dependency value to the target type <typeparamref name="T"/>.
-        /// Not all dependency values may so convert, so it is possible for this to fail.
-        /// </summary>
-        bool TryConvertDown(IEvaluateable ie, out T target);
-    }
+    //    /// <summary>
+    //    /// Converts from the given dependency value to the target type <typeparamref name="T"/>.
+    //    /// Not all dependency values may so convert, so it is possible for this to fail.
+    //    /// </summary>
+    //    bool TryConvertDown(IEvaluateable ie, out T target);
+    //}
 
     /// <summary>
     /// Converts values to and from a CLR value of type <typeparamref name="T"/>.
@@ -97,7 +97,6 @@ namespace Dependency
         bool CanConvertDown(IEvaluateable ie);
         bool TryConvertDown(IEvaluateable ie, out T target);
         IEvaluateable ConvertUp(T item);
-        T ConvertDown(IEvaluateable item);
     }
 
 

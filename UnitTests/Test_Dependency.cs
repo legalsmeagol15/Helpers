@@ -209,8 +209,8 @@ namespace UnitTests
         [TestMethod]
         public void Test_List()
         {
-            IEvaluateable updateValueOld, updateValueNew;
-            int updateCount = 0;
+            //IEvaluateable updateValueOld, updateValueNew;
+            //int updateCount = 0;
 
             //Dependency.Variables.List<int> list = new Dependency.Variables.List<int>();
             //list.Updated += _List_Updated;
@@ -219,12 +219,12 @@ namespace UnitTests
             //list.Add(0);
             //Assert.AreEqual(1, list.Count);
 
-            void _List_Updated(object sender, Helpers.ValueChangedArgs<IEvaluateable> e)
-            {
-                updateCount++;
-                updateValueOld = e.Before;
-                updateValueNew = e.After;
-            }
+            //void _List_Updated(object sender, Helpers.ValueChangedArgs<IEvaluateable> e)
+            //{
+            //    updateCount++;
+            //    updateValueOld = e.Before;
+            //    updateValueNew = e.After;
+            //}
         }
 
         

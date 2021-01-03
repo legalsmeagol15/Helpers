@@ -264,7 +264,7 @@ namespace Arguments
                 }
 
                 // Try some of the standard types.
-                {
+                {   
                     if (Type == typeof(string) || Type == typeof(String))
                     {
                         Value = argValue;

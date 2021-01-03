@@ -60,6 +60,30 @@ namespace DataStructures
             }
         }
 
+        public T Start
+        {
+            get
+            {
+                if (IsEmpty) throw new InvalidOperationException();
+                var i = Inflections[0];
+                if (i.IsStart && !i.HasBefore && !i.IsUniversal && i.IsIncluded && !i.IsEmpty)
+                    return i.Point;
+                throw new InvalidOperationException();
+            }
+        }
+        public T End
+        {
+            get
+            {
+                if (IsEmpty) throw new InvalidOperationException();
+                var i = Inflections[Inflections.Length - 1];
+                if (i.IsEnd && !i.HasAfter && !i.IsUniversal && i.IsIncluded && !i.IsEmpty)
+                    return i.Point;
+                throw new InvalidOperationException();
+            }
+        }
+
+
         /// <summary>Returns whether this <see cref="IntervalSet{T}"/> represents an empty set.</summary>
         public bool IsEmpty => Inflections.Length == 0;
         /// <summary>Returns whether this <see cref="IntervalSet{T}"/> represents an universal set.</summary>
@@ -383,10 +407,10 @@ namespace DataStructures
             private readonly Flags _Flags;
 
             /// <summary>A universal inflection.</summary>
-            public static readonly Inflection Universal = new Inflection(default(T), Flags.UNIVERSAL);
+            public static readonly Inflection Universal = new Inflection(default, Flags.UNIVERSAL);
 
             /// <summary>An empty inflection.  Used only for signaling and composition.</summary>
-            internal static readonly Inflection Empty = new Inflection(default(T), Flags.ERROR);
+            internal static readonly Inflection Empty = new Inflection(default, Flags.ERROR);
 
             /// <summary>The point in the universe marked by this <see cref="Inflection"/>.</summary>
             public readonly T Point;
@@ -709,7 +733,7 @@ namespace DataStructures
     /// <summary>An discrete interval set whose contents are standard 4-byte <see cref="int"/>s.</summary>
     public sealed class Int32IntervalSet : DiscreteIntervalSet<int>
     {
-        public static Int32IntervalSet Infinite() =>new Int32IntervalSet(Inflection.Universal);
+        public static readonly Int32IntervalSet Infinite = new Int32IntervalSet(Inflection.Universal);
 
         [DebuggerStepThrough]
         static Int32IntervalSet()

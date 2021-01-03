@@ -60,10 +60,6 @@ namespace Dependency.Values
             throw new InvalidCastException("Cannot convert " + item.GetType().Name + " to " + nameof(IEvaluateable));
         }
 
-        T IConverter<T>.ConvertDown(IEvaluateable ie)
-        {
-            throw new InvalidCastException("Cannot convert " + ie.GetType().Name + " to " + typeof(T).Name);
-        }
 
         bool IConverter<T>.TryConvertDown(IEvaluateable ie, out T target)
         {
@@ -122,11 +118,6 @@ namespace Dependency.Values
 
         IEvaluateable IConverter<bool>.ConvertUp(bool item) => item ? Dependency.Boolean.True : Dependency.Boolean.False;
 
-        bool IConverter<bool>.ConvertDown(IEvaluateable item)
-        {
-            if (item is Dependency.Boolean b) return b;
-            return false;
-        }
 
         bool IConverter<bool>.TryConvertDown(IEvaluateable ie, out bool target)
         {
@@ -142,11 +133,6 @@ namespace Dependency.Values
         bool IConverter<decimal>.CanConvertDown(IEvaluateable ie) => ie is Number n;
 
         IEvaluateable IConverter<decimal>.ConvertUp(decimal item) => new Number(item);
-
-        decimal IConverter<decimal>.ConvertDown(IEvaluateable item)
-        {
-            return ((Number)item).ToDecimal();
-        }
 
         bool IConverter<decimal>.TryConvertDown(IEvaluateable ie, out decimal target)
         {
@@ -170,10 +156,6 @@ namespace Dependency.Values
             else { target = double.NaN; return false; }
         }
 
-        double IConverter<double>.ConvertDown(IEvaluateable item)
-        {
-            return ((Number)item).ToDouble();
-        }
     }
 
     internal sealed class IntConverter : IConverter<int>, ITypeGuarantee
@@ -190,10 +172,6 @@ namespace Dependency.Values
             else { target = 0; return false; }
         }
 
-        int IConverter<int>.ConvertDown(IEvaluateable item)
-        {
-            return ((Number)item).ToInt();
-        }
     }
 
     internal sealed class StringConverter : IConverter<string>, ITypeGuarantee
@@ -205,10 +183,7 @@ namespace Dependency.Values
         IEvaluateable IConverter<string>.ConvertUp(string item) => new Dependency.String(item);
 
         bool IConverter<string>.TryConvertDown(IEvaluateable ie, out string target) { target = ie.ToString(); return true; }
-        string IConverter<string>.ConvertDown(IEvaluateable item)
-        {
-            return ((Number)item).ToString();
-        }
+        
     }
 
     public sealed class VectorNConverter : IConverter<VectorN>
@@ -223,13 +198,6 @@ namespace Dependency.Values
             return new Vector((IEvaluateable)item.X, (IEvaluateable)item.Y);
         }
 
-        VectorN IConverter<VectorN>.ConvertDown(IEvaluateable item)
-        {
-            Vector v = (Vector)item;
-            Number x = (Number)v[0];
-            Number y = (Number)v[1];
-            return new VectorN(x, y);
-        }
 
         bool IConverter<VectorN>.TryConvertDown(IEvaluateable ie, out VectorN target)
         {
@@ -255,10 +223,6 @@ namespace Dependency.Values
             throw new NotImplementedException();
         }
 
-        IPoint<T> IConverter<IPoint<T>>.ConvertDown(IEvaluateable item)
-        {
-            throw new NotImplementedException();
-        }
 
         bool IConverter<IPoint<T>>.TryConvertDown(IEvaluateable ie, out IPoint<T> target)
         {
@@ -277,7 +241,6 @@ namespace Dependency.Values
 
         bool IConverter<IEvaluateable>.TryConvertDown(IEvaluateable ie, out IEvaluateable target) { target = ie; return true; }
 
-        IEvaluateable IConverter<IEvaluateable>.ConvertDown(IEvaluateable item) => item;
     }
 
 

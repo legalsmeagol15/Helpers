@@ -24,7 +24,8 @@ namespace Dependency.Variables
                                     IUpdatedVariable, IList<T>
     {
         // TODO:  "Listing<T>" is a stupid class name.  Rethink this.  Just don't collide the name with regular List<T>.
-        private readonly Dictionary<int, WeakReference<Indexed<Number>>> _Members;
+        private readonly Dictionary<int, WeakReference<Indexed<Number>>> _Members
+            = new Dictionary<int, WeakReference<Indexed<Number>>>();
         private readonly IConverter<T> _MemberConverter;
 
         public Listing(params IEvaluateable[] contents) : this(null, contents) { }
@@ -217,7 +218,7 @@ namespace Dependency.Variables
                 if (handlers.Length > 0)
                 {
                     Int32IntervalSet iis = changedIndices.IsUniversal ?
-                                           Int32IntervalSet.Infinite() :
+                                           Int32IntervalSet.Infinite :
                                            new Int32IntervalSet(changedIndices.OfType<Number>().Select(n => (int)n).ToArray());
                     ListingChangedEventArgs e = new ListingChangedEventArgs(iis);
                     Events.InvokeAsynchronous(this, ListingChanged, e);

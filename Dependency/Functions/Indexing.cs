@@ -28,8 +28,7 @@ namespace Dependency.Functions
         /// </summary>
         internal readonly IEvaluateable Ordinal;
 
-        /// <summary>The indexed value.  For example, the <see cref="Head"/> in "Points[A1]" would 
-        /// be the point found at the A1 spot within Points.</summary>
+        /// <summary>The indexed value.</summary>
         internal IEvaluateable Subject { get; private set; }
 
         public ISyncUpdater Parent { get; set; }

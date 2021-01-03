@@ -153,12 +153,14 @@ namespace Dependency.Variables
             get => _Cache;
             set { this.Contents = _Converter.ConvertUp(value); }
         }
-        public static implicit operator T(Variable<T> v) => v._Converter.ConvertDown(v.Value);
+        public T Get() => Native;   // For compatibility
+        public void Set(T value) => Native = value;
+        public static implicit operator T(Variable<T> v) { v._Converter.TryConvertDown(v.Value, out T result); return result; }
 
         protected override void OnValueChanged()
         {
-            T oldCache = _Cache;            
-            _Cache =  _Converter.ConvertDown(this.Value);
+            T oldCache = _Cache;
+            _Converter.TryConvertDown(this.Value, out _Cache);
             if (oldCache ==  null) { if (_Cache == null) return; }                
             else if (oldCache.Equals(_Cache)) return;
             base.OnValueChanged(); // Fires Updated event
