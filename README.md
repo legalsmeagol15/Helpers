@@ -68,6 +68,23 @@ _Hey presto!_  That is all you need to have a `SimpleOptions` parsed from the gi
 
 Meh.  Stick with Python for now.  I haven't gotten around to implementing these ones, mostly.
 
+## Configuration
+
+I've found Microsoft's System.Configuration implementation is too heavy for the most common uses, and requires too 
+much hairy code to be written.  Instead, I wanted an implementation that simply plucks out properties marked by a 
+certain attribute, and writes them to a xml-based configuration file.  Then, it's a simple call to
+
+```
+	Configuration.Save(filename, obj);
+```
+
+and later,
+
+```
+	Configuration.Load(filename);
+	Configuration.ApplyTo(obj);
+```
+
 ## DataStructures
 
 I often encounter the need for a particular data structure that does _X_, and just as often, I realize that data 

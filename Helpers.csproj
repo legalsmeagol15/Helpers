@@ -55,6 +55,8 @@
     <Compile Include="ArtificialIntelligence\ConstraintResolver.cs" />
     <Compile Include="ArtificialIntelligence\Search.cs" />
     <Compile Include="ArtificialIntelligence\TheoremResolver.cs" />
+    <Compile Include="Configuration\Configuration.cs" />
+    <Compile Include="Configuration\ConfigurationAttribute.cs" />
     <Compile Include="DataStructures\Interfaces\IEdge.cs" />
     <Compile Include="DataStructures\Interfaces\IPriorityQueue.cs" />
     <Compile Include="DataStructures\Interfaces\IVertex.cs" />
