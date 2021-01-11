@@ -17,22 +17,46 @@ namespace Helpers
         private readonly Type _Type;
         private Configuration(Type type, SaveNode node) { this._Type = type; this._Node = node; }
 
-        public void Save(object obj, string filename = DEFAULT_FILENAME, Version saveAs = default)
+        public static void Save(object obj, string filename = DEFAULT_FILENAME, Version saveAs = default)
         {
             if (saveAs == default) saveAs = Assembly.GetExecutingAssembly().GetName().Version;            
+            HashSet<object> visited = new HashSet<object>();
             SaveNode n = _Profile(obj, null);
 
-            XmlWriter writer = XmlWriter.Create(filename);
+            XmlWriterSettings settings = new XmlWriterSettings();
+            settings.Indent = true;
+            settings.NewLineOnAttributes = true;
+            
+            XmlWriter writer = XmlWriter.Create(filename, settings);
             writer.WriteStartDocument();
             writer.WriteStartElement("versions");
             writer.WriteAttributeString("current", Assembly.GetExecutingAssembly().GetName().Version.ToString());
             writer.WriteAttributeString("used", saveAs.ToString());
             writer.WriteEndElement();
+
+            _WriteProfile("config", n);
+
             writer.WriteEndDocument();
             writer.Close();
 
+
+            void _WriteProfile(string name, SaveNode saveNode)
+            {
+                if (saveNode.Members.Any()){
+                    writer.WriteStartElement(name);
+                    foreach (var kvp in saveNode.Members) _WriteProfile(kvp.Key, kvp.Value);
+                    writer.WriteEndElement();
+                }
+                else {
+                    writer.WriteAttributeString(name, saveNode.Data.ToString());
+                }
+
+            }
+
             SaveNode _Profile(object this_obj, ConfigurationAttribute attrib)
             {
+                if (this_obj.GetType().IsClass && !visited.Contains(this_obj))
+                    throw new ConfigurationException("Circularity in configuration detected.");
                 SaveNode sn = new SaveNode(this_obj, attrib);
                 Type t = sn.GetType();
 
@@ -99,31 +123,6 @@ namespace Helpers
             internal readonly Dictionary<string, SaveNode> Members = new Dictionary<string, SaveNode>();
 
             internal SaveNode (object data, ConfigurationAttribute attrib) { this.Data = data; this.Attribute = attrib; }
-        }
-
-        public void Save(object obj, Version saveAs = default)
-        {
-            if (saveAs == default) 
-                saveAs = Assembly.GetExecutingAssembly().GetName().Version;
-            if (obj.GetType() != _Type)
-                throw new ConfigurationException("This {0} profile applies only to type {1}.", nameof(Configuration), _Type.Name);
-            _Recurse(null, _Node, obj);
-
-            void _Recurse(object parent, SaveNode node, object node_obj)
-            {
-                // TODO:  the node_obj to the output
-
-                if (node.Properties != null)
-                {
-                    foreach (var kvp in node.Properties)
-                    {
-                        string key = kvp.Key;
-                        var sub_node = kvp.Value.FirstOrDefault(n => n.Version.Contains(saveAs));
-                        if (sub_node == null) continue;
-                    }
-                    
-                }
-            }
         }
 
 
