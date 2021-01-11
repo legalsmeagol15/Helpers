@@ -21,7 +21,21 @@ namespace UnitTests
         [TestMethod]
         public void Test_Load()
         {
-            Configuration.Load();
+            
+        }
+
+        [TestMethod]
+        public void Test_Save()
+        {
+            TestClass tc = new TestClass() { Height = 10, Width = 20 };
+            var config = Configuration.Profile(tc);
+        }
+
+        private class TestClass
+        {
+            [Configuration(versionControls:">=0.0.0.0")]
+            public int Height { get; set; }
+            public int Width { get; set; }
         }
     }
 }

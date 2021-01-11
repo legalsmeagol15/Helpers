@@ -1,112 +1,138 @@
-﻿using System;
+﻿using DataStructures;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Helpers
 {
-    public class Configuration<T>
+    public sealed class Configuration
     {
         private const BindingFlags BINDING_FILTER = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-        public readonly string Key;
-        private readonly List<Profile<PropertyInfo>> Properties = new List<Profile<PropertyInfo>>();
-        private readonly List<Profile<FieldInfo>> Fields = new List<Profile<FieldInfo>>();
+        private const string DEFAULT_FILENAME = "test.config";
+        private readonly SaveNode _Node;
+        private readonly Type _Type;
+        private Configuration(Type type, SaveNode node) { this._Type = type; this._Node = node; }
 
-        private Configuration(string key = "")
+        public void Save(object obj, string filename = DEFAULT_FILENAME, Version saveAs = default)
         {
-            this.Key = key;
-            HashSet<string> members = new HashSet<string>();
+            if (saveAs == default) saveAs = Assembly.GetExecutingAssembly().GetName().Version;            
+            SaveNode n = _Profile(obj, null);
 
-            // Get all the properties declared in the hierarchy.
-            if (typeof(T).IsClass || typeof(T).IsValueType)
+            XmlWriter writer = XmlWriter.Create(filename);
+            writer.WriteStartDocument();
+            writer.WriteStartElement("versions");
+            writer.WriteAttributeString("current", Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            writer.WriteAttributeString("used", saveAs.ToString());
+            writer.WriteEndElement();
+            writer.WriteEndDocument();
+            writer.Close();
+
+            SaveNode _Profile(object this_obj, ConfigurationAttribute attrib)
             {
-                var declaredConfigs = typeof(T).GetCustomAttributes(typeof(ConfigurationDeclaredAttribute), true);
-                
-                foreach (ConfigurationDeclaredAttribute dc in declaredConfigs.OfType<ConfigurationDeclaredAttribute>())
+                SaveNode sn = new SaveNode(this_obj, attrib);
+                Type t = sn.GetType();
+
+                // Step #1 - what are the object's configuration declared properties associated with the class.
+                foreach (var dca in t.GetCustomAttributes<ConfigurationDeclaredAttribute>()
+                                     .Where(_dca => _dca.Versions.Contains(saveAs)))
                 {
-                    if (!key.Equals(dc.Key))
-                        continue;
-                    else if (!members.Add(dc.MemberName))
-                        throw new InvalidOperationException("Duplicate " + nameof(Configuration<T>) + " handling under this key for member " + dc.MemberName);
-
-                    else if (typeof(T).GetProperty(dc.MemberName, BINDING_FILTER) is PropertyInfo pinfo
-                            && Profile<PropertyInfo>.Create(pinfo, key, members) is Profile<PropertyInfo> p)
-                        Properties.Add(p);
-
-
-                    else if (typeof(T).GetField(dc.MemberName, BINDING_FILTER) is FieldInfo finfo
-                            && Profile<FieldInfo>.Create(finfo, key, members) is Profile<FieldInfo> f)
-                        Fields.Add(f);
-
+                    if (sn.Members.ContainsKey(dca.Key))
+                        throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", dca.Key, saveAs.ToString());
+                    if (t.GetProperty(dca.MemberName, BINDING_FILTER) is PropertyInfo pinfo)
+                        sn.Members[dca.Key] = _Profile(pinfo.GetValue(this_obj), dca);
+                    else if (t.GetField(dca.MemberName, BINDING_FILTER) is FieldInfo finfo)
+                        sn.Members[dca.Key] = _Profile(finfo.GetValue(this_obj), dca);
                     else
-                        throw new InvalidOperationException("No matching property or field named " + dc.MemberName + " on type " + typeof(T).Name);
+                        throw new ConfigurationException("Undeclared configuration member '{0}' in {1}.", dca.MemberName, nameof(ConfigurationDeclaredAttribute));
                 }
-            }
 
-            // Get all the properties and fields that are directly marked configurable.
-            foreach (PropertyInfo pinfo in typeof(T).GetProperties(BINDING_FILTER))
-                if (Profile<PropertyInfo>.Create(pinfo, key, members) is Profile<PropertyInfo> p)
-                    Properties.Add(p);
-            foreach (FieldInfo finfo in typeof(T).GetFields(BINDING_FILTER))
-                if (Profile<FieldInfo>.Create(finfo, key, members) is Profile<FieldInfo> f)
-                    Fields.Add(f);
-        }
-
-        private class Profile<U> where U:MemberInfo
-        {
-            public readonly string MemberName;
-            public readonly U MemberInfo;
-            public readonly ConfigurationAttribute ConfigAttribute;
-
-            public static Profile<U> Create(U minfo, string key, ISet<string> existingNames)
-            {
-                if (minfo is PropertyInfo pinfo)
+                // Step #2 - check for ConfigurationAttributes associated with the properties.
+                foreach (PropertyInfo pinfo in t.GetProperties(BINDING_FILTER))
                 {
-                    if (!(pinfo.CanWrite && pinfo.CanRead))
-                        throw new InvalidOperationException("PropertInfo profiles must be readable and writeable.");
+                    foreach (var ca in pinfo.GetCustomAttributes<ConfigurationAttribute>()
+                                            .Where(_ca => _ca.Versions.Contains(saveAs)))
+                    {
+                        if (sn.Members.ContainsKey(ca.Key))
+                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", ca.Key, saveAs.ToString());
+                        sn.Members[ca.Key] = _Profile(pinfo.GetValue(this_obj), ca);
+                    }
                 }
 
-                if (minfo is FieldInfo finfo)
+                // Step #3 - check for ConfigurationAttributes associated with the fields.
+                foreach (FieldInfo finfo in t.GetFields(BINDING_FILTER))
                 {
-                    if (finfo.IsInitOnly)
-                        throw new InvalidOperationException("FieldInfo profiles must not be readonly.");
+                    foreach (var ca in finfo.GetCustomAttributes<ConfigurationAttribute>()
+                                            .Where(_ca => _ca.Versions.Contains(saveAs)))
+                    {
+                        if (sn.Members.ContainsKey(ca.Key))
+                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", ca.Key, saveAs.ToString());
+                        sn.Members[ca.Key] = _Profile(finfo.GetValue(this_obj), ca);
+                    }
                 }
-                else
-                    throw new InvalidOperationException("Invalid profile type: " + minfo.GetType().Name);
 
-                var configs = minfo.GetCustomAttributes<ConfigurationAttribute>(true).Where(ca => key.Equals(ca.Key));
-                if (!configs.Any())
-                    return null;
-                if (configs.Count() > 1)
-                    throw new InvalidOperationException("Multiple configurations for member '" + minfo.Name + "' under key '" + key + "'.");
-                var config = configs.First();
-
-                string name = (string.IsNullOrWhiteSpace(config.Name)) ? minfo.Name : config.Name;
-                if (!existingNames.Add(name))
-                    throw new InvalidOperationException("Duplicate configuration profile name '" + name + "' under key '" + key + "'.");
-
-                return new Profile<U>(name, minfo, config);
+                // Done
+                return sn;
             }
-            private Profile(string memberName, U minfo, ConfigurationAttribute configAttrib)
+            void _Write(SaveNode node)
             {
-                this.MemberName = memberName;
-                this.MemberInfo = minfo;
-                this.ConfigAttribute = configAttrib;
+                if (node.Members.Any())
+                {
+                    foreach (var kvp in node.Members)
+                    {
+                        writer.WriteStartElement(kvp.Key);
+                        _Write(kvp.Value);
+                        writer.WriteEndElement(kvp.Key);
+                    }
+                }
+            }
+        }
+
+        private sealed class SaveNode
+        {
+            internal readonly ConfigurationAttribute Attribute;
+            internal readonly object Data;
+
+            internal readonly Dictionary<string, SaveNode> Members = new Dictionary<string, SaveNode>();
+
+            internal SaveNode (object data, ConfigurationAttribute attrib) { this.Data = data; this.Attribute = attrib; }
+        }
+
+        public void Save(object obj, Version saveAs = default)
+        {
+            if (saveAs == default) 
+                saveAs = Assembly.GetExecutingAssembly().GetName().Version;
+            if (obj.GetType() != _Type)
+                throw new ConfigurationException("This {0} profile applies only to type {1}.", nameof(Configuration), _Type.Name);
+            _Recurse(null, _Node, obj);
+
+            void _Recurse(object parent, SaveNode node, object node_obj)
+            {
+                // TODO:  the node_obj to the output
+
+                if (node.Properties != null)
+                {
+                    foreach (var kvp in node.Properties)
+                    {
+                        string key = kvp.Key;
+                        var sub_node = kvp.Value.FirstOrDefault(n => n.Version.Contains(saveAs));
+                        if (sub_node == null) continue;
+                    }
+                    
+                }
             }
         }
 
 
-        public void Save(T obj, string filename = null)
-        {
-            throw new NotImplementedException();
-        }
 
-        public void Load(T target, string filename = null)
-        {
-            throw new NotImplementedException();
-        }
+        
+    }
 
+    public class ConfigurationException : Exception
+    {
+        public ConfigurationException(params string[] message) : base(string.Format(message[0], message.Skip(1))) { }
     }
 }

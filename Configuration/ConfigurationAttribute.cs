@@ -25,8 +25,8 @@ namespace Helpers
         public readonly Flags Flags;
         public readonly VersionInvervalSet Versions;
         public readonly dynamic DefaultValue;
+        public readonly Type LoaderType;
 
-        public bool IsSubsection => (this.Flags & Flags.IsSubsection) != Flags.None;
         public bool Includes(Version version) => Versions.Contains(version);
 
         public ConfigurationAttribute(string name = null, object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
@@ -38,7 +38,7 @@ namespace Helpers
             if (string.IsNullOrWhiteSpace(versionControls))
                 this.Versions = new VersionInvervalSet(Assembly.GetExecutingAssembly().GetName().Version.ToString());
             else
-                this.Versions = new VersionInvervalSet(versionControls.Split(','));            
+                this.Versions = new VersionInvervalSet(versionControls.Split(','));
         }
     }
 
@@ -50,8 +50,6 @@ namespace Helpers
         public ConfigurationDeclaredAttribute(string name, string memberName = null, object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
             : base (name, defaultValue, flags, versionControls, key)
         {
-            if (this.IsSubsection)
-                throw new ArgumentException(nameof(ConfigurationDeclaredAttribute) + " cannot specify a subsection.", nameof(flags));
             this.MemberName = memberName;
         }
     }

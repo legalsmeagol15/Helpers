@@ -874,7 +874,15 @@ namespace DataStructures
 
     public sealed class VersionInvervalSet : IntervalSet<Version>
     {
-        public VersionInvervalSet() : base(Inflection.Start(new Version(0, 0, 0, 0), true)) { }
+        private VersionInvervalSet() { }
+
+        private VersionInvervalSet(params Inflection[] inflections) : base(inflections) { }
+
+        public static VersionInvervalSet operator &(VersionInvervalSet a, IntervalSet<Version> b) => new VersionInvervalSet(a.And(a.Inflections, b.Inflections));
+        public static VersionInvervalSet operator |(VersionInvervalSet a, IntervalSet<Version> b) => new VersionInvervalSet(a.Or(a.Inflections, b.Inflections));
+
+        public static VersionInvervalSet Empty() => new VersionInvervalSet();
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
