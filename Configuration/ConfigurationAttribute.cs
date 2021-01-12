@@ -21,7 +21,6 @@ namespace Helpers
     public class ConfigurationAttribute : System.Attribute
     {
         public readonly string Key;
-        public readonly string Name;
         public readonly Flags Flags;
         public readonly VersionInvervalSet Versions;
         public readonly dynamic DefaultValue;
@@ -29,10 +28,9 @@ namespace Helpers
 
         public bool Includes(Version version) => Versions.Contains(version);
 
-        public ConfigurationAttribute(string name = null, object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
+        public ConfigurationAttribute(object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
         {
             this.Key = key;
-            this.Name = name;
             this.DefaultValue = defaultValue;
             this.Flags = flags;
             if (string.IsNullOrWhiteSpace(versionControls))
@@ -47,8 +45,8 @@ namespace Helpers
     {
         public readonly string MemberName;
 
-        public ConfigurationDeclaredAttribute(string name, string memberName = null, object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
-            : base (name, defaultValue, flags, versionControls, key)
+        public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
+            : base (defaultValue, flags, versionControls, key)
         {
             this.MemberName = memberName;
         }

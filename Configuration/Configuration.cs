@@ -17,48 +17,58 @@ namespace Helpers
         private readonly Type _Type;
         private Configuration(Type type, SaveNode node) { this._Type = type; this._Node = node; }
 
-        public static void Save(object obj, string filename = DEFAULT_FILENAME, Version saveAs = default)
+        public static void Save(object obj, Version saveAs = default, string filename = DEFAULT_FILENAME)
         {
-            if (saveAs == default) saveAs = Assembly.GetExecutingAssembly().GetName().Version;            
+            if (saveAs == default) saveAs = Assembly.GetExecutingAssembly().GetName().Version;
             HashSet<object> visited = new HashSet<object>();
             SaveNode n = _Profile(obj, null);
 
-            XmlWriterSettings settings = new XmlWriterSettings();
-            settings.Indent = true;
-            settings.NewLineOnAttributes = true;
-            
+            XmlWriterSettings settings = new XmlWriterSettings
+            {
+                Indent = true,
+                NewLineOnAttributes = true
+            };
+
             XmlWriter writer = XmlWriter.Create(filename, settings);
             writer.WriteStartDocument();
+            writer.WriteStartElement("configuration");
             writer.WriteStartElement("versions");
             writer.WriteAttributeString("current", Assembly.GetExecutingAssembly().GetName().Version.ToString());
             writer.WriteAttributeString("used", saveAs.ToString());
             writer.WriteEndElement();
 
-            _WriteProfile("config", n);
+            writer.WriteStartElement("config");
+            _Write("properties", n);
+            writer.WriteEndElement();
 
+            writer.WriteEndElement();
             writer.WriteEndDocument();
+            writer.Flush();
             writer.Close();
 
 
-            void _WriteProfile(string name, SaveNode saveNode)
+            void _Write(string name, SaveNode node)
             {
-                if (saveNode.Members.Any()){
-                    writer.WriteStartElement(name);
-                    foreach (var kvp in saveNode.Members) _WriteProfile(kvp.Key, kvp.Value);
-                    writer.WriteEndElement();
-                }
-                else {
-                    writer.WriteAttributeString(name, saveNode.Data.ToString());
-                }
 
+                if (node.Members.Any())
+                {
+                    foreach (var kvp in node.Members)
+                    {
+                        writer.WriteStartElement(kvp.Key);
+                        _Write(kvp.Key, kvp.Value);
+                        writer.WriteEndElement();
+                    }
+                }
+                else
+                    writer.WriteAttributeString(name, node.Data.ToString());
             }
 
             SaveNode _Profile(object this_obj, ConfigurationAttribute attrib)
             {
-                if (this_obj.GetType().IsClass && !visited.Contains(this_obj))
+                if (this_obj.GetType().IsClass && !visited.Add(this_obj))
                     throw new ConfigurationException("Circularity in configuration detected.");
                 SaveNode sn = new SaveNode(this_obj, attrib);
-                Type t = sn.GetType();
+                Type t = this_obj.GetType();
 
                 // Step #1 - what are the object's configuration declared properties associated with the class.
                 foreach (var dca in t.GetCustomAttributes<ConfigurationDeclaredAttribute>()
@@ -80,9 +90,10 @@ namespace Helpers
                     foreach (var ca in pinfo.GetCustomAttributes<ConfigurationAttribute>()
                                             .Where(_ca => _ca.Versions.Contains(saveAs)))
                     {
-                        if (sn.Members.ContainsKey(ca.Key))
-                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", ca.Key, saveAs.ToString());
-                        sn.Members[ca.Key] = _Profile(pinfo.GetValue(this_obj), ca);
+                        string name = string.IsNullOrWhiteSpace(ca.Key) ? pinfo.Name : ca.Key;
+                        if (sn.Members.ContainsKey(name))
+                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", name, saveAs.ToString());
+                        sn.Members[name] = _Profile(pinfo.GetValue(this_obj), ca);
                     }
                 }
 
@@ -92,27 +103,17 @@ namespace Helpers
                     foreach (var ca in finfo.GetCustomAttributes<ConfigurationAttribute>()
                                             .Where(_ca => _ca.Versions.Contains(saveAs)))
                     {
-                        if (sn.Members.ContainsKey(ca.Key))
-                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", ca.Key, saveAs.ToString());
-                        sn.Members[ca.Key] = _Profile(finfo.GetValue(this_obj), ca);
+                        string name = string.IsNullOrWhiteSpace(ca.Key) ? finfo.Name : ca.Key;
+                        if (sn.Members.ContainsKey(name))
+                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", name, saveAs.ToString());
+                        sn.Members[name] = _Profile(finfo.GetValue(this_obj), ca);
                     }
                 }
 
                 // Done
                 return sn;
             }
-            void _Write(SaveNode node)
-            {
-                if (node.Members.Any())
-                {
-                    foreach (var kvp in node.Members)
-                    {
-                        writer.WriteStartElement(kvp.Key);
-                        _Write(kvp.Value);
-                        writer.WriteEndElement(kvp.Key);
-                    }
-                }
-            }
+
         }
 
         private sealed class SaveNode
@@ -122,12 +123,12 @@ namespace Helpers
 
             internal readonly Dictionary<string, SaveNode> Members = new Dictionary<string, SaveNode>();
 
-            internal SaveNode (object data, ConfigurationAttribute attrib) { this.Data = data; this.Attribute = attrib; }
+            internal SaveNode(object data, ConfigurationAttribute attrib) { this.Data = data; this.Attribute = attrib; }
         }
 
 
 
-        
+
     }
 
     public class ConfigurationException : Exception
