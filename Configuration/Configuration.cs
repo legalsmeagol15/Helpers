@@ -37,9 +37,7 @@ namespace Helpers
             writer.WriteAttributeString("used", saveAs.ToString());
             writer.WriteEndElement();
 
-            writer.WriteStartElement("config");
-            _Write("properties", n);
-            writer.WriteEndElement();
+            _Write("config", n);
 
             writer.WriteEndElement();
             writer.WriteEndDocument();
@@ -49,18 +47,20 @@ namespace Helpers
 
             void _Write(string name, SaveNode node)
             {
-
                 if (node.Members.Any())
                 {
+                    writer.WriteStartElement(name);
                     foreach (var kvp in node.Members)
                     {
-                        writer.WriteStartElement(kvp.Key);
-                        _Write(kvp.Key, kvp.Value);
-                        writer.WriteEndElement();
+                        
+                        if (!kvp.Value.Members.Any())
+                            writer.WriteAttributeString(kvp.Key, kvp.Value.Data.ToString());
+                        else
+                            _Write(kvp.Key, kvp.Value);
+                        
                     }
+                    writer.WriteEndElement();
                 }
-                else
-                    writer.WriteAttributeString(name, node.Data.ToString());
             }
 
             SaveNode _Profile(object this_obj, ConfigurationAttribute attrib)

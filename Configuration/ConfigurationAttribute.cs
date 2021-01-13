@@ -46,9 +46,9 @@ namespace Helpers
         public readonly string MemberName;
 
         public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
-            : base (defaultValue, flags, versionControls, key)
+            : base (defaultValue, flags, versionControls, string.IsNullOrWhiteSpace(key) ? memberName : key)
         {
-            this.MemberName = memberName;
+            this.MemberName = memberName;            
         }
     }
 

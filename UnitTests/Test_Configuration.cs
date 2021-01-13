@@ -27,15 +27,31 @@ namespace UnitTests
         [TestMethod]
         public void Test_Save()
         {
-            TestClass tc = new TestClass() { Height = 10, Width = 20 };
+            TestClass1 tc = new TestClass1() { Height = 10, Width = 20 };
             Configuration.Save(tc, new Version(1,0,0,0));
         }
 
-        private class TestClass
+
+        [ConfigurationDeclared("Width")]
+        private class TestClass1
         {
-            [Configuration(versionControls:">=0.0.0.0")]
-            public int Height { get; set; }
-            public int Width { get; set; }
+            [Configuration()]
+            public int Height { get; set; } = 10;
+            public int Width { get; set; } = 20;
+
+            [Configuration(key:"subsection")]
+            public TestClass2 Included = new TestClass2();
+
+
+            public TestClass2 NotIncluded = null;
+        }
+
+        [ConfigurationDeclared("Y", key:"override_y")]
+        private class TestClass2
+        {
+            [Configuration]
+            public int X = 1;
+            public int Y = 2;
         }
     }
 }
