@@ -1,10 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 using DataStructures;
 using System.Reflection;
 
@@ -17,6 +11,10 @@ namespace Helpers
         IsSubsection = 1 << 2
     }
 
+    /// <summary>
+    /// Use this attribute to mark the properties and fields of a class that should be included in 
+    /// configuration.
+    /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true, Inherited = true)]
     public class ConfigurationAttribute : System.Attribute
     {
@@ -24,11 +22,13 @@ namespace Helpers
         public readonly Flags Flags;
         public readonly VersionInvervalSet Versions;
         public readonly dynamic DefaultValue;
-        public readonly Type LoaderType;
+        public readonly Type TypeConverter;
 
         public bool Includes(Version version) => Versions.Contains(version);
 
-        public ConfigurationAttribute(object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
+        public ConfigurationAttribute(object defaultValue = null, Flags flags = Flags.None, 
+                                      string versionControls = ">=0.0.0.0", string key = "", 
+                                      Type typeConverter = null)
         {
             this.Key = key;
             this.DefaultValue = defaultValue;
@@ -37,16 +37,26 @@ namespace Helpers
                 this.Versions = new VersionInvervalSet(Assembly.GetExecutingAssembly().GetName().Version.ToString());
             else
                 this.Versions = new VersionInvervalSet(versionControls.Split(','));
+            if (typeConverter != null && !(typeof(System.ComponentModel.TypeConverter)).IsAssignableFrom(typeConverter))
+                throw new ArgumentException(nameof(typeConverter) + " must inherit from " + typeof(System.ComponentModel.TypeConverter).FullName + ".", nameof(typeConverter));
+            this.TypeConverter = typeConverter;
         }
     }
 
+    /// <summary>
+    /// Use this attribute to mark the properties declared in parent classes or partial classes 
+    /// that should be included in configuration.
+    /// </summary>
     [AttributeUsage(validOn: AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true, Inherited = true)]
     public sealed class ConfigurationDeclaredAttribute : ConfigurationAttribute
     {
         public readonly string MemberName;
 
-        public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null, Flags flags = Flags.None, string versionControls = ">=0.0.0.0", string key = "")
-            : base (defaultValue, flags, versionControls, string.IsNullOrWhiteSpace(key) ? memberName : key)
+        public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null,
+                                              Flags flags = Flags.None, string versionControls = ">=0.0.0.0", 
+                                              string key = "", Type typeConverter = null)
+            : base (defaultValue, flags, versionControls, string.IsNullOrWhiteSpace(key) ? memberName : key, 
+                    typeConverter)
         {
             this.MemberName = memberName;            
         }

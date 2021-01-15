@@ -18,22 +18,30 @@ namespace UnitTests
             Assert.IsFalse(attrib.Versions.Contains(new Version(1, 0, 0, 0)));
         }
 
-        [TestMethod]
-        public void Test_Load()
-        {
-            
-        }
+       
 
         [TestMethod]
         public void Test_Save()
         {
-            TestClass1 tc = new TestClass1() { Height = 10, Width = 20 };
-            Configuration.Save(tc, new Version(1,0,0,0));
+            TestClass1 testSave = new TestClass1() { Height = 10, Width = 20 };
+            Configuration.Save(testSave, new Version(1,0,0,0));
+            TestClass1 testLoad = new TestClass1() { Name = "changeme", Description = "changemetoo", Height = -10, Width = -20 };
+            Configuration.Load(testLoad);
         }
 
+        private abstract class TestParentClass
+        {
+            public string Description { get; set; } = "TestParentClass description";
+        }
+        private partial class TestClass1
+        {
+            public string Name { get; set; } = "Sibling class name";
+        }
 
         [ConfigurationDeclared("Width")]
-        private class TestClass1
+        [ConfigurationDeclared("Name")]
+        [ConfigurationDeclared("Description")]
+        private partial class TestClass1 : TestParentClass
         {
             [Configuration()]
             public int Height { get; set; } = 10;
