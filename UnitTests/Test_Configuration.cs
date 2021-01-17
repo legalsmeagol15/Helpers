@@ -11,7 +11,7 @@ namespace UnitTests
         public void InitializeConfigurationAttribute()
         {
             // The attrib Versions property uses the VersionIntervalSet, which is a new thing.
-            ConfigurationAttribute attrib = new ConfigurationAttribute(default, Flags.None, ">=1.2.3.4");
+            ConfigurationAttribute attrib = new ConfigurationAttribute(default, true, ">=1.2.3.4");
             Assert.IsTrue(attrib.Versions.Contains(new Version(1, 2, 3, 4)));
             Assert.IsTrue(attrib.Versions.Contains(new Version(2, 0, 0, 0)));
             Assert.IsFalse(attrib.Versions.Contains(new Version(1, 2, 3, 3)));
@@ -21,7 +21,7 @@ namespace UnitTests
        
 
         [TestMethod]
-        public void Test_Save()
+        public void Test_RoundTrip()
         {
             TestClass1 testSave = new TestClass1() { Height = 10, Width = 20 };
             Configuration.Save(testSave, new Version(1,0,0,0));

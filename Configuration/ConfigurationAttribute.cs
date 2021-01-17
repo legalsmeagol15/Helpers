@@ -4,13 +4,7 @@ using System.Reflection;
 
 namespace Helpers
 {
-    public enum Flags
-    {
-        None = 0,
-        IsRequired = 1 << 1,
-        IsSubsection = 1 << 2
-    }
-
+    
     /// <summary>
     /// Use this attribute to mark the properties and fields of a class that should be included in 
     /// configuration.
@@ -19,20 +13,24 @@ namespace Helpers
     public class ConfigurationAttribute : System.Attribute
     {
         public readonly string Key;
-        public readonly Flags Flags;
+        public bool IsRequired;
         public readonly VersionInvervalSet Versions;
         public readonly dynamic DefaultValue;
         public readonly Type TypeConverter;
+        public readonly string[] ConversionXPaths;
+        public readonly bool ApplyToSubsections;
 
         public bool Includes(Version version) => Versions.Contains(version);
 
-        public ConfigurationAttribute(object defaultValue = null, Flags flags = Flags.None, 
+        public ConfigurationAttribute(object defaultValue = null,bool isRequired = true,
                                       string versionControls = ">=0.0.0.0", string key = "", 
-                                      Type typeConverter = null)
+                                      bool apply_to_subsections = true,
+                                      Type typeConverter = null, params string[] conversionXPaths)
         {
             this.Key = key;
             this.DefaultValue = defaultValue;
-            this.Flags = flags;
+            this.IsRequired = isRequired;
+            this.ApplyToSubsections = apply_to_subsections;
             if (string.IsNullOrWhiteSpace(versionControls))
                 this.Versions = new VersionInvervalSet(Assembly.GetExecutingAssembly().GetName().Version.ToString());
             else
@@ -40,6 +38,14 @@ namespace Helpers
             if (typeConverter != null && !(typeof(System.ComponentModel.TypeConverter)).IsAssignableFrom(typeConverter))
                 throw new ArgumentException(nameof(typeConverter) + " must inherit from " + typeof(System.ComponentModel.TypeConverter).FullName + ".", nameof(typeConverter));
             this.TypeConverter = typeConverter;
+            if (conversionXPaths != null && conversionXPaths.Length > 0)
+            {
+                if (!typeof(ConfigurationConverter).IsAssignableFrom(this.TypeConverter))
+                    throw new ArgumentException("Only " + nameof(ConfigurationConverter) + " types may designate " + nameof(conversionXPaths));
+                this.ConversionXPaths = conversionXPaths;
+            }
+            else
+                this.ConversionXPaths = null;
         }
     }
 
@@ -52,11 +58,14 @@ namespace Helpers
     {
         public readonly string MemberName;
 
-        public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null,
-                                              Flags flags = Flags.None, string versionControls = ">=0.0.0.0", 
-                                              string key = "", Type typeConverter = null)
-            : base (defaultValue, flags, versionControls, string.IsNullOrWhiteSpace(key) ? memberName : key, 
-                    typeConverter)
+        public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null, 
+                                              bool isRequired = true, 
+                                              string versionControls = ">=0.0.0.0", 
+                                              string key = "", bool applyToSubsections=true,
+                                              Type typeConverter = null, 
+                                              params string[] conversionXPaths)
+            : base (defaultValue, isRequired, versionControls, string.IsNullOrWhiteSpace(key) ? memberName : key, 
+                    applyToSubsections, typeConverter, conversionXPaths)
         {
             this.MemberName = memberName;            
         }
