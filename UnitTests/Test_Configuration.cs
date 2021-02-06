@@ -11,13 +11,24 @@ namespace UnitTests
         public void InitializeConfigurationAttribute()
         {
             // The attrib Versions property uses the VersionIntervalSet, which is a new thing.
-            ConfigurationAttribute attrib = new ConfigurationAttribute(default, true, ">=1.2.3.4");
+            ConfigurationAttribute attrib = new ConfigurationAttribute(default, ">=1.2.3.4");
             Assert.IsTrue(attrib.Versions.Contains(new Version(1, 2, 3, 4)));
             Assert.IsTrue(attrib.Versions.Contains(new Version(2, 0, 0, 0)));
             Assert.IsFalse(attrib.Versions.Contains(new Version(1, 2, 3, 3)));
             Assert.IsFalse(attrib.Versions.Contains(new Version(1, 0, 0, 0)));
         }
 
+        [TestMethod]
+        public void Test_Converters()
+        {
+            throw new NotImplementedException();
+        }
+
+        [TestMethod]
+        public void Test_Default()
+        {
+            throw new NotImplementedException();
+        }
        
 
         [TestMethod]
@@ -53,6 +64,7 @@ namespace UnitTests
             Assert.AreEqual(testLoad.NotIncluded.Y, -200);
         }
 
+        #region The following shows how a class can be marked up for configuration.
         private abstract class TestParentClass
         {
             public string Description { get; set; } = "TestParentClass description";
@@ -86,5 +98,7 @@ namespace UnitTests
             public int X = 1;
             public int Y = 2;
         }
+
+        #endregion
     }
 }

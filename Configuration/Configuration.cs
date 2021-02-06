@@ -140,6 +140,7 @@ namespace Helpers
             public object GetValue(object host) => _Value
                                                  ?? ((ReflectionInfo is PropertyInfo pinfo) ? (_Value = pinfo.GetValue(host))
                                                  : (ReflectionInfo is FieldInfo finfo) ? (_Value = finfo.GetValue(host))
+                                                 : (CodeAttribute.DefaultGiven) ? CodeAttribute.DefaultValue
                                                  : null);
 
             public Type Type => ReflectionInfo is PropertyInfo pinfo ? pinfo.PropertyType
@@ -212,30 +213,47 @@ namespace Helpers
                     if (member.CodeAttribute is ConfigurationDeclaredAttribute decAttr)
                         name = (decAttr.Key ?? name);
 
+                    // If the ConfigNode coincides with an XML attribute, read that attribute and continue on.
                     XmlAttribute xmlAttrib = xmlNode.Attributes[name];
                     if (xmlAttrib != null)
                     {
-                        member._Value = _Convert(xmlAttrib.Value, member);
-                        //member.ApplyTo(host);
+                        if (!_TryConvert(xmlAttrib.Value, member, out object result))
+                            throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": cannot convert attribute \"" + xmlAttrib.Value + "\" to type of " + member.Name);
+                        member._Value = result;
                         continue;
                     }
 
+                    // If the ConfigNode has no coincidental node or attribute, look for a default.
                     XmlNode xmlChildNode = xmlNode.SelectSingleNode(name);
                     if (xmlChildNode == null)
-                        throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": missing configuration for " + member.Name);
+                    {
+                        if (!member.CodeAttribute.DefaultGiven)
+                            throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": missing configuration for " + member.Name);
+                        member._Value = member.CodeAttribute.DefaultValue;
+                        continue;
+                    }   
 
+                    // If the ConfigNode has a node to examine, check if it can be imported 
+                    // recursively.  If it turns out to be a leaf ConfigNode, try to convert & 
+                    // import the value.  Failing that, look for a default.
                     if (member.Private_Import(xmlChildNode, member.GetValue(host), sourceVersion, doc))
                     {
-                        member._Value = _Convert(xmlChildNode?.Value, member);
-                        //member.ApplyTo(host);
+                        if (!_TryConvert(xmlChildNode?.Value, member, out object result))
+                            throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": cannot convert \"" + xmlChildNode?.Value + "\" to type of " + member.Name);
+                        member._Value = result;
                     }
                 }
                 return false;
 
-                object _Convert(string _value, ConfigNode _node)
+                bool _TryConvert(string _value, ConfigNode _node, out object result)
                 {
                     TypeConverter converter = _node.GetConverter();
-                    if (converter is ConfigurationConverter configurationConverter)
+                    if (!converter.CanConvertFrom(typeof(string)))
+                    {
+                        result = default;
+                        return false;
+                    }
+                    else if (converter is ConfigurationConverter configurationConverter)
                     {
                         Dictionary<string, string> kvps = new Dictionary<string, string>();
                         foreach (string xpath in _node.CodeAttribute.ConversionXPaths)
@@ -244,9 +262,11 @@ namespace Helpers
                                 throw new ConfigurationException("Configuration converter of type " + converter.GetType() + " seeks two entries for same xpath '" + xpath + "'");
                             kvps[xpath] = doc.SelectSingleNode(xpath).Value;
                         }
-                        return configurationConverter.ConvertFrom(_value, kvps.ToArray());
+                        result = configurationConverter.ConvertFrom(_value, kvps.ToArray());
                     }
-                    return converter.ConvertFromString(_value);
+                    else 
+                        result = converter.ConvertFromString(_value);
+                    return true;
                 }
             }
 

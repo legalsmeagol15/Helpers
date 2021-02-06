@@ -13,8 +13,8 @@ namespace Helpers
     public class ConfigurationAttribute : System.Attribute
     {
         public readonly string Key;
-        public bool IsRequired;
         public readonly VersionInvervalSet Versions;
+        internal readonly bool DefaultGiven;
         public readonly dynamic DefaultValue;
         public readonly Type TypeConverter;
         public readonly string[] ConversionXPaths;
@@ -22,19 +22,19 @@ namespace Helpers
 
         public bool Includes(Version version) => Versions.Contains(version);
 
-        public ConfigurationAttribute(object defaultValue = null,bool isRequired = true,
-                                      string versionControls = ">=0.0.0.0", string key = "", 
+        public ConfigurationAttribute(object defaultValue = null,
+                                      string versions = ">=0.0.0.0", string key = "", 
                                       bool apply_to_subsections = true,
                                       Type typeConverter = null, params string[] conversionXPaths)
         {
             this.Key = key;
             this.DefaultValue = defaultValue;
-            this.IsRequired = isRequired;
+            this.DefaultGiven = true;
             this.ApplyToSubsections = apply_to_subsections;
-            if (string.IsNullOrWhiteSpace(versionControls))
+            if (string.IsNullOrWhiteSpace(versions))
                 this.Versions = new VersionInvervalSet(Assembly.GetExecutingAssembly().GetName().Version.ToString());
             else
-                this.Versions = new VersionInvervalSet(versionControls.Split(','));
+                this.Versions = new VersionInvervalSet(versions.Split(','));
             if (typeConverter != null && !(typeof(System.ComponentModel.TypeConverter)).IsAssignableFrom(typeConverter))
                 throw new ArgumentException(nameof(typeConverter) + " must inherit from " + typeof(System.ComponentModel.TypeConverter).FullName + ".", nameof(typeConverter));
             this.TypeConverter = typeConverter;
@@ -47,6 +47,14 @@ namespace Helpers
             else
                 this.ConversionXPaths = null;
         }
+
+        public ConfigurationAttribute(string versions, string key = "",
+                                      bool apply_to_subsections = true,
+                                      Type typeConverter = null, params string[] conversionXPaths)
+            : this(null, versions, key, apply_to_subsections, typeConverter, conversionXPaths)
+        {
+            this.DefaultGiven = false;
+        }
     }
 
     /// <summary>
@@ -58,16 +66,23 @@ namespace Helpers
     {
         public readonly string MemberName;
 
-        public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null, 
-                                              bool isRequired = true, 
-                                              string versionControls = ">=0.0.0.0", 
+        public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null,  
+                                              string versions = ">=0.0.0.0", 
                                               string key = "", bool applyToSubsections=true,
                                               Type typeConverter = null, 
                                               params string[] conversionXPaths)
-            : base (defaultValue, isRequired, versionControls, string.IsNullOrWhiteSpace(key) ? memberName : key, 
+            : base (defaultValue, versions, string.IsNullOrWhiteSpace(key) ? memberName : key, 
                     applyToSubsections, typeConverter, conversionXPaths)
         {
             this.MemberName = memberName;            
+        }
+        public ConfigurationDeclaredAttribute(string memberName, string versions, string key = "", bool applyToSubsections = true,
+                                              Type typeConverter = null,
+                                              params string[] conversionXPaths)
+            : base(versions, string.IsNullOrWhiteSpace(key) ? memberName : key, applyToSubsections, 
+                  typeConverter, conversionXPaths)
+        {
+            this.MemberName = memberName;
         }
     }
 
