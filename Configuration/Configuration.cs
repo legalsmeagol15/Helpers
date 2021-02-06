@@ -12,6 +12,12 @@ using System.Xml;
 
 namespace Helpers
 {
+    /// <summary>
+    /// A user-friendly system used to store configuration to an XML file, and then load it back 
+    /// again without replacing the instances to which it is applied.  The handling of the 
+    /// configuration is guided by <seealso cref="ConfigurationAttribute"/>s written with the 
+    /// applicable code.
+    /// </summary>
     public sealed class Configuration
     {
         private const BindingFlags BINDING_FILTER = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -57,7 +63,15 @@ namespace Helpers
             Save(obj, saveAs, writer);
         }
 
-        public static Plan Import(object host, XmlReader reader)
+        /// <summary>
+        /// Create a <seealso cref="ConfigurationPlan"/> object, incorporating the values supplied 
+        /// by the source <paramref name="reader"/>, that would be applied to the given 
+        /// <paramref name="host"/>.  
+        /// </summary>
+        /// <returns>A plan that can be <see cref="ConfigurationPlan.Apply"/>'ed.</returns>
+        /// <exception cref="ConfigurationException">Thrown when configuration could not be 
+        /// applied successfully to the given <paramref name="host"/>.</exception>
+        public static ConfigurationPlan Plan(object host, XmlReader reader)
         {
             XmlDocument doc = new XmlDocument();
             doc.Load(reader);
@@ -76,9 +90,17 @@ namespace Helpers
                 throw new ConfigurationException("Host type name mismatch (\"" + reader.Name + "\" vs. \"" + host.GetType().Name + "\")");
             cn.Import(xmlNode, host, ver, doc);
 
-            return new Plan(host, ver, cn);
+            return new ConfigurationPlan(host, ver, cn);
         }
-        public static Plan Import(object applyTo, string filename = DEFAULT_FILENAME)
+        /// <summary>
+        /// Create a <seealso cref="ConfigurationPlan"/> object, incorporating the values supplied 
+        /// by the source <paramref name="filename"/>, that would be applied to the given 
+        /// <paramref name="host"/>.  
+        /// </summary>
+        /// <returns>A plan that can be <see cref="ConfigurationPlan.Apply"/>'ed.</returns>
+        /// <exception cref="ConfigurationException">Thrown when configuration could not be 
+        /// applied successfully to the given <paramref name="host"/>.</exception>
+        public static ConfigurationPlan Plan(object host, string filename = DEFAULT_FILENAME)
         {
             XmlReaderSettings settings = new XmlReaderSettings
             {
@@ -86,17 +108,23 @@ namespace Helpers
                 IgnoreWhitespace = true
             };
             XmlReader reader = XmlReader.Create(filename, settings);
-            return Import(applyTo, reader);
+            return Plan(host, reader);
         }
 
 
-
-        public sealed class Plan
+        /// <summary>
+        /// Holds all the necessary data from a loaded configuration file.  Creating a plan should 
+        /// succeed if and only if it can be applied successfully to a designated 
+        /// <see cref="Host"/>.  If it would fail, it should always throw a 
+        /// <seealso cref="ConfigurationException"/>.
+        /// <para/>Once the plan is created, don't forget to <seealso cref="Apply"/> it.
+        /// </summary>
+        public sealed class ConfigurationPlan
         {
             public readonly object Host;
             public readonly Version Source;
             private readonly ConfigNode _Node;
-            internal Plan(object host, Version source, ConfigNode node) { this.Host = host; this.Source = source; this._Node = node; }
+            internal ConfigurationPlan(object host, Version source, ConfigNode node) { this.Host = host; this.Source = source; this._Node = node; }
             public void Apply() { _Node.ApplyTo(Host); }
         }
 
@@ -106,16 +134,17 @@ namespace Helpers
             internal readonly string Name;
             internal readonly ConfigurationAttribute CodeAttribute;
             internal readonly MemberInfo ReflectionInfo;
-
+            private IEnumerable<ConfigNode> Members;
 
             private object _Value = null;
-            public object GetValue(object host) => _Value 
+            public object GetValue(object host) => _Value
                                                  ?? ((ReflectionInfo is PropertyInfo pinfo) ? (_Value = pinfo.GetValue(host))
                                                  : (ReflectionInfo is FieldInfo finfo) ? (_Value = finfo.GetValue(host))
                                                  : null);
 
             public Type Type => ReflectionInfo is PropertyInfo pinfo ? pinfo.PropertyType
                                                                      : ((FieldInfo)ReflectionInfo).FieldType;
+
 
             internal ConfigNode(string name, ConfigurationAttribute attrib, MemberInfo reflectionInfo)
             {
@@ -138,10 +167,10 @@ namespace Helpers
                         throw new ConfigurationException("Detected circularity in object graph.");
 
                     // Step #1 - identify all the properties that are marked for configuration.
-                    IEnumerable<ConfigNode> memberNodes = CreateMemberNodes(_host, version);
+                    this.Members = CreateMemberNodes(_host, version);
 
                     // Step #2 - if we have a leaf, add as an attribute and return.
-                    if (!memberNodes.Any())
+                    if (!Members.Any())
                     {
                         TypeConverter converter = GetConverter(_host);
                         string strValue = (converter.CanConvertTo(typeof(string))) ? converter.ConvertToString(_host)
@@ -152,7 +181,7 @@ namespace Helpers
 
                     // Step #3 - otherwise, recursively call each member within a XML element
                     writer.WriteStartElement(node.Name);
-                    foreach (var cn in memberNodes)
+                    foreach (var cn in Members)
                         Private_Save(cn, cn.GetValue(_host));
                     writer.WriteEndElement();
                 }
@@ -173,28 +202,32 @@ namespace Helpers
                         return false;
                 }
 
-                var members = CreateMemberNodes(host, sourceVersion);
-                if (!members.Any())
+                this.Members = CreateMemberNodes(host, sourceVersion).ToArray();    // Must be a hardened array.
+                if (!Members.Any())
                     return true;
 
-                foreach (ConfigNode member in members)
+                foreach (ConfigNode member in this.Members)
                 {
-                    XmlAttribute xmlAttrib = xmlNode.Attributes[member.Name];
+                    string name = member.Name;
+                    if (member.CodeAttribute is ConfigurationDeclaredAttribute decAttr)
+                        name = (decAttr.Key ?? name);
+
+                    XmlAttribute xmlAttrib = xmlNode.Attributes[name];
                     if (xmlAttrib != null)
                     {
                         member._Value = _Convert(xmlAttrib.Value, member);
-                        member.ApplyTo(host);
+                        //member.ApplyTo(host);
                         continue;
                     }
 
-                    XmlNode xmlChildNode = xmlNode.SelectSingleNode(member.Name);
+                    XmlNode xmlChildNode = xmlNode.SelectSingleNode(name);
                     if (xmlChildNode == null)
                         throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": missing configuration for " + member.Name);
 
-                    if (member.Private_Import(xmlChildNode, this.GetValue(host), sourceVersion, doc))
+                    if (member.Private_Import(xmlChildNode, member.GetValue(host), sourceVersion, doc))
                     {
                         member._Value = _Convert(xmlChildNode?.Value, member);
-                        member.ApplyTo(host);
+                        //member.ApplyTo(host);
                     }
                 }
                 return false;
@@ -220,12 +253,18 @@ namespace Helpers
 
             public void ApplyTo(object host)
             {
-                if (this.ReflectionInfo is PropertyInfo pinfo)
-                    pinfo.SetValue(host, _Value);
-                else if (this.ReflectionInfo is FieldInfo finfo)
-                    finfo.SetValue(host, _Value);
-                else
-                    throw new ConfigurationException("Cannot apply value of type " + _Value.GetType().Name + " to member " + this.ReflectionInfo.Name);
+                if (this.Members == null) return;
+                foreach (var member in this.Members)
+                {
+                    object newValue = member.GetValue(host);
+                    if (member.ReflectionInfo is PropertyInfo pinfo)
+                        pinfo.SetValue(host, newValue);
+                    else if (member.ReflectionInfo is FieldInfo finfo)
+                        finfo.SetValue(host, newValue);
+                    else
+                        throw new ConfigurationException("Invalid reflection info:" + this.ReflectionInfo.ToString());
+                    member.ApplyTo(newValue);
+                }
             }
 
 
@@ -302,7 +341,6 @@ namespace Helpers
 
             public override string ToString() => "ConfigNode \"" + this.ReflectionInfo.Name + "\"";
         }
-
 
     }
 
