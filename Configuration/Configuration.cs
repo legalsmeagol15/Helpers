@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -15,8 +16,33 @@ namespace Helpers
     {
         private const BindingFlags BINDING_FILTER = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private const string DEFAULT_FILENAME = "test.config";
-        
+
         private static Version GetCurrentVersion() => Assembly.GetExecutingAssembly().GetName().Version;
+
+        public static void Save(object obj, Version saveAs, XmlWriter writer)
+        {
+            ConfigNode cn = new ConfigNode(obj.GetType().Name, null, null);
+            try
+            {
+                writer.WriteStartDocument();
+                writer.WriteStartElement("configuration");
+                writer.WriteStartElement("versions");
+                writer.WriteAttributeString("current", Assembly.GetExecutingAssembly().GetName().Version.ToString());
+                writer.WriteAttributeString("contents", saveAs.ToString());
+                writer.WriteEndElement();
+
+                cn.Save(writer, saveAs, obj);
+
+                writer.WriteEndElement();
+                writer.WriteEndDocument();
+                writer.Flush();
+                writer.Close();
+            }
+            catch (Exception e)
+            {
+                throw new ConfigurationException("Failed to write configuration xml", e);
+            }
+        }
 
         public static void Save(object obj, Version saveAs = default, string filename = DEFAULT_FILENAME)
         {
@@ -27,42 +53,66 @@ namespace Helpers
                 Indent = true,
                 NewLineOnAttributes = false
             };
-            ConfigNode cn = new ConfigNode("config", null, null);
-
             XmlWriter writer = XmlWriter.Create(filename, settings);
-
-            writer.WriteStartDocument();
-            writer.WriteStartElement("configuration");
-            writer.WriteStartElement("versions");
-            writer.WriteAttributeString("current", Assembly.GetExecutingAssembly().GetName().Version.ToString());
-            writer.WriteAttributeString("used", saveAs.ToString());
-            writer.WriteEndElement();
-
-            cn.Save(writer, saveAs, obj);
-
-            writer.WriteEndElement();
-            writer.WriteEndDocument();
-            writer.Flush();
-            writer.Close();
-
+            Save(obj, saveAs, writer);
         }
 
-        public static void Load(object applyTo, string filename = DEFAULT_FILENAME)
+        public static Plan Import(object host, XmlReader reader)
         {
-            
-            
+            XmlDocument doc = new XmlDocument();
+            doc.Load(reader);
+            XmlNode verNode = doc.SelectSingleNode("//versions");
+            if (verNode == null)
+                throw new ConfigurationException("Configuration XML must contain version info.");
+            if (verNode.NodeType != XmlNodeType.Element)
+                throw new ConfigurationException("Configuration XML must begin with element.");
+            Version ver;
+            try { ver = new Version(verNode.Attributes["contents"].Value); }
+            catch { throw new ConfigurationException("Failed to identify configuration XML contents version."); }
+            ConfigNode cn = new ConfigNode(host.GetType().Name, null, null);
+
+            XmlNode xmlNode = doc.SelectSingleNode("//" + host.GetType().Name);
+            if (xmlNode == null)
+                throw new ConfigurationException("Host type name mismatch (\"" + reader.Name + "\" vs. \"" + host.GetType().Name + "\")");
+            cn.Import(xmlNode, host, ver, doc);
+
+            return new Plan(host, ver, cn);
+        }
+        public static Plan Import(object applyTo, string filename = DEFAULT_FILENAME)
+        {
+            XmlReaderSettings settings = new XmlReaderSettings
+            {
+                IgnoreComments = true,
+                IgnoreWhitespace = true
+            };
+            XmlReader reader = XmlReader.Create(filename, settings);
+            return Import(applyTo, reader);
         }
 
 
-        private sealed class ConfigNode
+
+        public sealed class Plan
+        {
+            public readonly object Host;
+            public readonly Version Source;
+            private readonly ConfigNode _Node;
+            internal Plan(object host, Version source, ConfigNode node) { this.Host = host; this.Source = source; this._Node = node; }
+            public void Apply() { _Node.ApplyTo(Host); }
+        }
+
+        [DebuggerDisplay("ConfigNode {Name} = {_Value}")]
+        internal sealed class ConfigNode
         {
             internal readonly string Name;
-            internal readonly ConfigurationAttribute Attribute;
+            internal readonly ConfigurationAttribute CodeAttribute;
             internal readonly MemberInfo ReflectionInfo;
 
-            public object GetValue(object host) => (ReflectionInfo is PropertyInfo pinfo) ? pinfo.GetValue(host)
-                                                 : (ReflectionInfo is FieldInfo finfo) ? finfo.GetValue(host)
-                                                 : throw new NotImplementedException();
+
+            private object _Value = null;
+            public object GetValue(object host) => _Value 
+                                                 ?? ((ReflectionInfo is PropertyInfo pinfo) ? (_Value = pinfo.GetValue(host))
+                                                 : (ReflectionInfo is FieldInfo finfo) ? (_Value = finfo.GetValue(host))
+                                                 : null);
 
             public Type Type => ReflectionInfo is PropertyInfo pinfo ? pinfo.PropertyType
                                                                      : ((FieldInfo)ReflectionInfo).FieldType;
@@ -71,75 +121,111 @@ namespace Helpers
             {
                 this.Name = name;
                 this.ReflectionInfo = reflectionInfo;
-                this.Attribute = attrib;
+                this.CodeAttribute = attrib;
             }
-            public void Save(XmlWriter writer, Version version, object host) => _Save(writer, host, version, new HashSet<object>());
-            private void _Save(XmlWriter writer, object host, Version savedVersion, HashSet<object> visited)
+
+
+            public void Save(XmlWriter writer, Version version, object host)
             {
-                
-                Type t = host.GetType();
-                if (t.IsClass && !visited.Add(host))
-                    throw new ConfigurationException("Detected circularity in object graph.");
-                Dictionary<string, ConfigNode> nodes = new Dictionary<string, ConfigNode>();
+                HashSet<object> visited = new HashSet<object>();
+                Private_Save(this, host);
 
-                // Step #1 - identify all the properties that are marked for configuration.
+                void Private_Save(ConfigNode node, object _host)
                 {
-                    foreach (var dca in t.GetCustomAttributes<ConfigurationDeclaredAttribute>()
-                                     .Where(_dca => _dca.Versions.Contains(savedVersion)))
+
+                    Type t = _host.GetType();
+                    if (t.IsClass && !visited.Add(_host))
+                        throw new ConfigurationException("Detected circularity in object graph.");
+
+                    // Step #1 - identify all the properties that are marked for configuration.
+                    IEnumerable<ConfigNode> memberNodes = CreateMemberNodes(_host, version);
+
+                    // Step #2 - if we have a leaf, add as an attribute and return.
+                    if (!memberNodes.Any())
                     {
-                        if (nodes.ContainsKey(dca.Key))
-                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", dca.Key, savedVersion.ToString());
-                        else if (t.GetProperty(dca.MemberName, BINDING_FILTER) is PropertyInfo pinfo)
-                            nodes[dca.Key] = new ConfigNode(dca.Key, dca, pinfo);
-                        else if (t.GetField(dca.MemberName, BINDING_FILTER) is FieldInfo finfo)
-                            nodes[dca.Key] = new ConfigNode(dca.Key, dca, finfo);
+                        TypeConverter converter = GetConverter(_host);
+                        string strValue = (converter.CanConvertTo(typeof(string))) ? converter.ConvertToString(_host)
+                                                                                   : _host.ToString();
+                        writer.WriteAttributeString(node.Name, strValue);
+                        return;
                     }
-                    foreach (PropertyInfo pinfo in t.GetProperties(BINDING_FILTER))
-                    {
-                        foreach (var ca in pinfo.GetCustomAttributes<ConfigurationAttribute>()
-                                                .Where(_ca => _ca.Versions.Contains(savedVersion)))
-                        {
-                            string name = string.IsNullOrWhiteSpace(ca.Key) ? pinfo.Name : ca.Key;
-                            if (nodes.ContainsKey(name))
-                                throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", name, savedVersion.ToString());
-                            else
-                                nodes[name] = new ConfigNode(name, ca, pinfo);
-                        }
-                    }
-                    foreach (FieldInfo finfo in t.GetFields(BINDING_FILTER))
-                    {
-                        foreach (var ca in finfo.GetCustomAttributes<ConfigurationAttribute>()
-                                                .Where(_ca => _ca.Versions.Contains(savedVersion)))
-                        {
-                            string name = string.IsNullOrWhiteSpace(ca.Key) ? finfo.Name : ca.Key;
-                            if (nodes.ContainsKey(name))
-                                throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", name, savedVersion.ToString());
-                            else
-                                nodes[name] = new ConfigNode(name, ca, finfo);
-                        }
-                    }
+
+                    // Step #3 - otherwise, recursively call each member within a XML element
+                    writer.WriteStartElement(node.Name);
+                    foreach (var cn in memberNodes)
+                        Private_Save(cn, cn.GetValue(_host));
+                    writer.WriteEndElement();
                 }
-                
-                // Step #2 - if we have a leaf, add as an attribute and return.
-                if (!nodes.Any())
+            }
+
+
+            public bool Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc)
+                => Private_Import(xmlNode, host, sourceVersion, doc);
+            private bool Private_Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc)
+            {
+                // Returns:  true if this should be converted, false if work is done.
+                if (host == null) return true;
+                if (this.CodeAttribute != null)
                 {
-                    
-                    TypeConverter converter = GetConverter(host);
-                    string strValue = (converter.CanConvertTo(typeof(string))) ? converter.ConvertToString(host) 
-                                                                               : host.ToString();
-                    writer.WriteAttributeString(this.Name, strValue);
-                    return;
+                    if (this.CodeAttribute.TypeConverter != default)
+                        return true;
+                    if (!this.CodeAttribute.ApplyToSubsections)
+                        return false;
                 }
 
-                // Step #3 - otherwise, recursively call each member within a XML element
-                writer.WriteStartElement(this.Name);
-                foreach (var kvp in nodes)
+                var members = CreateMemberNodes(host, sourceVersion);
+                if (!members.Any())
+                    return true;
+
+                foreach (ConfigNode member in members)
                 {
-                    string name = kvp.Key;
-                    ConfigNode node = kvp.Value;
-                    node._Save(writer, node.GetValue(host), savedVersion, visited);
+                    XmlAttribute xmlAttrib = xmlNode.Attributes[member.Name];
+                    if (xmlAttrib != null)
+                    {
+                        member._Value = _Convert(xmlAttrib.Value, member);
+                        member.ApplyTo(host);
+                        continue;
+                    }
+
+                    XmlNode xmlChildNode = xmlNode.SelectSingleNode(member.Name);
+                    if (xmlChildNode == null)
+                        throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": missing configuration for " + member.Name);
+
+                    if (member.Private_Import(xmlChildNode, this.GetValue(host), sourceVersion, doc))
+                    {
+                        member._Value = _Convert(xmlChildNode?.Value, member);
+                        member.ApplyTo(host);
+                    }
                 }
-                writer.WriteEndElement();
+                return false;
+
+                object _Convert(string _value, ConfigNode _node)
+                {
+                    TypeConverter converter = _node.GetConverter();
+                    if (converter is ConfigurationConverter configurationConverter)
+                    {
+                        Dictionary<string, string> kvps = new Dictionary<string, string>();
+                        foreach (string xpath in _node.CodeAttribute.ConversionXPaths)
+                        {
+                            if (kvps.ContainsKey(xpath))
+                                throw new ConfigurationException("Configuration converter of type " + converter.GetType() + " seeks two entries for same xpath '" + xpath + "'");
+                            kvps[xpath] = doc.SelectSingleNode(xpath).Value;
+                        }
+                        return configurationConverter.ConvertFrom(_value, kvps.ToArray());
+                    }
+                    return converter.ConvertFromString(_value);
+                }
+            }
+
+
+            public void ApplyTo(object host)
+            {
+                if (this.ReflectionInfo is PropertyInfo pinfo)
+                    pinfo.SetValue(host, _Value);
+                else if (this.ReflectionInfo is FieldInfo finfo)
+                    finfo.SetValue(host, _Value);
+                else
+                    throw new ConfigurationException("Cannot apply value of type " + _Value.GetType().Name + " to member " + this.ReflectionInfo.Name);
             }
 
 
@@ -154,22 +240,69 @@ namespace Helpers
                 public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
                     => value;
             }
-            private TypeConverter GetConverter(object obj)
+            private TypeConverter GetConverter(object obj = null)
             {
-                if (this.Attribute != null && this.Attribute.TypeConverter != null)
-                    return (TypeConverter)Activator.CreateInstance(this.Attribute.TypeConverter);
+                if (obj == null && this.CodeAttribute != null && this.CodeAttribute.TypeConverter != null)
+                    return (TypeConverter)Activator.CreateInstance(this.CodeAttribute.TypeConverter);
                 else if (obj != null)
+                    return _ConverterByType(obj.GetType());
+                else if (this.ReflectionInfo is PropertyInfo pinfo)
+                    return _ConverterByType(pinfo.PropertyType);
+                else if (this.ReflectionInfo is FieldInfo finfo)
+                    return _ConverterByType(finfo.FieldType);
+                else
+                    throw new ConfigurationException("Exactly what kind of converter do you want?");
+
+                TypeConverter _ConverterByType(Type t)
                 {
-                    Type t = obj.GetType();
                     if (t == typeof(string) || t == typeof(String)) return new PassThruConverter();
                     if (t == typeof(int) || t == typeof(Int32)) return new Int32Converter();
+                    if (t == typeof(double) || t == typeof(Double)) return new DoubleConverter();
                     throw new ConfigurationException("No converter defined for object of type " + t.Name);
                 }
-                else 
-                    throw new ConfigurationException("No converter for null object.");
             }
-            
+
+            internal static IEnumerable<ConfigNode> CreateMemberNodes(object host, Version applicableVersion)
+            {
+                HashSet<string> members = new HashSet<string>();
+                Type t = host.GetType();
+                foreach (var dca in t.GetCustomAttributes<ConfigurationDeclaredAttribute>()
+                                             .Where(_dca => _dca.Versions.Contains(applicableVersion)))
+                {
+                    if (!members.Add(dca.Key))
+                        throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", dca.Key, applicableVersion.ToString());
+                    else if (t.GetProperty(dca.MemberName, BINDING_FILTER) is PropertyInfo pinfo)
+                        yield return new ConfigNode(dca.Key, dca, pinfo);
+                    else if (t.GetField(dca.MemberName, BINDING_FILTER) is FieldInfo finfo)
+                        yield return new ConfigNode(dca.Key, dca, finfo);
+                }
+                foreach (PropertyInfo pinfo in t.GetProperties(BINDING_FILTER))
+                {
+                    foreach (var ca in pinfo.GetCustomAttributes<ConfigurationAttribute>()
+                                            .Where(_ca => _ca.Versions.Contains(applicableVersion)))
+                    {
+                        string name = string.IsNullOrWhiteSpace(ca.Key) ? pinfo.Name : ca.Key;
+                        if (!members.Add(name))
+                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", name, applicableVersion.ToString());
+                        yield return new ConfigNode(name, ca, pinfo);
+                    }
+                }
+                foreach (FieldInfo finfo in t.GetFields(BINDING_FILTER))
+                {
+                    foreach (var ca in finfo.GetCustomAttributes<ConfigurationAttribute>()
+                                            .Where(_ca => _ca.Versions.Contains(applicableVersion)))
+                    {
+                        string name = string.IsNullOrWhiteSpace(ca.Key) ? finfo.Name : ca.Key;
+                        if (!members.Add(name))
+                            throw new ConfigurationException("Multiple configurations handle key '{0}' for version {1}", name, applicableVersion.ToString());
+                        yield return new ConfigNode(name, ca, finfo);
+                    }
+                }
+            }
+
+            public override string ToString() => "ConfigNode \"" + this.ReflectionInfo.Name + "\"";
         }
+
 
     }
 
@@ -178,6 +311,7 @@ namespace Helpers
 
     public class ConfigurationException : Exception
     {
+        public ConfigurationException(string message, Exception inner) : base(message, inner) { }
         public ConfigurationException(params string[] message) : base(string.Format(message[0], message.Skip(1).ToArray())) { }
     }
 

@@ -25,8 +25,10 @@ namespace UnitTests
         {
             TestClass1 testSave = new TestClass1() { Height = 10, Width = 20 };
             Configuration.Save(testSave, new Version(1,0,0,0));
+
             TestClass1 testLoad = new TestClass1() { Name = "changeme", Description = "changemetoo", Height = -10, Width = -20 };
-            Configuration.Load(testLoad);
+            Configuration.Import(testLoad);
+            
         }
 
         private abstract class TestParentClass
