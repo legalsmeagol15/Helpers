@@ -15,7 +15,7 @@ namespace Helpers
         public readonly string Key;
         public readonly VersionInvervalSet Versions;
         internal readonly bool DefaultGiven;
-        public readonly dynamic DefaultValue;
+        public readonly object DefaultValue;
         public readonly Type TypeConverter;
         public readonly string[] ConversionXPaths;
         public readonly bool ApplyToSubsections;

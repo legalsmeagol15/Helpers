@@ -111,6 +111,18 @@ namespace Helpers
             return Plan(host, reader);
         }
 
+        /// <summary>
+        /// Creates a <seealso cref="ConfigurationPlan"/> object intended to set all configurable 
+        /// values within the given host back to their 
+        /// <seealso cref="ConfigurationAttribute.DefaultValue"/>s.
+        /// </summary>
+        public static ConfigurationPlan Default(object host)
+        {
+            ConfigNode cn = new ConfigNode(host.GetType().Name, null, null);
+            cn.Default(host);
+            return new ConfigurationPlan(host, GetCurrentVersion(), cn);
+        }
+
 
         /// <summary>
         /// Holds all the necessary data from a loaded configuration file.  Creating a plan should 
@@ -140,8 +152,23 @@ namespace Helpers
             public object GetValue(object host) => _Value
                                                  ?? ((ReflectionInfo is PropertyInfo pinfo) ? (_Value = pinfo.GetValue(host))
                                                  : (ReflectionInfo is FieldInfo finfo) ? (_Value = finfo.GetValue(host))
-                                                 : (CodeAttribute.DefaultGiven) ? CodeAttribute.DefaultValue
-                                                 : null);
+                                                 : TryGetDefault(out object obj) ? (_Value = obj) : null);
+            public bool TryGetDefault(out object @default)
+            {
+                if (CodeAttribute.DefaultGiven) { @default = CodeAttribute.DefaultValue; return true; }
+                else if (ReflectionInfo is PropertyInfo pinfo && pinfo.PropertyType.IsValueType)
+                {
+                    @default = Activator.CreateInstance(pinfo.PropertyType);
+                    return true;
+                }
+                else if (ReflectionInfo is FieldInfo finfo && finfo.FieldType.IsValueType)
+                {
+                    @default = Activator.CreateInstance(finfo.FieldType);
+                    return true;
+                }
+                @default = default;
+                return false;
+            }
 
             public Type Type => ReflectionInfo is PropertyInfo pinfo ? pinfo.PropertyType
                                                                      : ((FieldInfo)ReflectionInfo).FieldType;
@@ -189,7 +216,7 @@ namespace Helpers
             }
 
 
-            public bool Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc)
+            public void Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc)
                 => Private_Import(xmlNode, host, sourceVersion, doc);
             private bool Private_Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc)
             {
@@ -217,7 +244,8 @@ namespace Helpers
                     XmlAttribute xmlAttrib = xmlNode.Attributes[name];
                     if (xmlAttrib != null)
                     {
-                        if (!_TryConvert(xmlAttrib.Value, member, out object result))
+                        if (!_TryConvert(xmlAttrib.Value, member, out object result)
+                                && !member.TryGetDefault(out result))
                             throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": cannot convert attribute \"" + xmlAttrib.Value + "\" to type of " + member.Name);
                         member._Value = result;
                         continue;
@@ -227,15 +255,16 @@ namespace Helpers
                     XmlNode xmlChildNode = xmlNode.SelectSingleNode(name);
                     if (xmlChildNode == null)
                     {
-                        if (!member.CodeAttribute.DefaultGiven)
+                        if (!member.TryGetDefault(out object def))
                             throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": missing configuration for " + member.Name);
-                        member._Value = member.CodeAttribute.DefaultValue;
+                        member._Value = def;
                         continue;
                     }   
 
                     // If the ConfigNode has a node to examine, check if it can be imported 
                     // recursively.  If it turns out to be a leaf ConfigNode, try to convert & 
-                    // import the value.  Failing that, look for a default.
+                    // import the value.  Failing that, look for a default.  Note that GetValue() 
+                    // looks for a default.
                     if (member.Private_Import(xmlChildNode, member.GetValue(host), sourceVersion, doc))
                     {
                         if (!_TryConvert(xmlChildNode?.Value, member, out object result))
@@ -270,6 +299,16 @@ namespace Helpers
                 }
             }
 
+            public void Default(object host)
+            {
+                this.Members = CreateMemberNodes(host, GetCurrentVersion());
+                foreach (var member in this.Members)
+                {
+                    if (!member.TryGetDefault(out object childValue))
+                        childValue = member.GetValue(host);
+                    member.Default(childValue);
+                }   
+            }
 
             public void ApplyTo(object host)
             {
