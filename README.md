@@ -70,20 +70,25 @@ Meh.  Stick with Python for now.  I haven't gotten around to implementing these 
 
 ## Configuration
 
-I've found Microsoft's System.Configuration implementation is too heavy for the most common uses, and requires too 
-much hairy code to be written.  Instead, I wanted an implementation that simply plucks out properties marked by a 
-certain attribute, and writes them to a xml-based configuration file.  Then, it's a simple call to
+I have found Microsoft's System.Configuration implementation is too heavy for the most common uses, and requires too 
+much hairy code to be written.  Instead, I wanted an implementation that simply plucks out properties marked by 
+easy-to-understand attributes, and writes them to a xml-based configuration file.  Then, it's a simple call to
 
 ```
-	Configuration.Save(filename, obj);
+	Configuration.Save(obj, filename);
 ```
 
 and later,
 
 ```
-	Configuration.Load(filename);
-	Configuration.ApplyTo(obj);
+	Configuration.PlanFromFile(host_obj, filename);
+	Configuration.Apply();
 ```
+
+[More information can be found here](Configuration/README_CONFIGURATION.md)
+
+Those easy-to-understand attributes allow us to specify helpful classes and converters that can adapt to earlier and 
+later versions, all in one place closely associated with the property declarations themselves.
 
 ## DataStructures
 

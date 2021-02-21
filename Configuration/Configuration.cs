@@ -59,7 +59,39 @@ namespace Helpers
             }
         }
 
-        public static void Save(object obj, Version saveAs = default, string filename = DEFAULT_FILENAME)
+        /// <summary>
+        /// Writes and returns a string containing the XML for the configuration of the given object.
+        /// </summary>
+        /// <param name="obj">The object whose configuration will be written.</param>
+        /// <param name="saveAs">The version as which configuration will be written.</param>
+        public static string Save(object obj, Version saveAs = default)
+        {
+            if (saveAs == default) saveAs = GetCurrentVersion();
+            XmlWriterSettings settings = new XmlWriterSettings
+            {
+                Indent = true,
+                NewLineOnAttributes = false
+            };
+            StringBuilder sb = new StringBuilder();
+            XmlWriter writer = XmlWriter.Create(sb, settings);
+            Save(obj, saveAs, writer);
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Saves configuration to the given filename.
+        /// </summary>
+        /// <param name="obj">The object whose configuration will be saved.</param>
+        /// <param name="filename">The filename to save at.</param>
+        public static void Save(object obj, string filename) => Save(obj, default, filename);
+
+        /// <summary>
+        /// Saves configuration to the given filename.
+        /// </summary>
+        /// <param name="obj">The object whose configuration will be saved.</param>
+        /// <param name="saveAs">The version as which configuration will be saved.</param>
+        /// <param name="filename">The filename to save at.</param>
+        public static void Save(object obj, Version saveAs, string filename)
         {
             if (saveAs == default) saveAs = GetCurrentVersion();
 
@@ -77,8 +109,11 @@ namespace Helpers
                 if (File.Exists(oldConfig)) File.Delete(oldConfig);
                 if (File.Exists(filename)) File.Move(filename, oldConfig);
 
+                // Now write the config doc.
                 XmlWriter writer = XmlWriter.Create(tempFilename, settings);
                 Save(obj, saveAs, writer);
+                
+                // Finally, move temp into the actual slot, and delete oldConfig.w
                 try
                 {
                     File.Move(tempFilename, filename);
@@ -92,6 +127,7 @@ namespace Helpers
             }
             catch (Exception e)
             {
+                // The XmlWriter will have closed because it has gone out of scope.
                 try
                 {
                     if (File.Exists(filename)) File.Delete(filename);
@@ -139,6 +175,27 @@ namespace Helpers
             return new ConfigurationPlan(host, ver, cn);
         }
         /// <summary>
+        /// Create a <seealso cref="ConfigurationPlan"/> instance, incorporating the values 
+        /// supplied by the given string, that would be applied to the given 
+        /// <paramref name="host"/>.
+        /// </summary>
+        /// <returns>A plan that can be <see cref="ConfigurationPlan.Apply"/>'ed.</returns>
+        /// <exception cref="ConfigurationException">Thrown when configuration could not be 
+        /// applied successfully to the given <paramref name="host"/>.</exception>
+        public static ConfigurationPlan PlanFromString(object host, string config)
+        {
+            XmlReaderSettings settings = new XmlReaderSettings
+            {
+                IgnoreComments = true,
+                IgnoreWhitespace = true
+            };
+            using (StringReader strReader = new StringReader(config))
+            {
+                XmlReader xmlReader = XmlReader.Create(strReader, settings);
+                return Plan(host, xmlReader);
+            }   
+        }
+        /// <summary>
         /// Create a <seealso cref="ConfigurationPlan"/> object, incorporating the values supplied 
         /// by the source <paramref name="filename"/>, that would be applied to the given 
         /// <paramref name="host"/>.  
@@ -146,7 +203,7 @@ namespace Helpers
         /// <returns>A plan that can be <see cref="ConfigurationPlan.Apply"/>'ed.</returns>
         /// <exception cref="ConfigurationException">Thrown when configuration could not be 
         /// applied successfully to the given <paramref name="host"/>.</exception>
-        public static ConfigurationPlan Plan(object host, string filename = DEFAULT_FILENAME)
+        public static ConfigurationPlan PlanFromFile(object host, string filename = DEFAULT_FILENAME)
         {
             XmlReaderSettings settings = new XmlReaderSettings
             {
