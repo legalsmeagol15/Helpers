@@ -58,6 +58,7 @@
     <Compile Include="Configuration\Configuration.cs" />
     <Compile Include="Configuration\ConfigurationAttribute.cs" />
     <Compile Include="Configuration\ConfigurationConverter.cs" />
+    <Compile Include="Configuration\Converters.cs" />
     <Compile Include="DataStructures\Interfaces\IEdge.cs" />
     <Compile Include="DataStructures\Interfaces\IPriorityQueue.cs" />
     <Compile Include="DataStructures\Interfaces\IVertex.cs" />

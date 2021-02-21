@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -41,12 +42,20 @@ namespace Helpers
 
                 writer.WriteEndElement();
                 writer.WriteEndDocument();
-                writer.Flush();
-                writer.Close();
+            }
+            catch (ConfigurationException)
+            {
+                throw;
             }
             catch (Exception e)
             {
                 throw new ConfigurationException("Failed to write configuration xml", e);
+            }
+            finally
+            {
+                writer.Flush();
+                writer.Close();
+                writer.Dispose();
             }
         }
 
@@ -59,8 +68,45 @@ namespace Helpers
                 Indent = true,
                 NewLineOnAttributes = false
             };
-            XmlWriter writer = XmlWriter.Create(filename, settings);
-            Save(obj, saveAs, writer);
+            string tempFilename = filename + ".tmp";
+            string oldConfig = filename + ".old";
+
+            // Stash the old config, in case something breaks here.
+            try
+            {
+                if (File.Exists(oldConfig)) File.Delete(oldConfig);
+                if (File.Exists(filename)) File.Move(filename, oldConfig);
+
+                XmlWriter writer = XmlWriter.Create(tempFilename, settings);
+                Save(obj, saveAs, writer);
+                try
+                {
+                    File.Move(tempFilename, filename);
+                    if (File.Exists(oldConfig)) File.Delete(oldConfig);
+                }
+                catch (Exception e)
+                {
+                    throw new ConfigurationException("Error moving temporary file to \"" + filename + "\"", e);
+                }
+
+            }
+            catch (Exception e)
+            {
+                try
+                {
+                    if (File.Exists(filename)) File.Delete(filename);
+                    File.Move(oldConfig, filename);
+                }
+                catch
+                {
+                    // This is very bad.
+                    throw new ConfigurationException("Error restoring old config due to underlying exception.", e);
+                }
+                
+                throw new ConfigurationException("Error stashing old config \"" + filename + "\"", e);
+            }
+
+            
         }
 
         /// <summary>
@@ -146,28 +192,47 @@ namespace Helpers
             internal readonly string Name;
             internal readonly ConfigurationAttribute CodeAttribute;
             internal readonly MemberInfo ReflectionInfo;
-            private IEnumerable<ConfigNode> Members;
+            private ConfigNode[] Members;
 
             private object _Value = null;
-            public object GetValue(object host) => _Value
-                                                 ?? ((ReflectionInfo is PropertyInfo pinfo) ? (_Value = pinfo.GetValue(host))
-                                                 : (ReflectionInfo is FieldInfo finfo) ? (_Value = finfo.GetValue(host))
-                                                 : TryGetDefault(out object obj) ? (_Value = obj) : null);
+            public object GetValue(object host)
+            {
+                // Each of these steps could still get a null value.  Gotta check each time.
+                if (_Value == null && ReflectionInfo is PropertyInfo pinfo) _Value = pinfo.GetValue(host);
+                else if (_Value == null && ReflectionInfo is FieldInfo finfo) _Value = finfo.GetValue(host);
+                if (_Value == null && TryGetDefault(out object obj)) _Value = obj;
+                return _Value;
+            }
+            public Type GetReflectionType() => (ReflectionInfo is PropertyInfo pinfo) ? pinfo.PropertyType
+                                               : (ReflectionInfo is FieldInfo finfo) ? finfo.FieldType
+                                               : throw new InvalidOperationException("Where is the " + nameof(ReflectionInfo) + "?");
+                                   
+
             public bool TryGetDefault(out object @default)
             {
                 if (CodeAttribute.DefaultGiven) { @default = CodeAttribute.DefaultValue; return true; }
-                else if (ReflectionInfo is PropertyInfo pinfo && pinfo.PropertyType.IsValueType)
+                Type rt = GetReflectionType();
+                if (rt.IsValueType)
                 {
-                    @default = Activator.CreateInstance(pinfo.PropertyType);
+                    @default = Activator.CreateInstance(rt);
                     return true;
                 }
-                else if (ReflectionInfo is FieldInfo finfo && finfo.FieldType.IsValueType)
+                else if (rt == typeof(string) || rt == typeof(String))
                 {
-                    @default = Activator.CreateInstance(finfo.FieldType);
+                    @default = "";
                     return true;
                 }
-                @default = default;
-                return false;
+                try
+                {
+                    // If there is no zero-argument constructor for a class-type 'rt', this will throw.
+                    @default = Activator.CreateInstance(rt);
+                    return true;
+                }
+                catch
+                {
+                    @default = default;
+                    return false;
+                }
             }
 
             public Type Type => ReflectionInfo is PropertyInfo pinfo ? pinfo.PropertyType
@@ -185,9 +250,9 @@ namespace Helpers
             public void Save(XmlWriter writer, Version version, object host)
             {
                 HashSet<object> visited = new HashSet<object>();
-                Private_Save(this, host);
+                _Save_Leaf_Or_Recursive(this, host);
 
-                void Private_Save(ConfigNode node, object _host)
+                bool _Save_Leaf_Or_Recursive(ConfigNode node, object _host)
                 {
 
                     Type t = _host.GetType();
@@ -195,23 +260,34 @@ namespace Helpers
                         throw new ConfigurationException("Detected circularity in object graph.");
 
                     // Step #1 - identify all the properties that are marked for configuration.
-                    this.Members = CreateMemberNodes(_host, version);
+                    this.Members = CreateMemberNodes(_host, version).ToArray();
 
-                    // Step #2 - if we have a leaf, add as an attribute and return.
+                    // Step #2 - if we have a leaf, return to indicate it's a leaf.
                     if (!Members.Any())
-                    {
-                        TypeConverter converter = GetConverter(_host);
-                        string strValue = (converter.CanConvertTo(typeof(string))) ? converter.ConvertToString(_host)
-                                                                                   : _host.ToString();
-                        writer.WriteAttributeString(node.Name, strValue);
-                        return;
-                    }
+                        return true;
 
                     // Step #3 - otherwise, recursively call each member within a XML element
                     writer.WriteStartElement(node.Name);
                     foreach (var cn in Members)
-                        Private_Save(cn, cn.GetValue(_host));
+                    {
+                        object childValue = cn.GetValue(_host);
+                        if (_Save_Leaf_Or_Recursive(cn, childValue))
+                        {
+                            TypeConverter converter = cn.GetConverter(childValue);
+                            string strValue;
+                            if (converter is ConfigurationConverter configConverter)
+                            {
+                                strValue = configConverter.ConvertTo(childValue, _host);
+                            }
+                            else
+                                strValue = (converter.CanConvertTo(typeof(string))) ? converter.ConvertToString(childValue)
+                                                                                    : childValue.ToString();
+                            writer.WriteAttributeString(cn.Name, strValue);
+                        }
+                    }
+                        
                     writer.WriteEndElement();
+                    return false;
                 }
             }
 
@@ -285,11 +361,14 @@ namespace Helpers
                     else if (converter is ConfigurationConverter configurationConverter)
                     {
                         Dictionary<string, string> kvps = new Dictionary<string, string>();
-                        foreach (string xpath in _node.CodeAttribute.ConversionXPaths)
+                        if (_node.CodeAttribute.ConversionXPaths != null)
                         {
-                            if (kvps.ContainsKey(xpath))
-                                throw new ConfigurationException("Configuration converter of type " + converter.GetType() + " seeks two entries for same xpath '" + xpath + "'");
-                            kvps[xpath] = doc.SelectSingleNode(xpath).Value;
+                            foreach (string xpath in _node.CodeAttribute.ConversionXPaths)
+                            {
+                                if (kvps.ContainsKey(xpath))
+                                    throw new ConfigurationException("Configuration converter of type " + converter.GetType() + " seeks two entries for same xpath '" + xpath + "'");
+                                kvps[xpath] = doc.SelectSingleNode(xpath).Value;
+                            }
                         }
                         result = configurationConverter.ConvertFrom(_value, kvps.ToArray());
                     }
@@ -301,12 +380,24 @@ namespace Helpers
 
             public void Default(object host)
             {
-                this.Members = CreateMemberNodes(host, GetCurrentVersion());
+                if (host == null)
+                {
+                    Type rt = GetReflectionType();
+                    if (rt == typeof(string) || rt == typeof(String)) { _Value = ""; return; }
+                    throw new ConfigurationException("Cannot determine default value for null object: " + this.Name);
+                }
+                    
+                this.Members = CreateMemberNodes(host, GetCurrentVersion()).ToArray();
                 foreach (var member in this.Members)
                 {
-                    if (!member.TryGetDefault(out object childValue))
-                        childValue = member.GetValue(host);
-                    member.Default(childValue);
+                    object memberValue = member.GetValue(host);
+                    member.Default(memberValue);
+                    if (member.Members == null || member.Members.Any()) return;
+                    if (!member.TryGetDefault(out object d))
+                        throw new ConfigurationException("Failed to obtain default for " + member.Name);
+                    member._Value = d;
+                    if (member._Value == null)
+                        throw new ConfigurationException("Cannot determine default for " + member.Name);
                 }   
             }
 
@@ -315,6 +406,8 @@ namespace Helpers
                 if (this.Members == null) return;
                 foreach (var member in this.Members)
                 {
+                    if (member._Value == null && GetReflectionType().IsValueType)
+                        throw new ConfigurationException("Invalid value for member " + member.Name);
                     object newValue = member.GetValue(host);
                     if (member.ReflectionInfo is PropertyInfo pinfo)
                         pinfo.SetValue(host, newValue);
@@ -325,29 +418,27 @@ namespace Helpers
                     member.ApplyTo(newValue);
                 }
             }
+            private static bool IsStringType(Type t) => t == typeof(string) || t == typeof(String);
 
-
-            private class PassThruConverter : TypeConverter
+            private sealed class PassThruConverter : TypeConverter
             {
-                public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
-                    => sourceType == typeof(string) || sourceType == typeof(String);
-                public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
-                    => CanConvertFrom(context, destinationType);
-                public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
-                    => value;
-                public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
-                    => value;
+                public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType) => IsStringType(sourceType);
+                public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType) => IsStringType(destinationType);
+                public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value) => value;
+                public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType) => value;
             }
+            
+
             private TypeConverter GetConverter(object obj = null)
             {
-                if (obj == null && this.CodeAttribute != null && this.CodeAttribute.TypeConverter != null)
-                    return (TypeConverter)Activator.CreateInstance(this.CodeAttribute.TypeConverter);
-                else if (obj != null)
-                    return _ConverterByType(obj.GetType());
+                if (this.CodeAttribute != null && this.CodeAttribute.TypeConverter != null)
+                    return (TypeConverter)Activator.CreateInstance(this.CodeAttribute.TypeConverter);                
                 else if (this.ReflectionInfo is PropertyInfo pinfo)
                     return _ConverterByType(pinfo.PropertyType);
                 else if (this.ReflectionInfo is FieldInfo finfo)
                     return _ConverterByType(finfo.FieldType);
+                else if (obj != null)
+                    return _ConverterByType(obj.GetType());
                 else
                     throw new ConfigurationException("Exactly what kind of converter do you want?");
 
@@ -356,6 +447,7 @@ namespace Helpers
                     if (t == typeof(string) || t == typeof(String)) return new PassThruConverter();
                     if (t == typeof(int) || t == typeof(Int32)) return new Int32Converter();
                     if (t == typeof(double) || t == typeof(Double)) return new DoubleConverter();
+                    if (typeof(IEnumerable<string>).IsAssignableFrom(t)) return new Converters.ListStringsConverter();
                     throw new ConfigurationException("No converter defined for object of type " + t.Name);
                 }
             }

@@ -22,7 +22,7 @@ namespace Helpers
 
         public bool Includes(Version version) => Versions.Contains(version);
 
-        public ConfigurationAttribute(object defaultValue = null,
+        public ConfigurationAttribute(object defaultValue,
                                       string versions = ">=0.0.0.0", string key = "", 
                                       bool apply_to_subsections = true,
                                       Type typeConverter = null, params string[] conversionXPaths)
@@ -48,7 +48,7 @@ namespace Helpers
                 this.ConversionXPaths = null;
         }
 
-        public ConfigurationAttribute(string versions, string key = "",
+        public ConfigurationAttribute(string versions=">=0.0.0.0", string key = "",
                                       bool apply_to_subsections = true,
                                       Type typeConverter = null, params string[] conversionXPaths)
             : this(null, versions, key, apply_to_subsections, typeConverter, conversionXPaths)
@@ -66,7 +66,7 @@ namespace Helpers
     {
         public readonly string MemberName;
 
-        public ConfigurationDeclaredAttribute(string memberName, object defaultValue = null,  
+        public ConfigurationDeclaredAttribute(string memberName, object defaultValue,  
                                               string versions = ">=0.0.0.0", 
                                               string key = "", bool applyToSubsections=true,
                                               Type typeConverter = null, 
@@ -76,7 +76,7 @@ namespace Helpers
         {
             this.MemberName = memberName;            
         }
-        public ConfigurationDeclaredAttribute(string memberName, string versions, string key = "", bool applyToSubsections = true,
+        public ConfigurationDeclaredAttribute(string memberName, string versions = ">=0.0.0.0", string key = "", bool applyToSubsections = true,
                                               Type typeConverter = null,
                                               params string[] conversionXPaths)
             : base(versions, string.IsNullOrWhiteSpace(key) ? memberName : key, applyToSubsections, 

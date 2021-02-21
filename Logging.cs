@@ -30,6 +30,7 @@ namespace Helpers
         private static LoggingChannels _Channels = LoggingChannels.FILE | LoggingChannels.EVENT;
         public static bool OutputsToFile => (_Channels & LoggingChannels.FILE) != LoggingChannels.NONE;
         public static bool OutputsToEvent => (_Channels & LoggingChannels.EVENT) != LoggingChannels.NONE;
+        public static bool OutputsToConsole { get; set; } = true;
 
         public static string Facility { get; set; } = DEFAULT_FACILITY;
         public static bool ShowPrefix { get; set; } = true;
@@ -96,7 +97,9 @@ namespace Helpers
             if (OutputsToFile)
                 Logged?.Invoke(sender, new LogEventArgs(Facility, severity, "TODO:  Not Implemented - outputsToFile"));
             if (OutputsToEvent)
-                Logged?.Invoke(sender, new LogEventArgs(Facility, severity, message));            
+                Logged?.Invoke(sender, new LogEventArgs(Facility, severity, message));
+            if (OutputsToConsole)
+                Console.WriteLine(new LogEventArgs(Facility, severity, message));
         }
 
         /// <summary>Invoked upon receiving a logging message.  Fires after the file channel is 
@@ -118,6 +121,11 @@ namespace Helpers
             this.Facility = facility;
             this.Severity = severity;
             this.Message = message;
+        }
+
+        public override string ToString()
+        {
+            return "[" + this.Facility + "] " + this.Severity.ToString() + ": " + this.Message;
         }
     }
 }
