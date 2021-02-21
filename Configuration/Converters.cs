@@ -11,6 +11,7 @@ namespace Helpers.Converters
         public override object ConvertFrom(string str, params KeyValuePair<string, string>[] xpaths)
         {
             // The very first character is the delimiter char.
+            if (str.Length == 0) return new List<string>();
             return str.Split(new char[] { str[0] }, StringSplitOptions.RemoveEmptyEntries).ToList();
         }
         public override string ConvertTo(object original, object host)

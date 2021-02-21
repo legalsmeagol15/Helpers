@@ -42,9 +42,12 @@ namespace Helpers
             if (_Value == null && TryGetDefault(out object obj)) _Value = obj;
             return _Value;
         }
-        public Type GetReflectionType() => (ReflectionInfo is PropertyInfo pinfo) ? pinfo.PropertyType
-                                           : (ReflectionInfo is FieldInfo finfo) ? finfo.FieldType
-                                           : throw new InvalidOperationException("Where is the " + nameof(ReflectionInfo) + "?");
+        public Type GetReflectionType() {
+            if (ReflectionInfo is PropertyInfo pinfo) return pinfo.PropertyType;
+            if (ReflectionInfo is FieldInfo finfo) return finfo.FieldType;
+            throw new InvalidOperationException("Where is the " + nameof(ReflectionInfo) + "?");
+        }
+
 
 
         public bool TryGetDefault(out object @default)
@@ -175,6 +178,8 @@ namespace Helpers
                     {
                         if (!member.TryGetDefault(out object def) && (flags & ImportFlags.ThrowOnMissing) != ImportFlags.None)
                             throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": missing default for " + member.Name);
+                        else
+                            def = member.GetValue(host);
                         member._Value = def;
                     }
                     else if ((flags & ImportFlags.ThrowOnMissing) != ImportFlags.None)
@@ -241,7 +246,12 @@ namespace Helpers
                 member.Default(memberValue);
                 if (member.Members == null || member.Members.Any()) return;
                 if (!member.TryGetDefault(out object d))
-                    throw new ConfigurationException("Failed to obtain default for " + member.Name);
+                {
+                    // If we can't get default on a leaf, that's a problem.  Otherwise, it can be ignored.
+                    if (!member.Members.Any() && member.GetReflectionType().IsValueType)
+                        throw new ConfigurationException("Failed to obtain default for " + member.Name);
+                    d = member.GetValue(host);
+                }   
                 member._Value = d;
                 if (member._Value == null)
                     throw new ConfigurationException("Cannot determine default for " + member.Name);
@@ -253,7 +263,7 @@ namespace Helpers
             if (this.Members == null) return;
             foreach (var member in this.Members)
             {
-                if (member._Value == null && GetReflectionType().IsValueType)
+                if (member._Value == null && member.GetReflectionType().IsValueType)
                     throw new ConfigurationException("Invalid value for member " + member.Name);
                 object newValue = member.GetValue(host);
                 if (member.ReflectionInfo is PropertyInfo pinfo)
@@ -295,7 +305,7 @@ namespace Helpers
                 if (t == typeof(int) || t == typeof(Int32)) return new Int32Converter();
                 if (t == typeof(double) || t == typeof(Double)) return new DoubleConverter();
                 if (typeof(IEnumerable<string>).IsAssignableFrom(t)) return new Converters.ListStringsConverter();
-                throw new ConfigurationException("No converter defined for object of type " + t.Name);
+                throw new ConfigurationException("Leaf configuration objects must have converters.  No converter defined for object of type " + t.Name);
             }
         }
 

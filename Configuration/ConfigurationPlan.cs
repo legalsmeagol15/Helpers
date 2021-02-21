@@ -95,7 +95,7 @@ namespace Helpers
                 IgnoreWhitespace = true
             };
             XmlReader reader = XmlReader.Create(filename, settings);
-            return Plan(host, reader);
+            return Plan(host, reader, flags);
         }
 
         /// <summary>
