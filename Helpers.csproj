@@ -55,9 +55,11 @@
     <Compile Include="ArtificialIntelligence\ConstraintResolver.cs" />
     <Compile Include="ArtificialIntelligence\Search.cs" />
     <Compile Include="ArtificialIntelligence\TheoremResolver.cs" />
+    <Compile Include="Configuration\ConfigNode.cs" />
     <Compile Include="Configuration\Configuration.cs" />
     <Compile Include="Configuration\ConfigurationAttribute.cs" />
     <Compile Include="Configuration\ConfigurationConverter.cs" />
+    <Compile Include="Configuration\ConfigurationPlan.cs" />
     <Compile Include="Configuration\Converters.cs" />
     <Compile Include="DataStructures\Interfaces\IEdge.cs" />
     <Compile Include="DataStructures\Interfaces\IPriorityQueue.cs" />
@@ -158,6 +160,7 @@
     <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Configuration\README_CONFIGURATION.md" />
     <None Include="packages.config" />
     <None Include="README.md" />
   </ItemGroup>
