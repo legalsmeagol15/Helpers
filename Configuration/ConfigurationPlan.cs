@@ -17,6 +17,7 @@ namespace Helpers
     /// </summary>
     public sealed class ConfigurationPlan
     {
+        public Exception Exception { get; private set; } = null;
         internal readonly ImportFlags ImportFlags;
         public readonly object Host;
         public readonly Version Source;
@@ -37,7 +38,7 @@ namespace Helpers
         /// <returns>A plan that can be <see cref="ConfigurationPlan.Apply"/>'ed.</returns>
         /// <exception cref="ConfigurationException">Thrown when configuration could not be 
         /// applied successfully to the given <paramref name="host"/>.</exception>
-        public static ConfigurationPlan Plan(object host, XmlReader reader, ImportFlags flags = ImportFlags.AllErrors)
+        private static ConfigurationPlan Plan(object host, XmlReader reader, ImportFlags flags = ImportFlags.AllErrors)
         {
             XmlDocument doc = new XmlDocument();
             doc.Load(reader);
