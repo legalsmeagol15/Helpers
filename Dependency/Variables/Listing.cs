@@ -198,13 +198,7 @@ namespace Dependency.Variables
 
         #region ListingChanged members
 
-        public class ListingChangedEventArgs : EventArgs
-        {
-            public readonly DiscreteIntervalSet<int> Indices;
-            public ListingChangedEventArgs(DiscreteIntervalSet<int> indices) { this.Indices = indices; }
-        }
-
-        public delegate void ListingChangedEventHandler(object sender, ListingChangedEventArgs e);
+       
         public event ListingChangedEventHandler ListingChanged;
 
         /// <summary>Called immediately after the cached value is updated.</summary>
@@ -278,5 +272,11 @@ namespace Dependency.Variables
 
         #endregion
     }
+    public class ListingChangedEventArgs : EventArgs
+    {
+        public readonly DiscreteIntervalSet<int> Indices;
+        public ListingChangedEventArgs(DiscreteIntervalSet<int> indices) { this.Indices = indices; }
+    }
 
+    public delegate void ListingChangedEventHandler(object sender, ListingChangedEventArgs e);
 }
