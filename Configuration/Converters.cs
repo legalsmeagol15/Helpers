@@ -38,4 +38,15 @@ namespace Helpers.Converters
             return sb.ToString();
         }
     }
+
+    internal sealed class DependencyVariableConverter : Helpers.ConfigurationConverter
+    {
+        public override object ConvertFrom(string str, params KeyValuePair<string, string>[] xpaths)
+        {
+            // TODO:  how to provide context to the Parse.FromString method?
+            Dependency.IEvaluateable iev = Dependency.Parse.FromString(str);
+            return new Dependency.Variables.Variable();
+            throw new NotImplementedException();
+        }
+    }
 }
