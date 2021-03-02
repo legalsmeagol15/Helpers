@@ -15,8 +15,14 @@ namespace Dependency
 {
     public static class Parse
     {
+        private static IFunctionFactory _Factory;
+        public static void SetDefault(IFunctionFactory factory) { _Factory = factory; }
+        public static IFunctionFactory GetDefault => _Factory;
+
         public static Expression FromString(string str, IFunctionFactory functions = null, IContext rootContext = null)
         {
+            if (functions == null) functions = _Factory;
+
             //List<string> splits = new List<string>();            
             //string[] splits = _Regex.Split(str);
             MatchCollection matches = _Regex.Matches(str);
