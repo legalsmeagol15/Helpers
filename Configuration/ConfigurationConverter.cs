@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+// TODO:  this should be Helpers.Configuration
 namespace Helpers
 {
     public abstract class ConfigurationConverter : TypeConverter
@@ -26,10 +27,11 @@ namespace Helpers
         /// <summary>
         /// Converts from a string to the type of this converter.
         /// </summary>
+        /// <param name="context">Information about the current context wherein configuration is occurring.</param>
         /// <param name="str">The string to be converted from.</param>
         /// <param name="xpaths">The paths that will provide additional information from the xml 
         /// original to inform the conversion.</param>
-        public abstract object ConvertFrom(string str, params KeyValuePair<string, string>[] xpaths);
+        public abstract object ConvertFrom(ConfigurationContext context, string str);
 
         /// <summary>
         /// Converts the given object to a string.  The object's host is given to inform the conversion.

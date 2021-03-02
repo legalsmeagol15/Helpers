@@ -58,6 +58,7 @@
     <Compile Include="Configuration\ConfigNode.cs" />
     <Compile Include="Configuration\Configuration.cs" />
     <Compile Include="Configuration\ConfigurationAttribute.cs" />
+    <Compile Include="Configuration\ConfigurationContext.cs" />
     <Compile Include="Configuration\ConfigurationConverter.cs" />
     <Compile Include="Configuration\ConfigurationPlan.cs" />
     <Compile Include="Configuration\Converters.cs" />

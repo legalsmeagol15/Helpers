@@ -135,9 +135,9 @@ namespace Helpers
 
         
 
-        public void Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc, ImportFlags flags)
-            => Private_Import(xmlNode, host, sourceVersion, doc, flags);
-        private bool Private_Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc, ImportFlags flags)
+        public void Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc, ImportFlags flags, object opaque = null)
+            => Private_Import(xmlNode, host, sourceVersion, doc, flags, opaque);
+        private bool Private_Import(XmlNode xmlNode, object host, Version sourceVersion, XmlDocument doc, ImportFlags flags, object opaque)
         {
             // Returns:  true if this should be converted, false if work is done.
             if (host == null) return true;
@@ -155,6 +155,8 @@ namespace Helpers
 
             foreach (ConfigNode member in this.Members)
             {
+                member._Value = member.GetValue(host);
+
                 string name = member.Name;
                 if (member.CodeAttribute is ConfigurationDeclaredAttribute decAttr)
                     name = (decAttr.Key ?? name);
@@ -193,7 +195,7 @@ namespace Helpers
                 // recursively.  If it turns out to be a leaf ConfigNode, try to convert & 
                 // import the value.  Failing that, look for a default.  Note that GetValue() 
                 // looks for a default.
-                if (member.Private_Import(xmlChildNode, member.GetValue(host), sourceVersion, doc, flags))
+                if (member.Private_Import(xmlChildNode, member._Value, sourceVersion, doc, flags, opaque))
                 {
                     if (!_TryConvert(xmlChildNode?.Value, member, out object result))
                         throw new ConfigurationException("Cannot configure host of type " + host.GetType().Name + ": cannot convert \"" + xmlChildNode?.Value + "\" to type of " + member.Name);
@@ -222,7 +224,9 @@ namespace Helpers
                             kvps[xpath] = doc.SelectSingleNode(xpath).Value;
                         }
                     }
-                    result = configurationConverter.ConvertFrom(_value, kvps.ToArray());
+                    object preconfigured = _node._Value;
+                    ConfigurationContext context = new ConfigurationContext() { Host = host, Preconfigured = preconfigured, Opaque = opaque, XPaths = kvps };
+                    result = configurationConverter.ConvertFrom(context, _value);
                 }
                 else
                     result = converter.ConvertFromString(_value);
