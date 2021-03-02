@@ -30,9 +30,15 @@ namespace Dependency.Variables
         {
             this.Converter = converter;
         }
-        protected void RegisterChildVariable(Variable v)
+        /// <summary>
+        /// Assures that this <see cref="VariableStruct{T}"/> will update synchronously after 
+        /// changes in the values of the given child <seealso cref="Variable"/>s.
+        /// </summary>
+        /// <param name="vars"></param>
+        protected void RegisterChildVariables(params Variable[] vars)
         {
-            v.Parent = this;
+            foreach (Variable v in vars)
+                v.Parent = this;
         }
         private T _Native;
         public T Native
