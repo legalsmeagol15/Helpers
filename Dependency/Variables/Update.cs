@@ -15,6 +15,7 @@ namespace Dependency.Variables
 {
     public sealed class Update
     {
+        public static bool ActiveListeners = true;
         public static readonly ITrueSet<IEvaluateable> UniversalSet = DataStructures.Sets.TrueSet<IEvaluateable>.CreateUniversal();
 
         // Like a SQL transaction
@@ -168,10 +169,13 @@ namespace Dependency.Variables
                 if (indexedDomain == null
                     || indexedDomain.IsEmpty) { result = !target.Equals(start); break; }
 
-                // Since target was updated, enqueue its listeners and proceed.
-                if (target is IAsyncUpdater iv)
-                    foreach (var listener in iv.GetListeners())
-                        Enqueue(iv, listener, indexedDomain);
+                // Since target was updated, enqueue its listeners and proceed (but only if Active is turned on).
+                if (ActiveListeners)
+                    if (target is IAsyncUpdater iv)
+                        foreach (var listener in iv.GetListeners())
+                            Enqueue(iv, listener, indexedDomain);
+
+                // Set up for next level up.
                 updatedChild = target;
                 target = target.Parent;
                 if (target is Reference)

@@ -38,6 +38,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Numerics" />
+    <Reference Include="System.Xml" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <Choose>
@@ -70,6 +71,7 @@
     <Compile Include="Test_WeakReferenceSet.cs" />
     <Compile Include="Test_Number_Methods.cs" />
     <Compile Include="Test_Configuration.cs" />
+    <Compile Include="Test_Dependency_Serialization.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Helpers.csproj">

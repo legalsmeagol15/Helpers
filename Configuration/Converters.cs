@@ -40,15 +40,4 @@ namespace Helpers.Converters
         }
     }
 
-    internal sealed class DependencyVariableConverter : Helpers.ConfigurationConverter
-    {
-        public override object ConvertFrom(ConfigurationContext context, string str)
-        {
-            // The preconfigured object will be a Dependency Variable.  Don't replace that.  Instead, update its contents.
-            Dependency.IEvaluateable iev = Dependency.Parse.FromString(str);
-            Dependency.Variables.Variable var = (Dependency.Variables.Variable)context.Preconfigured;
-            var.Contents = iev;
-            return var;
-        }
-    }
 }

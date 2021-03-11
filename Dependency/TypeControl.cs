@@ -11,14 +11,16 @@ namespace Dependency
 {
     public enum TypeFlags
     {
-        Null = 1<<0,        
-        Integer = 1<< 1,
-        RealAny = 1 <<2 | Integer | NegativeInfinity | PositiveInfinity,
+        /// <summary>This type would be an invalid value for any function</summary>
+        None = 0,
+        Null = 1 << 0,
+        Integer = 1 << 1,
+        RealAny = 1 << 2 | Integer | NegativeInfinity | PositiveInfinity,
         String = 1 << 10,
-        Vector = 1 << 16 |  Indexable,
+        Vector = 1 << 16 | Indexable,
         Boolean = 1 << 19,
-        ComplexAny = 1<<20 | RealAny,
-        Range = 1 << 22 | Indexable,  
+        ComplexAny = 1 << 20 | RealAny,
+        Range = 1 << 22 | Indexable,
         NegativeInfinity = 1 << 23,
         PositiveInfinity = 1 << 24,
         Infinite = NegativeInfinity | PositiveInfinity,
@@ -28,12 +30,12 @@ namespace Dependency
         Error = 1 << 31,
         Any = ~0
     }
-    
+
 
     /// <summary>
     /// An object which can determine type matching, given a CLR type whose inputs are specified by the 
     /// </summary>
-    public sealed class TypeControl 
+    public sealed class TypeControl
     {
         private static readonly IDictionary<Type, TypeControl> _Catalogue = new Dictionary<Type, TypeControl>();
         public static TypeControl GetConstraints(Type type)
@@ -69,8 +71,8 @@ namespace Dependency
 
         /// <summary>
         /// Returns whether the given types match any of the constraint set.  If so, the <paramref name="bestIndex"/> 
-        /// out variable will contain the index (and <paramref name="unmatchedArg"/> will be the size of the type 
-        /// vector).  If at least one constraint matched the <paramref name="objects"/> count, then the first non-
+        /// out variable will contain the index (and <paramref name="unmatchedArg"/> will be the size of the object 
+        /// list).  If at least one constraint matched the <paramref name="objects"/> count, then the first non-
         /// matching argument index will be signalled in <paramref name="unmatchedArg"/>.  If not constraints matched 
         /// the <paramref name="objects"/> count, then both <paramref name="bestIndex"/> and 
         /// <paramref name="unmatchedArg"/> will be -1.
@@ -88,11 +90,15 @@ namespace Dependency
             unmatchedArg = -1;
             firstError = null;
 
-            if (_Constraints.Count == 0) return true;
+            if (_Constraints.Count == 0)
+            {
+                unmatchedArg = objects.Count + 1;
+                return true;
+            }
 
             // Convert the objects to controllable types.
             TypeFlags[] objTypes = new TypeFlags[objects.Count];
-            for (int  i = 0; i < objTypes.Length; i++)
+            for (int i = 0; i < objTypes.Length; i++)
             {
                 object obj = objects[i];
                 if (obj is Error err && firstError == null) firstError = err;
@@ -105,11 +111,15 @@ namespace Dependency
                 }
                 else objTypes[i] = TypeFlags.Any;
             }
-                
+
 
             // Now find a matching constraint for the object types, if one such constraint exists.
-            foreach (Constraint constraint in _Constraints)
+            int bestMatchedCount = 0;
+            for (int constraintIdx = 0; constraintIdx <= _Constraints.Count; constraintIdx++)
             {
+                Constraint constraint = _Constraints[constraintIdx];
+                int thisMatchedCount = 0;
+                int thisUnmatched = -1;
                 if (!constraint.MatchesCount(objects.Count))
                     continue;
 
@@ -118,20 +128,33 @@ namespace Dependency
                 {
                     TypeFlags allowed = constraint[objIdx]; // This will return the correct TypeFlags even if Variadic
                     TypeFlags objType = objTypes[objIdx];
-                    if ((allowed & objType) == objType)
+
+                    // Do we have a match that would fit this constraint better than other constraints?
+                    if ((allowed & objType) != TypeFlags.None)
                     {
-                        if (objIdx >= unmatchedArg) { bestIndex = constraint.Index; unmatchedArg = objIdx + 1; }
+                        if (++thisMatchedCount > bestMatchedCount)
+                        {
+                            // If this is a new best constraint, then adopt the unmatched for this obj.
+                            if (bestIndex != constraintIdx) unmatchedArg = thisUnmatched;
+                            bestIndex = constraintIdx;
+                            bestMatchedCount = thisMatchedCount;
+                        }
                     }
-                    else break;
+                    else if (thisUnmatched < 0) 
+                        thisUnmatched = objIdx;
                 }
-                
-                if (bestIndex == constraint.Index && constraint.MatchesCount(unmatchedArg)) return true;
+
+                // If we found the first perfect constraint match, return immediately.
+                if (thisMatchedCount == objects.Count)
+                    return true;
             }
+
+            // No perfect match.
             return false;
         }
 
-        
-        
+
+
         private class Constraint : IEnumerable<TypeFlags>, IComparable<Constraint>
         {
             public readonly int Index;
@@ -144,7 +167,7 @@ namespace Dependency
                 this.IsVariadic = isVariadic;
                 this._Allowed = flags;
             }
-            
+
             /// <summary>
             /// Returns whether this constraint input count matches the given count.  This will take into account 
             /// whether the <see cref="Constraint"/> is variadic.

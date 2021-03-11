@@ -35,14 +35,14 @@ namespace UnitTests
         public void Test_RoundTrip()
         {
             TestClass1 testSave = new TestClass1() { Height = 10, Width = 20 };
-            Configuration.Save(testSave, new Version(1,0,0,0));
+            Configuration.Save(testSave, new Version(1,0,0,0), "test_roundtrip.cfg");
 
             TestClass1 testLoad = new TestClass1() { Name = "changeme", Description = "changemetoo", Height = -10, Width = -20 };
             testLoad.Included = new TestClass2() { X = -50, Y = -75 };
             testLoad.NotIncluded = new TestClass2() { X = -100, Y = -200 };
 
             // Check that we can import a solution, which doesn't yet change the value.
-            var plan = Configuration.Plan(testLoad);
+            ConfigurationPlan plan = ConfigurationPlan.PlanFromFile(testLoad, "test_roundtrip.cfg");
             Assert.AreEqual(testLoad.Name, "changeme");
             Assert.AreEqual(testLoad.Description, "changemetoo");
             Assert.AreEqual(testLoad.Height, -10);

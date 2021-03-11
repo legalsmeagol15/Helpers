@@ -13,6 +13,7 @@ using System.Threading;
 using Dependency.Functions;
 using System.Diagnostics;
 using Mathematics;
+using System.Runtime.Serialization;
 
 namespace Dependency.Variables
 {
@@ -29,7 +30,9 @@ namespace Dependency.Variables
         // with the pushed value 2, and evaluate themselves accordingly.  Then listeners update with pushed value 
         // 1, and evaluate accordingly.  Listeners are now inconsistent with Variable's current value, whcih is 2.
 
-        private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null        
+        private IEvaluateable _Value = Null.Instance;  // Must be guaranteed never to be CLR null 
+        
+        [field: NonSerialized]
         internal readonly ReaderWriterLockSlim ValueLock = new ReaderWriterLockSlim(LockRecursionPolicy.SupportsRecursion);
 
         public IEvaluateable Value
@@ -85,7 +88,7 @@ namespace Dependency.Variables
         public override string ToString()
         {
             if (Contents.Equals(Value)) return "{Variable} = " + Value.ToString();
-            return "{Variable} =?= " + Contents.ToString();
+            return "{Variable "+Contents.ToString()+" } =?= " + Value.ToString();
         }
 
         public event EventHandler Updated;
@@ -100,6 +103,7 @@ namespace Dependency.Variables
         }
 
 
+        public bool DependsOn(IVariable other) => Helpers.GetDependees(this).Contains(other);
 
         #region Variable connection members
         internal virtual bool OnAddListener(ISyncUpdater isu) => Listeners.Add(isu);
@@ -125,19 +129,36 @@ namespace Dependency.Variables
         internal virtual IEvaluateable Evaluate() => _Contents.Value;
         #endregion
 
+
+        #region Variable serialization/deserialzation members
+
+
+
+        #endregion
+
     }
 
-
+    [Serializable]
     public sealed class Variable<T> : Variable, IVariable<T>
     {
         // TODO:  does this replace a Blended<T> ?
-        private T _Cache = default;
-        public Variable(T startingValue)
+        static Variable ()
         {
-            this._Converter = Dependency.Values.Converter<T>.Default;
+            if (typeof(IEvaluateable).IsAssignableFrom(typeof(T))) 
+                throw new TypeInitializationException("On " + typeof(Variable<T>).Name + ", type " + nameof(T) + " cannot implement " + nameof(IEvaluateable), null);
+        }
+
+
+        [NonSerialized]
+        private T _Cache = default;
+
+        public Variable(T startingValue = default)
+        {
+            this._Converter = GetDefaultConverter();
             this.TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
             this.Contents = this._Converter.ConvertUp(startingValue);
         }
+        private static IConverter<T> GetDefaultConverter() => Dependency.Values.Converter<T>.Default;
         public Variable(IEvaluateable contents = null, IConverter<T> converter = null)  // Don't call base.Contents(it will try to 
                                                                                         // update Value before a IConverter is ready)
         {
@@ -165,6 +186,17 @@ namespace Dependency.Variables
             else if (oldCache.Equals(_Cache)) return;
             base.OnValueChanged(); // Fires Updated event
         }
+
+        #region Variable<T> serialization/deserialization
+
+        private Variable(SerializationInfo info, StreamingContext context)
+        {
+            // Must do custom deserialization because _Converter isn't stored
+            _Converter = GetDefaultConverter();
+            OnValueChanged();
+        }
+
+        #endregion
     }
 
 

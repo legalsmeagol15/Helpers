@@ -155,6 +155,7 @@ namespace Helpers
 
             foreach (ConfigNode member in this.Members)
             {
+                // This original value may get replaced while configuring at this node.
                 member._Value = member.GetValue(host);
 
                 string name = member.Name;
