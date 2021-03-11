@@ -29,7 +29,7 @@ namespace Dependency.Functions
         }
         private Reference(IContext root, IEvaluateable path)
         {
-            this.Base = new IEvalCtxt(this, root);
+            this.Base = new IncompleteReference(this, root);
             this.Path = path;
             Helpers.SetParent(this, this.Base, false);
             Helpers.SetParent(this, this.Parent, false);
@@ -59,7 +59,7 @@ namespace Dependency.Functions
                     if (subj_ctxt is IEvaluateable already_ieval)
                         newSubject = already_ieval;
                     else 
-                        newSubject = new IEvalCtxt(this, subj_ctxt);
+                        newSubject = new IncompleteReference(this, subj_ctxt);
                 }                    
                 else if (!ctxt.TryGetProperty(q.ToString(), out newSubject))
                     newSubject = new ReferenceError(this, "Invalid reference path: " + q.ToString());
@@ -86,15 +86,15 @@ namespace Dependency.Functions
 
         public override string ToString()
         {
-            if (Base is IEvalCtxt) return "<root>." + Path.ToString() ;
+            if (Base is IncompleteReference) return "<root>." + Path.ToString() ;
             return Base.ToString() + "." + Path.ToString();
         }
 
-        private sealed class IEvalCtxt : IEvaluateable, IContext
+        private sealed class IncompleteReference : IEvaluateable, IContext, ITypeGuarantee
         {
             private readonly IContext _Root;
             private readonly Reference _Host;
-            internal IEvalCtxt(Reference host, IContext ctxt)
+            internal IncompleteReference(Reference host, IContext ctxt)
             {
                 Debug.Assert(host != null);
                 Debug.Assert(ctxt != null);
@@ -104,6 +104,8 @@ namespace Dependency.Functions
 
             IEvaluateable IEvaluateable.Value => this;
 
+            TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.None;
+
             public bool TryGetProperty(string path, out IEvaluateable property)
                 => _Root.TryGetProperty(path, out property);
 
@@ -111,7 +113,7 @@ namespace Dependency.Functions
                 => _Root.TryGetSubcontext(path, out ctxt);
 
             public override bool Equals(object obj)
-                => obj is IEvalCtxt other && other._Root.Equals(_Root) && other._Host.Equals(_Host);
+                => obj is IncompleteReference other && other._Root.Equals(_Root) && other._Host.Equals(_Host);
             public override int GetHashCode() => _Root.GetHashCode();
         }
     }

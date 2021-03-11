@@ -86,7 +86,7 @@ namespace Dependency.Functions
             else if (bestConstraint < 0)
                 newValue = new InputCountError(this, evalInputs, tc);
             else
-                newValue = new TypeMismatchError(this, evalInputs, bestConstraint, unmatchedArg, tc);
+                newValue = new TypeMismatchError(this, evalInputs, bestConstraint < 0 ? null : tc.Constraints[bestConstraint], unmatchedArg, tc);
 
             if (newValue.Equals(Value)) return null;
             Value = newValue;

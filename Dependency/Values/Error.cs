@@ -139,7 +139,7 @@ namespace Dependency
     {
 
         public readonly int InputIndex;
-        public readonly int ConstraintIndex;
+        public readonly Constraint BestMatch;
         internal readonly TypeControl TypeControl;
         internal readonly TypeFlags GivenFlags;
 
@@ -149,14 +149,15 @@ namespace Dependency
         /// </summary>
         /// <param name="complainant">The function that failed to evaluate.</param>
         /// <param name="inputs">The inputs that the function failed to evaluate.</param>
-        /// <param name="constraintIdx">The 0-based constraint index that represented the best fit (if one existed with that allowed the given number of inputs).</param>
+        /// <param name="bestMatch">The closes matching constraint.</param>
         /// <param name="inputIndex">The 0-based index of the first input whose type did not match requirements.</param>
         /// <param name="typeControl">The constraint set used to evaluate the given inputs.</param>
         /// <param name="message">The message.</param>
-        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, int constraintIdx, int inputIndex, TypeControl typeControl, string message = null)
-            : base(complainant, inputs, message)
+        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, Constraint bestMatch, int inputIndex, TypeControl typeControl, string message = null)
+            : base(complainant, inputs, bestMatch == null ? "Failed to match arguments to any constraint."
+                                             : "Failed to match argument " + inputIndex + " (" + TypeControl.TypeObject(inputs[inputIndex]).ToString() + ") to constraint expecting " + bestMatch[inputIndex].ToString())
         {
-            this.ConstraintIndex = constraintIdx;
+            this.BestMatch = bestMatch;
             this.InputIndex = inputIndex;
             this.TypeControl = typeControl;
             this.GivenFlags = (inputs[inputIndex] is ITypeGuarantee itf) ? itf.TypeGuarantee : TypeFlags.Any;
@@ -167,7 +168,7 @@ namespace Dependency
             && ReferenceEquals(Complainant, other.Complainant)
             && ListsEqual(Inputs, other.Inputs)
             && TypeControl.Equals(other.TypeControl)
-            && ConstraintIndex.Equals(other.ConstraintIndex)
+            && ReferenceEquals(BestMatch, other.BestMatch)
             && InputIndex.Equals(other.InputIndex)
             && GivenFlags == other.GivenFlags;
     }

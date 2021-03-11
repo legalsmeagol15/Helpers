@@ -31,7 +31,7 @@ namespace Dependency
         Any = ~0
     }
 
-
+    
     /// <summary>
     /// An object which can determine type matching, given a CLR type whose inputs are specified by the 
     /// </summary>
@@ -60,13 +60,31 @@ namespace Dependency
 
         /// <summary>The function with which these constraints are associated.</summary>
         public readonly Type FunctionType;
-        private readonly List<Constraint> _Constraints;
+        public readonly List<Constraint> Constraints;
 
         private TypeControl(Type functionType, List<Constraint> constraints)
         {
             this.FunctionType = functionType;
             constraints.Sort((a, b) => a.Index.CompareTo(b.Index));
-            _Constraints = constraints;
+            Constraints = constraints;
+        }
+
+        internal static TypeFlags TypeObject(object obj)
+        {
+            TypeFlags result = TypeFlags.None;
+            if (obj is IEvaluateable iev)
+            {
+                if (iev is ITypeGuarantee itg)
+                {
+                    result |= itg.TypeGuarantee;
+                    // TODO:  see if the following can be removed, or possibly if the TypeFlags can be cached per Type.
+                    if (iev is IContext) result |= TypeFlags.Context;
+                    if (iev is IIndexable) result |= TypeFlags.Indexable;
+                }
+                else result = TypeFlags.Any;
+            }
+            return result;
+
         }
 
         /// <summary>
@@ -90,7 +108,7 @@ namespace Dependency
             unmatchedArg = -1;
             firstError = null;
 
-            if (_Constraints.Count == 0)
+            if (Constraints.Count == 0)
             {
                 unmatchedArg = objects.Count + 1;
                 return true;
@@ -102,22 +120,15 @@ namespace Dependency
             {
                 object obj = objects[i];
                 if (obj is Error err && firstError == null) firstError = err;
-                if (obj is ITypeGuarantee itg)
-                {
-                    objTypes[i] = itg.TypeGuarantee;
-                    // TODO:  see if the following can be removed, or possibly if the TypeFlags can be cached per Type.
-                    if (obj is IContext) objTypes[i] |= TypeFlags.Context;
-                    if (obj is IIndexable) objTypes[i] |= TypeFlags.Indexable;
-                }
-                else objTypes[i] = TypeFlags.Any;
+                objTypes[i] = TypeObject(obj);
             }
 
 
             // Now find a matching constraint for the object types, if one such constraint exists.
             int bestMatchedCount = 0;
-            for (int constraintIdx = 0; constraintIdx <= _Constraints.Count; constraintIdx++)
+            for (int constraintIdx = 0; constraintIdx < Constraints.Count; constraintIdx++)
             {
-                Constraint constraint = _Constraints[constraintIdx];
+                Constraint constraint = Constraints[constraintIdx];
                 int thisMatchedCount = 0;
                 int thisUnmatched = -1;
                 if (!constraint.MatchesCount(objects.Count))
@@ -146,7 +157,11 @@ namespace Dependency
 
                 // If we found the first perfect constraint match, return immediately.
                 if (thisMatchedCount == objects.Count)
+                {
+                    unmatchedArg = -1;
                     return true;
+                }
+                    
             }
 
             // No perfect match.
@@ -155,7 +170,7 @@ namespace Dependency
 
 
 
-        private class Constraint : IEnumerable<TypeFlags>, IComparable<Constraint>
+        public sealed class Constraint : IEnumerable<TypeFlags>, IComparable<Constraint>
         {
             public readonly int Index;
             public readonly bool IsVariadic;
