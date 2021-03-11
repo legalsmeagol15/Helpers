@@ -18,8 +18,8 @@ namespace UnitTests
             HostContext oldContext = new HostContext();
             oldContext.Hosts.Add(new VariableHost());
             oldContext.Hosts.Add(new VariableHost());
-            var expression = Parse.FromString("var0 * 10", null, oldContext);
             oldContext.Hosts[0].Property.Contents = new Number(1);
+            var expression = Parse.FromString("var0.Property * 10", null, oldContext);
             oldContext.Hosts[1].Property.Contents = expression;
 
             // Show that the original state is as expected
@@ -76,7 +76,8 @@ namespace UnitTests
 
             bool IContext.TryGetSubcontext(string path, out IContext ctxt)
             {
-                throw new NotImplementedException();
+                ctxt = default;
+                return false;
             }
         }
     }

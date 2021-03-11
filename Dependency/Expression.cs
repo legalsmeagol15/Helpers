@@ -79,10 +79,12 @@ namespace Dependency
                 switch (focus)
                 {
                     case IReference r: yield return r; break;
-                    case IFunction f: foreach (object input in f.Inputs) stack.Push(input); break;
+                    case IFunction f: foreach (object input in f.Inputs) { stack.Push(input); }  break;
                     case IExpression e: stack.Push(e.Contents); break;
                     case IVariable v: stack.Push(v.Contents); break;
-                    default: yield break;
+                    case Number n: visited.Remove(n); break;
+                    case Dependency.String s: visited.Remove(s); break;
+                    default: throw new NotImplementedException("Implement GetReferences for " + focus.GetType().Name);
                 }
             }
         }

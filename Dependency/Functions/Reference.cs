@@ -90,7 +90,7 @@ namespace Dependency.Functions
             return Base.ToString() + "." + Path.ToString();
         }
 
-        private sealed class IncompleteReference : IEvaluateable, IContext, ITypeGuarantee
+        private sealed class IncompleteReference : IEvaluateable, IContext, ITypeGuarantee, IReference
         {
             private readonly IContext _Root;
             private readonly Reference _Host;
@@ -115,6 +115,8 @@ namespace Dependency.Functions
             public override bool Equals(object obj)
                 => obj is IncompleteReference other && other._Root.Equals(_Root) && other._Host.Equals(_Host);
             public override int GetHashCode() => _Root.GetHashCode();
+
+            IEnumerable<IEvaluateable> IReference.GetComposers() => _Root is IEvaluateable iev ? new IEvaluateable[1] { iev } : new IEvaluateable [0];
         }
     }
 }
