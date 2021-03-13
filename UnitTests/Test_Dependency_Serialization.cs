@@ -16,16 +16,16 @@ namespace UnitTests
         {
             // Set up an object to serialize
             HostContext oldContext = new HostContext();
-            oldContext.Hosts.Add(new VariableHost());
-            oldContext.Hosts.Add(new VariableHost());
-            oldContext.Hosts[0].Property.Contents = new Number(1);
+            oldContext.SomeHosts.Add(new VariableHost());
+            oldContext.SomeHosts.Add(new VariableHost());
+            oldContext.SomeHosts[0].SomeProp.Contents = new Number(1);
             var expression = Parse.FromString("var0.Property * 10", null, oldContext);
-            oldContext.Hosts[1].Property.Contents = expression;
+            oldContext.SomeHosts[1].SomeProp.Contents = expression;
 
             // Show that the original state is as expected
-            Assert.AreEqual(oldContext.Hosts[0].Property.Value, 1);
-            Assert.AreEqual(oldContext.Hosts[1].Property.Value, 10);
-            Assert.IsTrue(oldContext.Hosts[1].Property.DependsOn(oldContext.Hosts[0].Property));
+            Assert.AreEqual(oldContext.SomeHosts[0].SomeProp.Value, 1);
+            Assert.AreEqual(oldContext.SomeHosts[1].SomeProp.Value, 10);
+            Assert.IsTrue(oldContext.SomeHosts[1].SomeProp.DependsOn(oldContext.SomeHosts[0].SomeProp));
 
             BinaryFormatter bf = new BinaryFormatter(null, new System.Runtime.Serialization.StreamingContext(System.Runtime.Serialization.StreamingContextStates.All));
             MemoryStream ms = new MemoryStream(new byte[2048]);
@@ -39,7 +39,7 @@ namespace UnitTests
         [Serializable]
         private class HostContext : IContext
         {
-            public readonly List<VariableHost> Hosts = new List<VariableHost>();
+            public readonly List<VariableHost> SomeHosts = new List<VariableHost>();
             public readonly Variable<string> Name = new Variable<string>("Some name");
 
             bool IContext.TryGetProperty(string path, out IEvaluateable property)
@@ -54,7 +54,7 @@ namespace UnitTests
                 if (path.ToLower().StartsWith("var"))
                 {
                     int idx = int.Parse(path.Substring("var".Length));
-                    ctxt = Hosts[idx];
+                    ctxt = SomeHosts[idx];
                     return true;
                 }
                 ctxt = default;
@@ -64,11 +64,11 @@ namespace UnitTests
         [Serializable]
         private class VariableHost : IContext
         {
-            public readonly Variable Property = new Variable();
+            public readonly Variable SomeProp = new Variable();
 
             bool IContext.TryGetProperty(string path, out IEvaluateable property)
             {
-                if (path.ToLower() == "property") { property = Property; return true; }
+                if (path.ToLower() == "property") { property = SomeProp; return true; }
                 property = default;
                 return false;
                 

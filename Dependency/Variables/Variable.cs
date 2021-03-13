@@ -103,7 +103,7 @@ namespace Dependency.Variables
         }
 
 
-        public bool DependsOn(IVariable other) => Helpers.GetDependees(this).Contains(other);
+        public bool DependsOn(IVariable other) => Helpers.TryFindDependency(this, other, out var _);
 
         #region Variable connection members
         internal virtual bool OnAddListener(ISyncUpdater isu) => Listeners.Add(isu);

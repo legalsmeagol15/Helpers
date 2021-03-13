@@ -50,44 +50,32 @@ namespace Dependency
             }
         }
 
-        public static IEnumerable<IVariable> GetDependees(object obj)
-        {
-            HashSet<IReference> visited = new HashSet<IReference>();
-            HashSet<IVariable> returned = new HashSet<IVariable>();
-            foreach (IReference r in GetReferences(obj))
-            {
-                if (!visited.Add(r)) continue;
-                foreach (IEvaluateable c in r.GetComposers())
-                    foreach (IUpdatedVariable sub_var in GetDependees(c))
-                        if (returned.Add(sub_var))
-                            yield return sub_var;
-            }
-        }
+        //public static IEnumerable<IVariable> GetDependees(IEvaluateable obj)
+        //{
+        //    Stack<IEvaluateable> stack = new Stack<IEvaluateable>();
+        //    HashSet<IEvaluateable> visited = new HashSet<IEvaluateable>();
+        //    _Enstack_Subs(obj);
 
-        /// <summary>
-        /// Returns the collection of references below the given object.  Duplicate items are possible.
-        /// </summary>
-        internal static IEnumerable<IReference> GetReferences(object obj)
-        {
-            Stack<object> stack = new Stack<object>();
-            HashSet<object> visited = new HashSet<object>();
-            stack.Push(obj);
-            while (stack.Count > 0)
-            {
-                object focus = stack.Pop();
-                if (!visited.Add(focus)) continue;
-                switch (focus)
-                {
-                    case IReference r: yield return r; break;
-                    case IFunction f: foreach (object input in f.Inputs) { stack.Push(input); }  break;
-                    case IExpression e: stack.Push(e.Contents); break;
-                    case IVariable v: stack.Push(v.Contents); break;
-                    case Number n: visited.Remove(n); break;
-                    case Dependency.String s: visited.Remove(s); break;
-                    default: throw new NotImplementedException("Implement GetReferences for " + focus.GetType().Name);
-                }
-            }
-        }
+        //    while (stack.Count > 0)
+        //    {
+        //        IEvaluateable focus = stack.Pop();
+        //        if (focus is IVariable v) yield return v;
+        //        else _Enstack_Subs(focus);
+        //    }
+
+        //    void _Enstack_Subs(IEvaluateable iev)
+        //    {
+        //        if (!visited.Add(iev)) return;
+        //        switch (iev)
+        //        {
+        //            case IReference r: foreach (var c in r.GetComposers()) stack.Push(c); break;
+        //            case IFunction f: foreach (var i in f.Inputs) stack.Push(f); break;
+        //            case IExpression e: stack.Push(e.Contents); break;
+        //            case IVariable v: stack.Push(v.Contents); break;
+        //        }
+        //    }
+        //}
+
 
         /// <summary>
         /// Returns whether a dependency exists from the given item, upon itself.  The path returned is 

@@ -669,7 +669,6 @@ namespace UnitTests
 
 
     [ExcludeFromCodeCoverage]
-//    [DebuggerStepThrough]
     internal class TestContext : IContext, IIndexable, IEvaluateable
     {
         private readonly Dictionary<IEvaluateable, IEvaluateable> _Indices = new Dictionary<IEvaluateable, IEvaluateable>();
