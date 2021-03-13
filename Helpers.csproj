@@ -105,7 +105,6 @@
     <Compile Include="Dependency\Functions\Operators.cs" />
     <Compile Include="Dependency\Interfaces.cs" />
     <Compile Include="Dependency\Parse.cs" />
-    <Compile Include="Dependency\Properties\AssemblyInfo.cs" />
     <Compile Include="Dependency\TypeControl.cs" />
     <Compile Include="Dependency\Values\Boolean.cs" />
     <Compile Include="Dependency\Values\Complex.cs" />
