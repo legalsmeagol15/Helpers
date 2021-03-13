@@ -474,7 +474,8 @@ namespace DataStructures
             {
                 for (int i = 0; i < Forward.Length; i++)
                 {
-                    while (next != null && i >= next.Backward.Length) next = next.Forward[i - 1];
+                    if (i > 0)
+                        while (next != null && i >= next.Backward.Length) next = next.Forward[i - 1];
                     this.Forward[i] = next;
                     if (next != null) next.Backward[i] = this;
                 }
@@ -487,7 +488,8 @@ namespace DataStructures
             {
                 for (int i = 0; i < Backward.Length; i++)
                 {
-                    while (prior != null && i >= prior.Forward.Length) prior = prior.Backward[i - 1];
+                    if (i > 0)
+                        while (prior != null && i >= prior.Forward.Length) prior = prior.Backward[i - 1];
                     this.Backward[i] = prior;
                     if (prior != null) prior.Forward[i] = this;
                 }
