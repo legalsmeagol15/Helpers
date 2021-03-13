@@ -147,7 +147,11 @@ namespace Dependency
                         if (after.Contents is TokenComma) { after.Remove(); node = node.Next; continue; }
                         else if (after.Contents is TokenSemicolon ts1) { after.Remove(); node = node.Next; allLegs.Add(thisLeg); thisLeg = new List<IEvaluateable>(); continue; }
                         else if (node.Contents is Dependency.String || after.Contents is Dependency.String) continue;
-                        node.Contents = new ImpliedMultiplication() { Inputs = new IEvaluateable[] { node.Contents, after.Remove() } };
+                        else
+                        {
+                            node.Contents = new ImpliedMultiplication() { Inputs = new IEvaluateable[] { node.Contents, after.Remove() } };
+                            thisLeg.RemoveAt(thisLeg.Count - 1);
+                        }
                     }
                     if (allLegs.Count == 0)
                         return thisLeg.ToArray();

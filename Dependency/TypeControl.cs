@@ -161,6 +161,8 @@ namespace Dependency
                     unmatchedArg = -1;
                     return true;
                 }
+                else
+                    unmatchedArg = thisUnmatched;
                     
             }
 

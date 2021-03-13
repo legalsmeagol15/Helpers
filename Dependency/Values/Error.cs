@@ -150,17 +150,17 @@ namespace Dependency
         /// <param name="complainant">The function that failed to evaluate.</param>
         /// <param name="inputs">The inputs that the function failed to evaluate.</param>
         /// <param name="bestMatch">The closes matching constraint.</param>
-        /// <param name="inputIndex">The 0-based index of the first input whose type did not match requirements.</param>
+        /// <param name="unmatchedIndex">The 0-based index of the first input whose type did not match requirements.</param>
         /// <param name="typeControl">The constraint set used to evaluate the given inputs.</param>
         /// <param name="message">The message.</param>
-        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, Constraint bestMatch, int inputIndex, TypeControl typeControl, string message = null)
+        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, Constraint bestMatch, int unmatchedIndex, TypeControl typeControl, string message = null)
             : base(complainant, inputs, bestMatch == null ? "Failed to match arguments to any constraint."
-                                             : "Failed to match argument " + inputIndex + " (" + TypeControl.TypeObject(inputs[inputIndex]).ToString() + ") to constraint expecting " + bestMatch[inputIndex].ToString())
+                                             : "Failed to match argument " + unmatchedIndex + " (" + TypeControl.TypeObject(inputs[unmatchedIndex]).ToString() + ") to constraint expecting " + bestMatch[unmatchedIndex].ToString())
         {
             this.BestMatch = bestMatch;
-            this.InputIndex = inputIndex;
+            this.InputIndex = unmatchedIndex;
             this.TypeControl = typeControl;
-            this.GivenFlags = (inputs[inputIndex] is ITypeGuarantee itf) ? itf.TypeGuarantee : TypeFlags.Any;
+            this.GivenFlags = (inputs[unmatchedIndex] is ITypeGuarantee itf) ? itf.TypeGuarantee : TypeFlags.Any;
         }
         public override bool Equals(object obj)
             => obj is TypeMismatchError other
