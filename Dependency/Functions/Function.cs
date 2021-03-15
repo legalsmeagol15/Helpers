@@ -10,6 +10,7 @@ using static Dependency.TypeControl;
 
 namespace Dependency.Functions
 {
+    [Serializable]
     public abstract class Function : IFunction, ISyncUpdater
     {
         internal ISyncUpdater Parent { get; set; }
@@ -73,9 +74,7 @@ namespace Dependency.Functions
         /// </returns>
         protected ITrueSet<IEvaluateable> Update(IEvaluateable[] evalInputs, ITrueSet<IEvaluateable> indexedDomain)
         {
-            TypeControl tc;
-            if (this is ICacheValidator icv) tc = icv.TypeControl ?? (icv.TypeControl = TypeControl.GetConstraints(this.GetType()));
-            else tc = TypeControl.GetConstraints(this.GetType());
+            TypeControl tc = TypeControl.GetConstraints(this.GetType());
 
             IEvaluateable newValue;
             ITrueSet<IEvaluateable> updatedIndices = null;
@@ -86,7 +85,7 @@ namespace Dependency.Functions
             else if (bestConstraint < 0)
                 newValue = new InputCountError(this, evalInputs, tc);
             else
-                newValue = new TypeMismatchError(this, evalInputs, bestConstraint < 0 ? null : tc.Constraints[bestConstraint], unmatchedArg, tc);
+                newValue = new TypeMismatchError(this, evalInputs, bestConstraint < 0 ? null : tc.Constraints[bestConstraint], unmatchedArg);
 
             if (newValue.Equals(Value)) return null;
             Value = newValue;

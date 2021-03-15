@@ -18,7 +18,7 @@ using System.Runtime.Serialization;
 namespace Dependency.Variables
 {
     [Serializable]
-    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, IVariable
+    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, IVariable, ISerializable
     {
         // DO NOT implement IDisposable to clean up listeners.  The Variable should should clean up only when its 
         // listeners are already gone anyway.
@@ -78,7 +78,7 @@ namespace Dependency.Variables
 
         /// <summary>Sets contents without starting a new update.</summary>
         internal virtual bool CommitContents(IEvaluateable newContents) { _Contents = newContents; return true; }
-        bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => (_Contents.Equals(newContents)) ? false : CommitContents(newContents); 
+        bool IUpdatedVariable.CommitContents(IEvaluateable newContents) => _Contents.Equals(newContents) ? false : CommitContents(newContents); 
 
 
 
@@ -112,6 +112,7 @@ namespace Dependency.Variables
         bool IAsyncUpdater.AddListener(ISyncUpdater isu) => OnAddListener(isu);
         bool IAsyncUpdater.RemoveListener(ISyncUpdater isu) => OnRemoveListener(isu);
         IEnumerable<ISyncUpdater> IAsyncUpdater.GetListeners() => Listeners;
+        [NonSerialized]
         internal readonly Update.ListenerManager Listeners = new Update.ListenerManager();
 
         /// <summary>
@@ -127,19 +128,37 @@ namespace Dependency.Variables
             => OnChildUpdated(caller, updatedChild) ? Update.UniversalSet : null;
         internal virtual bool OnChildUpdated(Update caller, ISyncUpdater updatedChild) => CommitValue(Evaluate());
         internal virtual IEvaluateable Evaluate() => _Contents.Value;
+
+
         #endregion
 
 
         #region Variable serialization/deserialzation members
 
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) => GetObjectData(info, context);
+        protected void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            info.AddValue(nameof(_Contents), _Contents);
+            info.AddValue(nameof(_Value), _Value);
+            info.AddValue(nameof(Parent), Parent);
+            info.AddValue(nameof(Listeners), Listeners.ToArray());
+        }
 
+        protected Variable(SerializationInfo info, StreamingContext context) : this()
+        {
+            this._Contents = (IEvaluateable)info.GetValue(nameof(_Contents), typeof(IEvaluateable));
+            this._Value = (IEvaluateable)info.GetValue(nameof(_Value), typeof(IEvaluateable));
+            this.Parent = (ISyncUpdater)info.GetValue(nameof(Parent), typeof(ISyncUpdater));
+            foreach (ISyncUpdater listener in (ISyncUpdater[]) info.GetValue(nameof(Listeners), typeof(ISyncUpdater[])))
+                Listeners.Add(listener);
+        }
 
         #endregion
 
     }
 
     [Serializable]
-    public sealed class Variable<T> : Variable, IVariable<T>
+    public sealed class Variable<T> : Variable, IVariable<T>, ISerializable
     {
         // TODO:  does this replace a Blended<T> ?
         static Variable ()
@@ -152,20 +171,21 @@ namespace Dependency.Variables
         [NonSerialized]
         private T _Cache = default;
 
-        public Variable(T startingValue = default)
+        public Variable(T startingValue)
         {
             this._Converter = GetDefaultConverter();
             this.TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
             this.Contents = this._Converter.ConvertUp(startingValue);
         }
         private static IConverter<T> GetDefaultConverter() => Dependency.Values.Converter<T>.Default;
-        public Variable(IEvaluateable contents = null, IConverter<T> converter = null)  // Don't call base.Contents(it will try to 
-                                                                                        // update Value before a IConverter is ready)
+        public Variable(IEvaluateable contents = null)  // Don't call base.Contents(it will try to 
+                                                        // update Value before a IConverter is ready)
         {
-            this._Converter = converter ?? Dependency.Values.Converter<T>.Default;
+            this._Converter = GetDefaultConverter();
             this.TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
             this.Contents = contents ?? Null.Instance;
         }
+        [NonSerialized]
         private readonly IConverter<T> _Converter;      // This should never be null
         public readonly TypeFlags TypeGuarantee;
 
@@ -187,16 +207,23 @@ namespace Dependency.Variables
             base.OnValueChanged(); // Fires Updated event
         }
 
-        #region Variable<T> serialization/deserialization
+        #region Variable<T> serialization/deserialzation members
 
-        private Variable(SerializationInfo info, StreamingContext context)
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            // Must do custom deserialization because _Converter isn't stored
-            _Converter = GetDefaultConverter();
+            base.GetObjectData(info, context);
+            info.AddValue(nameof(TypeGuarantee), TypeGuarantee);
+        }
+
+        private Variable(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            this.TypeGuarantee = (TypeFlags)info.GetValue(nameof(TypeGuarantee), typeof(TypeFlags));
+            this._Converter = GetDefaultConverter();
             OnValueChanged();
         }
 
         #endregion
+
     }
 
 

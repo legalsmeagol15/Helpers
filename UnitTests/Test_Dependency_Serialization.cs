@@ -12,7 +12,42 @@ namespace UnitTests
     public class Test_Dependency_Serialization
     {
         [TestMethod]
-        public void TestReferences()
+        public void Test_Simple()
+        {
+            _RoundTrip(new Number(10));
+            _RoundTrip(new Dependency.String("someString"));
+            _RoundTrip(new Variable<string>("AnotherString"));
+            var p = Parse.FromString("(6*ABS(-3))", null, null);
+            _RoundTrip(new Variable(p));
+
+            void _RoundTrip(IEvaluateable before)
+            {
+                BinaryFormatter bf = new BinaryFormatter(null, new System.Runtime.Serialization.StreamingContext(System.Runtime.Serialization.StreamingContextStates.All));
+                MemoryStream ms = new MemoryStream(new byte[2048]);
+                bf.Serialize(ms, before);
+                ms.Seek(0, SeekOrigin.Begin);
+                IEvaluateable after = (IEvaluateable)bf.Deserialize(ms);
+
+                try
+                {
+                    Assert.AreEqual(before.Value, after.Value);
+                }
+                catch (AssertFailedException)
+                {
+                    if (after.Value is Error e)
+                    {
+                        // Errors are unique because they maintain a reference to their 
+                        // complainants, so of course they will not be unique.
+                        // TODO:  compare Error serialization equality.
+                    }
+                    else throw;
+                }
+                
+            }
+        }
+
+        [TestMethod]
+        public void Test_References()
         {
             // Set up an object to serialize
             HostContext oldContext = new HostContext();

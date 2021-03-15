@@ -37,6 +37,7 @@ namespace Dependency
     /// </summary>
     public sealed class TypeControl
     {
+
         private static readonly IDictionary<Type, TypeControl> _Catalogue = new Dictionary<Type, TypeControl>();
         public static TypeControl GetConstraints(Type type)
         {

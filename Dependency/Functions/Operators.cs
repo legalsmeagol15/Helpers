@@ -18,6 +18,7 @@ namespace Dependency
         internal interface IOperator { }
 
         [NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
+        [Serializable]
         internal abstract class ComparisonOperator : Function, IOperator
         {
             protected abstract bool Compare(Number a, Number b);
@@ -27,10 +28,10 @@ namespace Dependency
         }
 
         [Variadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
-        public sealed class Addition : Function, IOperator, ICacheValidator
+        [Serializable]
+        public sealed class Addition : Function, IOperator
         {
-            TypeControl ICacheValidator.TypeControl { get; set; }
-
+            
             protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
             {
                 switch (constraintIdx)
@@ -50,6 +51,7 @@ namespace Dependency
         }
 
         [Variadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
+        [Serializable]
         public sealed class And : Function, IOperator
         {
             protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
@@ -70,10 +72,9 @@ namespace Dependency
         }
 
         [NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
-        public sealed class Division : Function, IOperator, ICacheValidator
+        [Serializable]
+        public sealed class Division : Function, IOperator
         {
-            TypeControl ICacheValidator.TypeControl { get; set; }
-
             protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIndex)
             {
                 switch (constraintIndex)
@@ -88,6 +89,7 @@ namespace Dependency
             public override string ToString() => string.Join(" / ", (IEnumerable<IEvaluateable>)Inputs);
         }
 
+        [Serializable]
         public sealed class Equality : Function
         {
             protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -99,6 +101,7 @@ namespace Dependency
         }
 
         [NonVariadic(0, TypeFlags.Any)]
+        [Serializable]
         public sealed class Evaluation : Function, IOperator
         {
             protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex) => evaluatedInputs[0].Value;    // One more layer of evaluation
@@ -106,10 +109,9 @@ namespace Dependency
 
         [Variadic(0, TypeFlags.Any, TypeFlags.Any)]
         [Variadic(1, TypeFlags.Boolean, TypeFlags.Boolean)]
-        public sealed class Exponentiation : Function, IOperator, ICacheValidator
+        [Serializable]
+        public sealed class Exponentiation : Function, IOperator
         {
-            TypeControl ICacheValidator.TypeControl { get; set; }
-
             protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIndex)
             {
                 switch (constraintIndex)
@@ -131,29 +133,34 @@ namespace Dependency
             public override string ToString() => string.Join(" ^ ", (IEnumerable<IEvaluateable>)Inputs);
         }
 
+        [Serializable]
         internal sealed class GreaterThan : ComparisonOperator
         {
             protected override bool Compare(Number a, Number b) => a > b;
         }
+
+        [Serializable]
         internal sealed class GreaterThanOrEquals : ComparisonOperator
         {
             protected override bool Compare(Number a, Number b) => a >= b;
         }
-        
+
+        [Serializable]
         internal sealed class LessThan : ComparisonOperator
         {
             protected override bool Compare(Number a, Number b) => a < b;
         }
+
+        [Serializable]
         internal sealed class LessThanOrEquals : ComparisonOperator
         {
             protected override bool Compare(Number a, Number b) => a <= b;
         }
 
         [Variadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
-        public class Multiplication : Function, IOperator, ICacheValidator
+        [Serializable]
+        public class Multiplication : Function, IOperator
         {
-            TypeControl ICacheValidator.TypeControl { get; set; }
-            
             protected sealed override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
             {
                 switch (constraintIdx)
@@ -171,16 +178,16 @@ namespace Dependency
             public override string ToString() => string.Join(" * ", (IEnumerable<IEvaluateable>)Inputs);
         }
 
+        [Serializable]
         public sealed class ImpliedMultiplication  : Multiplication
         {
             public override string ToString() => string.Join("", (IEnumerable<IEvaluateable>)Inputs);
         }
         
         [NonVariadic(0, TypeFlags.RealAny)]
-        public sealed class Negation : Function, IOperator, ICacheValidator
+        [Serializable]
+        public sealed class Negation : Function, IOperator
         {
-            TypeControl ICacheValidator.TypeControl { get; set; }
-
             protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
             {
                 switch (constraintIdx)
@@ -197,6 +204,7 @@ namespace Dependency
             public override string ToString() => "-" + Inputs[0].ToString();
         }
 
+        [Serializable]
         public sealed class NotEquality : Function
         {
             protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)
@@ -208,6 +216,7 @@ namespace Dependency
         }
 
         [Variadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
+        [Serializable]
         public sealed class Or : Function, IOperator
         {
             protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
@@ -247,10 +256,9 @@ namespace Dependency
         //}
 
         [NonVariadic(0, TypeFlags.RealAny, TypeFlags.RealAny)]
-        public sealed class Subtraction : Function, IOperator, ICacheValidator
+        [Serializable]
+        public sealed class Subtraction : Function, IOperator
         {
-            TypeControl ICacheValidator.TypeControl { get; set; }
-
             protected override IEvaluateable Evaluate(IEvaluateable[] inputs, int constraintIdx)
             {
                 switch (constraintIdx)
@@ -268,6 +276,7 @@ namespace Dependency
         }
 
         [NonVariadic(0, TypeFlags.Boolean, TypeFlags.Any, TypeFlags.Any)]
+        [Serializable]
         public sealed class Ternary : Function, IOperator
         {
             protected override IEvaluateable Evaluate(IEvaluateable[] evaluatedInputs, int constraintIndex)

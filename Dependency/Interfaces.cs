@@ -33,15 +33,6 @@ namespace Dependency
     }
 
 
-    /// <summary>
-    /// A function which caches its <seealso cref="TypeControl"/> input validator may validate just a little faster 
-    /// than a function which must retrieve the validator from the cached catalogue.
-    /// </summary>
-    public interface ICacheValidator
-    {
-        TypeControl TypeControl { get; set; }
-    }
-
     public interface ICategorized
     {
         IList<string> Categories { get; }

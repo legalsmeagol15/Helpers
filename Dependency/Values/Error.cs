@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using static Dependency.TypeControl;
@@ -9,9 +10,11 @@ namespace Dependency
 {
 #pragma warning disable CS0659
     /// <summary>The base error class.  Only maintains a message.</summary>
+    /// <remarks>This is serializable because it is a valid value for an expression at any time.</remarks>
+    [Serializable]
     public abstract class Error : ILiteral, ITypeGuarantee
     {
-        public readonly string Message;
+        public string Message { get; protected set; }
         protected Error(string message) { this.Message = message; }
         IEvaluateable IEvaluateable.Value => this;
         TypeFlags ITypeGuarantee.TypeGuarantee => TypeFlags.Error;
@@ -27,25 +30,29 @@ namespace Dependency
         public override string ToString() => this.GetType().Name + "(" + Message + ")";
     }
 
+    [Serializable]
     public sealed class CircularityError : Error
     {
         internal readonly IEvaluateable Origin;
         internal readonly IEnumerable<IEvaluateable> Path;
         internal CircularityError(ISyncUpdater origin, IEnumerable<IEvaluateable> path) : base("Circular reference.") { this.Origin = origin; this.Path = path; }
-        internal CircularityError(IVariable origin, IEnumerable<IEvaluateable> path) : base("Circular reference from variable.") { this.Origin = origin; this.Path = path; }        
+        internal CircularityError(IVariable origin, IEnumerable<IEvaluateable> path) : base("Circular reference from variable.") { this.Origin = origin; this.Path = path; }
         public override bool Equals(object obj)
         {
             if (!(obj is CircularityError other)) return false;
             if (!Origin.Equals(other.Origin)) return false;
-            return Mathematics.Set.IterateEquals(Path, other.Path);            
+            return Mathematics.Set.IterateEquals(Path, other.Path);
         }
     }
+
+    [Serializable]
     public sealed class InvalidValueError : Error
     {
         public InvalidValueError(string message = null) : base(message ?? "An invalid value was created.") { }
     }
 
-    public class NotAContextError : Error
+    [Serializable]
+    public sealed class NotAContextError : Error
     {
         public readonly object Origin;
         public readonly string[] Steps;
@@ -66,13 +73,17 @@ namespace Dependency
             return true;
         }
     }
-    public class NotAVariableError : Error
+
+    [Serializable]
+    public sealed class NotAVariableError : Error
     {
         public readonly object Origin;
         public readonly string[] Steps;
         internal NotAVariableError(object origin, string[] steps) : base("Give path references a non-variable dynamic object.") { this.Origin = origin; this.Steps = steps; }
         public override bool Equals(object obj) => obj is NotAVariableError other && NotAContextError.StepsEqual(Origin, Steps, other.Origin, other.Steps);
     }
+
+    [Serializable]
     public class ReferenceError : Error
     {
         public readonly IReference Complainant;
@@ -86,6 +97,7 @@ namespace Dependency
         }
     }
 
+    [Serializable]
     public sealed class IndexingError : ReferenceError
     {
         public IndexingError(IReference complainant, string message) : base(complainant, message) { }
@@ -93,12 +105,13 @@ namespace Dependency
             => obj is IndexingError && base.Equals(obj);
     }
 
+    [Serializable]
     public class EvaluationError : Error
     {
-        // public readonly string Message;
-        public readonly object Complainant;
-        public readonly IList<IEvaluateable> Inputs;
+        public object Complainant { get; protected set; }
+        public IList<IEvaluateable> Inputs { get; protected set; }
 
+        protected EvaluationError() : base("For serialization purposes only") { }
         public EvaluationError(object complainant, IList<IEvaluateable> inputs, string message = null)
             : base(message ?? "Failed to evaluate inputs on " + complainant.GetType().Name + ".")
         {
@@ -112,9 +125,10 @@ namespace Dependency
             && ListsEqual(Inputs, other.Inputs);
     }
 
-    public class ConversionError : Error
+    [Serializable]
+    public sealed class ConversionError : Error
     {
-        public ConversionError(IEvaluateable from, Type @to, string message = null) 
+        public ConversionError(IEvaluateable from, Type @to, string message = null)
             : base(message ?? "Cannot convertion " + from.ToString() + " to " + to.Name) { }
     }
     public sealed class InputCountError : EvaluationError
@@ -135,12 +149,12 @@ namespace Dependency
 
     }
 
-    public sealed class TypeMismatchError : EvaluationError
+    [Serializable]
+    public sealed class TypeMismatchError : EvaluationError, ISerializationEquality, System.Runtime.Serialization.ISerializable
     {
 
         public readonly int InputIndex;
         public readonly Constraint BestMatch;
-        internal readonly TypeControl TypeControl;
         internal readonly TypeFlags GivenFlags;
 
         /// <summary>
@@ -151,32 +165,64 @@ namespace Dependency
         /// <param name="inputs">The inputs that the function failed to evaluate.</param>
         /// <param name="bestMatch">The closes matching constraint.</param>
         /// <param name="unmatchedIndex">The 0-based index of the first input whose type did not match requirements.</param>
-        /// <param name="typeControl">The constraint set used to evaluate the given inputs.</param>
-        /// <param name="message">The message.</param>
-        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, Constraint bestMatch, int unmatchedIndex, TypeControl typeControl, string message = null)
-            : base(complainant, inputs, bestMatch == null ? "Failed to match arguments to any constraint."
-                                             : "Failed to match argument " + unmatchedIndex + " (" + TypeControl.TypeObject(inputs[unmatchedIndex]).ToString() + ") to constraint expecting " + bestMatch[unmatchedIndex].ToString())
+        internal TypeMismatchError(object complainant, IList<IEvaluateable> inputs, Constraint bestMatch, int unmatchedIndex)
+            : base(complainant, inputs, ComposeMessage(unmatchedIndex, TypeControl.TypeObject(inputs[unmatchedIndex]), bestMatch))
         {
             this.BestMatch = bestMatch;
             this.InputIndex = unmatchedIndex;
-            this.TypeControl = typeControl;
             this.GivenFlags = (inputs[unmatchedIndex] is ITypeGuarantee itf) ? itf.TypeGuarantee : TypeFlags.Any;
+        }
+        private static string ComposeMessage(int unmatchedIndex, TypeFlags existing, Constraint constraint)
+        {
+            if (constraint == null) return "Failed to match arguments to any constraint.";
+            return "Failed to match argument " + unmatchedIndex + " (" + existing.ToString() + ") to expected " + constraint[unmatchedIndex].ToString();
         }
         public override bool Equals(object obj)
             => obj is TypeMismatchError other
             && Message.Equals(other.Message)
             && ReferenceEquals(Complainant, other.Complainant)
             && ListsEqual(Inputs, other.Inputs)
-            && TypeControl.Equals(other.TypeControl)
             && ReferenceEquals(BestMatch, other.BestMatch)
             && InputIndex.Equals(other.InputIndex)
             && GivenFlags == other.GivenFlags;
+
+        /// <summary>
+        /// This must serialize if we hope to store the non-serializable Constraint.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            info.AddValue(nameof(InputIndex), InputIndex);
+            info.AddValue(nameof(GivenFlags), GivenFlags);
+            info.AddValue(nameof(Complainant), Complainant);    // Is this also stored by the base class?
+            info.AddValue(nameof(Inputs), Inputs);
+
+            TypeControl tc = TypeControl.GetConstraints(Complainant.GetType());
+            int constraintIdx = tc.Constraints.IndexOf(BestMatch);
+            if (constraintIdx < 0)
+                throw new SerializationException("Cannot identify constraint for type " + Complainant.GetType().Name);
+            info.AddValue(nameof(BestMatch), constraintIdx);
+        }
+
+        private TypeMismatchError(SerializationInfo info, StreamingContext context) 
+        {
+            this.InputIndex = info.GetInt32(nameof(InputIndex));
+            this.GivenFlags = (TypeFlags)info.GetValue(nameof(GivenFlags), typeof(TypeFlags));
+            this.Complainant = info.GetValue(nameof(Complainant), typeof(object));
+            this.Inputs = (IList<IEvaluateable>)info.GetValue(nameof(Inputs), typeof(IList<IEvaluateable>));
+            int constraintIdx = info.GetInt32(nameof(BestMatch));
+            TypeControl tc = TypeControl.GetConstraints(Complainant.GetType());  // Will this be null?  Yes
+            this.BestMatch = tc.Constraints[constraintIdx];
+            this.Message = ComposeMessage(InputIndex, TypeControl.TypeObject(this.Inputs[this.InputIndex]) , this.BestMatch);
+        }
     }
 
+    [Serializable]
     public sealed class RangeError : Error
     {
         public readonly Dependency.Values.Range Range;
-        public RangeError(Dependency.Values.Range complainant, string message) : base(message ) { this.Range = complainant; }
+        public RangeError(Dependency.Values.Range complainant, string message) : base(message) { this.Range = complainant; }
     }
 #pragma warning restore CS0659
 

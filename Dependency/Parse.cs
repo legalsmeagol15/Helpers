@@ -842,6 +842,7 @@ namespace Dependency
         /// <summary>
         /// A parenthetical clause.  Any operation or literal is the valid <seealso cref="Parenthetical.Contents"/> of a 
         /// <see cref="Parenthetical"/>.</summary>
+        [Serializable]
         internal sealed class Parenthetical : IExpression, ISyncUpdater
         {
             public ISyncUpdater Parent { get; set; }

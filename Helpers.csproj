@@ -127,6 +127,7 @@
     <Compile Include="Enums.cs" />
     <Compile Include="Events.cs" />
     <Compile Include="FromString.cs" />
+    <Compile Include="ISerializationEquality.cs" />
     <Compile Include="Logging.cs" />
     <Compile Include="Mathematics\Geometry\Rect.cs" />
     <Compile Include="Mathematics\ITrueSet.cs" />
