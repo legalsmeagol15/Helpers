@@ -150,7 +150,7 @@ namespace Dependency
     }
 
     [Serializable]
-    public sealed class TypeMismatchError : EvaluationError, ISerializationEquality, System.Runtime.Serialization.ISerializable
+    public sealed class TypeMismatchError : EvaluationError, ISerializable
     {
 
         public readonly int InputIndex;

@@ -34,11 +34,14 @@ namespace UnitTests
                 }
                 catch (AssertFailedException)
                 {
-                    if (after.Value is Error e)
+                    if (after.Value is Error e_after && before.Value is Error e_before)
                     {
                         // Errors are unique because they maintain a reference to their 
                         // complainants, so of course they will not be unique.
                         // TODO:  compare Error serialization equality.
+                        Assert.AreEqual(e_before.GetType(), e_after.GetType());
+                        Assert.AreEqual(e_before.Message, e_after.Message);
+                        
                     }
                     else throw;
                 }
