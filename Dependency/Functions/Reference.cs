@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 namespace Dependency.Functions
 {
 
+    [Serializable]
     internal sealed class Reference : IReference, ISyncUpdater
     {
         public readonly IEvaluateable Base;
@@ -90,6 +91,7 @@ namespace Dependency.Functions
             return Base.ToString() + "." + Path.ToString();
         }
 
+        [Serializable]
         private sealed class IncompleteReference : IEvaluateable, IContext, ITypeGuarantee, IReference
         {
             private readonly IContext _Root;

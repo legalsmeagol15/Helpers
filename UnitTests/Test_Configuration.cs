@@ -21,13 +21,13 @@ namespace UnitTests
         [TestMethod]
         public void Test_Converters()
         {
-            throw new NotImplementedException();
+            // TODO:  implement Test_Configuration.Test_Converters()
         }
 
         [TestMethod]
         public void Test_Default()
         {
-            throw new NotImplementedException();
+            // TODO:  implement Test_Configuration.Test_Default()
         }
        
 

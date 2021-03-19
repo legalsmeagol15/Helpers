@@ -37,8 +37,9 @@ namespace UnitTests
                     if (after.Value is Error e_after && before.Value is Error e_before)
                     {
                         // Errors are unique because they maintain a reference to their 
-                        // complainants, so of course they will not be unique.
-                        // TODO:  compare Error serialization equality.
+                        // complainants.  Since the complainant is deserialized too, of course 
+                        // the new Error's complainant will not be equal to the old Error's 
+                        // complainant.
                         Assert.AreEqual(e_before.GetType(), e_after.GetType());
                         Assert.AreEqual(e_before.Message, e_after.Message);
                         
@@ -66,12 +67,14 @@ namespace UnitTests
             Assert.IsTrue(oldContext.SomeHosts[1].SomeProp.DependsOn(oldContext.SomeHosts[0].SomeProp));
 
             BinaryFormatter bf = new BinaryFormatter(null, new System.Runtime.Serialization.StreamingContext(System.Runtime.Serialization.StreamingContextStates.All));
-            MemoryStream ms = new MemoryStream(new byte[2048]);
+            MemoryStream ms = new MemoryStream(new byte[1<<13]);
             bf.Serialize(ms, oldContext);
             ms.Seek(0, SeekOrigin.Begin);
             HostContext newContext = (HostContext)bf.Deserialize(ms);
 
-
+            Assert.AreEqual(oldContext.SomeHosts.Count, newContext.SomeHosts.Count);
+            Assert.AreEqual(oldContext.SomeHosts[0].SomeProp.Value, newContext.SomeHosts[0].SomeProp.Value);
+            Assert.AreEqual(oldContext.SomeHosts[1].SomeProp.Value, newContext.SomeHosts[1].SomeProp.Value);
         }
 
         [Serializable]
