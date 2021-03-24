@@ -15,7 +15,7 @@ namespace Helpers
 
         /// <summary>
         /// When configuration is occurring, this is the original pre-configuration value on the host.  It will be replaced by the 
-        /// return value of the <seealso cref="ConfigurationConverter.ConvertFrom(ConfigurationContext, string, KeyValuePair{string, string}[])"/>
+        /// return value of the <seealso cref="ConfigurationConverter.ConvertFrom(ConfigurationContext, string)"/>
         /// call.
         /// </summary>
         public object Preconfigured { get; internal set; }

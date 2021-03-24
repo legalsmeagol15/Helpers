@@ -29,8 +29,6 @@ namespace Helpers
         /// </summary>
         /// <param name="context">Information about the current context wherein configuration is occurring.</param>
         /// <param name="str">The string to be converted from.</param>
-        /// <param name="xpaths">The paths that will provide additional information from the xml 
-        /// original to inform the conversion.</param>
         public abstract object ConvertFrom(ConfigurationContext context, string str);
 
         /// <summary>

@@ -29,7 +29,11 @@ namespace Dependency.Variables
         private static long _Updating = 0;
         public static long Updating => Interlocked.Read(ref _Updating);
 
+        public static event EventHandler Settled;
+        internal static int MaxConcurrentExecutions = Environment.ProcessorCount * 2;
+        internal static Semaphore SettledSignal = new Semaphore(MaxConcurrentExecutions, MaxConcurrentExecutions);
 
+        
         private Update(IVariable var, IEvaluateable newContents, IEnumerable<IEvaluateable> indices)
         {
             this.Starter = var ?? throw new ArgumentNullException(nameof(var));
@@ -37,6 +41,73 @@ namespace Dependency.Variables
             else if (newContents is Expression exp) newContents = exp.Contents;
             this.NewContents = newContents;
             this.Indices = indices;
+        }
+
+        private readonly static object _PauseObject = new object();
+        
+        public static bool IsPaused { get; private set; } = false;
+
+        /// <summary>
+        /// Blocks until all updates are settled, then returns.
+        /// </summary>
+        /// <param name="maxDelay">Optional.  The maximum amount of time to wait for updates to 
+        /// settle, in milliseconds.  If omitted, wait will be indefinite.</param>
+        /// <param name="pause">Optional.  Whether to leave the updates paused after exiting this 
+        /// method.  While paused, calls to <seealso cref="Execute"/> will block.  Default is 
+        /// false.</param>
+        /// <returns>Returns whether the pause was successful.  A pause may fail if another thread 
+        /// has caused updates to pause, or if forcing the pause causes too long a delay.</returns>
+        public static bool Settle(int maxDelay = -1, bool pause = false)
+        {
+            
+            if (!Monitor.TryEnter(_PauseObject)) return false;
+            if (IsPaused) return false;
+
+            TimeSpan remainingDelay = (maxDelay < 0) ? TimeSpan.MaxValue : new TimeSpan(0, 0, 0, 0, maxDelay);
+
+            int held = 0;
+            try
+            {
+                TimeSpan loopDelay = new TimeSpan(0, 0, 0, 0, (int)Math.Min(100, remainingDelay.TotalMilliseconds / 100));
+
+                DateTime start = DateTime.Now;
+                DateTime giveupTime = DateTime.Now + remainingDelay;
+
+                // Must hold all the semaphore accesses.
+                DateTime now;
+                while (held < MaxConcurrentExecutions && (now = DateTime.Now) < giveupTime)
+                {
+                    TimeSpan thisLoop = (now + loopDelay > giveupTime) ? (now - giveupTime) : loopDelay;
+                    if (!SettledSignal.WaitOne(thisLoop))
+                        return false;
+                    held++;
+                }
+                if (pause) IsPaused = true;
+
+                // Finish up any updates currenly being processed.  (TODO:  the time delay could expire while this is running.  Must take care of that).
+                if (!Finish((int)(giveupTime - DateTime.Now).TotalMilliseconds))
+                    return false;
+                return true;
+            }
+            finally
+            {   
+                if (!pause && !IsPaused)
+                    SettledSignal.Release(held);
+                Monitor.Exit(_PauseObject);
+            }
+        }
+        /// <summary>
+        /// Resumes update operations after having been paused by the <seealso cref="Settle(int, bool)"/> 
+        /// method.  Threads which are blocked on the <seealso cref="Execute"/> method will resume 
+        /// automatically.
+        /// </summary>
+        public static void Unpause()
+        {
+            lock (_PauseObject)
+            {
+                if (!IsPaused) return;
+                SettledSignal.Release(MaxConcurrentExecutions);
+            }
         }
 
         /// <summary>Creates an updating transaction for the given <seealso cref="Variable"/>.</summary>
@@ -67,6 +138,10 @@ namespace Dependency.Variables
         /// <returns>Returns whether any change is made to the value of the <seealso cref="Update.Starter"/>.</returns>
         public bool Start(bool checkCircularity = true)
         {
+            if (!SettledSignal.WaitOne(1000000))
+                // TODO:  this indicates some kind of deadlock in the dependency update process.
+                throw new InvalidOperationException("Waited too long to process update.");
+
             try
             {
                 StructureLock.EnterUpgradeableReadLock();
@@ -108,7 +183,11 @@ namespace Dependency.Variables
                 // The value must have changed.  If Starter updates synchronously,  get the synchronous update 
                 // started.
                 if (Starter is ISyncUpdater isu)
+                {
+                    Interlocked.Increment(ref _Updating);
                     _Execute(isu, isu.Parent, UniversalSet);
+                }
+                    
 
                 // Finally, if Starter updates asynchronously, kick off the asynchronous update.
                 if (Starter is IAsyncUpdater iau)
@@ -127,15 +206,18 @@ namespace Dependency.Variables
         /// <summary>
         /// Force all updates on the queue to finish.
         /// </summary>
-        public static void Finish()
+        public static bool Finish(int maxTime = -1)
         {
             // Force all the tasks to finish.  StructureLock should not be held.
+            DateTime giveupTime = maxTime < 0 ? DateTime.MaxValue : DateTime.Now + new TimeSpan(0, 0, 0, 0, maxTime);
             while (_Tasks.TryDequeue(out Task t))
             {
                 t.Wait();
                 if (t.Exception != null)
                     throw new Exception("TODO:  a meaningful  message", t.Exception);
+                if (DateTime.Now > giveupTime) return false;
             }
+            return true;
         }
 
         internal void Enqueue(IAsyncUpdater source, ISyncUpdater listener, ITrueSet<IEvaluateable> indices) // TODO:  this should be done within the StructureLock read lock?
@@ -182,7 +264,12 @@ namespace Dependency.Variables
                     throw new InvalidOperationException("A " + nameof(Reference) + " is not permitted to be a parent.");
             }
 
-            Interlocked.Decrement(ref _Updating);
+            if (Interlocked.Decrement(ref _Updating) == 0L)
+            {
+                SettledSignal.Release();
+                Settled?.Invoke(this, new EventArgs());
+            }
+                
             return result;
         }
 

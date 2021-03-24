@@ -18,7 +18,7 @@ using System.Runtime.Serialization;
 namespace Dependency.Variables
 {
     [Serializable]
-    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, IVariable, ISerializable
+    public class Variable : IAsyncUpdater, ISyncUpdater, IUpdatedVariable, IVariable, ISerializedVariable
     {
         // DO NOT implement IDisposable to clean up listeners.  The Variable should should clean up only when its 
         // listeners are already gone anyway.
@@ -135,8 +135,9 @@ namespace Dependency.Variables
 
         #region Variable serialization/deserialzation members
 
-        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) => GetObjectData(info, context);
-        protected void GetObjectData(SerializationInfo info, StreamingContext context)
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) => Serialization.GetObjectData(this, info, context);
+        void ISerializedVariable.GetObjectData(SerializationInfo info, ISerializationManager manager) => GetObjectData(info, manager);
+        protected virtual void GetObjectData(SerializationInfo info, ISerializationManager manager)
         {
             info.AddValue(nameof(_Contents), _Contents);
             info.AddValue(nameof(_Value), _Value);
@@ -158,21 +159,17 @@ namespace Dependency.Variables
     }
 
     [Serializable]
-    public sealed class Variable<T> : Variable, IVariable<T>, ISerializable
-    {
-        // TODO:  does this replace a Blended<T> ?
-        static Variable ()
-        {
-            if (typeof(IEvaluateable).IsAssignableFrom(typeof(T))) 
-                throw new TypeInitializationException("On " + typeof(Variable<T>).Name + ", type " + nameof(T) + " cannot implement " + nameof(IEvaluateable), null);
-        }
-
+    public sealed class Variable<T> : Variable, IVariable<T>
+    {   
 
         [NonSerialized]
         private T _Cache = default;
 
         public Variable(T startingValue)
         {
+            if (typeof(IEvaluateable).IsAssignableFrom(typeof(T)))
+                throw new TypeInitializationException("On " + typeof(Variable<T>).Name + ", type " + nameof(T) + " cannot implement " + nameof(IEvaluateable) + ". Use standard " + nameof(Variable) + " for type " + typeof(T).Name + " instead.", null);
+
             this._Converter = GetDefaultConverter();
             this.TypeGuarantee = (this._Converter is ITypeGuarantee itg) ? itg.TypeGuarantee : TypeFlags.Any;
             this.Contents = this._Converter.ConvertUp(startingValue);
@@ -209,10 +206,10 @@ namespace Dependency.Variables
 
         #region Variable<T> serialization/deserialzation members
 
-        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        protected override void GetObjectData(SerializationInfo info, ISerializationManager manager)
         {
-            base.GetObjectData(info, context);
-            info.AddValue(nameof(TypeGuarantee), TypeGuarantee);
+            base.GetObjectData(info, manager);
+            info.AddValue(nameof(TypeGuarantee), TypeGuarantee); 
         }
 
         private Variable(SerializationInfo info, StreamingContext context) : base(info, context)
