@@ -151,7 +151,7 @@ namespace DataStructures
                 return true;
             }
 
-            Node priorOrEqual = GetPriorOrEqual(item), result;
+            Node priorOrEqual = _GetPriorOrEqual(item), result;
             int maxHeight = GetMaxHeight(Count + 1);
             //Case #1 - adding a new head.
             if (priorOrEqual == null)
@@ -246,7 +246,7 @@ namespace DataStructures
         {
             //Does the item exist here?
             if (Count == 0) return false;
-            Node toRemove = GetPriorOrEqual(item);
+            Node toRemove = _GetPriorOrEqual(item);
             if (toRemove == null) return false;
             if (Comparer.Compare(toRemove.Data, item) != 0) return false;
 
@@ -559,7 +559,7 @@ namespace DataStructures
         /// </summary>
         private Node GetNode(T item)
         {
-            Node focus = GetPriorOrEqual(item);
+            Node focus = _GetPriorOrEqual(item);
             if (focus == null) return null;
             return (Comparer.Compare(focus.Data, item) == 0) ? focus : null;
         }
@@ -571,7 +571,7 @@ namespace DataStructures
         /// <remarks>Depending on how many items must be skipped as the prior-or-equal is sought, this method ranged between an O(1) operation 
         /// or an O(n) operation depending on the distribution of random heights of the nodes, but the most common case will approach an 
         /// O(log n) operation.</remarks>
-        private Node GetPriorOrEqual(T item)
+        private Node _GetPriorOrEqual(T item)
         {
             if (Head == null) return null;
             if (Comparer.Compare(item, Head.Data) < 0) return null;
@@ -588,6 +588,8 @@ namespace DataStructures
             }
             return focus;
         }
+        public Node GetPriorOrEqual(T item) => _GetPriorOrEqual(item);
+        
         /// <summary>
         /// Attempts to find the item that occurs in the Skip List immediately before the given item.  If no such item exists, returns 
         /// false, and the return 'out' variable will be equal to the default for type T.  Otherwise, returns true, and the 'out' variable 
@@ -595,7 +597,7 @@ namespace DataStructures
         /// </summary>
         public bool TryGetBefore(T item, out T before)
         {   
-            Node prior = GetPriorOrEqual(item);
+            Node prior = _GetPriorOrEqual(item);
             if (prior == null)
             {
                 before = default(T);
@@ -618,7 +620,7 @@ namespace DataStructures
         /// <summary>Returns the contents immediately before the given item, or equal to the given item.</summary>
         public bool TryGetBeforeOrEqual(T item, out T contents)
         {
-            Node n = GetPriorOrEqual(item);
+            Node n = _GetPriorOrEqual(item);
             if (n == null) { contents = default(T); return false; }
             contents = n.Data;
             return true;
