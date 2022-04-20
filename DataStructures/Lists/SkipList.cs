@@ -588,7 +588,7 @@ namespace DataStructures
             }
             return focus;
         }
-        public Node GetPriorOrEqual(T item) => _GetPriorOrEqual(item);
+        public T GetPriorOrEqual(T item) => _GetPriorOrEqual(item).Data;
         
         /// <summary>
         /// Attempts to find the item that occurs in the Skip List immediately before the given item.  If no such item exists, returns 
