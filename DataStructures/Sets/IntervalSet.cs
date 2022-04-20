@@ -575,6 +575,8 @@ namespace DataStructures
         protected static Func<T, T> GetPrevious =
             (item) => throw new NotImplementedException("No static GetPrevious() has been set.");
 
+        
+
         /// <summary>
         /// All inflections in a <see cref="DiscreteIntervalSet{T}"/> should have Include == true.  This method looks for 
         /// some pathological conditions and increments inflections (up or down, as appropriate) to have only 
@@ -751,6 +753,32 @@ namespace DataStructures
         public Int32IntervalSet(params int[] items) : base(items) { }
         /// <summary>Creates a new <see cref="Int32IntervalSet"/> containing the given items.</summary>
         public Int32IntervalSet(IEnumerable<int> items = null) : base(items) { }
+
+        public static Int32IntervalSet NaturalNumbers() => new Int32IntervalSet(Inflection.Compose(1, false, true, true));
+        public static Int32IntervalSet WholeNumbers() => new Int32IntervalSet(Inflection.Compose(0, false, true, true));
+
+        public IEnumerable<Tuple<int, int>> GetIntervals()
+        {
+            if (this.Inflections.Length == 0)
+                yield break;
+            int i = 1;
+            var inf = this.Inflections[0];
+            if (inf.IsEnd)
+            {
+                yield return new Tuple<int, int>(int.MinValue, inf.Point);
+                i = 2;
+            }
+            while (i < this.Inflections.Length)
+            {
+                Inflection infStart = this.Inflections[i - 1], infEnd = this.Inflections[i];
+                yield return new Tuple<int, int>(infStart.Point, infEnd.Point);
+                i++;
+            }
+            if (i == this.Inflections.Length)
+            {
+                yield return new Tuple<int, int>(this.Inflections[i - 1].Point, int.MaxValue);
+            }
+        }
 
 #pragma warning disable 1591
         public static Int32IntervalSet operator +(Int32IntervalSet a, DiscreteIntervalSet<int> b) => a | b;
