@@ -736,7 +736,7 @@ namespace DataStructures
     /// <summary>An discrete interval set whose contents are standard 4-byte <see cref="int"/>s.</summary>
     public sealed class Int32IntervalSet : DiscreteIntervalSet<int>
     {
-        public static readonly Int32IntervalSet Infinite = new Int32IntervalSet(Inflection.Universal);
+
 
         [DebuggerStepThrough]
         static Int32IntervalSet()
@@ -754,9 +754,36 @@ namespace DataStructures
         /// <summary>Creates a new <see cref="Int32IntervalSet"/> containing the given items.</summary>
         public Int32IntervalSet(IEnumerable<int> items = null) : base(items) { }
 
+        public static Int32IntervalSet Infinite() => new Int32IntervalSet(Inflection.Universal);
         public static Int32IntervalSet NaturalNumbers() => new Int32IntervalSet(Inflection.Compose(1, false, true, true));
         public static Int32IntervalSet WholeNumbers() => new Int32IntervalSet(Inflection.Compose(0, false, true, true));
 
+        /// <summary>Returns the first item where the given span exists in this set.</summary>
+        /// <exception cref="IndexOutOfRangeException">Thrown if no items exist in this set.</exception>
+        public int First(int span = 1)
+        {
+            if (Inflections.Length == 0) throw new IndexOutOfRangeException("No values on this interval set.");
+            Inflection inf = Inflections[1];
+            int startInf = 0;
+            if (inf.IsEnd && (inf.Point >= int.MinValue + span + (inf.IsIncluded ? 0 : 1)))
+                return int.MinValue;
+            else
+                startInf = 1; 
+            if (inf.IsIncluded) return inf.Point;
+            if (!inf.IsSingleton) return inf.Point + 1;
+
+            for (int i = startInf; i < Inflections.Length; i += 2)
+            {
+                Inflection start = Inflections[i], end = Inflections[i + 1];
+                int accounted = (start.IsIncluded ? 1 : 0) + (end.IsIncluded ? 1 : 0);
+                accounted += end.Point - start.Point;
+                if (accounted >= span)
+                    return start.IsIncluded ? start.Point : start.Point + 1;
+            }
+
+            // Is this really possible?
+            throw new IndexOutOfRangeException("This interval set is an empty set.");
+        }
         public IEnumerable<Tuple<int, int>> GetIntervals()
         {
             if (this.Inflections.Length == 0)
