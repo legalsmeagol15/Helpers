@@ -2,9 +2,9 @@
 **- by Wesley Oates**
 
 This project is designed to include some useful helpers solving commonly-encountered problems, like implementing 
-parsing of command-line argument strings or graph searches.  Feel free to copy, modify, re-use, or flame to your 
-heart's content, though please do so with attribution.  I reserve the right to crib from any cool ideas that are 
-implemented based on this code which extend its purposes, as I improve upon it over time.
+parsing of command-line argument strings or graph searches.  Feel free to copy, modify, re-use, or flame the code in 
+this repo to your heart's content, though please do so with attribution.  I reserve the right to crib from any cool 
+ideas that are implemented based on this code which extend its purposes, as I improve upon it over time.
 
 Some  highlights:
 
